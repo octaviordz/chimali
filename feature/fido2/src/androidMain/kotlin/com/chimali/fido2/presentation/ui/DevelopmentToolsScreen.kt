@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -799,10 +798,8 @@ private object BiometricHelper {
                 .Builder()
                 .setTitle(title)
                 .setDescription(description)
-                .setAllowedAuthenticators(
-                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-                ).build(),
+                .allowFidoUserVerification()
+                .build(),
         )
     }
 }

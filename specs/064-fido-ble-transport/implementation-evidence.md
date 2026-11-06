@@ -2,7 +2,7 @@
 
 **Feature**: [spec.md](spec.md) | **Branch**: `064-bluetooth-transport-selection`  
 **Parent Coordination**: [integration.md](../064-bluetooth-transport-selection/integration.md)  
-**Status**: BLE software implementation and parent-gated composition are present. Ordinary local CI without coverage most recently passed before the runtime-error retry update (Record 068). After the recovery and UI updates, the full FIDO2 host suite passed 1,133/1,133, `Fido2HomeViewModelTest` passed 2/2, the dashboard UI class passed 6/6 on each phone, and feature KtLint passed (Records 071–072). The latest configured host/device run passed parent `ProcessTransportSelectionTest` 15/15, settings instrumentation 12/12 on each phone, and BLE GATT security 4/4 per device. The original full FIDO2 suites were 50/55 on ASUS/API35 and 47/52 on Mi/API29; a corrected package filter excluded the five controlled trace classes and the remaining suite passed 50/50 on ASUS and 47/47 on Mi; the trace procedures remain unverified (Record 069). The CTAP Device Information Service passed focused host/device checks and real Android service registration on API29/API35 (Record 067). Earlier Trace Processor inspection found zero FIDO2 slices and reported systrace parse failures (Records 050–051). A Nearby devices revocation crash from sticky foreground-service restart is fixed and verified on ASUS: service preflight stops without restart when permissions are missing; direct Settings grant plus explicit Start recovered BLE (Record 055). Android-only transport switching and reboot/radio recovery are recorded (parent Records 036–038; BLE Records 053–054). Mi cannot satisfy Feature 058 API35 coverage-device policy; coverage remains deferred. Physical Windows ceremonies, in-flight/stale-bond recovery, 50-cycle memory, TalkBack and trusted coverage comparison remain unverified.
+**Status**: BLE software implementation and parent-gated composition are present. After the Mi/API29 radio-off recovery change, ordinary local CI passed KtLint, Detekt, Release lint, compile, unit and configured KMP Android host checks without coverage (Record 076); the focused Nordic advertiser device test passed 1/1 on Mi/API29 (Record 077). The full FIDO2 host suite passed 1,133/1,133, `Fido2HomeViewModelTest` passed 2/2, and the dashboard UI class passed 6/6 on each phone (Records 071–072). The latest configured host/device run passed parent `ProcessTransportSelectionTest` 15/15, settings instrumentation 12/12 on each phone, and BLE GATT security 4/4 per device. The original full FIDO2 suites were 50/55 on ASUS/API35 and 47/52 on Mi/API29; a corrected package filter excluded the five controlled trace classes and the remaining suite passed 50/50 on ASUS and 47/47 on Mi; the trace procedures remain unverified (Record 069). The CTAP Device Information Service passed focused host/device checks and real Android service registration on API29/API35 (Record 067). Earlier Trace Processor inspection found zero FIDO2 slices and reported systrace parse failures (Records 050–051). A Nearby devices revocation crash from sticky foreground-service restart is fixed and verified on ASUS: service preflight stops without restart when permissions are missing; direct Settings grant plus explicit Start recovered BLE (Record 055). Android-only transport switching and reboot/radio recovery are recorded (parent Records 036–038; BLE Records 053–054); Mi/API29 also retained BLE selection through force-stop/relaunch and resumed advertising only after explicit Start (parent Record 054; BLE Record 073). The Mi Classic HID startup attempt then timed out at Android HID Device profile binding; switching back to BLE and restarting restored advertising (parent Record 055; BLE Record 074). Mi/API29 radio-off now surfaces a retryable failure and explicit Retry resumes BLE advertising (Record 075; parent Record 056). Mi cannot satisfy Feature 058 API35 coverage-device policy; coverage remains deferred. Physical Windows ceremonies, in-flight/stale-bond recovery, 50-cycle memory, TalkBack and trusted coverage comparison remain unverified.
 
 ---
 
@@ -192,7 +192,7 @@
 - **date**: 2026-11-02
 - **limitations**: The runs do not establish real GATT traffic with a separate authenticator, numeric-comparison pairing, Android 12+ foreground-service lifecycle, Windows ceremonies, or accessibility. The four protocol-specific performance experiments were not launched with synthetic substitute arguments; their frozen run identities are part of separate performance-investigation procedures and must not be invented for this generic suite. This Android 10/API 29 device is below Feature 058's API 35 minimum for an authorized coverage assessment. The complete device-suite checklist remains open.
 - **status**: `Partial (BLE security device cases passed; trace setup verified; full suite failed 5 tests; coverage device prerequisite unmet)`.
-- **artifact_link**: [connected-device XML results](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [instrumentation HTML report](../../feature/fido2/build/reports/androidTests/connected/androidMain/index.html), [FidoBleSecurityDeviceTest.kt](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleSecurityDeviceTest.kt)
+- **artifact_link**: [connected-device XML results](../../feature/fido2/build/reports/fido2/064/mi-connected-suite-post-retry-fix-20261104.xml), [instrumentation HTML report](../../feature/fido2/build/reports/androidTests/connected/androidMain/index.html), [FidoBleSecurityDeviceTest.kt](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleSecurityDeviceTest.kt)
 
 ### Record 013: Release-App Memory Snapshot and Instrumented Memory/Lifecycle Checks (T037 — Partial)
 - **requirement**: `NFR-PERF-060`, T037
@@ -216,7 +216,7 @@
 - **date**: 2026-11-02
 - **limitations**: Coverage remains unverified; the attempted connected device is Android 10/API 29, below the Feature 058 policy's minimum API 35. Host/device test failures prevented canonical counters, inventory, completeness and floor decisions. The retry used a worktree-local Gradle home with the existing read-only dependency cache because the shared Gradle cache lock was inaccessible; the focused lifecycle test passed, but the full gate still failed at FIDO2 device tests. This worktree is dirty, so it has no exact candidate commit for `tools/integration-ci.ps1`; no trusted external evidence root, compatible accepted-target bundle and independently trusted `baselines/current.json` index were supplied or located in the measured tree. No target-only baseline or index was created. Hosted enforcement remains waived/disabled under feature-058. T038 remains open and all coverage decisions are Unverified.
 - **status**: `Failed (prior coverage gate stopped on host-test failure; retry stopped on connected FIDO2 device failures) / Passed (focused 7-test coroutine lifecycle suite after race fix) / Unverified (authorized-device coverage completeness, floors and trusted raw-count regression)`.
-- **artifact_link**: [latest FIDO2 device XML results](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [focused lifecycle test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest.xml), [captured coverage-gate outcome](../../feature/fido2/build/reports/fido2/064/coverage-gate-attempt.json), [local CI](../../tools/local-ci.ps1), [coverage plan](../058-enforce-coverage-targets/plan.md), [integration task](tasks.md)
+- **artifact_link**: [latest FIDO2 device XML results](../../feature/fido2/build/reports/fido2/064/mi-connected-suite-post-retry-fix-20261104.xml), [focused lifecycle test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest.xml), [captured coverage-gate outcome](../../feature/fido2/build/reports/fido2/064/coverage-gate-attempt.json), [local CI](../../tools/local-ci.ps1), [coverage plan](../058-enforce-coverage-targets/plan.md), [integration task](tasks.md)
 
 ### Record 015: FIDO2 Host Suite Rerun (T036 — Host Portion)
 - **requirement**: `FR-BLE-020`, `FR-BLE-030`, `FR-BLE-060`, `TR-BLE-010`, `TR-BLE-020`, T036
@@ -240,7 +240,7 @@
 - **date**: 2026-11-03
 - **limitations**: Live advertiser and service registration prove local Android BLE startup only. No external GATT host connected or exchanged CTAP messages. Windows pairing/numeric comparison, browser registration/assertion, selected-handle composition, accessibility, coverage acceptance, and the parent settings/switch matrix are unverified. PC control was canceled before pairing or ceremony verification; T036 remains open.
 - **status**: `Passed (host suite 1,118/1,118; 3 API 35 lifecycle cases; live local BLE registration; targeted lint and whitespace checks) / Not applicable (API 29 device ran 0 API-gated cases) / Unverified (external host interoperability and remaining parent gates)`.
-- **artifact_link**: [FIDO2 host test report](../../feature/fido2/build/reports/tests/testAndroidHostTest/index.html), [advertiser controller test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.NordicBleAdvertiserControllerTest.xml), [API 35 instrumentation XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [API 29 instrumentation XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [lifecycle device-test source](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/service/FidoBleLifecycleDeviceTest.kt), [Nordic advertiser source](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/NordicBleAdvertiserController.kt), [T036](tasks.md)
+- **artifact_link**: [FIDO2 host test report](../../feature/fido2/build/reports/tests/testAndroidHostTest/index.html), [advertiser controller test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.NordicBleAdvertiserControllerTest.xml), [API 35 instrumentation XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [API 29 instrumentation XML](../../feature/fido2/build/reports/fido2/064/mi-connected-suite-post-retry-fix-20261104.xml), [lifecycle device-test source](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/service/FidoBleLifecycleDeviceTest.kt), [Nordic advertiser source](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/NordicBleAdvertiserController.kt), [T036](tasks.md)
 
 ### Record 017: Initial Windows Pairing and GATT Authentication Recovery (T020 — Historical Observation)
 - **requirement**: `FR-BLE-030`, `FR-BLE-070`, `TR-BLE-040`, T020, T036
@@ -494,7 +494,7 @@
 - **date**: 2026-11-03
 - **limitations**: The test proves local advertiser API startup on one API 29 model; it does not exercise peer discovery, Windows, pairing, a ceremony or other OEM/API implementations. Coverage eligibility is separate; the user deferred Feature 058's API 35 coverage gate.
 - **status**: `Passed (one API 29 Nordic advertiser instrumentation test; 0 failures/errors/skips) / Unverified (other APIs/OEMs, Windows interoperability and acceptance matrix)`.
-- **artifact_link**: [retained Mi A2 device-test XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [device test source](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/NordicBleLegacyAdvertisingDeviceTest.kt), [T036](tasks.md)
+- **artifact_link**: [retained Mi A2 device-test XML](../../feature/fido2/build/reports/fido2/064/mi-connected-suite-post-retry-fix-20261104.xml), [device test source](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/NordicBleLegacyAdvertisingDeviceTest.kt), [T036](tasks.md)
 
 ### Record 038: Post-Fix FIDO2 Host and Mi Device Suite (T036 — Partial)
 - **requirement**: T036; parent gate/selected-handle composition boundary; `FR-BLE-010`, `FR-BLE-020`, `FR-BLE-030`, `FR-BLE-060`, `TR-BLE-010`, `TR-BLE-020`
@@ -806,7 +806,7 @@
 - **date**: 2026-11-04
 - **limitations**: This only confirms Nordic advertiser API startup on these two devices. It does not verify Windows discovery, exact on-air FIDO service data, GATT host connection, authenticated pairing, registration/assertion, full configured device suite or trusted coverage. BLE T020/T023/T035/T036 remain open; coverage is deferred.
 - **status**: `Passed (focused advertiser-start check on API29 and API35) / Unverified (host discovery and complete BLE acceptance)`.
-- **artifact_link**: [focused device-test summary](../../feature/fido2/build/reports/fido2/064/nordic-advertiser-device-test-20261104.txt), [ASUS result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml)
+- **artifact_link**: [focused device-test summary](../../feature/fido2/build/reports/fido2/064/nordic-advertiser-device-test-20261104.txt), [ASUS result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi result XML](../../feature/fido2/build/reports/fido2/064/mi-nordic-legacy-advertising-device-test-20261104.xml)
 
 ### Record 064: Cross-Device FIDO Service Advertisement Discovery (T036 — Passed, Scoped)
 - **requirement**: BLE T036 Android device-test/discovery portion; `FR-BLE-010`, `TR-BLE-010`; parent T022
@@ -818,7 +818,7 @@
 - **date**: 2026-11-04
 - **limitations**: This confirms advertisement visibility between these two Android devices only. Windows Settings still did not list the ASUS, and the integrated-browser registration request timed out; no Windows GATT connection, authenticated pairing, credential response, assertion, switching, 50-cycle stress or complete BLE acceptance was completed. BLE T020/T023/T035/T036 remain open; coverage is deferred.
 - **status**: `Passed (cross-device FIDO service discovery on ASUS/API35 and Mi/API29) / Unverified (Windows discovery and ceremony)`.
-- **artifact_link**: [cross-device discovery test summary](../../feature/fido2/build/reports/fido2/064/fido-advertiser-peer-discovery-20261104.txt), [ASUS result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml)
+- **artifact_link**: [cross-device discovery test summary](../../feature/fido2/build/reports/fido2/064/fido-advertiser-peer-discovery-20261104.txt), [ASUS result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi result XML](../../feature/fido2/build/reports/fido2/064/fido2-nonperf-mi-20261104.xml)
 
 ### Record 065: Configured FIDO BLE Host and Android Device Suite (T036 — Partial)
 - **requirement**: BLE T036 and parent gate/selected-handle integration boundary; `FR-BLE-010–080`, `TR-BLE-010–050`, parent `FR-BT-SEL-030–050`
@@ -830,7 +830,7 @@
 - **date**: 2026-11-04
 - **limitations**: Full FIDO2 connected-suite validation remains incomplete. No Windows GATT connection or WebAuthn ceremony passed. Coverage and trusted candidate-versus-target comparison were omitted by owner direction and remain unverified/deferred. BLE T036, parent T039 and parent T041 remain open.
 - **status**: `Partial (host and parent settings checks passed; BLE startup/discovery passed on both phones) / Failed (full FIDO2 connected suite has five unsatisfied research procedures per device) / Deferred (coverage)`.
-- **artifact_link**: [ASUS connected-suite XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi connected-suite XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [ASUS settings XML](../../feature/settings/build/outputs/androidTest-results/connected/debug/TEST-ASUS_AI2302%20-%2015.xml), [Mi settings XML](../../feature/settings/build/outputs/androidTest-results/connected/debug/TEST-Mi%20A2%20-%2010.xml), [BLE T036](tasks.md)
+- **artifact_link**: [ASUS connected-suite XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi connected-suite XML](../../feature/fido2/build/reports/fido2/064/mi-connected-suite-post-retry-fix-20261104.xml), [ASUS settings XML](../../feature/settings/build/outputs/androidTest-results/connected/debug/TEST-ASUS_AI2302%20-%2015.xml), [Mi settings XML](../../feature/settings/build/outputs/androidTest-results/connected/debug/TEST-Mi%20A2%20-%2010.xml), [BLE T036](tasks.md)
 
 ### Record 066: Current Worktree Local CI Without Coverage (T036/T038 — Partial)
 - **requirement**: BLE T036 configured host portion and T038 local verification scope; parent T039 local CI portion
@@ -854,7 +854,7 @@
 - **date**: 2026-11-04
 - **limitations**: The test proves both Android service-added callbacks succeeded but does not inspect an active remote GATT database or Windows discovery/pairing. A complete WebAuthn ceremony remains unverified. T020/T023/T035/T036 remain open; coverage remains deferred.
 - **status**: `Passed (host contract and actual Android service registration on API29/API35) / Unverified (remote GATT database and Windows interoperability)`.
-- **artifact_link**: [FIDO GATT implementation](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/FidoBleGattServer.kt), [GATT host](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/AndroidFidoBleGattServerHost.kt), [host test results](../../feature/fido2/build/reports/tests/testAndroidHostTest/index.html), [ASUS device result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi device result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [T016](tasks.md)
+- **artifact_link**: [FIDO GATT implementation](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/FidoBleGattServer.kt), [GATT host](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/AndroidFidoBleGattServerHost.kt), [host test results](../../feature/fido2/build/reports/tests/testAndroidHostTest/index.html), [ASUS device result XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml), [Mi device result XML](../../feature/fido2/build/reports/fido2/064/fido2-nonperf-mi-20261104.xml), [T016](tasks.md)
 
 ### Record 068: Current Worktree Local CI Without Coverage (T036/T038 — Partial)
 - **requirement**: BLE T036 configured host portion; parent T039 local CI portion; `FR-BLE-010–080`, `TR-BLE-010–050`
@@ -915,3 +915,758 @@
 - **limitations**: Device UI results prove label/callback only, not physical BLE retry after radio interruption or remote reconnection. Windows ceremonies, stale-bond recovery, 50-cycle memory and full T035/T041 remain open. Coverage remains deferred.
 - **status**: `Passed (host and device Retry presentation/action checks; KtLint) / Unverified (physical transport interruption/reconnect and complete BLE acceptance)`.
 - **artifact_link**: [ASUS result XML](../../feature/fido2/build/reports/fido2/064/authenticator-dashboard-retry-asus-final-20261104.xml), [Mi result XML](../../feature/fido2/build/reports/fido2/064/authenticator-dashboard-retry-mi-final-20261104.xml), [full FIDO2 host results](../../feature/fido2/build/test-results/testAndroidHostTest/index.html), [Retry UI](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt), [parent T035](../../064-bluetooth-transport-selection/tasks.md), [parent Record 053](../064-bluetooth-transport-selection/implementation-evidence.md#record-053-retry-label-and-action-on-transport-error-t035--implemented-hostdevice-verified)
+
+### Record 073: Mi A2 BLE Force-Stop and Explicit Restart (T035 — Passed, Scoped)
+- **requirement**: BLE T035 lifecycle; `FR-BLE-010`, `FR-BLE-060`; parent T035
+- **scope**: Verify saved BLE selection and explicit-start gating through an Android package force-stop/relaunch on Mi/API29.
+- **revision**: Base `HEAD` `6a60432363fb1d5f8dc6787230f6b098cd11c82c` on branch `064-bluetooth-transport-selection`, plus current uncommitted Feature 064 changes.
+- **named_procedure**: Record current MainActivity, foreground-service and Bluetooth advertiser states; run `adb -s 2ac6876 shell am force-stop com.chimali.shrunk`; explicitly launch `com.chimali.shrunk/com.chimali.MainActivity`; confirm Ready to Start and no service before tapping Start; tap the displayed Start Authenticator control; confirm the advertising UI, foreground service and registered advertiser return.
+- **environment**: Windows 11 x64; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; synthetic package `com.chimali.shrunk`.
+- **expected_observed_result**: BLE advertising was active before force-stop. After relaunch, the saved FIDO BLE mode was still selected but the screen showed Ready to Start and the transport service was absent. Explicit Start restored Advertising, the foreground service and `com.chimali.shrunk (Registered)` in Bluetooth manager. No application data was cleared.
+- **date**: 2026-11-04
+- **limitations**: Scoped to one Mi BLE force-stop/restart. It does not establish Windows interaction, Classic selection, OS process-death/reboot recovery, in-flight behavior, stale-bond recovery, 50-cycle memory, or full BLE T035/T036 acceptance. Coverage is deferred.
+- **status**: `Passed (API29 BLE force-stop/explicit-restart lifecycle subcheck) / Unverified (remaining BLE lifecycle and host acceptance)`.
+- **artifact_link**: [procedure and observations](../../feature/fido2/build/reports/fido2/064/mi-force-stop-restart-20261104.txt), [initial advertising screen](../../feature/fido2/build/reports/fido2/064/mi-current-screen-20261104.png), [stopped after relaunch](../../feature/fido2/build/reports/fido2/064/mi-force-stop-before-start-20261104.png), [advertising after explicit Start](../../feature/fido2/build/reports/fido2/064/mi-force-stop-after-start-20261104.png), [parent Record 054](../064-bluetooth-transport-selection/implementation-evidence.md#record-054-mi-a2-ble-force-stop-and-explicit-restart-t035--passed-scoped)
+
+### Record 074: Mi A2 Classic HID Startup Failure and BLE Recovery (T035 — Partial)
+- **requirement**: BLE T035 lifecycle/recovery; parent T027/T035; `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Record BLE-to-Classic selection behavior on Mi/API29 and verify recovery to the BLE default path after Classic startup fails.
+- **revision**: Base `HEAD` `6a60432363fb1d5f8dc6787230f6b098cd11c82c` on branch `064-bluetooth-transport-selection`, plus current uncommitted Feature 064 changes.
+- **named_procedure**: Start from active BLE advertising; save Classic, restart the process and start the authenticator; capture Android HID Device profile bind failure; save BLE, restart the process, explicitly start it and confirm advertising.
+- **environment**: Windows 11 x64; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Android reported `Could not bind to Bluetooth Service with Intent { act=android.bluetooth.IBluetoothHidDevice }`, followed by a 5,000 ms startup timeout. The app did not fall back to BLE. After saving BLE and restarting, explicit Start restored `Advertising...` and the BLE footer.
+- **date**: 2026-11-04
+- **limitations**: This scoped check does not diagnose whether Classic HID is unavailable on this ROM or the profile service failed transiently. It does not prove Windows interoperability, ceremonies, Classic availability on other hardware, BLE interruption/stale-bond/cancellation handling, 50 cycles, or complete BLE T035/T036 acceptance. Coverage remains deferred.
+- **status**: `Failed (Classic HID startup/profile binding on Mi/API29) / Passed (BLE selection recovery and advertising restore) / Unverified (Windows and remaining BLE acceptance)`.
+- **artifact_link**: [procedure, observations and screenshots index](../../feature/fido2/build/reports/fido2/064/mi-classic-hid-failure-and-ble-recovery-20261104.txt), [Classic failure screen](../../feature/fido2/build/reports/fido2/064/mi-classic-hid-profile-error-20261104.png), [BLE restore screen](../../feature/fido2/build/reports/fido2/064/mi-ble-restored-after-classic-20261104.png), [BLE T035](tasks.md), [parent Record 055](../064-bluetooth-transport-selection/implementation-evidence.md#record-055-mi-a2-classic-hid-startup-failure-and-ble-recovery-t027t035--partial)
+
+### Record 075: Mi A2 Radio-Off Failure and Retry Recovery (T035 — Passed, Scoped)
+- **requirement**: BLE T035; `FR-BLE-060`, `FR-BLE-070`; parent T035 lifecycle/recovery
+- **scope**: Verify system Bluetooth-off events terminate the active Nordic advertiser, surface an error, and allow deliberate recovery after radio restoration.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Install updated `shrunkDebug`; start BLE advertising; toggle Bluetooth off in Android Settings; confirm no advertiser is registered and inspect the app error; turn Bluetooth back on; tap Retry Authenticator and verify advertising registration returns.
+- **environment**: Windows 11 x64; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Radio off changed the app from Advertising to `Error Occurred / BLE advertising stopped unexpectedly` with Retry Authenticator; Bluetooth manager had no Chimali advertiser registration. Radio restoration alone left the app in Error. Explicit Retry returned the UI to Advertising and registered `com.chimali.shrunk` with Android Bluetooth.
+- **date**: 2026-11-04
+- **limitations**: One radio-off/on cycle on Mi/API29. Remote Windows GATT, interrupted FIDO ceremony, permission revocation, stale bond, process death/reboot, ASUS repeat, and 50-cycle behavior remain unverified; BLE T035/T036 are not complete. Coverage remains deferred.
+- **status**: `Passed (Mi/API29 radio-off error reporting and explicit Retry recovery) / Unverified (remaining BLE lifecycle/host matrix)`.
+- **artifact_link**: [procedure and observations](../../feature/fido2/build/reports/fido2/064/mi-ble-radio-off-recovery-20261104.txt), [Advertising baseline](../../feature/fido2/build/reports/fido2/064/mi-ble-radio-baseline-20261104.png), [Bluetooth off](../../feature/fido2/build/reports/fido2/064/mi-bluetooth-off-after-fix.png), [error UI](../../feature/fido2/build/reports/fido2/064/mi-app-bluetooth-off-after-fix.png), [advertising after Retry](../../feature/fido2/build/reports/fido2/064/mi-app-explicit-retry-after-fix.png), [BLE T035](tasks.md), [parent Record 056](../064-bluetooth-transport-selection/implementation-evidence.md#record-056-mi-a2-ble-radio-off-failure-and-retry-recovery-t035--passed-scoped)
+
+### Record 076: Current Ordinary Local CI After Radio-Off Recovery (T036 — Passed, Scoped)
+- **requirement**: BLE T036 configured host and static/compile/unit scope; parent T039 local validation; `FR-BLE-010–080`, `TR-BLE-010–050`
+- **scope**: Validate the current Feature 064 tree after the Android advertiser radio-off recovery change; omit coverage as directed by the owner.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Run `tools/local-ci.ps1 -NoFix -NoConfigurationCache` with worktree-local Gradle user home. The direct script first stopped at a Gradle problems-report `AccessDeniedException`; rerun a temporary copy with `--no-problems-report`, remove the copy after completion, and omit `-RunCoverage`.
+- **environment**: Windows 11 x64; Gradle 9.6.0; Android SDK 37; Xiaomi Mi A2/API29 connected; ASUS not connected for this run.
+- **expected_observed_result**: KtLint, Detekt, Release lint, comprehensive compilation, unit tests, and configured KMP Android host tests passed in 171.66 seconds. Kotlin daemon marker-file `AccessDeniedException` warnings used compiler fallback without failing compilation. Coverage was not run.
+- **date**: 2026-11-04
+- **limitations**: This run does not execute configured connected Android suites, actual Windows ceremonies, trusted current-target comparison or hosted integration. BLE T038 remains deferred by owner direction; T036 physical and complete acceptance remain open.
+- **status**: `Passed (ordinary local CI without coverage) / Deferred (coverage) / Unverified (connected physical and hosted acceptance)`.
+- **artifact_link**: [BLE T036/T038](tasks.md), [parent T039 evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-057-current-ordinary-local-ci-after-radio-off-recovery-t039--passed-scoped), [Feature 058 plan](../058-enforce-coverage-targets/plan.md)
+
+### Record 077: Mi A2 Nordic Legacy Advertising Device Test (T036 — Passed, Scoped)
+- **requirement**: BLE T015/T036; `FR-BLE-010`, `TR-BLE-010`
+- **scope**: Re-run the API28+ device test for a real connectable legacy Nordic BLE advertisement on the current integrated build.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Run `:feature:fido2:connectedAndroidDeviceTest` with class `com.chimali.fido2.data.transport.NordicBleLegacyAdvertisingDeviceTest`, `--no-configuration-cache --no-problems-report --max-workers=1`; inspect the API29 connected-device XML.
+- **environment**: Windows 11 x64; Gradle 9.6.0; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS not connected for this run.
+- **expected_observed_result**: `connectableLegacyAdvertisingStartsOnApi28Plus` passed 1/1 with zero failures/errors/skips in 0.18 seconds, confirming the current app build starts a real connectable legacy advertiser on Mi/API29.
+- **date**: 2026-11-04
+- **limitations**: This does not establish radio interruption, authenticated remote pairing, Windows registration/assertion, all connected device tests, or full BLE T036 acceptance. Full-suite research failures and Windows ceremony gaps remain recorded; BLE T038 coverage is deferred by owner direction.
+- **status**: `Passed (Mi/API29 real legacy-advertising startup 1/1) / Unverified (remaining device/Windows acceptance) / Deferred (coverage)`.
+- **artifact_link**: [Mi connected-device XML](../../feature/fido2/build/reports/fido2/064/mi-nordic-legacy-advertising-device-test-20261104.xml), [BLE T036/T038](tasks.md), [parent Record 058](../064-bluetooth-transport-selection/implementation-evidence.md#record-058-mi-a2-nordic-legacy-advertising-device-test-t039--passed-scoped)
+
+### Record 078: Windows Save-Passkey Dialog Disappeared (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Record the latest user-observed Windows WebAuthn registration prompt outcome without inferring credential creation.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Attempt synthetic WebAuthn registration in the integrated browser and follow the Windows security-key path previously selected by the user; inspect whether the browser reports registration success and the synthetic credential is available.
+- **environment**: Windows 11 host; integrated browser/Edge state could not be verified by Computer Use during this continuation. Synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: The user reported that the Windows dialog labeled “Guardar clave de paso” disappeared and suspected it may have timed out. No browser success message or credential result was observed. Treat the ceremony as incomplete; cause of dialog dismissal is unknown.
+- **date**: 2026-11-04
+- **limitations**: This is not a registration pass or a confirmed Windows timeout diagnosis. No successful registration, GetAssertion, paired-host discovery, or transport interoperability conclusion is established. BLE T020/T023 remain open.
+- **status**: `Unverified (dialog disappeared; no browser success or credential result)`.
+- **artifact_link**: [BLE T020/T023](tasks.md), [parent evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-059-windows-save-passkey-dialog-disappeared-t031t041--unverified)
+
+### Record 079: Integrated Browser WebAuthn Focus Error (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Retry synthetic registration in the requested integrated browser and distinguish page-focus failure from a Windows security-key or transport result.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Open WebAuthn.io in the ChatGPT in-app browser, submit the existing synthetic account for registration, and inspect both page state and system prompt state.
+- **environment**: Windows 11 host; ChatGPT in-app browser tab on `https://webauthn.io/`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: The browser page returned “The operation is not allowed at this time because the page does not have focus.” Bringing the in-app browser forward and retrying did not launch a Windows prompt. Selecting the ChatGPT window to bring the app forward timed out in Computer Use. No registration or authenticator operation occurred.
+- **date**: 2026-11-04
+- **limitations**: This is a browser focus failure, not evidence of Windows BLE discovery, pairing or Chimali transport failure. BLE registration/GetAssertion acceptance remains open; user interaction to focus the integrated browser is needed before another attempt.
+- **status**: `Unverified (browser page lacked focus; no Windows prompt or credential result)`.
+- **artifact_link**: [BLE T020/T023](tasks.md), [parent focus-error evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-060-integrated-browser-webauthn-focus-error-t031t041--unverified)
+
+### Record 080: Integrated Browser WebAuthn Operation Did Not Complete (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Re-attempt the authorized synthetic registration after the user focused the integrated browser page; inspect for Windows prompt and browser success.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: In the focused ChatGPT in-app WebAuthn.io tab, submit Register for the existing synthetic account and observe the browser, Windows prompt and result.
+- **environment**: Windows 11 host; ChatGPT in-app browser at `https://webauthn.io/`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: After the user clicked the page to focus it, Register produced the WebAuthn.io message “The operation either timed out or was not allowed” with a link to the WebAuthn privacy considerations. No Windows security-key prompt, authenticator request, registration success or credential result appeared.
+- **date**: 2026-11-04
+- **limitations**: WebAuthn.io does not distinguish timeout from browser policy rejection in this message. This does not establish Windows BLE discovery, pairing or a Chimali transport failure. BLE T020/T023 remain open.
+- **status**: `Unverified (WebAuthn operation timed out or was not allowed; no Windows prompt or credential result)`.
+- **artifact_link**: [BLE T020/T023](tasks.md), [parent operation outcome](../064-bluetooth-transport-selection/implementation-evidence.md#record-061-integrated-browser-webauthn-operation-did-not-complete-t031t041--unverified)
+
+### Record 081: Mi A2 Reboot Recovery Check Interrupted (T035 — Unverified)
+- **requirement**: BLE T035 reboot and saved-selection recovery; `FR-BLE-060`, parent `FR-BT-SEL-030`
+- **scope**: Verify that the saved BLE selection survives a device reboot and resumes only after the required explicit start on Mi/API29.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Capture pre-reboot state, issue `adb -s 2ac6876 reboot`, wait for the device, then verify boot completion, transport service, saved BLE selection and advertiser state.
+- **environment**: Windows 11 x64; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Before reboot, MainActivity was resumed, Fido2TransportService was foreground and Android listed `com.chimali.shrunk (Registered)` as an advertiser. After reboot, `adb wait-for-device` returned but `sys.boot_completed` was blank, the lock screen was active, Bluetooth Manager was unavailable, and the device later disappeared from `adb devices`. Post-reboot app/service/selection state could not be inspected.
+- **date**: 2026-11-04
+- **limitations**: No app data was cleared. This is an interrupted reboot attempt, not evidence of recovered or failed BLE selection/advertising behavior. The device must be unlocked/reconnected before the subcheck can be repeated; BLE T035/T036 remain open.
+- **status**: `Unverified (Mi disconnected before boot completion and app state inspection)`.
+- **artifact_link**: [BLE T035/T036](tasks.md), [parent reboot evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-062-mi-a2-reboot-recovery-check-interrupted-t035--unverified)
+
+### Record 082: Windows Passkey Dialog Closed at Change (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Record the user-handled Windows passkey dialog outcome from the latest synthetic registration attempt.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: From WebAuthn.io's synthetic registration attempt, choose the Windows “Cambiar” control and then select the Bluetooth security key; inspect the ensuing Windows prompt and browser result.
+- **environment**: Windows 11 host; ChatGPT in-app browser at `https://webauthn.io/`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: The user reported that clicking “Cambiar” closed the dialog before a security-key choice or subsequent prompt appeared. WebAuthn.io still displayed “The operation either timed out or was not allowed.” No registration success or credential result was observed.
+- **date**: 2026-11-04
+- **limitations**: Timeout is suspected by the user but unconfirmed. This is not a Windows registration pass and does not establish transport failure. BLE T020/T023 remain open.
+- **status**: `Unverified (dialog closed at Change; no security-key selection, browser success or credential result)`.
+- **artifact_link**: [BLE T020/T023](tasks.md), [parent dialog outcome](../064-bluetooth-transport-selection/implementation-evidence.md#record-063-windows-passkey-dialog-closed-at-change-t031t041--unverified)
+
+### Record 083: Mi A2 BLE Selection and Explicit Start After Reboot (T035 — Passed, Scoped)
+- **requirement**: BLE T035 reboot/saved-selection recovery; `FR-BLE-060`; parent `FR-BT-SEL-030`
+- **scope**: Verify on Mi/API29 that reboot preserves the saved BLE choice, does not restart advertising automatically, and explicit Start restores advertising.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Record active BLE/service/advertiser state; reboot with `adb -s 2ac6876 reboot`; after boot, open `com.chimali.shrunk/com.chimali.MainActivity`; verify Ready to Start and no service/advertiser; tap Start; confirm Advertising, foreground service, advertiser registration, and saved/active BLE selection in Settings.
+- **environment**: Windows 11 x64; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Before reboot, MainActivity was resumed, Fido2TransportService was foreground and Android listed `com.chimali.shrunk (Registered)`. After boot, the service and advertiser were absent. Launching the app showed Ready to Start and BLE footer with no foreground service or advertiser. After explicit Start, the service became foreground and Android registered the advertiser; the UI showed Advertising. Settings then showed “FIDO Bluetooth LE (default)” selected and “Active in this process: FIDO Bluetooth LE / Active.” The device initially reconnected while locked/incomplete, then reported boot complete and allowed verification. No app data was cleared.
+- **date**: 2026-11-04
+- **limitations**: This proves one BLE-mode reboot/explicit-start subcheck only. It does not cover Classic reboot behavior, Windows discovery/registration/assertion, in-flight recovery, stale-bond recovery, 50-cycle stress, or full BLE T035/T036 acceptance. Coverage remains deferred by owner direction.
+- **status**: `Passed (Mi/API29 BLE selection persistence and explicit-start reboot subcheck) / Unverified (remaining lifecycle, Windows and full BLE acceptance)`.
+- **artifact_link**: [Mi reboot procedure and observations](../../feature/fido2/build/reports/fido2/064/mi-reboot-ble-explicit-start-20261104.txt), [Ready to Start after boot](../../feature/fido2/build/reports/fido2/064/mi-reboot-after-launch-20261104.png), [Advertising after explicit Start](../../feature/fido2/build/reports/fido2/064/mi-reboot-after-explicit-start-20261104.png), [saved and active BLE selection](../../feature/fido2/build/reports/fido2/064/mi-reboot-settings-20261104.png), [parent reboot subcheck](../064-bluetooth-transport-selection/implementation-evidence.md#record-064-mi-a2-ble-selection-and-explicit-start-after-reboot-t035--passed-scoped)
+
+### Record 084: WebAuthn Retry After Security-Key Selection (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Retry the authorized synthetic Windows registration after the user selected “Cambiar” → “Llave de seguridad”; inspect browser outcome and Mi app/service state.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: In the ChatGPT integrated browser at WebAuthn.io, submit Register for `codex-synthetic-064-20261103`; after the user-selected security-key path, inspect the browser result and query Mi activity, service, Bluetooth advertiser registration and recent logs over ADB.
+- **environment**: Windows 11 host; ChatGPT in-app browser at `https://webauthn.io/`; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: The user reported that Mi left Chimali after selecting “Llave de seguridad.” The retry page showed “The operation either timed out or was not allowed,” with no registration success or credential result. ADB afterward showed `com.chimali.shrunk/com.chimali.MainActivity` resumed, `Fido2TransportService` foreground, and `com.chimali.shrunk (Registered)` in Bluetooth Manager; the service record showed `crashCount=1`. The inspected recent filtered log lines contained no matching FIDO request failure that explains the reported app switch.
+- **date**: 2026-11-05
+- **limitations**: The WebAuthn message does not distinguish timeout from browser policy rejection. The ADB snapshot confirms the app/service/advertiser state only when inspected and does not establish the exact transition during the user-reported switch. No successful BLE registration/assertion, Windows credential result, or completed T020/T023 acceptance was observed.
+- **status**: `Unverified (WebAuthn operation timed out or was not allowed; no credential result)`.
+- **artifact_link**: [BLE T020/T023](tasks.md), [parent retry evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-065-webauthn-retry-after-security-key-selection-t031t041--unverified)
+
+### Record 085: ASUS Bluetooth Security-Key Conversation Interrupted (T020/T023 — Unverified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Investigate the reported Windows Bluetooth security-key conversation and Android app switch during the ASUS/API35 synthetic registration attempt.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Start the Chimali Authenticator on ASUS, submit Register for the synthetic WebAuthn.io account, select the Windows Bluetooth security-key path as directed by the user, then inspect Android activity, FIDO service, BLE advertiser and recent logcat events.
+- **environment**: Windows 11 host; ChatGPT in-app browser at `https://webauthn.io/`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: The user reported Windows “La conversación con la clave de seguridad de Bluetooth está en curso” while the Android screen left Chimali. Android logs recorded a `swipe-up` gesture at 11-05 06:25:58 followed by the ASUS launcher becoming foreground. At 06:26:06, `Fido2TransportService` was destroyed and its GATT server cleared, closed and unregistered. At 06:26:07, the foreground service restarted and re-registered FIDO service UUID `0000fffd-0000-1000-8000-00805f9b34fb`. A later ADB check showed MainActivity resumed, UI “Advertising...”, the service foreground, and `com.chimali.shrunk (Registered)`. WebAuthn.io returned “The operation either timed out or was not allowed”; no credential result was observed.
+- **date**: 2026-11-05
+- **limitations**: The logs establish a swipe-up transition and a brief service/GATT restart, but do not identify who or what generated the gesture or prove that it caused the Windows timeout. The generic WebAuthn result does not distinguish timeout from browser policy rejection. BLE T020/T023 remain open.
+- **status**: `Unverified (Windows conversation did not yield a credential result; Android recorded a swipe-up and service/GATT restart)`.
+- **artifact_link**: [ASUS WebAuthn activity and service log excerpt](../../feature/fido2/build/reports/fido2/064/asus-webauthn-switch-to-launcher-20261105.txt), [BLE T020/T023](tasks.md), [parent investigation](../064-bluetooth-transport-selection/implementation-evidence.md#record-066-asus-bluetooth-security-key-conversation-interrupted-t031t041--unverified)
+
+### Record 086: FIDO GATT Notification Callback Recursion Fixed (T020/T023 — Implementation Verified)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Fix the ASUS-observed crash during Windows Bluetooth security-key registration and verify callback forwarding.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Rename the callback listener to remove collision with Android's `onNotificationSent` override; run `FidoBleGattContractTest`, then lint Android main and host-test source sets.
+- **environment**: Windows 11 host; Gradle 9.6.0; feature module `:feature:fido2`.
+- **expected_observed_result**: ASUS logcat showed Windows GATT connection followed by repeated `FidoBleGattServer.onNotificationSent` frames, `StackOverflowError`, app process death and foreground-service restart. The override now forwards to `notificationSentListener`. The regression test verified the listener receives the device/status exactly once. Focused Android host test passed; both Android main and host-test KtLint tasks passed. The corrected `shrunkDebug` build was installed on ASUS AI2302/API35; after granting nearby-device and notification permissions, enabling Passkey Authenticator during onboarding and tapping Start, the UI showed “Advertising...”, the foreground FIDO service was active and Android listed `com.chimali.shrunk (Registered)`.
+- **date**: 2026-11-05
+- **limitations**: This corrects the confirmed recursion crash and verifies deployment/advertising on ASUS. A Windows registration/assertion retry is still needed to verify end-to-end ceremony behavior; BLE T020/T023 remain open.
+- **status**: `Passed (source correction, focused callback regression test, focused lint, ASUS installation and advertising) / Unverified (physical Windows ceremony)`.
+- **artifact_link**: [ASUS callback-crash log excerpt](../../feature/fido2/build/reports/fido2/064/asus-webauthn-callback-stackoverflow-20261105.txt), [ASUS corrected-build deployment](../../feature/fido2/build/reports/fido2/064/asus-callback-fix-deployment-20261105.txt), [BLE T020/T023](tasks.md), [parent callback-fix evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-067-fido-gatt-notification-callback-recursion-fixed-t031t041--implementation-verified)
+
+### Record 087: Corrected Build Installed on Mi for User Verification (T020/T023 — Setup Passed)
+- **requirement**: BLE T020 registration and T023 assertion; `FR-BLE-020`, `FR-BLE-030`
+- **scope**: Deploy the corrected callback-fix build to the Mi device so the user can test it.
+- **revision**: Current Feature 064 worktree, branch `064-bluetooth-transport-selection`; uncommitted candidate changes.
+- **named_procedure**: Attempt in-place install; after signature mismatch, uninstall only `com.chimali.shrunk` with the user's approval and install the `shrunkDebug` APK; query installed version.
+- **environment**: Windows 11 host; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: In-place update was rejected because the installed package had a different signing key. The user authorized erasing only this package's local Mi data. Uninstall and APK installation then succeeded. Package manager reports version `0.1.0`, versionCode `1`, installed at `2026-11-05 01:19:49`. MainActivity was then launched; Fido2TransportService was not foreground and Android Bluetooth Manager showed no `com.chimali.shrunk` registration.
+- **date**: 2026-11-05
+- **limitations**: MainActivity was launched after installation. The FIDO service was not foreground and Android Bluetooth Manager showed no com.chimali.shrunk registration. Mi first-run setup, BLE advertising, and Windows WebAuthn registration/assertion are unverified. This record establishes deployment only; BLE T020/T023 remain open.
+- **status**: `Passed (Mi APK installation and MainActivity launch) / Unverified (first-run setup, BLE advertising and WebAuthn ceremony)`.
+- **artifact_link**: [Mi corrected-build deployment](../../feature/fido2/build/reports/fido2/064/mi-callback-fix-deployment-20261105.txt), [BLE T020/T023](tasks.md), [parent deployment record](../064-bluetooth-transport-selection/implementation-evidence.md#record-068-corrected-build-installed-on-mi-for-user-verification-t031t041--setup-passed)
+
+### Record 088: ASUS Integrated-Browser FIDO BLE GetAssertion (T023 — Partial)
+- **requirement**: BLE T023 GetAssertion; `FR-BLE-030`, `FR-BLE-050`
+- **scope**: Independently complete one authenticated WebAuthn assertion through the corrected ASUS BLE authenticator and retain device-side correlation and diagnostic timing.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`, source revision `37388495` plus uncommitted callback fix; `shrunkDebug` APK version `0.1.0` installed on ASUS.
+- **named_procedure**: In the ChatGPT integrated browser at WebAuthn.io, submit Authenticate for synthetic account `codex-synthetic-064-20261103`; correlate browser outcome with ASUS GATT, revision selection, biometric result, service and advertiser state over ADB.
+- **environment**: Windows 11 host; ChatGPT integrated browser; WebAuthn.io; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: WebAuthn.io displayed “You're logged in!”. ASUS logcat recorded a successful GATT server connection at 08:25:37.370, MTU 517, FIDO2 revision `0x20` selected at 08:25:38.036, and successful Android fingerprint verification at 08:25:40.970 for `com.chimali.shrunk`. Android Bluetooth Manager continued to show Chimali registered and advertising; a captured ASUS screen showed “Advertising...” after the ceremony. Device-side connection-to-biometric-success interval was 3.600 seconds. The user also reported that both registration and authentication succeeded on ASUS; registration details are user-reported in this record.
+- **date**: 2026-11-05
+- **limitations**: The 3.600-second interval is not full relying-party end-to-end timing. Numeric-comparison accept/reject, independently captured MakeCredential metadata, UV keepalive cadence and full diagnostic timing remain unverified. This records one successful GetAssertion only; it does not complete all BLE physical acceptance obligations.
+- **status**: `Passed (one ASUS WebAuthn GetAssertion with correlated BLE revision and local UV) / Unverified (complete timing and remaining BLE acceptance matrix)`.
+- **artifact_link**: [ASUS assertion and device correlation](../../feature/fido2/build/reports/fido2/064/asus-webauthn-assertion-20261105.txt), [ASUS screen after assertion](../../feature/fido2/build/reports/fido2/064/asus-after-web-authn-assertion-20261105.png), [BLE T023](tasks.md), [parent physical ceremony record](../064-bluetooth-transport-selection/implementation-evidence.md#record-069-asus-clean-install-registration-and-assertion-t022--passed-scoped)
+### Record 089: ASUS Classic HID Activation and BLE Restoration (T023/T035 — Partial)
+- **requirement**: BLE T023/T035 lifecycle handoff; parent selection T027/T031; `FR-BLE-060`, `FR-BT-SEL-030`, `FR-BT-SEL-040`
+- **scope**: Verify parent-selected Classic activation after full process restart and confirm restoration to BLE on the ASUS test device.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; corrected `shrunkDebug` version `0.1.0`.
+- **named_procedure**: From active BLE, save Classic and confirm pending state; force-stop/relaunch MainActivity; explicitly Start and inspect HID profile registration; save BLE, repeat process restart, explicitly Start and inspect advertising.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`; Windows 11 host not used for Classic ceremony.
+- **expected_observed_result**: Classic was pending while BLE remained active. After restart, MainActivity showed Classic selected and Ready to Start with no active service until Start. Following user approval of Android's 120-second Bluetooth visibility prompt, Android acquired HID_DEVICE, `registerApp()` returned true and `onAppStatusChanged registered=true`; Settings reported Classic active. The reverse choice remained pending until restart; after explicit Start, BLE returned to Advertising with its GATT service registered.
+- **date**: 2026-11-05
+- **limitations**: No Windows Classic HID discovery or WebAuthn ceremony was performed. This covers process selection and transport activation only, not T023 assertion or T035 interruption/recovery and 50-cycle acceptance.
+- **status**: `Passed (ASUS Classic HID profile registration and BLE process-switch restoration) / Unverified (Windows Classic ceremony and remaining BLE lifecycle matrix)`.
+- **artifact_link**: [ASUS Classic/BLE process-switch evidence](../../feature/fido2/build/reports/fido2/064/asus-classic-ble-switch-20261105.txt), [BLE implementation evidence](implementation-evidence.md), [parent Selection T027/T031](../064-bluetooth-transport-selection/tasks.md)
+### Record 090: ASUS BLE Background, Explicit Stop and Restart (T035 — Partial)
+- **requirement**: BLE T035 lifecycle recovery; `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Confirm foreground BLE service and advertising survive ordinary app backgrounding, explicit Stop releases them, and explicit Start restores them.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; corrected `shrunkDebug` version `0.1.0`.
+- **named_procedure**: With BLE Advertising active, press Home, inspect top-resumed app/service/advertiser; reopen MainActivity, Stop Authenticator and inspect cleanup; explicitly Start and inspect recovery.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`; ADB dumpsys and UI hierarchy.
+- **expected_observed_result**: With ASUS launcher top-resumed, the FIDO service remained foreground and Android showed the Chimali advertiser registered. After explicit Stop, the UI changed to Ready to Start; subsequent state showed no foreground FIDO service and no Chimali advertising registration. Explicit Start restored the foreground service, BLE registration and Advertising UI.
+- **date**: 2026-11-05
+- **limitations**: A single ordinary background/Stop/Start sequence only. Host command intervals included deliberate waits and ADB overhead and do not establish the strict <1s Stop/<500ms Start budgets. OS process-death, reboot, permission-loss, active ceremony interruption, stale-bond recovery and 50 cycles remain unverified; T035 stays open.
+- **status**: `Passed (background survival and explicit resource release/recovery) / Unverified (timing budgets and remaining lifecycle matrix)`.
+- **artifact_link**: [ASUS BLE background/Stop/Start observations](../../feature/fido2/build/reports/fido2/064/asus-ble-background-stop-restart-20261105.txt), [BLE T035](tasks.md), [parent lifecycle record](../064-bluetooth-transport-selection/implementation-evidence.md#record-071-asus-ble-background-stop-and-restart-t035--partial)
+### Record 091: Mi Fresh-Install BLE Advertising and Passive PC GATT Connection (T020 — Partial)
+- **requirement**: BLE T020 device discovery and connection setup; `FR-BLE-010`, `FR-BLE-020`
+- **scope**: Verify that the corrected Mi build starts BLE advertising and observe one paired-PC GATT connection after fresh installation.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; corrected `shrunkDebug` version `0.1.0`.
+- **named_procedure**: On Mi/API29 after the authorized package reset and install, start the authenticator in BLE mode; inspect UI, service, GATT registration and device logcat for the paired PC interaction.
+- **environment**: Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; Windows 11 paired PC `LOQ15IRX10-3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Mi entered Advertising with the FIDO transport service foreground and its GATT server registered. Android logged one successful PC GATT connection, MTU 517 negotiation and session cleanup on disconnect about five seconds later; afterward the app remained Advertising.
+- **date**: 2026-11-05
+- **limitations**: No revision `0x20`, FIDO request/CTAP operation, local verification or browser result was logged. The PC connection may have been discovery rather than a WebAuthn request. The clean Mi package data contains no registered synthetic credential. This is not a registration/assertion pass; BLE T020 remains open.
+- **status**: `Passed (Mi advertising/GATT registration and one paired-PC GATT connection) / Unverified (FIDO protocol interaction and WebAuthn ceremony)`.
+- **artifact_link**: [Mi passive GATT connection](../../feature/fido2/build/reports/fido2/064/mi-passive-gatt-connection-20261105.txt), [BLE T020](tasks.md), [parent Mi deployment evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-072-mi-fresh-install-advertising-and-passive-pc-gatt-connection-t020--partial)
+
+### Record 092: Current Worktree Local CI Without Deferred Coverage (T036/T038 — Partial)
+- **requirement**: BLE regression and coverage gate; `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Validate source and host-test changes using ordinary local CI, with coverage explicitly deferred by the user.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current uncommitted candidate changes.
+- **named_procedure**: Run `tools/local-ci.ps1 -NoFix -NoConfigurationCache`, without `-RunCoverage`.
+- **environment**: Windows 11 host; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`.
+- **expected_observed_result**: Local CI completed successfully in 143.34 seconds. KtLint, Detekt, Release lint, compile-all, unit tests and configured KMP Android host tests passed. Coverage was not run. The runner's notice states that this does not establish hosted integration acceptance.
+- **date**: 2026-11-05
+- **limitations**: BLE coverage acceptance remains deferred. This run does not establish numeric-comparison accept/reject, independent registration, strict latency budgets, 50-cycle stability or the full interruption/recovery matrix.
+- **status**: `Passed (ordinary non-coverage local CI) / Unverified (deferred coverage gate and remaining BLE acceptance)`.
+- **artifact_link**: [BLE T036/T038](tasks.md), [parent validation record](../064-bluetooth-transport-selection/implementation-evidence.md#record-073-current-worktree-local-ci-without-deferred-coverage-t039--partial)
+
+### Record 093: Latest shrunkDebug Installed and Advertising on Mi (T020 — Partial)
+- **requirement**: BLE device discovery and advertising startup; `FR-BLE-010`, `FR-BLE-020`
+- **scope**: Build the current worktree candidate, update the Mi package in place without data removal, and verify FIDO BLE advertising and foreground-service registration.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current uncommitted candidate; APK SHA-256 `07F5C1E66B3166E7440A312FCE94CC9BFDE5EDFBDB3278B4DBD83F0AA9917876`.
+- **named_procedure**: Run `:app:assembleShrunkDebug`, `adb install -r`, launch MainActivity, explicitly start the authenticator, then inspect Android UI/service/advertiser state.
+- **environment**: Windows host; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: APK assembly and in-place update succeeded. Installed package reports version `0.1.0`, versionCode `1`. The app showed “Advertising...” and “Ready to pair with a new host PC”; Fido2TransportService was foreground and Android listed Chimali as a registered advertiser.
+- **date**: 2026-11-05
+- **limitations**: No paired-host revision selection, numeric-comparison result, GetInfo/keepalive behavior, MakeCredential, local user verification or WebAuthn.io result was captured. T020 remains open.
+- **status**: `Passed (current-build installation and BLE advertising startup) / Unverified (protocol and WebAuthn acceptance)`.
+- **artifact_link**: [Mi latest-build deployment and advertising](../../feature/fido2/build/reports/fido2/064/mi-current-build-deployment-20261105.txt), [parent deployment record](../064-bluetooth-transport-selection/implementation-evidence.md#record-074-latest-shrunkdebug-installed-and-advertising-on-mi-ble-deployment--partial)
+
+### Record 094: Current-Candidate Device Security and Radio Recovery (T035 — Partial)
+- **requirement**: BLE authenticated GATT access and recovery; `FR-BLE-020`, `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Exercise the current candidate's GATT security test suite on both connected Android devices, the applicable foreground lifecycle suite, and a real Mi radio-off/Retry sequence.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current source and `shrunkDebug` APK SHA-256 `07F5C1E66B3166E7440A312FCE94CC9BFDE5EDFBDB3278B4DBD83F0AA9917876`.
+- **named_procedure**: Run `:feature:fido2:connectedAndroidDeviceTest` filtered to `FidoBleSecurityDeviceTest` on Mi and ASUS; filter to `FidoBleLifecycleDeviceTest` on both; retain XML. On Mi, with current app Advertising, disable Bluetooth in Settings, verify unavailable error, re-enable Bluetooth, and tap Retry.
+- **environment**: Windows host; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`.
+- **expected_observed_result**: GATT security tests passed 4/4 on Mi and 4/4 on ASUS, with zero failures/errors/skips. Foreground-service lifecycle tests passed 3/3 on ASUS. On Mi, `FidoBleLifecycleDeviceTest` has `@SdkSuppress(minSdkVersion = 31)`, so its API29 run discovered zero tests; this is not counted as a pass. Mi radio-off transitioned to “Error Occurred / BLE advertising stopped unexpectedly”; after Bluetooth was restored and Retry was tapped, UI returned to Advertising, service was foreground and advertiser registration was present.
+- **date**: 2026-11-05
+- **limitations**: These focused checks do not cover full BLE protocol acceptance, numeric comparison, a Windows ceremony, permission revocation, process death, stale bond, cancellation or 50-cycle stability. The Mi lifecycle instrumentation class is not applicable below API31; manual Mi BLE Stop/Start and radio recovery evidence remains separately scoped.
+- **status**: `Passed (4/4 GATT security tests on both devices; 3/3 ASUS lifecycle tests; Mi radio-off/retry recovery) / Not run by API gate (Mi lifecycle class) / Unverified (remaining BLE acceptance)`.
+- **artifact_link**: [ASUS GATT security XML](../../feature/fido2/build/reports/fido2/064/asus-fido-ble-security-20261105.xml), [Mi GATT security XML](../../feature/fido2/build/reports/fido2/064/mi-fido-ble-security-20261105.xml), [ASUS lifecycle XML](../../feature/fido2/build/reports/fido2/064/asus-fido-ble-lifecycle-20261105.xml), [Mi lifecycle API-gated XML](../../feature/fido2/build/reports/fido2/064/mi-fido-ble-lifecycle-20261105.xml), [Mi radio-off recovery](../../feature/fido2/build/reports/fido2/064/mi-radio-off-retry-current-build-20261105.txt), [BLE T035](tasks.md)
+
+### Record 095: Current-Candidate Cross-Device FIDO BLE Discovery (T020 — Partial)
+- **requirement**: BLE advertiser discovery; `FR-BLE-010`, `TR-BLE-010`
+- **scope**: Observe the FIDO BLE service UUID from a distinct nearby Android device while each phone is advertising the current implementation.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current source candidate; latest Mi `shrunkDebug` APK SHA-256 `07F5C1E66B3166E7440A312FCE94CC9BFDE5EDFBDB3278B4DBD83F0AA9917876`.
+- **named_procedure**: Keep both Chimali apps advertising and run `:feature:fido2:connectedAndroidDeviceTest --project-prop=android.testInstrumentationRunnerArguments.class=com.chimali.fido2.data.transport.FidoBleAdvertiserDiscoveryDeviceTest` on both devices; inspect device-specific XML.
+- **environment**: Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`.
+- **expected_observed_result**: `activeAuthenticatorAdvertisesTheFidoServiceUuid` passed 1/1 on both devices with zero failures/errors/skips. Each scanner found the FIDO service UUID advertised by the other physical phone. Both app services and advertiser registrations remained active after the run.
+- **date**: 2026-11-05
+- **limitations**: This is Android-to-Android discovery only. It does not establish Windows discovery or authenticated pairing, numeric comparison, GetInfo/keepalives, registration, assertion, or full T020/T023 acceptance.
+- **status**: `Passed (remote FIDO UUID discovery on both API29 and API35) / Unverified (Windows and remaining BLE acceptance)`.
+- **artifact_link**: [Mi discovery test XML](../../feature/fido2/build/reports/fido2/064/mi-fido-ble-discovery-20261105.xml), [ASUS discovery test XML](../../feature/fido2/build/reports/fido2/064/asus-fido-ble-discovery-20261105.xml), [parent discovery record](../064-bluetooth-transport-selection/implementation-evidence.md#record-076-current-candidate-cross-device-fido-ble-discovery-t020--partial)
+
+### Record 096: Mi Current-Build Force-Stop and Explicit BLE Restart (T035 — Partial)
+- **requirement**: BLE transport stopped state and explicit recovery; `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Verify the current BLE selection is not automatically restarted after an Android force-stop/relaunch and explicit Start restores service resources.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current `shrunkDebug` version `0.1.0` installed on Mi.
+- **named_procedure**: From Advertising, force-stop the application; inspect service/advertiser state, relaunch MainActivity, inspect the pre-Start state, then explicitly Start and inspect UI/service/advertiser registration.
+- **environment**: Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Force-stop removed service and advertising. MainActivity relaunched in Ready to Start without auto-start. Explicit Start restored Advertising, the foreground service and the registered GATT advertiser.
+- **date**: 2026-11-05
+- **limitations**: This single BLE force-stop path does not establish Classic mode, OS process death outside force-stop, reboot, permission revocation, mid-ceremony change, stale-bond recovery or 50-cycle stability.
+- **status**: `Passed (Mi BLE force-stop and explicit-start recovery) / Unverified (full BLE T035 lifecycle/recovery matrix)`.
+- **artifact_link**: [Mi current-build force-stop/restart observations](../../feature/fido2/build/reports/fido2/064/mi-current-build-force-stop-restart-20261105.txt), [BLE T035](tasks.md), [parent lifecycle record](../064-bluetooth-transport-selection/implementation-evidence.md#record-077-mi-force-stop-and-explicit-ble-restart-on-current-build-t035--partial)
+
+### Record 097: Cross-Device 100-Cycle GATT Reconnect Stress (T035 — Partial)
+- **requirement**: BLE connection lifecycle, FIDO service discovery and cleanup; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-020`
+- **scope**: Exercise 50 connect, FIDO-service discovery, disconnect and close cycles from each Android phone against the other phone's current GATT server.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current source candidate and `shrunkDebug` package version `0.1.0` on both devices.
+- **named_procedure**: With both Chimali apps advertising, run `FidoBleReconnectStressDeviceTest` on Mi as GATT client to ASUS, then on ASUS as client to Mi. Retain the two instrumentation XML reports and PSS observations.
+- **environment**: Windows host; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`.
+- **expected_observed_result**: Mi→ASUS passed 1/1 test, 50/50 cycles, zero failures/errors/skips in 75.963s. ASUS→Mi passed 1/1, 50/50 cycles, zero failures/errors/skips in 32.266s. ASUS PSS increased 2,431 KiB immediately after the first run and was 258 KiB below its pre-run snapshot after idle; Mi PSS increased 684 KiB after the reverse run. Both devices retained the FIDO foreground service and registered advertiser.
+- **date**: 2026-11-05
+- **limitations**: The test covers discovery, connection, service discovery, disconnect and close, not authenticated pairing, security rejection, CTAP, notification delivery, in-flight interruption/cancellation, stale bonds or Windows. PSS is process-wide/noisy and not proof of leak freedom. Full BLE T035 and T038 remain open.
+- **status**: `Passed (100 cross-device Android GATT reconnect/service-discovery cycles) / Unverified (security, CTAP interruption, Windows and remaining BLE acceptance)`.
+- **artifact_link**: [Mi→ASUS instrumentation XML](../../feature/fido2/build/reports/fido2/064/mi-fido-ble-reconnect-stress-20261105.xml), [ASUS→Mi instrumentation XML](../../feature/fido2/build/reports/fido2/064/asus-fido-ble-reconnect-stress-20261105.xml), [PSS and procedure notes](../../feature/fido2/build/reports/fido2/064/cross-device-100-gatt-reconnect-cycles-20261105.txt), [BLE T035](tasks.md), [parent lifecycle evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-079-cross-device-100-cycle-gatt-reconnect-stress-t035--partial)
+
+### Record 098: ASUS Classic Mode Start and Visibility Consent (Parent T027/T031 — Partial)
+- **requirement**: Verify selection preserves the independent BLE component while parent Classic HID activates; `FR-BLE-010`, `FR-BLE-070`
+- **scope**: Check that the shared app-level mode setting can activate Classic after restart and restore the BLE component afterward.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current `shrunkDebug` candidate, version `0.1.0`.
+- **named_procedure**: Select Bluetooth HID (Classic), restart the app process, explicitly start the authenticator, allow the Android 120-second visibility prompt, inspect reported system/app mode, then select BLE and explicitly start it again.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: App displayed Bluetooth HID mode after restart. Following explicit Android visibility consent, Bluetooth reported `SCAN_MODE_CONNECTABLE_DISCOVERABLE` and the app showed Advertising. Windows discovery, pairing, HID reports and WebAuthn were not exercised. Restoring FIDO Bluetooth LE and explicitly starting returned the app to BLE Advertising with foreground service and registered advertiser.
+- **date**: 2026-11-05
+- **limitations**: This exercises app selection, Android consent and BLE restoration only. It does not certify Classic host interoperability and does not complete BLE T035. Parent T027/T031 and BLE T035/T038 remain open.
+- **status**: `Passed (Classic mode selection/consent and subsequent BLE restoration) / Unverified (Windows Classic interoperability and remaining BLE lifecycle)`.
+- **artifact_link**: [ASUS Classic visibility-consent notes](../../feature/fido2/build/reports/fido2/064/asus-classic-visibility-20261105.txt), [parent transport-selection evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-080-asus-classic-mode-start-and-visibility-consent-t027t031--partial)
+
+### Record 099: ASUS Advertiser-Permission Revocation and BLE Recovery (T035 — Partial)
+- **requirement**: BLE unavailable-permission handling and explicit lifecycle recovery; `FR-BLE-060`, `FR-BLE-070`
+- **scope**: Revoke the app's Bluetooth advertising permission while BLE is active, then restore permission and verify explicit restart returns the selected transport.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current ASUS `shrunkDebug` version `0.1.0`.
+- **named_procedure**: While BLE Advertising, revoke only `BLUETOOTH_ADVERTISE`; inspect Android process exit reason and service restart; restore the permission, relaunch the app and explicitly Start the authenticator.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: Android ApplicationExitInfo reported `PERMISSION CHANGE` with status 0 and no trace; ActivityManager logged the permission-driven process kill and scheduled the sticky FIDO transport service to restart. Sampled AndroidRuntime logs showed no fatal Java exception. Following permission regrant, the app remained Ready to Start until explicit Start; BLE Advertising, foreground service and registered advertiser then returned.
+- **date**: 2026-11-05
+- **limitations**: Android killed the app process as the runtime permission changed, so this did not observe an in-app error state during the transition. No in-flight GATT/CTAP request, cancellation, stale bond or Windows behavior was tested. Full BLE T035 remains open.
+- **status**: `Passed (ASUS OS permission-change lifecycle and explicit BLE recovery) / Unverified (in-flight permission interruption and remaining BLE T035/T038 acceptance)`.
+- **artifact_link**: [ASUS permission revocation and recovery notes](../../feature/fido2/build/reports/fido2/064/asus-advertise-permission-revocation-recovery-20261105.txt), [BLE T035](tasks.md), [parent record](../064-bluetooth-transport-selection/implementation-evidence.md#record-081-asus-ble-advertising-permission-revocation-and-recovery-t035--partial)
+
+### Record 100: Current Worktree Ordinary Local CI Without Coverage (T036 — Partial)
+- **requirement**: BLE implementation static analysis, configured compilation and host/device-test source validation; `FR-BLE-080`, `TR-BLE-030`
+- **scope**: Validate the current uncommitted implementation and test source with ordinary local CI while retaining the owner's coverage deferral.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current uncommitted source candidate.
+- **named_procedure**: Run `:feature:fido2:ktlintAndroidDeviceTestSourceSetCheck`; then invoke a temporary `tools/local-ci.ps1` copy with Gradle's problems report disabled and a worktree-local Gradle user home, using `-NoFix -NoConfigurationCache` and no `-RunCoverage`.
+- **environment**: Windows host; Gradle 9.6.0; configured SDK/device environment; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`.
+- **expected_observed_result**: Focused Android device-test KtLint passed (48 tasks; 6 executed). Ordinary local CI passed in 317.78 seconds: KtLint, Detekt, Release lint, comprehensive configured compilation, unit-test tasks, and configured KMP Android host-test tasks. Most test outputs were UP-TO-DATE; no failing tasks were reported.
+- **date**: 2026-11-05
+- **limitations**: Coverage and integration/nonregression checks were not run. This does not establish Tier 1/Tier 2/repository floors, trusted accepted-target comparisons, hosted enforcement, WebAuthn interoperability or remaining physical BLE T035 acceptance. Gradle's default problems-report write was denied by the execution environment; the temporary script disabled that report.
+- **status**: `Passed (ordinary local CI without coverage; configured tasks successful, most outputs up-to-date) / Deferred by owner (coverage) / Unverified (trusted coverage comparison and physical BLE acceptance)`.
+- **artifact_link**: [temporary local-CI script](../../build/local-ci-no-problems.ps1), [BLE task list](tasks.md), [parent local-CI evidence](../064-bluetooth-transport-selection/implementation-evidence.md#record-082-current-worktree-ordinary-local-ci-without-coverage-t039--partial)
+
+### Record 101: ASUS Classic Visibility and Windows Discovery Attempt (T023 — Partial)
+- **requirement**: BLE deployment transport selection and Classic cross-transport acceptance; `FR-BLE-060`, `FR-BLE-070`, parent `FR-BT-SEL-030`, `FR-BT-SEL-040`
+- **scope**: Confirm Classic starts on ASUS and review host visibility; record impact on BLE's default selection.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current uncommitted candidate, `shrunkDebug` version `0.1.0`.
+- **named_procedure**: Select Classic in app settings, restart, explicitly start, accept Android visibility consent, inspect app/system state and host device listing, then restore BLE.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; Windows 11 host; package `com.chimali.shrunk`.
+- **expected_observed_result**: Android accepted the 120-second visibility request, reported connectable/discoverable and showed the active Classic transport foreground service. The system event log records a 210-second interval before returning to connectable-only, exceeding the prompt text. The Windows device list was unavailable through current controls (`Get-PnpDevice`: Access Denied); no host discovery or HID/WebAuthn exchange was verified. BLE was restored and explicitly started; Chimali showed BLE Advertising with foreground service active.
+- **date**: 2026-11-05
+- **limitations**: Does not verify Windows discovery/pairing, secured GATT, CTAP, WebAuthn, numeric comparison or BLE T023 diagnostic timing. The system-reported visibility duration requires follow-up.
+- **status**: `Passed (ASUS Classic activation and discoverability request; BLE restored) / Unverified (Windows interop and remaining BLE/parent acceptance)`.
+- **artifact_link**: [ASUS Classic discovery attempt](../../feature/fido2/build/reports/fido2/064/asus-classic-discovery-attempt-20261105.txt), [parent Classic record](../064-bluetooth-transport-selection/implementation-evidence.md#record-083-asus-classic-visibility-and-windows-discovery-attempt-t027t031-partial)
+
+### Record 102: Mi API 29 Pattern-Based User Verification Failure and Candidate Correction (T020 — Partial)
+- **requirement**: BLE physical registration/GetInfo acceptance and user verification; `FR-BLE-050`, `FR-BLE-060`, `FR-BLE-080`, parent `FR-BT-SEL-040`.
+- **scope**: Trace Mi required-UV registration failure to Android 10 device-credential API behavior and prepare a compatible candidate.
+- **revision**: Feature 064 worktree, branch `064-bluetooth-transport-selection`; current uncommitted source candidate, built `shrunkDebug` package version `0.1.0`.
+- **named_procedure**: Trace reported error to `RegisterCredentialUseCase`, inspect API29's device-credential availability/prompt constraints, update compatibility handling, build and deploy the Mi package.
+- **environment**: Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; Windows 11; package `com.chimali.shrunk`.
+- **expected_observed_result**: User observed the required-UV registration error with a secure pattern and no fingerprint. Current service queried unsupported `canAuthenticate(DEVICE_CREDENTIAL)` on API29, so the pattern was reported unavailable; the old combined prompt flags were also unsupported there. The candidate now checks `KeyguardManager.isDeviceSecure()` on API <30 and uses AndroidX's legacy device-credential prompt configuration. The shrunkDebug build succeeded; signature mismatch required the previously authorized package-only uninstall/reinstall. The user granted location only while using the app, selected Passkey Authenticator during onboarding, and explicitly started BLE; Advertising and the transport foreground service were observed. The integrated WebAuthn.io tab is open but reports no page focus; corrected registration has not yet been attempted.
+- **date**: 2026-11-05
+- **limitations**: Physical pattern prompt, UV flag, registration, subsequent assertion and Windows ceremony remain unverified. Package-local test data was cleared by authorized reinstall; no other package was uninstalled. Coverage remains deferred.
+- **status**: `Diagnosed and corrected in source; build succeeded and candidate installed / Unverified (physical required-UV registration, assertion and BLE acceptance)`.
+- **artifact_link**: [Mi API 29 pattern user-verification notes](../../feature/fido2/build/reports/fido2/064/mi-api29-pattern-user-verification-20261105.txt), [parent user-verification record](../064-bluetooth-transport-selection/implementation-evidence.md#record-084-mi-api-29-pattern-based-user-verification-failure-and-candidate-correction-t027-partial)
+
+### Record 103: ASUS WebAuthn Registration Success Confirmed (T020 — Partial)
+- **requirement**: BLE physical MakeCredential registration; `FR-BLE-020`, `FR-BLE-030`, parent `FR-BT-SEL-020`, `FR-BT-SEL-030`.
+- **scope**: Add the ASUS registration outcome independently observed in the integrated browser.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7`; ASUS installed APK SHA-256 `07f5c1e66b3166e7440a312fce94cc9bfde5edfbdb3278b4dbd83f0aa9917876`.
+- **named_procedure**: User completes WebAuthn registration on ASUS and the integrated WebAuthn.io page is checked for its result.
+- **environment**: Windows 11; ChatGPT integrated browser/WebAuthn.io; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: User reported ASUS registration completion; WebAuthn.io showed “Success! Now try to authenticate...”. The ASUS FIDO transport service was foreground after the ceremony.
+- **date**: 2026-11-05
+- **limitations**: ASUS/API35 only. Does not verify the Mi/API29 device-credential fix, assertion, numeric-comparison rejection, required keepalive/CTAP details, or all of BLE T020 and parent acceptance.
+- **status**: `Passed (ASUS registration result) / Unverified (Mi API29 registration and remaining BLE T020 acceptance)`.
+- **artifact_link**: [ASUS registration success notes](../../feature/fido2/build/reports/fido2/064/asus-web-authn-registration-success-20261105.txt), [parent ASUS registration record](../064-bluetooth-transport-selection/implementation-evidence.md#record-085-asus-webauthn-registration-success-confirmed-t027-partial)
+
+### Record 104: ASUS WebAuthn GetAssertion Rejected Before App-Side GATT Session (T023 — Partial)
+- **requirement**: BLE physical Windows GetAssertion; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Record the assertion attempt immediately following the ASUS registration success observation.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7`; ASUS installed APK SHA-256 `07f5c1e66b3166e7440a312fce94cc9bfde5edfbdb3278b4dbd83f0aa9917876`.
+- **named_procedure**: Click Authenticate in the integrated WebAuthn.io page for the registered synthetic account and inspect the reported Windows result plus ASUS foreground/GATT logs.
+- **environment**: Windows 11; ChatGPT integrated browser/WebAuthn.io; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`; account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: User reported Windows showed “No se puede usar esta clave de seguridad. Prueba con otra distinta.” Browser showed no login-success result. ASUS MainActivity was resumed and `Fido2TransportService` foreground. Filtered logs contained no app-side GATT connection/session, revision selection or CTAP operation in the attempt window. A follow-up Bluetooth Manager snapshot listed the package both as a registered GATT server and in the ongoing advertising set; this verifies current advertising, not Windows discovery or pairing during the failed attempt.
+- **date**: 2026-11-05
+- **limitations**: Evidence points to failure before an observed app-side GATT session but does not identify whether Windows key selection, Bluetooth routing/pairing or browser security-key handling caused it. No dialog screenshot, GATT operation or authenticator response was captured. This does not invalidate the preceding registration success record, but it does not verify assertion or full BLE T023 acceptance.
+- **status**: `Failed (this assertion attempt; user-reported Windows error) / Unverified (failure cause, diagnostic timing and remaining BLE T023 acceptance)`.
+- **artifact_link**: [ASUS assertion failure notes](../../feature/fido2/build/reports/fido2/064/asus-webauthn-assertion-security-key-unavailable-20261105.txt), [prior ASUS registration record](#record-103-asus-webauthn-registration-success-confirmed-t020--partial)
+
+### Record 105: API 28–29 Secure Device-Credential Availability on Connected Phones (T023 — Partial)
+- **requirement**: BLE platform user-verification readiness for physical registration/assertion; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Verify the corrected credential-availability branch on API29 and compare API35 behavior with AndroidX.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted source/test changes; shrunkDebug artifact SHA-256 `FF79746D1A0F4FF899A8EA3F57D44A3546538834086A6ABDA2348DD94832BE1B`.
+- **named_procedure**: Run `:feature:fido2:connectedAndroidDeviceTest` filtered to `UserVerificationServiceDeviceTest` on the connected Mi/API29 and ASUS/API35 devices.
+- **environment**: Gradle 9.6.0; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`.
+- **expected_observed_result**: Mi passed 1/1 with zero skips; its configured secure credential satisfied the API<30 KeyguardManager branch and `isPinAvailable()` returned true. ASUS passed 1/1 with zero skips; service availability matched `BiometricManager.canAuthenticate(DEVICE_CREDENTIAL)`.
+- **date**: 2026-11-05
+- **limitations**: This is a platform availability check, not a user-entered BiometricPrompt or WebAuthn ceremony. Mi/API29 registration, Windows GetAssertion and remaining T023 acceptance remain unverified; no coverage gate was run.
+- **status**: `Passed (credential availability detection on API29/API35) / Unverified (WebAuthn ceremonies and full BLE T023 acceptance)`.
+- **artifact_link**: [API-versioned device test notes](../../feature/fido2/build/reports/fido2/064/user-verification-device-test-api29-20261105.txt), [Mi XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [ASUS XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml)
+### Record 106: API 29 Device-Credential Detection and FIDO Prompt Builder Compatibility (T023 — Partial)
+- **requirement**: BLE user-verification readiness for Windows registration/assertion; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Verify legacy API credential detection and shared BiometricPrompt configuration on API29, plus the API35 authenticator mask path.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted source/test changes; shrunkDebug artifact SHA-256 `FF79746D1A0F4FF899A8EA3F57D44A3546538834086A6ABDA2348DD94832BE1B`.
+- **named_procedure**: Run `:feature:fido2:connectedAndroidDeviceTest` filtered to `UserVerificationServiceDeviceTest` on the connected Mi/API29 and ASUS/API35 devices.
+- **environment**: Gradle 9.6.0; Xiaomi Mi A2 / Android 10 / API29 / serial `2ac6876`; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`.
+- **expected_observed_result**: Both devices passed 2/2 with zero XML failures or skips. On Mi, the secure pattern made `KeyguardManager.isDeviceSecure` true and `isPinAvailable()` returned true. On both devices, the shared FIDO prompt info built without displaying a prompt; ASUS credential availability matched AndroidX's API30+ query.
+- **date**: 2026-11-05
+- **limitations**: Gradle exited successfully but the Android test listener printed an `ArrayIndexOutOfBoundsException` while reporting one finish event; the XML reports contain both test cases as passed on each device. The targeted KtLint device-test source check also passed; full local CI remains unrun. This does not verify an actual prompt interaction, Mi WebAuthn registration, Windows GetAssertion, or full BLE T023 acceptance. Coverage remains deferred.
+- **status**: `Passed (API29 credential detection and API28–29 prompt builder; API35 comparison) / Unverified (actual WebAuthn ceremonies and full BLE T023 acceptance)`.
+- **artifact_link**: [API-versioned device test notes](../../feature/fido2/build/reports/fido2/064/user-verification-device-test-api29-20261105.txt), [Mi XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [ASUS XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml)
+### Record 107: Current Worktree Local CI Without Deferred Coverage (T038 — Partial)
+- **requirement**: BLE local static analysis, required host/device test readiness and coverage/nonregression evidence.
+- **scope**: Validate current BLE/parent working-tree changes with ordinary local CI while preserving the explicit coverage deferral.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: Run `build/local-ci-no-problems.ps1 -NoFix -NoConfigurationCache` with a worktree-local Gradle user home; do not pass `-RunCoverage`.
+- **environment**: Windows 11; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`; connected Mi A2/API29 and ASUS AI2302/API35 for the separate focused instrumentation run.
+- **expected_observed_result**: Local CI passed in 510.42 seconds: KtLint, Detekt, release lint, configured compilation, unit tests and KMP Android host tests. The focused credential/prompt instrumentation separately passed 2/2 per phone, with zero XML failures/skips, and targeted device-test KtLint passed.
+- **date**: 2026-11-05
+- **limitations**: Kotlin daemon marker access was denied, so Gradle used compiler fallback. AndroidTestResultListener printed an `ArrayIndexOutOfBoundsException` while reporting one finish event, although each device XML shows 2/2 passed. No coverage completeness/floor or trusted target comparison was run; coverage is explicitly deferred and the hosted runner remains disabled. Physical Windows acceptance remains open.
+- **status**: `Passed (ordinary local quality/compile/unit/host checks) / Deferred (coverage by owner direction) / Unverified (trusted nonregression, hosted integration and physical BLE acceptance)`.
+- **artifact_link**: [Current local-CI summary](../../feature/fido2/build/reports/fido2/064/current-worktree-local-ci-no-coverage-20261105.txt), [Mi focused device-test XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [ASUS focused device-test XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302%20-%2015.xml)
+
+### Record 113: Prompt Viewmodels Observe Retained Requests (T023 — Partial)
+- **requirement**: Deliver a retained CTAP GetAssertion or MakeCredential request to its prompt even if dispatch precedes prompt-viewmodel subscription; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Have the home route and both prompt viewmodels observe retained request StateFlows, removing the prompt viewmodels' snapshot-plus-non-replaying-flow startup race. Add an integration test that dispatches assertion before creating its presenter.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: Run `:feature:fido2:testAndroidHostTest` filtered to `AuthenticationIntegrationTest`, `RegistrationOwnerIntegrationTest` and `Fido2UiEventBusTest`; run Android main/host KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; worktree-local Gradle home `.gradle/codex-user-home`; daemon marker access was denied and Gradle compiled using fallback.
+- **expected_observed_result**: All 54 focused tests passed: AuthenticationIntegrationTest 26/26, RegistrationOwnerIntegrationTest 23/23 and Fido2UiEventBusTest 5/5; the new late-presenter assertion opens `AwaitingUserConsent`. Android main/host KtLint checks passed.
+- **date**: 2026-11-05
+- **limitations**: This is host-side routing/retention evidence; it does not prove the Compose route launches on the ASUS or that Windows accepts an assertion. The candidate is not installed because of the signer mismatch documented in Record 111; T023 remains open.
+- **status**: `Passed (focused host prompt routing and retained-state tests) / Unverified (ASUS prompt and Windows WebAuthn result)`.
+- **artifact_link**: [Authentication integration XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.AuthenticationIntegrationTest.xml), [registration owner XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RegistrationOwnerIntegrationTest.xml), [event bus XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest.xml)
+
+### Record 108: Opt-In Reconnect Stress and Heap Baseline Capture (T035 — Partial)
+- **requirement**: BLE repeated connection recovery and memory observation; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-030`.
+- **scope**: Prepare a dedicated one-phone scanner test for 50 authenticated-peer GATT discovery/connect/disconnect cycles and retain Java/native heap snapshots before and after the cycle set.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus uncommitted stress-test changes.
+- **named_procedure**: Compile Android device-test sources and run `:feature:fido2:ktlintAndroidDeviceTestSourceSetCheck`; the stress instrumentation itself is opt-in through `runFidoBleReconnectStress=true` and was not launched.
+- **environment**: Windows 11; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`; no device test executed for this record.
+- **expected_observed_result**: `:feature:fido2:compileAndroidDeviceTest` and `:feature:fido2:ktlintAndroidDeviceTestSourceSetCheck` completed successfully. The test logs Java heap and native heap bytes before and after the 50 cycles. Default connected suites skip the test unless explicitly enabled on one chosen scanner phone, with a separate FIDO BLE advertiser kept active.
+- **date**: 2026-11-05
+- **limitations**: This validates compilation and test hygiene only. No 50-cycle device run, retained-owner inspection, interrupted-request scenario, memory trend or no-leak conclusion was observed. Physical T035 remains open.
+- **status**: `Passed (device-test source compilation and KtLint) / Unverified (physical reconnect cycles, recovery, and memory behavior)`.
+- **artifact_link**: [Reconnect stress device test](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt), [opt-in procedure](quickstart.md#physical-procedures)
+
+### Record 109: ASUS GetAssertion Retry Reached GATT and CTAP (T023 — Partial)
+- **requirement**: BLE physical Windows GetAssertion and diagnostic timing; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Correlate a new WebAuthn.io Authenticate attempt with ASUS BLE setup and CTAP handler outcomes; this attempt is distinct from Record 104, which had no observed app-side GATT session.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7`; installed ASUS `shrunkDebug` APK SHA-256 `07f5c1e66b3166e7440a312fce94cc9bfde5edfbdb3278b4dbd83f0aa9917876`.
+- **named_procedure**: Start Authenticate in the integrated WebAuthn.io browser for the synthetic account and correlate browser state, ASUS GATT and app logs.
+- **environment**: Windows 11; ChatGPT integrated browser / WebAuthn.io; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: ASUS connected over GATT, negotiated MTU 517, selected revision `0x20` and enabled notifications. One GetAssertion returned `NO_CREDENTIALS`; a subsequent request with one candidate completed internally and produced a response. Another request remained pending and logged a 120-second timeout. A later retry again produced an internal assertion response, then the link disconnected while another request was active. The user reported that Windows displayed “No se puede usar esta clave de seguridad. Prueba con otra distinta.” WebAuthn.io showed no login success, and a read-only ASUS screen capture showed Chimali on its Advertising home screen without an authentication prompt.
+- **date**: 2026-11-05
+- **limitations**: Internal CTAP response logs are not end-to-end proof. Browser completion, Windows response acceptance, biometric/prompt completion, notification delivery, diagnostic end-to-end timing, request correlation and root cause remain unverified. The single run does not establish the full BLE T023 ceremony requirement.
+- **status**: `Failed (user-reported Windows rejection; no WebAuthn success) / Unverified (prompt flow, response delivery, end-to-end timing and failure cause)`.
+- **artifact_link**: [ASUS assertion CTAP follow-up](../../feature/fido2/build/reports/fido2/064/asus-webauthn-assertion-ctap-followup-20261105.txt), [earlier no-GATT attempt](#record-104-asus-webauthn-getassertion-rejected-before-app-side-gatt-session-t023--partial), [BLE T023](tasks.md)
+
+### Record 110: Retained Pending-Request Navigation State (T023 — Partial)
+- **requirement**: Deliver inbound Windows GetAssertion requests to the visible authentication prompt; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Replace the home screen's startup snapshot plus non-replaying event-only navigation with observation of retained registration/authentication request StateFlows, and verify event-bus retention/cleanup on the JVM host.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted source and host-test changes.
+- **named_procedure**: `:feature:fido2:testAndroidHostTest --tests com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest --no-problems-report --no-configuration-cache`.
+- **environment**: Windows 11; Gradle 9.6.0; worktree-local Gradle home `.gradle/codex-user-home`; Kotlin daemon marker access was denied, so compilation used Gradle's fallback strategy.
+- **expected_observed_result**: Gradle completed successfully. XML reports 5 tests, zero skips, zero failures and zero errors, including the new assertion that pending authentication state is retained for a late presenter and cleared on completion.
+- **date**: 2026-11-05
+- **limitations**: This verifies event-bus state and host compilation, not Compose navigation on a device. The candidate has not been installed on ASUS and no post-fix Windows GetAssertion has succeeded. The hypothesized startup race remains unconfirmed; T023 stays open.
+- **status**: `Passed (focused Android host tests) / Unverified (device prompt routing and Windows GetAssertion)`.
+- **artifact_link**: [Focused host-test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest.xml), [event bus](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/navigation/Fido2UiEventBus.kt), [home screen observer](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt)
+
+### Record 111: ASUS Candidate Build Rejected by Installed Signing Identity (T023 — Partial)
+- **requirement**: Deploy the candidate to the ASUS device for a physical Windows GetAssertion retest; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Assemble the updated `shrunkDebug` candidate and attempt an in-place install on the ASUS without clearing app data.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7`; APK SHA-256 `C6E5582F00D3F297853312657906B1A65DD16ECBD31051423EC55109F6619417`.
+- **named_procedure**: Run `:app:assembleShrunkDebug --no-problems-report --no-configuration-cache`, then `adb -s R7AIB7002901AZ3 install -r app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk`.
+- **environment**: ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`.
+- **expected_observed_result**: APK assembly passed. In-place installation was rejected with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; the installed app's signer SHA-256 is `f6c948b953eb7ec7153e95f0ae4830254c7b0f882cb741e54a18e21a2a3c7510`, while the candidate signer SHA-256 is `6bb5df3f4d4e68e75dac02e7f246a7dacf9ae87eb9e58ea79cfec5ca8a227410`.
+- **date**: 2026-11-05
+- **limitations**: No uninstall or data clear was performed, preserving the existing synthetic passkey. The candidate is not installed, so its pending-request navigation change has not been verified on device and a Windows ceremony was not repeated. T023 remains open.
+- **status**: `Passed (candidate assembly) / Blocked (in-place device install due to signer mismatch) / Unverified (post-fix Windows ceremony)`.
+- **artifact_link**: [Candidate APK](../../app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk), [focused host-test record](#record-110-retained-pending-request-navigation-state-t023--partial)
+
+**Superseding deployment update (2026-11-05)**: Record 111 documents the first candidate's signer mismatch. A rebuild using the existing ASUS signing identity has since been installed in place; no app-data reset was performed. See Record 114.
+
+### Record 112: Current Worktree Local CI Without Coverage (T038 — Partial)
+- **requirement**: Local static analysis, configured host tests and source compilation; coverage assessment and accepted-target nonregression are separate requirements.
+- **scope**: Revalidate the current worktree after pending-request navigation changes and reconnect-stress test preparation, explicitly omitting coverage.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: `build/local-ci-no-problems.ps1 -NoFix -NoConfigurationCache`; no `-RunCoverage` argument.
+- **environment**: Windows 11; Gradle 9.6.0; worktree-local Gradle home `.gradle/codex-user-home`.
+- **expected_observed_result**: Local CI passed in 153.74 seconds: KtLint, Detekt, release lint, configured compilation, unit tests and KMP Android host tests. The reconnect stress test's Android device-test source compiled. Kotlin daemon marker access was denied and Gradle used compiler fallback.
+- **date**: 2026-11-05
+- **limitations**: No connected Android device test, coverage completeness/floors, trusted accepted-target nonregression or hosted integration was run. Coverage remains explicitly deferred by owner direction. Physical Windows ceremonies and lifecycle acceptance remain open.
+- **status**: `Passed (ordinary local static, compile, unit and host checks) / Deferred (coverage by owner direction) / Unverified (device acceptance, trusted nonregression and hosted integration)`.
+- **artifact_link**: [FIDO2 UiEventBus host-test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest.xml), [reconnect stress test](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt)
+
+### Record 114: ASUS In-Place Deployment and Post-Fix Retest Attempt (T023 — Partial)
+- **requirement**: Deploy the retained-request routing correction and verify real Windows 11 GetAssertion with the preserved synthetic credential; `FR-BLE-030`, `FR-BLE-050`.
+- **scope**: Rebuild with the signer matching the installed ASUS package, update without clearing app data, start BLE advertising, and attempt the integrated-browser authentication ceremony.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; APK SHA-256 `892F0F7E5A2B4876BAAB1A62141EA0E4E9E5776A59E6B979E9705F78C9C2FF04`.
+- **named_procedure**: Build `:app:assembleShrunkDebug` with worktree-local `GRADLE_USER_HOME` and `JAVA_TOOL_OPTIONS=-Duser.home=C:/Users/octav`; verify signer SHA-256 `f6c948b953eb7ec7153e95f0ae4830254c7b0f882cb741e54a18e21a2a3c7510`; run `adb -s R7AIB7002901AZ3 install -r`; launch Chimali, select Start Authenticator, and click Authenticate on the integrated WebAuthn.io page for the existing synthetic account.
+- **environment**: Windows 11; integrated ChatGPT browser / WebAuthn.io; ASUS AI2302 / Android 15 / API35 / serial `R7AIB7002901AZ3`; package `com.chimali.shrunk`; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: Build succeeded and the candidate certificate matched the installed package. `adb install -r` returned `Success`; the app data was preserved. The app was launched, Start Authenticator activated the FIDO BLE service, GATT server registration returned status 0, and the service entered foreground advertising. The integrated-page click caused no visible WebAuthn result; filtered ASUS logs showed no GATT connection or CTAP request after the attempt.
+- **date**: 2026-11-05
+- **limitations**: No Windows security prompt, GATT session, CTAP operation, Android authentication prompt or WebAuthn success was observed in this post-fix attempt. The automation click did not produce a visible WebAuthn activation or request. The candidate is installed and ready for a direct user click; T023 remains open.
+- **status**: `Passed (matching-signer in-place deployment and BLE service start) / Unverified (post-fix Windows GetAssertion)`.
+- **artifact_link**: [Installed candidate APK](../../app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk), [retained-request host tests](#record-113-prompt-viewmodels-observe-retained-requests-t023--partial), [integration handoff](../064-bluetooth-transport-selection/integration.md)
+
+### Record 115: Post-Deployment 50-Cycle Mi-to-ASUS GATT Reconnect Stress (T035 — Partial)
+- **requirement**: Verify repeated GATT reconnects remain clean after the latest candidate deployment, including memory observations; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-030`.
+- **scope**: Run the opt-in scanner-side 50-cycle test from Mi/API29 against the updated ASUS/API35 FIDO BLE advertiser; inspect both pre/post heap values and ASUS service state.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; latest ASUS candidate APK SHA-256 `892F0F7E5A2B4876BAAB1A62141EA0E4E9E5776A59E6B979E9705F78C9C2FF04`.
+- **named_procedure**: Build with `:feature:fido2:assembleAndroidDeviceTest`, install `feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk` on Mi, then run `adb -s 2ac6876 shell am instrument -w -e class com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest -e runFidoBleReconnectStress true com.chimali.fido2.test/androidx.test.runner.AndroidJUnitRunner`.
+- **environment**: Windows 11; Mi A2 / Android 10 / API29 scanner; ASUS AI2302 / Android 15 / API35 advertiser; ASUS package `com.chimali.shrunk` running the updated in-place candidate; test package `com.chimali.fido2.test`.
+- **expected_observed_result**: Instrumentation returned `OK (1 test)` in 79.275 seconds. All 50 GATT connect, FIDO service-discovery, disconnect and close cycles passed. Mi Java heap was 1,943,384 bytes before and 2,900,328 bytes immediately after (+956,944); native heap was 6,046,992 bytes before and 7,283,928 bytes after (+1,236,936). ASUS GATT remained registered, transport foreground service stayed active, and the final server connection was disconnected.
+- **date**: 2026-11-05
+- **limitations**: This checks unauthenticated GATT discovery/reconnect only; it does not establish secured GATT, CTAP, pairing, request interruption, stale-bond recovery, cancellation or leak freedom. Memory samples are immediate process-wide values without forced collection. BLE T035 remains partial.
+- **status**: `Passed (50 GATT discovery/reconnect cycles against the latest ASUS candidate) / Unverified (interrupted ceremonies, recovery matrix and leak acceptance)`.
+- **artifact_link**: [Sanitized device output and heap samples](../../feature/fido2/build/reports/fido2/064/asus-postfix-reconnect-stress-20261105.txt), [device test source](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt)
+
+### Record 116: Current Worktree Local CI Without Coverage (T038 — Partial)
+- **requirement**: Validate static analysis, compilation, unit tests and KMP host tests while keeping the owner-deferred coverage/nonregression gate explicitly separate.
+- **scope**: Run the repository local CI path without `-RunCoverage`; record the official script's report-output failure and the no-problems wrapper result.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: First attempt `tools/local-ci.ps1 -NoFix -NoConfigurationCache`; then run `build/local-ci-no-problems.ps1 -NoFix -NoConfigurationCache` with worktree-local Gradle home. Do not pass `-RunCoverage`.
+- **environment**: Windows 11; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`.
+- **expected_observed_result**: KtLint tasks reached `UP-TO-DATE`, but the official script's Gradle invocation exited nonzero after `AccessDeniedException` while writing `build/reports/problems/problems-report.html`; no source lint error was reported. The no-problems wrapper passed KtLint, Detekt, release lint, comprehensive source/test compilation, unit tests and KMP Android host tests in 63.38 seconds; most tasks were up-to-date.
+- **date**: 2026-11-05
+- **limitations**: The wrapper only works around Gradle's problems-report output permission. Coverage completeness/floors, connected device acceptance and trusted candidate-versus-accepted-target nonregression were not run. Coverage remains explicitly deferred by owner direction; hosted integration remains waived/unverified.
+- **status**: `Passed (ordinary local static/compile/unit/host validation via workaround) / Failed (official script report output) / Deferred (coverage by owner direction) / Unverified (trusted target comparison and physical acceptance)`.
+- **artifact_link**: [Local CI result and failure details](../../feature/fido2/build/reports/fido2/064/local-ci-no-coverage-20261105.txt), [local CI helper](../../build/local-ci-no-problems.ps1), [current coverage plan](../058-enforce-coverage-targets/plan.md)
+
+### Record 117: BLE Request-to-Response-Notification Diagnostic (T023 — Partial)
+- **requirement**: Capture physical GetAssertion timing with an explicit response-handoff boundary; `FR-BLE-030`, `FR-BLE-050`, `TR-BLE-020`.
+- **scope**: Add a sanitized diagnostic window from a completely reassembled FIDO BLE CTAP request through Android's acknowledgement callback for the final response notification. Log only the CTAP operation label, elapsed milliseconds and notification acknowledgement result; never log request, credential or response bytes.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted diagnostic and test changes.
+- **named_procedure**: Run `:feature:fido2:testAndroidHostTest --tests com.chimali.fido2.data.transport.BleNotificationWriterTest :feature:fido2:ktlintAndroidMainSourceSetCheck :feature:fido2:ktlintAndroidHostTestSourceSetCheck --no-problems-report --no-configuration-cache`.
+- **environment**: Windows 11; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`; worktree-local Gradle user home; Android hardware not used for this focused run.
+- **expected_observed_result**: Build succeeded in 29 seconds. The FIDO2 notification-writer suite reports 10 tests, zero failures, zero errors and zero skips; both source-set KtLint checks passed. New assertions cover a successful GATT acknowledgement and a terminal-response callback failed by clearing the queue.
+- **date**: 2026-11-05
+- **limitations**: This is host evidence for the diagnostic callback only. No new physical Windows GetAssertion or timing sample was captured. An Android notification-sent callback proves local Android GATT handoff only; it cannot establish Windows receipt, CTAP acceptance or browser success. The recent user-reported Windows message is not correlated with an app-side request in the available device logs. T023 remains open.
+- **status**: `Passed (diagnostic callback implementation, focused host tests and KtLint) / Unverified (physical GetAssertion, real timing and Windows response acceptance)`.
+- **artifact_link**: [Notification-writer test XML](../../feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BleNotificationWriterTest.xml), [BLE transport diagnostic](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt), [notification writer](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleNotificationWriter.kt)
+
+### Record 118: Worktree Local CI After BLE Diagnostic Changes (T038 — Partial)
+- **requirement**: Validate source checks, compilation and ordinary tests without running the explicitly deferred coverage gate.
+- **scope**: Run the repository's no-problems local CI wrapper after adding BLE request-to-response notification timing and callback tests.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: `build/local-ci-no-problems.ps1 -NoFix -NoConfigurationCache` using worktree-local Gradle home and `JAVA_TOOL_OPTIONS=-Duser.home=C:/Users/octav`.
+- **environment**: Windows 11; Gradle 9.6.0; worktree `D:\octav\source\repos\.worktrees\chimali\ofrenda`.
+- **expected_observed_result**: KtLint, Detekt, release lint, source/test compilation, unit tests and KMP Android host tests passed in 195.49 seconds. The Kotlin daemon emitted AccessDeniedException marker warnings; compiler fallback completed successfully.
+- **date**: 2026-11-05
+- **limitations**: Coverage was not run by user direction. This does not establish connected-device acceptance, coverage floors, candidate-versus-accepted-target nonregression or hosted integration.
+- **status**: `Passed (ordinary local static/compile/unit/host validation) / Deferred (coverage by owner direction) / Unverified (physical acceptance and trusted target comparison)`.
+- **artifact_link**: [Local CI helper](../../build/local-ci-no-problems.ps1), [coverage plan](../058-enforce-coverage-targets/plan.md)
+
+### Record 119: Mi/API29 Corrected Build Deployment and BLE Advertising (T023 — Partial)
+- **requirement**: Verify corrected FIDO BLE transport startup on the available Mi device; `FR-BLE-010`, `FR-BLE-020`, `TR-BLE-010`.
+- **scope**: Install the candidate with the Android debug signing key matching the previously tested package identity, launch Chimali, grant location while using the app, and start the authenticator.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; APK SHA-256 `3F7D2397678637CDDE4544DDD7943F66B22A12CE8218D12A0E7CA4FC655C78A3`.
+- **named_procedure**: Verify candidate and installed signer certificates, uninstall/reinstall only `com.chimali.shrunk` under the user's prior explicit Mi reinstall authorization, launch the app, choose the FIDO2 feature, start the authenticator, then inspect UI and Android Bluetooth logs.
+- **environment**: Windows 11; Xiaomi Mi A2 (`jasmine`), Android 10/API29; ADB serial `2ac6876`; package `com.chimali.shrunk` version `0.1.0`.
+- **expected_observed_result**: Install and launch succeeded. The foreground `Fido2TransportService` started; Android registered the GATT server and FIDO (`0000fffd-0000-1000-8000-00805f9b34fb`) and Device Information (`0000180a-0000-1000-8000-00805f9b34fb`) services with status 0. Advertising-set start callback returned status 0, and UI displayed “Advertising… Ready to pair with a new host PC.”
+- **date**: 2026-11-05
+- **limitations**: Reinstall erased this app's prior Mi wallet, passkeys and settings. This confirms advertising only; Windows pairing/connection, CTAP, WebAuthn ceremony and user-verification behavior, lifecycle recovery and full physical acceptance remain unverified. Coverage remains deferred by owner direction.
+- **status**: `Passed (Mi/API29 installation, launch, GATT service registration and advertising) / Unverified (Windows ceremony, user verification and lifecycle acceptance)`.
+- **artifact_link**: [Sanitized Mi deployment evidence](../../feature/fido2/build/reports/fido2/064/mi-deployment-20261105.txt), [BLE transport implementation](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt)
+
+### Record 120: Integrated-Browser Registration Attempt on Mi (T023 — Unverified)
+- **requirement**: Exercise a real Windows-hosted WebAuthn registration against Mi/API29 over FIDO BLE; `FR-BLE-030`, `FR-BLE-040`, `TR-BLE-020`.
+- **scope**: With Mi advertising, click Register in the existing integrated WebAuthn.io tab using the authorized synthetic test account, then inspect the page, Windows open-window inventory and Mi logs.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; Mi candidate APK SHA-256 `3F7D2397678637CDDE4544DDD7943F66B22A12CE8218D12A0E7CA4FC655C78A3`.
+- **named_procedure**: Start Authenticator on Mi, click Register in the integrated WebAuthn.io tab, and inspect updated browser state, Windows dialogs and fresh Mi GATT/CTAP log activity.
+- **environment**: Windows 11; Xiaomi Mi A2 / Android 10/API29; integrated WebAuthn.io tab; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: The click did not open a Windows security-key prompt or produce a visible page result. The Mi log contained no new GATT connection or CTAP request after advertising started. No registration ceremony completed.
+- **date**: 2026-11-05
+- **limitations**: This does not establish a Mi transport failure because the browser did not initiate an observable host request; user-activation/browser routing remains unresolved. No new credential was created. BLE T023 remains open.
+- **status**: `Failed (attempt did not launch the ceremony) / Unverified (Mi Windows registration and root cause)`.
+- **artifact_link**: [Mi advertising and deployment evidence](../../feature/fido2/build/reports/fido2/064/mi-deployment-20261105.txt), [integration plan](../064-bluetooth-transport-selection/integration.md)
+
+### Record 121: API 29 Pattern Availability and FIDO Prompt Configuration (T036 — Partial)
+- **requirement**: Verify that Mi's configured device credential is recognized for FIDO user verification on API 29; `FR-AUTH-010`, `FR-BLE-030`.
+- **scope**: Run the focused Android instrumentation class against Mi/API29 to compare Chimali availability with `KeyguardManager.isDeviceSecure` and construct the FIDO prompt configuration.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: `:feature:fido2:connectedAndroidDeviceTest --no-configuration-cache --no-problems-report --max-workers=1 --project-prop=android.testInstrumentationRunnerArguments.class=com.chimali.fido2.domain.service.impl.UserVerificationServiceDeviceTest`, with `ANDROID_SERIAL=2ac6876`.
+- **environment**: Windows 11; Xiaomi Mi A2, Android 10/API29; Gradle 9.6.0; worktree-local Gradle home.
+- **expected_observed_result**: Device instrumentation XML reports 2 tests, 0 failures, 0 errors and 0 skipped: secure-device-credential availability matches the platform, and FIDO `BiometricPrompt.PromptInfo` configuration builds on API29.
+- **date**: 2026-11-05
+- **limitations**: The test does not display the prompt, ask for the pattern, prove a user-entered verification, or complete CTAP/WebAuthn registration. T023 remains open.
+- **status**: `Passed (pattern-backed availability and API29 prompt configuration) / Unverified (actual prompt acceptance and WebAuthn ceremony)`.
+- **artifact_link**: [Mi API29 instrumentation XML](../../feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-Mi%20A2%20-%2010.xml), [device test](../../feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/domain/service/impl/UserVerificationServiceDeviceTest.kt), [prompt builder](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/UserVerificationPromptInfo.kt)
+
+### Record 122: Mi/API29 BLE Force-Stop and Explicit Restart (T035 — Partial)
+- **requirement**: Verify that a force-stopped BLE authenticator releases transport and remains stopped until an explicit user restart; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-030`.
+- **scope**: Force-stop the deployed Mi app, relaunch its actual `MainActivity`, confirm no transport service/advertising, then tap Start Authenticator and inspect GATT/advertising callbacks.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; deployed candidate signer SHA-256 `f6c948b953eb7ec7153e95f0ae4830254c7b0f882cb741e54a18e21a2a3c7510`.
+- **named_procedure**: Run `adb -s 2ac6876 shell am force-stop com.chimali.shrunk`; relaunch explicitly with `adb -s 2ac6876 shell am start -n com.chimali.shrunk/com.chimali.MainActivity`; inspect PID/service/UI; tap Start and inspect GATT/advertising logs.
+- **environment**: Windows 11; Xiaomi Mi A2 / Android 10/API29; ADB serial `2ac6876`.
+- **expected_observed_result**: Force-stop removed the process and foreground transport service. Explicit `MainActivity` relaunch showed Ready to Start with no transport service. Tapping Start registered FIDO and Device Information services and started advertising with status 0. `monkey` selected the LeakCanary launcher, so the real activity was started explicitly. No app data was cleared.
+- **date**: 2026-11-05
+- **limitations**: This is one force-stop/relaunch cycle. OS low-memory death, reboot, mid-ceremony interruption, stale bonds, cancellation, Classic mode and the full parent lifecycle matrix remain open. A Bluetooth `svc disable` attempt exited 137 while the adapter remained ON and is not a radio-off pass.
+- **status**: `Passed (Mi BLE force-stop and explicit user-restart cycle) / Unverified (remaining lifecycle and recovery matrix)`.
+- **artifact_link**: [Sanitized Mi restart evidence](../../feature/fido2/build/reports/fido2/064/mi-force-stop-restart-20261105.txt), [integration plan](../064-bluetooth-transport-selection/integration.md)
+
+### Record 123: Mi/API29 BLE Background Service Persistence (T029/T035 — Partial)
+- **requirement**: Verify the BLE foreground service and its persistent notification survive backgrounding; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-030`.
+- **scope**: Start Mi advertising, send the app to the background, inspect process/service/notification state, then bring MainActivity forward again.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes.
+- **named_procedure**: Start authenticator; send `KEYCODE_HOME`; inspect `pidof`, `dumpsys activity services`, `dumpsys notification`; explicitly bring `com.chimali.shrunk/com.chimali.MainActivity` to foreground.
+- **environment**: Xiaomi Mi A2 / Android 10/API29; ADB serial `2ac6876`.
+- **expected_observed_result**: After backgrounding, the app process remained present and `Fido2TransportService` remained foreground with notification ID 1001 in `fido2_transport_channel`; the notification included a Stop action. Bringing MainActivity forward returned to Advertising and the service remained active.
+- **date**: 2026-11-05
+- **limitations**: No peer scan directly proved uninterrupted radio discovery; this does not cover OS low-memory death, reboot, Classic, in-flight ceremony, or the complete T035 matrix.
+- **status**: `Passed (Mi/API29 foreground-service and notification persistence while backgrounded) / Unverified (remote discovery and remaining lifecycle acceptance)`.
+- **artifact_link**: [Sanitized Mi background evidence](../../feature/fido2/build/reports/fido2/064/mi-background-service-20261105.txt), [BLE lifecycle source](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/service/Fido2TransportService.kt)
+
+### Record 124: Cross-Platform Required-UV Windows Credential Chooser (T023 — In Progress)
+- **requirement**: Start a real Windows-hosted FIDO BLE MakeCredential with user verification required and record the response handoff; `FR-BLE-030`, `FR-BLE-040`, `TR-BLE-020`.
+- **scope**: Configure WebAuthn.io with `userVerification=required`, `attachment=cross_platform`, `security-key` registration hint, `attestation=none`, and the synthetic test account; click Register while Mi/API29 advertises.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; deployed Mi candidate remains the signer-matched build recorded in Record 119.
+- **named_procedure**: In the URL-verified Codex integrated browser tab, select required UV and cross-platform attachment, enable the security-key hint, click Register, inspect Windows windows and Mi GATT/CTAP logs.
+- **environment**: Windows 11; Xiaomi Mi A2 / Android 10/API29; WebAuthn.io; synthetic account `codex-synthetic-064-20261103`.
+- **expected_observed_result**: Clicking Register opened a native Windows “Guardar la clave de paso” dialog for the synthetic account. It defaulted to saving on Windows and offered “Cambiar”; the user has been asked to select Cambiar → Security key. Before provider selection, Mi logged no new GATT connection/write or MakeCredential/CTAP event, and no credential was created.
+- **date**: 2026-11-05
+- **limitations**: Windows provider selection and a user-entered Mi pattern remain pending; no authenticator request has been observed yet. This is not a transport or pattern-prompt failure. T023 remains open.
+- **status**: `In Progress (native Windows credential chooser opened; waiting for cross-platform security-key selection) / Unverified (Mi GATT, CTAP and user verification)`.
+- **artifact_link**: [Sanitized required-UV attempt evidence](../../feature/fido2/build/reports/fido2/064/mi-webauthn-required-uv-attempt-20261105.txt), [integration plan](../064-bluetooth-transport-selection/integration.md)
+- **follow_up_observation**: A later ADB snapshot still showed the Mi app Advertising with `Fido2TransportService` foreground and Bluetooth ON. `dumpsys bluetooth_manager` reported no connected or bonded devices. No GATT or CTAP activity appeared; stale-bond recovery cannot be exercised until pairing creates a bond.
+- **browser_recheck**: A current integrated-browser snapshot still showed registration UV Required, Cross-Platform attachment and the Security Key hint, but WebAuthn.io displayed its prior no-focus message. After focusing the page heading, CUA reported the WebArea focused; the prior message remained in page content. Windows' enumerated window list did not show a separate credential chooser. No new registration request was submitted.
+
+### Record 125: Mi/API29 Controlled Process-Death BLE Recovery (T035 — Partial)
+- **requirement**: Verify the selected BLE foreground service recovers after Android-managed app process death without switching transport or clearing wallet data; `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-030`.
+- **scope**: While Mi was advertising BLE with no active host ceremony, induce a shell-controlled process crash, observe ActivityManager's sticky-service restart, then reopen MainActivity and inspect service, GATT registration, advertising and selected-mode UI.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` with uncommitted changes; deployed build matches Record 119.
+- **named_procedure**: Run `adb -s 2ac6876 shell am crash com.chimali.shrunk`; inspect `logcat`, process and `dumpsys activity services`; explicitly launch `com.chimali.shrunk/com.chimali.MainActivity`; inspect UI and transport callbacks.
+- **environment**: Xiaomi Mi A2 (`jasmine`), Android 10/API29; ADB serial `2ac6876`; Bluetooth adapter ON; BLE selected; no active ceremony.
+- **expected_observed_result**: The shell-induced `RemoteServiceException` terminated PID 11964. ActivityManager scheduled `Fido2TransportService` to restart after 1,000ms and started PID 13001. The restarted service registered the FIDO and Device Information GATT services with status 0, and Android's advertising-set callback returned status 0. Explicit MainActivity launch displayed `Advertising...` / `Ready to pair with a new host PC`; the service was foreground. No app data was cleared.
+- **date**: 2026-11-05
+- **limitations**: This is a controlled shell-induced crash, not organic low-memory termination, reboot, permission revocation, pending transport change or an in-flight ceremony. No remote Windows discovery or ceremony was observed. Parent T035, BLE T035 and full T041 remain open.
+- **status**: `Passed (Mi/API29 controlled process-death sticky-service restart and BLE re-advertising) / Unverified (organic death, interruption matrix, remote host and full lifecycle acceptance)`.
+- **artifact_link**: [Sanitized Mi controlled process-death log](../../feature/fido2/build/reports/fido2/064/mi-controlled-process-death-20261105.txt), [BLE service implementation](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/service/Fido2TransportService.kt)
+
+### Record 126: Mi/API29 Fresh Install and BLE Advertising Recovery (T029 — Partial)
+- **requirement**: Start the clean-install default FIDO BLE transport and verify the foreground lifecycle and GATT server registration; `FR-BLE-010`, `FR-BLE-060`, `FR-BLE-070`, `TR-BLE-010`, `TR-BLE-030`.
+- **scope**: Reinstall the authorized `com.chimali.shrunk` candidate, complete Passkey Authenticator onboarding on Mi/API29, explicitly start the authenticator, and inspect the UI, service and Android GATT server map.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD recorded in the linked sanitized report, with staged and unstaged changes.
+- **named_procedure**: `adb uninstall com.chimali.shrunk`; `adb install app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk`; grant the previously authorized foreground location permission; select Passkey Authenticator in onboarding; tap Start Authenticator; inspect `dumpsys activity services`, `dumpsys bluetooth_manager` and the UI hierarchy.
+- **environment**: Windows 11; Xiaomi Mi A2 (`jasmine`), Android 10/API29; ADB serial `2ac6876`; `shrunkDebug` version 0.1.0.
+- **expected_observed_result**: MainActivity displayed `Advertising...` and `Ready to pair with a new host PC`; `Fido2TransportService` was foreground with notification ID 1001; Android's GATT Server Map listed `com.chimali.shrunk (Registered)`. Bluetooth was ON. The separate `com.chimali` package was untouched.
+- **date**: 2026-11-05
+- **limitations**: No remote Windows discovery, authenticated pairing, GATT request, CTAP operation, user verification, registration, assertion or timing measurement occurred. This does not close T020, T023 or T035. Coverage remains owner-deferred.
+- **status**: `Passed (Mi/API29 fresh install, onboarding, foreground service and GATT registration) / Unverified (remote host, ceremony and remaining lifecycle matrix)`.
+- **artifact_link**: [Sanitized Mi clean-install and advertising evidence](../../feature/fido2/build/reports/fido2/064/mi-clean-install-advertising-20261105.txt), [transport service](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/service/Fido2TransportService.kt)
+
+### Record 127: Mi/API29 Required-UV WebAuthn Attempt Ended by Host Disconnect (T023 — Partial)
+- **requirement**: Observe a Windows-hosted FIDO BLE MakeCredential with required user verification and determine whether the Mi request reaches a terminal response; `FR-BLE-030`, `FR-BLE-040`, `TR-BLE-020`.
+- **scope**: Start one synthetic-account registration in the integrated WebAuthn.io page with required UV and cross-platform attachment while Mi advertises BLE; observe browser, Windows dialog and sanitized Android request lifecycle.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; deployed Mi build remains the signer-matched candidate from Record 119; source has staged and unstaged changes.
+- **named_procedure**: Click Register for `codex-synthetic-064-20261103`; user selects the Windows security-key path and handles all credential/pattern prompts; inspect ADB logs and WebAuthn.io result without controlling the native authentication dialog.
+- **environment**: Windows 11; Codex integrated browser; Xiaomi Mi A2 / Android 10/API29; `com.chimali.shrunk`.
+- **expected_observed_result**: Windows displayed “La conversación con la clave de seguridad de Bluetooth está en curso.” Mi logs showed GATT connection, GetInfo/GetAssertion exchanges and admission of MakeCredential (`credProtect policy=2`). Repeated overlapping CMD_MSG packets were rejected while the operation remained active. The user closed the Windows dialog because it blocked interaction with Codex; Mi then logged cancellation of the in-flight CTAP command, and WebAuthn.io reported timeout/not-allowed. No successful registration was observed.
+- **date**: 2026-11-05
+- **limitations**: User was away from the Mi and did not complete or observe a pattern prompt. This run proves request admission and cancellation on disconnect only; it does not establish whether Mi displayed system verification, whether the credential was created, or that the repeated CMD_MSG traffic caused the timeout. T023 and physical verification remain open.
+- **status**: `Passed (GATT/CTAP MakeCredential request admission observed) / Failed (WebAuthn ceremony timed out after dialog closure) / Unverified (Mi pattern prompt, credential persistence and successful response handoff)`.
+- **artifact_link**: [BLE transport request lifecycle](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt), [integration plan](../064-bluetooth-transport-selection/integration.md)
+
+### Record 128: Periodic FIDO BLE Keepalive Source Correction (T019 — Implementation Follow-up)
+- **requirement**: Emit BLE `CMD_KEEPALIVE` notifications no more than 500ms apart while processing or awaiting user presence, then stop before terminal response delivery; feature `FR-015`, canonical `FR-BLE-060` and `TR-BLE-020`.
+- **scope**: Trace the actual CTAP handler callbacks and response-writer phase through `BleGattTransport`; correct periodic delivery and ensure the writer reopens the keepalive phase after terminal notification acknowledgment for the next transaction.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus current staged and unstaged changes; correction is not deployed.
+- **named_procedure**: Compare `spec.md` FR-015 and task T019 with `BleGattTransport.processCtapMessage`; run the focused virtual-time regressions for cadence, PROCESSING/UP_NEEDED status, stop-before-response, and keepalive resumption on a later request with `:feature:fido2:testAndroidHostTest --tests com.chimali.fido2.data.transport.FidoBleAssertionTest`.
+- **environment**: Offline source review in the Windows worktree; Mi device was not operated during this correction.
+- **expected_observed_result**: Source starts a periodic keepalive after 100ms, enqueues current PROCESSING/UP_NEEDED status every 250ms while the session is current, cancels/joins that job before terminal response queuing, and resets response suppression only after the current session's terminal notification is acknowledged. The focused host-test class passed 6/6 with zero failures, errors or skips, including cadence, status transition, stop-before-response and a subsequent request that emits keepalives.
+- **date**: 2026-11-05
+- **limitations**: The correction is not installed on Mi. The preceding timeout followed a user-closed Windows dialog; it does not prove the missing cadence or response-phase leak caused that timeout. Physical keepalive delivery, user verification and successful Windows registration remain unverified.
+- **status**: `Passed (focused Android host test) / Implemented (source correction) / Unverified (deployed keepalive delivery and Windows ceremony)`.
+- **artifact_link**: [BLE transport](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt), [keepalive regression test](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleAssertionTest.kt), [task T019](tasks.md)
+
+### Record 129: BLE Outbound Queue Overflow Cleanup (T013/T031 — Source Follow-up)
+- **requirement**: A full bounded notification queue must not silently discard retained protocol work; failed sends and timeout must abort/fence the affected session and erase owned queue buffers; `FR-BLE-050`, `TR-BLE-020`, `TR-BLE-040`.
+- **scope**: Correct overflow handling in `BleNotificationWriter`, include in-flight bytes in the total owned-buffer limit, and cancel/erase sender-owned buffers on cleanup before running the queue-ownership/stall suite plus BLE assertion regressions.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus current staged and unstaged changes.
+- **named_procedure**: Run `:feature:fido2:testAndroidHostTest --tests com.chimali.fido2.data.transport.BleNotificationWriterTest --tests com.chimali.fido2.data.transport.FidoBleAssertionTest --no-configuration-cache --no-problems-report`, followed by Android main and host-test KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; worktree-local Gradle user home; Android host-test JVM. Mi was not operated.
+- **expected_observed_result**: The total outstanding byte limit includes in-flight and queued packet storage. Capacity overflow clears and fences the active writer session and invokes stalled-session cleanup; the incoming notification is rejected. Cleanup cancels an unfinished send coroutine, whose `finally` erases its borrowed bytes after release. `BleNotificationWriterTest` passed 12/12 and `FidoBleAssertionTest` passed 6/6, with zero failures, errors or skips. Android main and host-test KtLint checks passed.
+- **date**: 2026-11-05
+- **limitations**: Host tests do not validate Android GATT queue pressure or remote peer behavior. The correction has not been deployed; physical BLE recovery and Windows ceremonies remain unverified.
+- **status**: `Passed (18 focused host tests and affected source-set KtLint) / Implemented (total-byte bound and overflow cleanup) / Unverified (physical queue-pressure recovery)`.
+- **artifact_link**: [notification writer](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleNotificationWriter.kt), [writer regression tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/BleNotificationWriterTest.kt), [assertion regression tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleAssertionTest.kt)
+
+### Record 130: Android Notification Buffer Ownership on API 28–32 (T013/T031 — Source Follow-up)
+- **requirement**: Do not mutate notification bytes while the Android GATT stack owns them; erase owned copies after notification completion or server teardown, and release buffers in send-failure/cancellation paths; `FR-BLE-050`, `TR-BLE-020`, `TR-BLE-040`.
+- **scope**: Address legacy `BluetoothGattServer.notifyCharacteristicChanged(device, characteristic, confirm)` buffer ownership on API 28–32 while preserving the explicit value overload on API 33+.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus current staged and unstaged changes.
+- **named_procedure**: Review the official `BluetoothGattServer` API warning that the deprecated overload is not memory-safe; copy the submitted value for legacy calls, retain it until `onNotificationSent`, wipe on callback/server close, and run the focused writer/assertion host suites and Android main/host-test KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; API28+ compile configuration; Android host-test JVM. No Android device was operated.
+- **expected_observed_result**: API33+ sends through the explicit value overload. API28–32 stores an owned copy until notification callback and clears it after completion; server close also clears any pending copy. Notification initiation now wipes the writer-owned buffer in `finally`, and stalled-session cleanup stops/closes the GATT server. The latest `BleNotificationWriterTest` passed 12/12 and `FidoBleAssertionTest` passed 6/6, zero failures/errors/skips; affected KtLint checks passed.
+- **date**: 2026-11-05
+- **limitations**: Host tests verify writer borrowing and API code compiles, but they do not exercise real Android framework buffer behavior, callback timing, or Mi/API29 delivery. Physical compatibility and ceremony outcomes remain unverified.
+- **status**: `Passed (18 focused host tests, Android main compilation and affected KtLint) / Implemented (API-specific buffer ownership) / Unverified (physical legacy-API delivery)`.
+- **artifact_link**: [Android GATT host](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/AndroidFidoBleGattServerHost.kt), [notification writer](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleNotificationWriter.kt), [BluetoothGattServer API reference](https://developer.android.com/reference/android/bluetooth/BluetoothGattServer)
+
+### Record 131: Explicit BLE Framing Errors and Recovery (T030/T032 — Source Follow-up)
+- **requirement**: Reply with the specified BLE `CMD_ERROR` for malformed frames and expired partial requests, erase invalid assembly state, and accept only bytes within declared message bounds; `FR-BLE-050`, `TR-BLE-020`.
+- **scope**: Reuse the bounded `FidoBleFraming.RequestAssembler` for parsing; add typed incoming-write outcomes, route current-session errors to `CMD_ERROR`, enforce the session receive deadline, erase partial buffers on failure/replacement/unsubscription, and preserve clean transaction recovery.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus staged and unstaged corrections.
+- **named_procedure**: Run the focused `BleSessionOwnerTest`, `FidoBleRecoveryTest` and `FidoBleCancellationTest` Android host suites, then run the full `:feature:fido2:testAndroidHostTest` suite and Android main/host-test KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; Android host-test JVM. Mi was not operated.
+- **expected_observed_result**: Session-owner tests assert `NotReady`, `InProgress`, `Complete` and explicit error outcomes. Short headers, empty/oversized frames, extra initialization/continuation bytes, out-of-order continuations, unexpected continuations and expired fragments map to typed BLE errors; transport emits the corresponding `CMD_ERROR`. The receive deadline expires at exactly 3000ms (2999ms remains valid); disabling CCCD erases partial request state. After replacing the duplicate parser with the reusable bounded assembler, the full FIDO2 Android host suite passed 1,146/1,146 with zero failures, errors or skips; Detekt and both affected KtLint checks passed.
+- **date**: 2026-11-05
+- **limitations**: This is source and host-test evidence only. Physical malformed-frame behavior, Android callback ordering and Windows interoperability remain unverified; T023 and T035 remain open.
+- **status**: `Passed (full FIDO2 host suite 1,146/1,146, Detekt and affected KtLint) / Implemented (shared BLE framing parser, explicit errors, exact receive deadline and CCCD cleanup) / Unverified (physical peer behavior)`.
+- **artifact_link**: [session owner](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleSessionOwner.kt), [transport error routing](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt), [recovery tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleRecoveryTest.kt), [full host-suite report](../../feature/fido2/build/reports/tests/testAndroidHostTest/index.html)
+
+### Record 132: FIDO BLE Error Response Frame Vector (T007/T032 — Source Follow-up)
+- **requirement**: Encode BLE `ERROR` as a response status, two-byte big-endian payload length and one-byte error payload; `FR-BLE-050`, `TR-BLE-020`.
+- **scope**: Correct the reusable `encodeErrorFrame` helper and its byte-vector test; the production transport already used the full response fragmenter.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus staged and unstaged corrections.
+- **named_procedure**: Compare CTAP 2.2 BLE §11.4.4.2–3 with `encodeErrorFrame`; run `FidoBleFramingTest` and Android main/host-test KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; Android host-test JVM. No device was operated.
+- **expected_observed_result**: The encoded timeout error is `[0xBF, 0x00, 0x01, 0x05]`, representing response status, payload length 1 and error code. `FidoBleFramingTest` passed; Android main and host-test KtLint passed.
+- **date**: 2026-11-05
+- **limitations**: The transport's runtime error path had already used `fragmentResponse`; this correction fixes the reusable helper/vector only. No physical peer interoperability was tested.
+- **status**: `Passed (framing vector and affected source-set KtLint) / Implemented (correct error response encoder) / Unverified (physical peer behavior)`.
+- **artifact_link**: [framing encoder](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/FidoBleFraming.kt), [framing vector tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleFramingTest.kt), [FIDO BLE contract](contracts/fido-ble.md)
+
+### Record 133: Truthful BLE Write and Notification Capacities (T011/T017 — Source Follow-up)
+- **requirement**: Report Control Point capacity as `min(512, ATT_MTU-3, platform write capacity)` without exceeding a 20-byte minimum; report notification capacity as `min(ATT_MTU-3, platform notification capacity)`; `FR-BLE-020`, `TR-BLE-020`.
+- **scope**: Remove capacity clamping that could claim bytes unsupported by Android, reject unsupported write/max-message configurations and ensure notifications can carry a complete BLE error response.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus staged and unstaged corrections.
+- **named_procedure**: Run `BleSessionOwnerTest` and `FidoBleFramingTest`, then the full `:feature:fido2:testAndroidHostTest` suite and Android main/host-test KtLint checks.
+- **environment**: Windows 11; Gradle 9.6.0; Android host-test JVM. No device was operated.
+- **expected_observed_result**: Host coverage asserts exact platform-limited notification capacity, rejects write capacity below 20 and validates `maxMsgSize` within 1–65535. Focused tests passed, then the full suite passed 1,146/1,146 with zero failures, errors or skips; KtLint passed.
+- **date**: 2026-11-05
+- **limitations**: These tests use configured limits, not OEM-reported limits from physical Android hardware. Physical notification throughput remains unverified.
+- **status**: `Passed (full FIDO2 host suite 1,146/1,146 and affected KtLint) / Implemented (truthful supported capacities and constructor validation) / Unverified (physical platform limits)`.
+- **artifact_link**: [session owner](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleSessionOwner.kt), [capacity tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/BleSessionOwnerTest.kt), [data model](data-model.md)
+
+### Record 134: Full Local CI After BLE Contract Corrections (T036/T038 — Local Verification)
+- **requirement**: Run repository static analysis, lint, compilation, unit tests and configured host tests after BLE framing/capacity changes; keep coverage gate separate and owner-deferred.
+- **scope**: Execute the worktree's no-problems-report local CI wrapper with `-NoFix -NoConfigurationCache`, without its opt-in `-RunCoverage` flag.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus staged/unstaged changes.
+- **named_procedure**: `.\build\local-ci-no-problems.ps1 -NoFix -NoConfigurationCache`.
+- **environment**: Windows 11; Gradle 9.6.0; Android SDK; local checkout; coverage omitted under the owner's prior direction.
+- **expected_observed_result**: KtLint, Detekt, release lint, comprehensive compile, unit tests and configured common/security/domain/FIDO2 Android host suites all passed in 90.44 seconds. No connected device tests or coverage/nonregression comparison ran.
+- **date**: 2026-11-05
+- **limitations**: This does not satisfy coverage floors, trusted baseline comparison or physical interoperability. BLE T023/T035, parent physical gates and T038/T039 remain open.
+- **status**: `Passed (ordinary local CI without coverage) / Unverified (coverage, trusted target comparison and physical acceptance)`.
+- **artifact_link**: [CI wrapper](../../build/local-ci-no-problems.ps1), [framing contract corrections](contracts/fido-ble.md), [parent integration plan](../064-bluetooth-transport-selection/integration.md)
+
+### Record 135: Autonomous BLE Receive Timeout (T030/T032 — Source Follow-up)
+- **requirement**: Expire an incomplete request after three seconds even if the peer sends no further packet, clear partial state, and send a timeout error; `FR-BLE-050`, `TR-BLE-020`.
+- **scope**: Schedule a transport timeout for each accepted partial fragment. Fence callbacks with both session generation and assembly token so stale timers cannot expire a refreshed request or successor session. Add host coverage for autonomous expiry and stale-token rejection.
+- **revision**: Worktree branch `064-bluetooth-transport-selection`; source HEAD `373884950af81efa401c39671343b6af5387aee7` plus staged and unstaged changes.
+- **named_procedure**: Compile Android main, host-test and device-test Kotlin sources; run affected Android main/host-test/device-test KtLint checks and `:feature:fido2:detekt`; execute `:feature:fido2:testAndroidHostTest`.
+- **environment**: Windows 11; Gradle 9.6.0; local worktree Gradle cache at `.tmp/gradle-home`. Mi was not operated.
+- **expected_observed_result**: Android main, host-test and device-test compilation completed with Gradle's in-process fallback after Kotlin daemon marker access was denied; all three affected KtLint checks and Detekt passed. The full FIDO2 Android host suite passed 1,148/1,148 with zero failures, errors or skips. `git diff --check` passed.
+- **date**: 2026-11-05
+- **limitations**: Host verification does not prove Android callback timing on OEM hardware or Windows interoperability. Physical timeout and Windows acceptance remain open.
+- **status**: `Passed (Android main/host/device-test compile, affected KtLint, Detekt, full FIDO2 host suite 1,148/1,148) / Implemented (scheduled timeout with session/assembly fencing) / Unverified (physical peer behavior)`.
+- **artifact_link**: [session owner](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleSessionOwner.kt), [transport timeout](../../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt), [timeout tests](../../feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleLifecycleTest.kt)

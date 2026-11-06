@@ -5,7 +5,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 @Req("FR-BLE-050", "TR-BLE-020")
@@ -41,7 +41,10 @@ class FidoBleRecoveryTest {
 
         // Feed initial packet at T0
         val r0 = sessionOwner.processIncomingWrite(initPacket)
-        assertNull(r0, "Initial packet of multi-packet message must not complete immediately")
+        assertIs<BleIncomingWriteResult.InProgress>(
+            r0,
+            "Initial packet of multi-packet message must not complete immediately",
+        )
 
         // Advance 2999ms (1ms before 3000ms deadline)
         virtualClockNanos += 2_999L * NANOS_PER_MILLI
@@ -51,34 +54,55 @@ class FidoBleRecoveryTest {
         val contPacket = byteArrayOf(0x00) + dataPart2
         val r1 = sessionOwner.processIncomingWrite(contPacket)
 
-        assertNotNull(r1, "Continuation received at 2999ms must complete assembly successfully")
-        assertEquals(CMD_MSG, r1.command)
-        assertEquals(30, r1.data.size)
-        assertContentEquals(dataPart1 + dataPart2, r1.data)
+        val complete = (r1 as BleIncomingWriteResult.Complete).message
+        assertEquals(CMD_MSG, complete.command)
+        assertEquals(30, complete.data.size)
+        assertContentEquals(dataPart1 + dataPart2, complete.data)
     }
 
     @Test
     @Req("FR-BLE-050", "TR-BLE-020")
-    fun `at 3000ms plus 1ms partial request expires and continuation is discarded`() {
+    fun `at 3000ms partial request expires and continuation is discarded`() {
         // Initial packet for 30 bytes
         val initPacket = byteArrayOf(CMD_MSG, 0x00, 30.toByte()) + ByteArray(17) { 0x01 }
         val r0 = sessionOwner.processIncomingWrite(initPacket)
-        assertNull(r0)
+        assertIs<BleIncomingWriteResult.InProgress>(r0)
 
-        // Advance 3001ms past deadline
-        virtualClockNanos += (TIMEOUT_MILLIS + 1L) * NANOS_PER_MILLI
+        // Advance exactly 3000ms to the receive deadline
+        virtualClockNanos += TIMEOUT_MILLIS * NANOS_PER_MILLI
 
         // Feed continuation 0
         val contPacket = byteArrayOf(0x00) + ByteArray(13) { 0x02 }
         val r1 = sessionOwner.processIncomingWrite(contPacket)
-        assertNull(r1, "Continuation received after 3s must be discarded due to timeout")
+        assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, (r1 as BleIncomingWriteResult.Error).errorCode)
 
         // Subsequent valid message must assemble cleanly without residual corrupt state
         val freshPacket = byteArrayOf(CMD_MSG, 0x00, 0x02, 0xAA.toByte(), 0xBB.toByte())
         val freshResult = sessionOwner.processIncomingWrite(freshPacket)
-        assertNotNull(freshResult, "Fresh packet after timeout must succeed cleanly")
-        assertEquals(2, freshResult.data.size)
-        assertContentEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte()), freshResult.data)
+        val freshMessage = (freshResult as BleIncomingWriteResult.Complete).message
+        assertEquals(2, freshMessage.data.size)
+        assertContentEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte()), freshMessage.data)
+    }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `scheduled timeout expires only the matching incomplete assembly`() {
+        val first = sessionOwner.processIncomingWrite(byteArrayOf(CMD_MSG, 0x00, 40) + ByteArray(17))
+        val firstAssembly = assertIs<BleIncomingWriteResult.InProgress>(first)
+
+        val nextFragment = sessionOwner.processIncomingWrite(byteArrayOf(0x00) + ByteArray(11))
+        val refreshedAssembly = assertIs<BleIncomingWriteResult.InProgress>(nextFragment)
+        assertNull(sessionOwner.expireIncompleteRequest(firstAssembly.sessionGeneration, firstAssembly.timeoutToken))
+
+        val timeout =
+            sessionOwner.expireIncompleteRequest(
+                refreshedAssembly.sessionGeneration,
+                refreshedAssembly.timeoutToken,
+            )
+        assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, timeout?.errorCode)
+
+        val cleanRequest = sessionOwner.processIncomingWrite(byteArrayOf(CMD_MSG, 0x00, 0x01, 0x55))
+        assertContentEquals(byteArrayOf(0x55), (cleanRequest as BleIncomingWriteResult.Complete).message.data)
     }
 
     @Test
@@ -94,7 +118,7 @@ class FidoBleRecoveryTest {
         // Feed SEQ 0 at T0+2000ms (refreshes deadline to T0+2000ms + 3000ms)
         val cont0 = byteArrayOf(0x00) + ByteArray(17) { 0x20 }
         val r0 = sessionOwner.processIncomingWrite(cont0)
-        assertNull(r0)
+        assertIs<BleIncomingWriteResult.InProgress>(r0)
 
         // Advance another 2000ms (total 4000ms from start, but only 2000ms since last fragment)
         virtualClockNanos += 2_000L * NANOS_PER_MILLI
@@ -103,8 +127,8 @@ class FidoBleRecoveryTest {
         val cont1 = byteArrayOf(0x01) + ByteArray(6) { 0x30 }
         val r1 = sessionOwner.processIncomingWrite(cont1)
 
-        assertNotNull(r1, "Refreshed deadline must allow message completion across >3s total duration")
-        assertEquals(40, r1.data.size)
+        val complete = (r1 as BleIncomingWriteResult.Complete).message
+        assertEquals(40, complete.data.size)
     }
 
     @Test
@@ -116,19 +140,19 @@ class FidoBleRecoveryTest {
         // Feed SEQ 1 instead of expected SEQ 0
         val outOfOrderCont = byteArrayOf(0x01) + ByteArray(13) { 0x02 }
         val r0 = sessionOwner.processIncomingWrite(outOfOrderCont)
-        assertNull(r0, "Out-of-order continuation must be rejected")
+        assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (r0 as BleIncomingWriteResult.Error).errorCode)
 
         // Feed expected SEQ 0 now: must be rejected because assembly state was reset
         val nowLateCont = byteArrayOf(0x00) + ByteArray(13) { 0x02 }
         val r1 = sessionOwner.processIncomingWrite(nowLateCont)
-        assertNull(r1, "Subsequent continuation must be rejected after reset")
+        assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (r1 as BleIncomingWriteResult.Error).errorCode)
 
         // New transaction completes cleanly
         val newInit = byteArrayOf(CMD_MSG, 0x00, 0x01, 0x77)
         val r2 = sessionOwner.processIncomingWrite(newInit)
-        assertNotNull(r2)
-        assertEquals(1, r2.data.size)
-        assertEquals(0x77.toByte(), r2.data[0])
+        val newMessage = (r2 as BleIncomingWriteResult.Complete).message
+        assertEquals(1, newMessage.data.size)
+        assertEquals(0x77.toByte(), newMessage.data[0])
     }
 
     @Test
@@ -148,12 +172,12 @@ class FidoBleRecoveryTest {
         // Old continuation from previous connection
         val oldCont = byteArrayOf(0x00) + ByteArray(13) { 0x06 }
         val r0 = sessionOwner.processIncomingWrite(oldCont)
-        assertNull(r0, "Old continuation after reconnect must be rejected without active assembly")
+        assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (r0 as BleIncomingWriteResult.Error).errorCode)
 
         // Clean new message completes
         val newMsg = byteArrayOf(CMD_MSG, 0x00, 0x01, 0x42)
         val r1 = sessionOwner.processIncomingWrite(newMsg)
-        assertNotNull(r1)
-        assertEquals(0x42.toByte(), r1.data[0])
+        val message = (r1 as BleIncomingWriteResult.Complete).message
+        assertEquals(0x42.toByte(), message.data[0])
     }
 }

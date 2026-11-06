@@ -16,7 +16,6 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
-import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
@@ -33,7 +32,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -170,8 +169,8 @@ class AuthenticationPromptViewModel(
     private var pendingRequestJob: CompletableJob? = null
 
     init {
-        uiEventBus.events
-            .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
+        uiEventBus.pendingAuthenticationRequest
+            .filterNotNull()
             .onEach { event ->
                 // Guard: If we are already processing a ceremony or showing an error,
                 // do NOT let a background retry overwrite our current state/deferred.
@@ -184,11 +183,6 @@ class AuthenticationPromptViewModel(
                 uiEventBus.clearAuthenticationRequest(event.deferred)
                 initAuthentication(event.options, event.deferred, event.userInteractionCompleted)
             }.launchIn(viewModelScope)
-
-        uiEventBus.currentAuthenticationRequest?.let { event ->
-            initAuthentication(event.options, event.deferred, event.userInteractionCompleted)
-            uiEventBus.clearAuthenticationRequest(event.deferred)
-        }
     }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────

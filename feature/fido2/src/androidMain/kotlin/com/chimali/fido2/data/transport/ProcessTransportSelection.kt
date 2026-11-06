@@ -91,11 +91,19 @@ class AndroidBluetoothCapabilityChecker(
             if (!adapter.isMultipleAdvertisementSupported) {
                 return CapabilityCheckResult.Unknown
             }
+            return CapabilityCheckResult.Supported
         }
 
-        return CapabilityCheckResult.Supported
+        // Android exposes no public, non-initializing signal for whether an OEM
+        // Bluetooth stack provides the HID_DEVICE profile service. Generic Bluetooth
+        // hardware is insufficient evidence (for example, Mi/API29 can fail to bind
+        // the profile). Defer that determination to the selected transport's activation.
+        return classicHidCapabilityForApi(Build.VERSION.SDK_INT)
     }
 }
+
+internal fun classicHidCapabilityForApi(apiLevel: Int): CapabilityCheckResult =
+    if (apiLevel < Build.VERSION_CODES.P) CapabilityCheckResult.Unsupported else CapabilityCheckResult.Unknown
 
 /**
  * Process-scoped controller and single gated handle for FIDO2 transport selection.

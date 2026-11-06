@@ -1,11 +1,17 @@
 package com.chimali.fido2.data.transport
 
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.ParcelUuid
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 import java.util.UUID
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +36,7 @@ class NordicBleAdvertiserController(
 ) : BleAdvertiserController {
     private var advertisingJob: Job? = null
     private var advertiser: BleAdvertiser? = null
+    private var adapterStateReceiver: BroadcastReceiver? = null
 
     @Volatile private var advertisingStarted = false
 
@@ -41,6 +48,11 @@ class NordicBleAdvertiserController(
         try {
             if (advertisingStarted && advertisingJob?.isActive == true) return Result.success(Unit)
 
+            val adapterTurnedOff = AtomicBoolean(false)
+            registerAdapterStateReceiver { failure ->
+                adapterTurnedOff.set(true)
+                onUnexpectedFailure(failure)
+            }
             val adv = advertiserFactory(context)
             advertiser = adv
             val config =
@@ -109,6 +121,7 @@ class NordicBleAdvertiserController(
                         advertiser = null
                         advertisingStarted = false
                     }
+                    unregisterAdapterStateReceiver()
                     throw cancellation
                 }
             if (result.isFailure) {
@@ -118,15 +131,23 @@ class NordicBleAdvertiserController(
                     advertiser = null
                     advertisingStarted = false
                 }
+                unregisterAdapterStateReceiver()
+            } else if (adapterTurnedOff.get()) {
+                val failure = IllegalStateException("Bluetooth adapter turned off during BLE startup")
+                stopAdvertising()
+                return Result.failure(failure)
             }
             result
         } catch (e: SecurityException) {
+            stopAdvertising()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalArgumentException) {
+            stopAdvertising()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalStateException) {
+            stopAdvertising()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         }
@@ -136,6 +157,46 @@ class NordicBleAdvertiserController(
         advertisingJob = null
         advertiser = null
         advertisingStarted = false
+        unregisterAdapterStateReceiver()
+    }
+
+    private fun registerAdapterStateReceiver(onUnexpectedFailure: (Throwable) -> Unit) {
+        unregisterAdapterStateReceiver()
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    if (state != BluetoothAdapter.STATE_TURNING_OFF && state != BluetoothAdapter.STATE_OFF) return
+
+                    advertisingStarted = false
+                    val failure = IllegalStateException("Bluetooth adapter turned off during BLE advertising")
+                    onUnexpectedFailure(failure)
+                    stopAdvertising()
+                }
+            }
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Bluetooth may broadcast from a privileged UID. Android protects ACTION_STATE_CHANGED,
+            // so EXPORTED receives that system event without accepting app-forged broadcasts.
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        adapterStateReceiver = receiver
+    }
+
+    private fun unregisterAdapterStateReceiver() {
+        val receiver = adapterStateReceiver ?: return
+        adapterStateReceiver = null
+        try {
+            context.unregisterReceiver(receiver)
+        } catch (_: IllegalArgumentException) {
+            // The receiver may already have been removed by Android during teardown.
+        }
     }
 
     private companion object {

@@ -7,16 +7,22 @@ import android.bluetooth.BluetoothProfile
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Controller abstraction for starting and stopping BLE advertising.
@@ -66,6 +72,17 @@ class BleGattTransport(
         const val CMD_ERROR: Byte = 0xBF.toByte()
 
         const val ERR_INVALID_CMD: Byte = 0x01
+
+        private const val CTAP2_CMD_MAKE_CREDENTIAL = 0x01
+        private const val CTAP2_CMD_GET_ASSERTION = 0x02
+        private const val CTAP2_CMD_GET_INFO = 0x04
+        private const val CTAP2_CMD_RESET = 0x07
+        private const val BYTE_MASK = 0xFF
+        private const val NANOS_PER_MILLISECOND = 1_000_000L
+        private const val RECEIVE_TIMEOUT_MILLIS = BleSessionOwner.RECEIVE_TIMEOUT_NANOS / NANOS_PER_MILLISECOND
+        private const val KEEPALIVE_INITIAL_DELAY_MILLIS = 100L
+        private const val KEEPALIVE_PERIOD_MILLIS = 250L
+        private const val KEEPALIVE_STATUS_PROCESSING = 0x01
     }
 
     private val _connectionState = MutableStateFlow<Fido2ConnectionState>(Fido2ConnectionState.Idle)
@@ -74,6 +91,7 @@ class BleGattTransport(
     private val lifecycleMutex = Mutex()
     private var isStarted = false
     private var currentMsgJob: Job? = null
+    private var receiveTimeoutJob: Job? = null
     private var activeHostAddress: String? = null
 
     private val notificationWriter: BleNotificationWriter =
@@ -99,6 +117,9 @@ class BleGattTransport(
             onSessionStalled = { generation ->
                 Logger.w { "BleGattTransport: Notification stalled for 5 seconds; aborting session" }
                 sessionOwner.runForCurrentSession(generation) { activeDevice ->
+                    isStarted = false
+                    advertiserController.stopAdvertising()
+                    gattServerHost?.stop()
                     sessionOwner.disconnectHost(activeDevice)
                     if (activeHostAddress == activeDevice) activeHostAddress = null
                     _connectionState.value = Fido2ConnectionState.Error("Notification stall timeout")
@@ -148,6 +169,7 @@ class BleGattTransport(
     override suspend fun disconnect(): Result<Unit> =
         lifecycleMutex.withLock {
             isStarted = false
+            cancelReceiveTimeout()
             advertiserController.stopAdvertising()
             gattServerHost?.stop()
             cancelCurrentMessage()
@@ -166,9 +188,39 @@ class BleGattTransport(
      */
     @Req("FR-BLE-050", "TR-BLE-020", "TR-BLE-030")
     fun onPacketReceived(packet: ByteArray) {
-        val message = sessionOwner.processIncomingWrite(packet) ?: return
-        if (!sessionOwner.isSessionCurrent(message.sessionGeneration)) return
-        dispatchMessage(message)
+        when (val result = sessionOwner.processIncomingWrite(packet)) {
+            is BleIncomingWriteResult.Complete -> {
+                cancelReceiveTimeout()
+                val message = result.message
+                if (sessionOwner.isSessionCurrent(message.sessionGeneration)) dispatchMessage(message)
+            }
+            is BleIncomingWriteResult.Error -> {
+                cancelReceiveTimeout()
+                if (sessionOwner.isSessionCurrent(result.sessionGeneration)) {
+                    enqueueErrorResponse(result.sessionGeneration, result.errorCode)
+                }
+            }
+            is BleIncomingWriteResult.InProgress -> scheduleReceiveTimeout(result)
+            BleIncomingWriteResult.NotReady -> cancelReceiveTimeout()
+        }
+    }
+
+    private fun scheduleReceiveTimeout(result: BleIncomingWriteResult.InProgress) {
+        cancelReceiveTimeout()
+        receiveTimeoutJob =
+            coroutineScope.launch {
+                delay(RECEIVE_TIMEOUT_MILLIS)
+                val timeout = sessionOwner.expireIncompleteRequest(result.sessionGeneration, result.timeoutToken)
+                if (timeout != null && sessionOwner.isSessionCurrent(timeout.sessionGeneration)) {
+                    enqueueErrorResponse(timeout.sessionGeneration, timeout.errorCode)
+                }
+                receiveTimeoutJob = null
+            }
+    }
+
+    private fun cancelReceiveTimeout() {
+        receiveTimeoutJob?.cancel()
+        receiveTimeoutJob = null
     }
 
     private fun dispatchMessage(message: FidoBleMessage) {
@@ -201,71 +253,7 @@ class BleGattTransport(
                 cancelCurrentMessage()
                 // CANCEL itself receives no response per CTAP 2.2 spec
             }
-            CMD_MSG -> {
-                if (currentMsgJob?.isActive == true) {
-                    Logger.w { "BleGattTransport: Busy; rejecting overlapping CMD_MSG" }
-                    val errFragments =
-                        FidoBleFraming.fragmentResponse(
-                            CMD_ERROR,
-                            byteArrayOf(FidoBleFraming.ERR_BUSY),
-                            sessionOwner.notifyCapacity,
-                        )
-                    for (frag in errFragments) {
-                        notificationWriter.enqueue(
-                            frag,
-                            isKeepalive = false,
-                            sessionGeneration = message.sessionGeneration,
-                        )
-                    }
-                    return
-                }
-
-                val messageJob =
-                    coroutineScope.launch(start = CoroutineStart.LAZY) {
-                        try {
-                            val result =
-                                executeCtapOperation(message.data) { status ->
-                                    val keepalivePayload = byteArrayOf(status)
-                                    val keepaliveFragments =
-                                        FidoBleFraming.fragmentResponse(
-                                            CMD_KEEPALIVE,
-                                            keepalivePayload,
-                                            sessionOwner.notifyCapacity,
-                                        )
-                                    if (sessionOwner.isSessionCurrent(message.sessionGeneration)) {
-                                        notificationWriter.enqueue(
-                                            keepaliveFragments[0],
-                                            isKeepalive = true,
-                                            sessionGeneration = message.sessionGeneration,
-                                        )
-                                    }
-                                }
-
-                            notificationWriter.markResponseTransmissionStarted(message.sessionGeneration)
-
-                            val fragments =
-                                FidoBleFraming.fragmentResponse(
-                                    CMD_MSG,
-                                    result.responseBytes,
-                                    sessionOwner.notifyCapacity,
-                                )
-                            for (fragment in fragments) {
-                                if (!sessionOwner.isSessionCurrent(message.sessionGeneration)) break
-                                notificationWriter.enqueue(
-                                    fragment,
-                                    isKeepalive = false,
-                                    sessionGeneration = message.sessionGeneration,
-                                )
-                            }
-                        } finally {
-                            if (currentMsgJob === coroutineContext[Job]) {
-                                currentMsgJob = null
-                            }
-                        }
-                    }
-                currentMsgJob = messageJob
-                messageJob.start()
-            }
+            CMD_MSG -> dispatchCtapMessage(message)
             else -> {
                 val errFragments =
                     FidoBleFraming.fragmentResponse(
@@ -279,6 +267,170 @@ class BleGattTransport(
             }
         }
     }
+
+    private fun dispatchCtapMessage(message: FidoBleMessage) {
+        if (currentMsgJob?.isActive == true) {
+            Logger.w { "BleGattTransport: Busy; rejecting overlapping CMD_MSG" }
+            enqueueErrorResponse(message.sessionGeneration, FidoBleFraming.ERR_BUSY)
+            return
+        }
+
+        val messageJob =
+            coroutineScope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    processCtapMessage(message)
+                } finally {
+                    if (currentMsgJob === coroutineContext[Job]) currentMsgJob = null
+                }
+            }
+        currentMsgJob = messageJob
+        messageJob.start()
+    }
+
+    @Req("FR-BLE-060", "TR-BLE-020")
+    private suspend fun processCtapMessage(message: FidoBleMessage) {
+        val startedAtNanos = System.nanoTime()
+        val operation = diagnosticOperationName(message.data)
+        Logger.d { "FIDO BLE diagnostic started operation=$operation" }
+        val keepaliveStatus = AtomicInteger(KEEPALIVE_STATUS_PROCESSING)
+        // Begin after a short grace period for fast CTAP commands, then keep the host informed at <500ms intervals.
+        val keepaliveJob =
+            coroutineScope.launch {
+                delay(KEEPALIVE_INITIAL_DELAY_MILLIS)
+                while (isActive && sessionOwner.isSessionCurrent(message.sessionGeneration)) {
+                    enqueueKeepalive(message, keepaliveStatus.get().toByte())
+                    delay(KEEPALIVE_PERIOD_MILLIS)
+                }
+            }
+
+        val result =
+            try {
+                executeCtapOperation(message.data) { status ->
+                    keepaliveStatus.set(status.toInt() and BYTE_MASK)
+                    enqueueKeepalive(message, status)
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    keepaliveJob.cancelAndJoin()
+                }
+            }
+
+        queueCtapResponse(message, result, startedAtNanos, operation)
+    }
+
+    @Req("FR-BLE-060", "TR-BLE-020")
+    private fun enqueueKeepalive(
+        message: FidoBleMessage,
+        status: Byte,
+    ) {
+        if (!sessionOwner.isSessionCurrent(message.sessionGeneration)) return
+        val keepaliveFragments =
+            FidoBleFraming.fragmentResponse(
+                CMD_KEEPALIVE,
+                byteArrayOf(status),
+                sessionOwner.notifyCapacity,
+            )
+        notificationWriter.enqueue(
+            keepaliveFragments[0],
+            isKeepalive = true,
+            sessionGeneration = message.sessionGeneration,
+        )
+    }
+
+    private fun queueCtapResponse(
+        message: FidoBleMessage,
+        result: RawCtapResult,
+        startedAtNanos: Long,
+        operation: String,
+    ) {
+        notificationWriter.markResponseTransmissionStarted(message.sessionGeneration)
+        val fragments =
+            FidoBleFraming.fragmentResponse(
+                CMD_MSG,
+                result.responseBytes,
+                sessionOwner.notifyCapacity,
+            )
+        var index = 0
+        var accepted = true
+        var sessionCurrent = true
+        var terminalNotificationQueued = false
+        while (index < fragments.size && accepted && sessionCurrent) {
+            val isTerminalFragment = index == fragments.lastIndex
+            accepted =
+                notificationWriter.enqueue(
+                    fragments[index],
+                    isKeepalive = false,
+                    sessionGeneration = message.sessionGeneration,
+                    onDeliveryResult =
+                        if (isTerminalFragment) {
+                            { delivered ->
+                                try {
+                                    logDiagnosticCompletion(operation, startedAtNanos, delivered)
+                                } finally {
+                                    notificationWriter.resetResponseTransmission(message.sessionGeneration)
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                )
+            if (isTerminalFragment && accepted) terminalNotificationQueued = true
+            index++
+            sessionCurrent = sessionOwner.isSessionCurrent(message.sessionGeneration)
+        }
+        if (!terminalNotificationQueued) logDiagnosticNotQueued(operation, startedAtNanos)
+    }
+
+    private fun logDiagnosticCompletion(
+        operation: String,
+        startedAtNanos: Long,
+        delivered: Boolean,
+    ) {
+        val elapsedMs = (System.nanoTime() - startedAtNanos) / NANOS_PER_MILLISECOND
+        Logger.i {
+            "FIDO BLE diagnostic completed operation=$operation elapsedMs=$elapsedMs " +
+                "terminalNotificationAcknowledged=$delivered"
+        }
+    }
+
+    private fun logDiagnosticNotQueued(
+        operation: String,
+        startedAtNanos: Long,
+    ) {
+        val elapsedMs = (System.nanoTime() - startedAtNanos) / NANOS_PER_MILLISECOND
+        Logger.w {
+            "FIDO BLE diagnostic ended operation=$operation elapsedMs=$elapsedMs " +
+                "terminalNotificationAcknowledged=false reason=terminal_response_not_queued"
+        }
+    }
+
+    private fun enqueueErrorResponse(
+        sessionGeneration: Long,
+        errorCode: Byte,
+    ) {
+        val fragments =
+            FidoBleFraming.fragmentResponse(
+                CMD_ERROR,
+                byteArrayOf(errorCode),
+                sessionOwner.notifyCapacity,
+            )
+        for (fragment in fragments) {
+            notificationWriter.enqueue(
+                fragment,
+                isKeepalive = false,
+                sessionGeneration = sessionGeneration,
+            )
+        }
+    }
+
+    private fun diagnosticOperationName(request: ByteArray): String =
+        when (request.firstOrNull()?.toInt()?.and(BYTE_MASK)) {
+            CTAP2_CMD_MAKE_CREDENTIAL -> "MakeCredential"
+            CTAP2_CMD_GET_ASSERTION -> "GetAssertion"
+            CTAP2_CMD_GET_INFO -> "GetInfo"
+            CTAP2_CMD_RESET -> "ResetAuthenticator"
+            else -> "Other"
+        }
 
     /** Converts unexpected handler failures into a CTAP error so the BLE host is not left waiting. */
     @Suppress("TooGenericExceptionCaught")
@@ -344,6 +496,7 @@ class BleGattTransport(
                 }
                 if (activeHostAddress == device.address) {
                     activeHostAddress = null
+                    cancelReceiveTimeout()
                     cancelCurrentMessage()
                 }
                 if (status != BluetoothGatt.GATT_SUCCESS) {
@@ -379,6 +532,7 @@ class BleGattTransport(
     @Req("FR-BLE-070", "TR-BLE-040")
     private fun onHostAuthenticationFailure() {
         activeHostAddress = null
+        cancelReceiveTimeout()
         cancelCurrentMessage()
         advertiserController.stopAdvertising()
         _connectionState.value = Fido2ConnectionState.Error("Bluetooth pairing authentication failed")

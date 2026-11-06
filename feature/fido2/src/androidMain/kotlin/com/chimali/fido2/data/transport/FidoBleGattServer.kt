@@ -4,12 +4,9 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.BluetoothStatusCodes
-import android.os.Build
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 import java.util.UUID
@@ -36,38 +33,6 @@ interface GattResponseSender {
 }
 
 /**
- * Default Android implementation using [BluetoothGattServer].
- */
-@Req("FR-BLE-010", "TR-BLE-010")
-class AndroidGattResponseSender(
-    private val gattServer: BluetoothGattServer,
-) : GattResponseSender {
-    override fun sendResponse(
-        device: BluetoothDevice,
-        requestId: Int,
-        status: Int,
-        offset: Int,
-        value: ByteArray?,
-    ): Boolean = gattServer.sendResponse(device, requestId, status, offset, value)
-
-    override fun notifyCharacteristicChanged(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
-        confirm: Boolean,
-        value: ByteArray,
-    ): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            gattServer.notifyCharacteristicChanged(device, characteristic, confirm, value) ==
-                BluetoothStatusCodes.SUCCESS
-        } else {
-            @Suppress("DEPRECATION")
-            characteristic.value = value
-            @Suppress("DEPRECATION")
-            gattServer.notifyCharacteristicChanged(device, characteristic, confirm)
-        }
-}
-
-/**
  * Implements Android GATT server callback admission and explicit ATT responses per CTAP 2.2 FIDO BLE profile.
  */
 @Req(
@@ -85,7 +50,7 @@ class FidoBleGattServer(
     private val sessionOwner: BleSessionOwner,
     private val responseSender: GattResponseSender,
     private val isDeviceAuthenticated: (BluetoothDevice) -> Boolean = { it.bondState == BluetoothDevice.BOND_BONDED },
-    private val onNotificationSent: (BluetoothDevice, Int) -> Unit = { _, _ -> },
+    private val notificationSentListener: (BluetoothDevice, Int) -> Unit = { _, _ -> },
     private val onConnectionStateChanged: (BluetoothDevice, Int, Int) -> Unit = { _, _, _ -> },
     private val onConnectionRejected: (BluetoothDevice) -> Unit = {},
     private val onAuthenticationFailure: (BluetoothDevice) -> Unit = {},
@@ -240,7 +205,7 @@ class FidoBleGattServer(
         device: BluetoothDevice,
         status: Int,
     ) {
-        onNotificationSent(device, status)
+        notificationSentListener(device, status)
     }
 
     override fun onCharacteristicReadRequest(

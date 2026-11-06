@@ -85,9 +85,6 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val DISCOVERABLE_DURATION_SECONDS = 120
@@ -130,9 +127,8 @@ fun Fido2HomeScreen(
     val selectedMode = processState.processChoice ?: BluetoothTransportMode.FIDO_BLE
 
     Fido2EventObserver(
-        uiEvents = viewModel.uiEvents,
-        getPendingRegistration = { viewModel.getPendingRegistration() },
-        getPendingAuthentication = { viewModel.getPendingAuthentication() },
+        pendingRegistration = viewModel.pendingRegistrationRequest,
+        pendingAuthentication = viewModel.pendingAuthenticationRequest,
         onRegisterRequest = onRegisterRequest,
         onAuthenticateRequest = onAuthenticateRequest,
     )
@@ -420,66 +416,25 @@ fun StatusIndicator(
 }
 
 /**
- * Observes FIDO2 UI events from the ViewModel and triggers navigation requests.
- *
- * This component consolidates event observation into a single collector to prevent
- * race conditions (Fix D) that occurred when multiple LaunchedEffects were used.
+ * Observes retained pending requests so navigation cannot miss a non-replaying event during startup.
  */
 @Composable
 private fun Fido2EventObserver(
-    uiEvents: kotlinx.coroutines.flow.Flow<Fido2UiEvent>,
-    getPendingRegistration: () -> Fido2UiEvent.RegistrationRequested?,
-    getPendingAuthentication: () -> Fido2UiEvent.AuthenticationRequested?,
+    pendingRegistration: kotlinx.coroutines.flow.StateFlow<Fido2UiEvent.RegistrationRequested?>,
+    pendingAuthentication: kotlinx.coroutines.flow.StateFlow<Fido2UiEvent.AuthenticationRequested?>,
     onRegisterRequest: () -> Unit,
     onAuthenticateRequest: () -> Unit,
 ) {
-    val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)
-    val updatedOnAuthenticateRequest by rememberUpdatedState(onAuthenticateRequest)
-    val updatedGetPendingRegistration by rememberUpdatedState(getPendingRegistration)
-    val updatedGetPendingAuthentication by rememberUpdatedState(getPendingAuthentication)
+    val registration by pendingRegistration.collectAsState()
+    val authentication by pendingAuthentication.collectAsState()
+    val latestOnRegister by rememberUpdatedState(onRegisterRequest)
+    val latestOnAuthenticate by rememberUpdatedState(onAuthenticateRequest)
 
-    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth).
-    // Single LaunchedEffect so both live collectors share the same composable lifecycle.
-    LaunchedEffect(uiEvents) {
-        // Initial check for any pending operations upon entering the screen
-        // One-time startup check: events that arrived before this screen entered composition.
-        if (updatedGetPendingRegistration() != null) {
-            updatedOnRegisterRequest()
-        } else if (updatedGetPendingAuthentication() != null) {
-            // Only check auth if there is no pending registration (registration takes priority
-            // when both arrive simultaneously, which shouldn't happen in practice).
-            updatedOnAuthenticateRequest()
-        }
-
-        coroutineScope {
-            // Launch both live collectors in parallel inside this scope so they are both
-            // cancelled together when the composable leaves composition.
-            launch {
-                uiEvents
-                    .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
-                    .collect { updatedOnRegisterRequest() }
-            }
-            launch {
-                uiEvents
-                    .filterIsInstance<Fido2UiEvent.AuthenticationRequested>()
-                    .collect {
-                        // Guard against concurrent registration/authentication requests.
-                        // If registration is currently active, we ignore inbound auth requests
-                        // to prevent the "Sign in" prompt from interrupting the registration flow.
-                        // Fix D — Guard against navigating to auth while registration is active.
-                        // webauthn.io and some other RPs send a concurrent GetAssertion on a
-                        // second CTAP2 channel while MakeCredential is still in progress.
-                        // Registration takes priority: if a registration is already pending,
-                        // skip the auth navigation entirely (the CTAP2 handler will time out
-                        // or return CHANNEL_BUSY via the Mutex guard in Fix A).
-                        if (updatedGetPendingRegistration() == null) {
-                            updatedOnAuthenticateRequest()
-                        } else {
-                            Logger.w { "Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active" }
-                        }
-                    }
-            }
-        }
+    LaunchedEffect(registration?.deferred) {
+        if (registration != null) latestOnRegister()
+    }
+    LaunchedEffect(authentication?.deferred, registration?.deferred) {
+        if (authentication != null && registration == null) latestOnAuthenticate()
     }
 }
 

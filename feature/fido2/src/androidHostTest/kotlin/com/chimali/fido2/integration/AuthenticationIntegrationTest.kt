@@ -284,6 +284,33 @@ class AuthenticationIntegrationTest {
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `authentication request dispatched before presenter creation is restored from retained state`() =
+        runTest {
+            val lateBus = Fido2UiEventBus()
+            val response = CompletableDeferred<Outcome<AssertionObject, DomainError>>()
+            lateBus.dispatch(Fido2UiEvent.AuthenticationRequested(createOptions(), response))
+
+            val latePresenter =
+                AuthenticationPromptViewModel(
+                    getAssertionUseCase,
+                    userVerificationService,
+                    lateBus,
+                    masterSeedProvider,
+                )
+            advanceUntilIdle()
+
+            assertIs<AuthenticationState.AwaitingUserConsent>(latePresenter.state.value)
+            latePresenter.handleIntent(AuthenticationIntent.CancelAuthentication)
+            advanceUntilIdle()
+            ViewModelStore().apply {
+                put("late-authentication", latePresenter)
+                clear()
+            }
+            assertTrue(response.isCompleted)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @ParameterizedTest
     @ValueSource(strings = ["success", "cancel", "replacement", "teardown"])
     fun `selected assertion copy is erased without erasing its borrowed CTAP source`(terminal: String) =

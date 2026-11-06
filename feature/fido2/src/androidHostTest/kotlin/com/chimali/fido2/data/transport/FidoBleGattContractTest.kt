@@ -88,6 +88,24 @@ class FidoBleGattContractTest {
 
     @Test
     @Req("FR-BLE-010", "TR-BLE-010")
+    fun `notification sent callback forwards once to listener`() {
+        val callbackDevice = mockk<BluetoothDevice>()
+        val callbackStatus = BluetoothGatt.GATT_SUCCESS
+        val notificationsSent = mutableListOf<Pair<BluetoothDevice, Int>>()
+        val callback =
+            FidoBleGattServer(
+                sessionOwner = sessionOwner,
+                responseSender = fakeSender,
+                notificationSentListener = { device, status -> notificationsSent += device to status },
+            )
+
+        callback.onNotificationSent(callbackDevice, callbackStatus)
+
+        assertEquals(listOf(callbackDevice to callbackStatus), notificationsSent)
+    }
+
+    @Test
+    @Req("FR-BLE-010", "TR-BLE-010")
     fun `service definition exposes primary service and four required characteristics`() {
         val createdCharacteristics = mutableListOf<BluetoothGattCharacteristic>()
         val mockService = mockk<BluetoothGattService>(relaxed = true)

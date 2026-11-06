@@ -44,6 +44,8 @@ class Fido2HomeViewModel(
     val connectionState: StateFlow<Fido2ConnectionState> = fido2Transport.connectionState
     val processTransportState = processTransportSelection.state
     val uiEvents: SharedFlow<Fido2UiEvent> = uiEventBus.events
+    val pendingRegistrationRequest = uiEventBus.pendingRegistrationRequest
+    val pendingAuthenticationRequest = uiEventBus.pendingAuthenticationRequest
     private val _outboundBleUnsupported = MutableStateFlow(false)
     val outboundBleUnsupported = _outboundBleUnsupported.asStateFlow()
 

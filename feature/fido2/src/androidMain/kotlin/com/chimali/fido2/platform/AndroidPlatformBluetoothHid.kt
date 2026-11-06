@@ -5,10 +5,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 
 /**
- * T191 — Android implementation of [PlatformBluetoothHid].
+ * Android implementation of [PlatformBluetoothHid].
  *
- * Checks whether the device supports the Bluetooth HID Device profile using
- * PackageManager feature flags (no permissions required for capability checks).
+ * This is a non-initializing API/hardware preflight only. Android exposes no public
+ * package-manager feature for the OEM HID_DEVICE profile service, so a positive result
+ * does not guarantee that `getProfileProxy()` will bind. Actual profile availability is
+ * determined during the selected Classic transport's activation.
  */
 class AndroidPlatformBluetoothHid(
     private val context: Context,
@@ -18,8 +20,8 @@ class AndroidPlatformBluetoothHid(
     }
 
     /**
-     * True if the device hardware supports the Bluetooth HID Device profile.
-     * BluetoothHidDeviceWrapper requires this to be true before calling initialize().
+     * True when the Android HID Device API level and a Bluetooth adapter are present.
+     * This does not verify the OEM profile service; activation still has to acquire the proxy.
      */
     override fun isSupported(): Boolean =
         android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&

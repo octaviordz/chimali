@@ -16,7 +16,6 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.presentation.error.Fido2ErrorHandler
-import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.Fido2OperationTraceContext
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,7 +36,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -199,8 +198,8 @@ class RegistrationPromptViewModel(
         // Observe event bus for incoming registration requests from transport.
         // Guard: if we are already showing an error to the user, do NOT let a PC retry
         // silently overwrite the error screen — the user must dismiss/retry first.
-        uiEventBus.events
-            .filterIsInstance<Fido2UiEvent.RegistrationRequested>()
+        uiEventBus.pendingRegistrationRequest
+            .filterNotNull()
             .onEach { event ->
                 Logger.d { "Registration request received" }
                 // Guard: If we are already processing a ceremony or showing an error,
@@ -214,13 +213,6 @@ class RegistrationPromptViewModel(
                 uiEventBus.clearRegistrationRequest(event.deferred)
                 initRegistration(event.options, event.deferred, event.userInteractionCompleted, event.traceContext)
             }.launchIn(viewModelScope)
-
-        // Also consume any event stored before this ViewModel was created (replay backup).
-        uiEventBus.currentRegistrationRequest?.let { event ->
-            Logger.d { "Pending registration request restored" }
-            initRegistration(event.options, event.deferred, event.userInteractionCompleted, event.traceContext)
-            uiEventBus.clearRegistrationRequest(event.deferred)
-        } ?: Logger.d { "No currentRegistrationRequest in cache at init time" }
     }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 package com.chimali.fido2.di
 
+import android.app.KeyguardManager
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.biometric.BiometricManager
@@ -53,6 +54,12 @@ class Fido2Module {
     @Single
     @Req("FR-AUTH-010")
     fun biometricManager(context: Context): BiometricManager = BiometricManager.from(context)
+
+    /** Provides the lock-screen credential state, including PIN, pattern, and password. */
+    @Single
+    @Req("FR-AUTH-010")
+    fun keyguardManager(context: Context): KeyguardManager =
+        context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
 
     /**
      * Provides the SQLDelight [Fido2Database] instance backed by SQLite3MultipleCiphers (ChaCha20-Poly1305).
