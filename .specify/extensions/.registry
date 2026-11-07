@@ -1,44 +1,6 @@
 {
   "schema_version": "1.0",
   "extensions": {
-    "git": {
-      "version": "1.0.0",
-      "source": "local",
-      "manifest_hash": "sha256:9731aa8143a72fbebfdb440f155038ab42642517c2b2bdbbf67c8fdbe076ed79",
-      "enabled": true,
-      "priority": 10,
-      "registered_commands": {
-        "agy": [
-          "speckit.git.feature",
-          "speckit.git.validate",
-          "speckit.git.remote",
-          "speckit.git.initialize",
-          "speckit.git.commit"
-        ],
-        "gemini": [
-          "speckit.git.feature",
-          "speckit.git.validate",
-          "speckit.git.remote",
-          "speckit.git.initialize",
-          "speckit.git.commit"
-        ],
-        "windsurf": [
-          "speckit.git.feature",
-          "speckit.git.validate",
-          "speckit.git.remote",
-          "speckit.git.initialize",
-          "speckit.git.commit"
-        ]
-      },
-      "registered_skills": [
-        "speckit-git-feature",
-        "speckit-git-validate",
-        "speckit-git-remote",
-        "speckit-git-initialize",
-        "speckit-git-commit"
-      ],
-      "installed_at": "2026-04-15T22:13:22.204713+00:00"
-    },
     "bug": {
       "version": "1.0.2",
       "source": {
@@ -55,7 +17,11 @@
           "speckit.bug.test"
         ]
       },
-      "registered_skills": [],
+      "registered_skills": [
+        "speckit-bug-assess",
+        "speckit-bug-fix",
+        "speckit-bug-test"
+      ],
       "installed_at": "2026-10-16T02:13:16.480317+00:00"
     },
     "assess": {
@@ -76,8 +42,41 @@
           "speckit.assess.decide"
         ]
       },
-      "registered_skills": [],
+      "registered_skills": [
+        "speckit-assess-intake",
+        "speckit-assess-research",
+        "speckit-assess-define",
+        "speckit-assess-shape",
+        "speckit-assess-decide"
+      ],
       "installed_at": "2026-10-29T03:39:25.387238+00:00"
+    },
+    "git": {
+      "version": "1.0.4",
+      "source": {
+        "kind": "catalog",
+        "catalog": "default"
+      },
+      "manifest_hash": "sha256:7a190a397b702e38a1f5d0db01072b944d6b28c990651aef2df28385df06aeee",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ]
+      },
+      "registered_skills": [
+        "speckit-git-feature",
+        "speckit-git-validate",
+        "speckit-git-remote",
+        "speckit-git-initialize",
+        "speckit-git-commit"
+      ],
+      "installed_at": "2026-04-15T22:13:22.204713+00:00"
     }
   }
 }
