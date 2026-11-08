@@ -344,7 +344,7 @@ if (-not $SkipExecution) {
         }
         $deviceAppDataReset.install_output = $installResult
 
-        $clearOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'pm', 'clear', 'com.chimali.shrunk') -TimeoutSeconds 20)
+        $clearOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'pm', 'clear', '--user', '0', 'com.chimali.shrunk') -TimeoutSeconds 20)
         $clearResult = ($clearOutput -join "`n").Trim()
         if ($clearResult -cne 'Success') {
             throw "Android did not confirm clearing the shrunkDebug test package: $clearResult"
