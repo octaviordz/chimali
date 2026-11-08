@@ -2535,3 +2535,17 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | Focused device-suite verification only, not a full coverage collection. Candidate and harness are dirty; no immutable receipt, compatible accepted target, or raw-count comparison is established. |
 | `status` | Filter behavior verified; T039 coverage gate remains Unverified. |
 | `artifact_link` | `feature/fido2/build/outputs/androidTest-results/connected/androidMain/TEST-ASUS_AI2302 - 15.xml`; `tools/coverage/capture.ps1`; `tools/coverage/policy.json`; `tools/hdk-coverage.init.gradle`. |
+
+### 11.154 Historical target support for exact routine class exclusions (2026-11-08)
+
+| Field | Evidence |
+|---|---|
+| `requirement` | Permit the trusted capture harness to measure an older source revision that predates an explicitly excluded opt-in device test, while preserving the exclusion when the class exists. |
+| `scope` | Exact target `e7918b6e256319b1305536c7815a92f6132ece99` versus candidate commit `2ef5d87f74c8bd0f6b966380b1dc4d8ef9e6eab2`. |
+| `revision` | Feature 064 worktree at `2ef5d87f74c8bd0f6b966380b1dc4d8ef9e6eab2` plus the pending change to `tools/hdk-coverage.init.gradle`. |
+| `named_procedure` | First immutable target capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1` stopped during Gradle configuration because `FidoBleReconnectStressDeviceTest` is absent from the target's Android device-test sources. `capture.ps1` now passes AndroidJUnitRunner `notClass` only when the class source exists, while the init script records only exclusions present in the measured source roots. Gradle `help` configuration succeeded for target and candidate; exact-source checks confirmed absent on target/present on candidate; `tools/coverage/test-policy.ps1` passed 520/520; `git diff --check` passed. |
+| `environment` | Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08. |
+| `expected_observed_result` | The candidate still excludes and records the exact opt-in stress test; the historical target no longer fails configuration for a non-existent class. |
+| `limitations` | Capture stopped before test execution, device data reset and counter collection. The harness was dirty during validation; the fix must be committed before trusted capture. This does not establish or promote an accepted baseline. |
+| `status` | Harness compatibility change validated with policy fixtures and both Gradle configurations; a clean-harness exact-target capture is pending. |
+| `artifact_link` | `tools/hdk-coverage.init.gradle`; capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1`; parent Feature 064 Record 242; BLE Feature 064 Record 216. |

@@ -2600,3 +2600,14 @@
 - **limitations**: Focused filter verification only. T038 still needs an immutable full candidate capture and compatible accepted-target raw-count comparison.
 - **status**: Filter behavior verified; T038 remains Unverified.
 - **artifact_link**: Parent Record 241; Feature 058 §11.153; FIDO2 connected JUnit report.
+
+### Record 216: Exact-Target Capture Reveals Pre-Stress-Test Source Compatibility (T038 — Unverified)
+- **requirement**: BLE T038; obtain a complete immutable exact-target comparison bundle and compare against reviewed accepted-target evidence.
+- **scope**: Fresh exact-target capture attempt on ASUS/API35 using the committed candidate harness. Device data was not cleared; capture failed before device setup.
+- **revision**: Candidate/harness commit `2ef5d87f74c8bd0f6b966380b1dc4d8ef9e6eab2`; one uncommitted Feature 058 harness correction; target `e7918b6e256319b1305536c7815a92f6132ece99`.
+- **named_procedure**: `tools/coverage/capture.ps1 -Purpose Comparison` failed during Gradle configuration because the policy's exact `FidoBleReconnectStressDeviceTest` exclusion was absent from target sources. The capture runner now supplies AndroidJUnitRunner `notClass` only when that test source exists, and the trusted init script reports only class exclusions present in the measured revision. Gradle configuration passed against target and candidate after the correction; exact-source checks confirmed absent-on-target/present-on-candidate; policy fixtures passed 520/520 and `git diff --check` passed.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: Historical target revisions configure without requiring a test class that was added later; candidate revisions with the stress test continue to record and apply its exact exclusion.
+- **limitations**: No coverage workloads, counters or immutable bundle were produced by this attempt. The harness correction must be committed before a trusted capture. The accepted index remains bound to `f1fd56baf8641cea99edc7fafa8725fdda21044c`, incompatible with target `e7918b6`; no baseline promotion or nonregression comparison is claimed.
+- **status**: Source-compatibility fix configured and policy-validated; T038 remains Unverified pending capture and accepted-baseline review.
+- **artifact_link**: Capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1`; parent Record 242; Feature 058 §11.154; `tools/hdk-coverage.init.gradle`.

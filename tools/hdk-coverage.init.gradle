@@ -268,16 +268,16 @@ gradle.projectsEvaluated {
         }
         def sourceRootsForClassExclusions = ['src/androidDeviceTest/kotlin', 'src/androidDeviceTest/java']
             .collect { new File(task.project.projectDir, it) }
-        def missingExcludedClasses = excludedTestClasses.findAll { className ->
+        def presentExcludedTestClasses = excludedTestClasses.findAll { className ->
             def classPath = className.replace('.', '/')
-            !sourceRootsForClassExclusions.any { sourceRoot ->
+            sourceRootsForClassExclusions.any { sourceRoot ->
                 new File(sourceRoot, "${classPath}.kt").isFile() || new File(sourceRoot, "${classPath}.java").isFile()
             }
         }
-        if (!missingExcludedClasses.isEmpty()) {
-            throw new GradleException("${task.path} routine class exclusions are not declared by its Android device-test sources: ${missingExcludedClasses.sort()}")
-        }
-        task.extensions.extraProperties.set('hdkExcludedRoutineDeviceTestClasses', excludedClasses + excludedTestClasses)
+        // A trusted harness can measure source revisions from before an explicitly
+        // excluded opt-in test was added. In that revision the runner filter is a
+        // harmless no-op; report only exclusions that exist in the measured sources.
+        task.extensions.extraProperties.set('hdkExcludedRoutineDeviceTestClasses', excludedClasses + presentExcludedTestClasses)
     }
 
     // Declare hashing closures before any deferred/task-action closures capture them.
