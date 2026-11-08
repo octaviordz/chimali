@@ -91,9 +91,7 @@ class NordicBleAdvertiserController(
                                 }
                                 is OnAdvertisingSetStopped -> {
                                     advertisingStarted = false
-                                    val failure = IllegalStateException("Nordic advertiser stopped")
-                                    if (!startup.complete(Result.failure(failure))) onUnexpectedFailure(failure)
-                                    throw failure
+                                    error("Nordic advertiser stopped")
                                 }
                                 else -> Unit
                             }

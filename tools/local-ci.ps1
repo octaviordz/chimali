@@ -22,6 +22,7 @@ if (-not $NoConfigurationCache) {
 } else {
     $Gradle += " --no-configuration-cache"
 }
+$Gradle += " --no-problems-report"
 
 function Run-Task($Name, $Command, [bool]$IgnoreFailure = $false) {
     Write-Host "`nRunning $Name..." -ForegroundColor Yellow

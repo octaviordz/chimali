@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import no.nordicsemi.android.kotlin.ble.advertiser.BleAdvertiser
 import no.nordicsemi.android.kotlin.ble.advertiser.callback.BleAdvertisingStatus
 import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStarted
+import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStopped
 import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingConfig
 
 @Req("FR-BLE-010", "FR-BLE-060", "TR-BLE-010")
@@ -70,6 +71,101 @@ class NordicBleAdvertiserControllerTest {
 
             assertFalse(result.isSuccess)
             assertTrue(cancelled)
+        }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun stoppedEventAfterSuccessfulStartReportsOneFailure() =
+        runTest {
+            val advertiser = mockk<BleAdvertiser>()
+            every { advertiser.advertise(any()) } returns
+                flow {
+                    emit(startedEvent(BleAdvertisingStatus.ADVERTISE_SUCCESS))
+                    emit(mockk<OnAdvertisingSetStopped>())
+                }
+            val controller = NordicBleAdvertiserController(mockk<Context>(relaxed = true), this, { advertiser })
+            val failures = mutableListOf<Throwable>()
+
+            assertTrue(controller.startAdvertising(UUID.randomUUID(), failures::add).isSuccess)
+            runCurrent()
+
+            assertEquals(1, failures.size)
+            assertEquals("Nordic advertiser stopped", failures.single().message)
+        }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun completedFlowAfterSuccessfulStartReportsUnexpectedFailure() =
+        runTest {
+            val advertiser = mockk<BleAdvertiser>()
+            every { advertiser.advertise(any()) } returns
+                flow { emit(startedEvent(BleAdvertisingStatus.ADVERTISE_SUCCESS)) }
+            val controller = NordicBleAdvertiserController(mockk<Context>(relaxed = true), this, { advertiser })
+            val failures = mutableListOf<Throwable>()
+
+            assertTrue(controller.startAdvertising(UUID.randomUUID(), failures::add).isSuccess)
+            runCurrent()
+
+            assertEquals(1, failures.size)
+            assertEquals("Nordic advertiser flow completed", failures.single().message)
+        }
+
+    @Test
+    fun startIsIdempotentWhileTheNordicFlowIsActive() =
+        runTest {
+            var factoryCalls = 0
+            val advertiser = mockk<BleAdvertiser>()
+            every { advertiser.advertise(any()) } returns
+                flow {
+                    emit(startedEvent(BleAdvertisingStatus.ADVERTISE_SUCCESS))
+                    awaitCancellation()
+                }
+            val controller =
+                NordicBleAdvertiserController(mockk<Context>(relaxed = true), this) {
+                    factoryCalls++
+                    advertiser
+                }
+
+            assertTrue(controller.startAdvertising(UUID.randomUUID()).isSuccess)
+            assertTrue(controller.startAdvertising(UUID.randomUUID()).isSuccess)
+
+            assertEquals(1, factoryCalls)
+            controller.stopAdvertising()
+        }
+
+    @Test
+    fun factoryFailuresReturnRetryableStartupFailureAndCleanUpObserver() =
+        runTest {
+            listOf(
+                SecurityException("permission denied"),
+                IllegalArgumentException("bad configuration"),
+                IllegalStateException("adapter unavailable"),
+            ).forEach { failure ->
+                val context = mockk<Context>(relaxed = true)
+                var unregisterCount = 0
+                every { context.registerReceiver(any<BroadcastReceiver>(), any<IntentFilter>()) } returns null
+                every {
+                    context.registerReceiver(
+                        any<BroadcastReceiver>(),
+                        any<IntentFilter>(),
+                        any<Int>(),
+                    )
+                } returns null
+                every { context.unregisterReceiver(any()) } answers {
+                    unregisterCount++
+                    Unit
+                }
+                val controller =
+                    NordicBleAdvertiserController(context, this) {
+                        throw failure
+                    }
+
+                val result = controller.startAdvertising(UUID.randomUUID())
+
+                assertTrue(result.isFailure)
+                assertEquals(failure, result.exceptionOrNull())
+                assertEquals(1, unregisterCount)
+            }
         }
 
     @Test

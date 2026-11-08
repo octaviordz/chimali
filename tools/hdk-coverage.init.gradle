@@ -233,6 +233,51 @@ gradle.projectsEvaluated {
     deviceCoverageTasks.each { task ->
         task.outputs.upToDateWhen { false }
         task.mustRunAfter(coveragePrepare)
+        def excludedClasses = task.project.path == ':feature:fido2'
+            ? policy.required_workload.routine_device_test_exclusions[':feature:fido2'].collect { it.class_name.toString() }
+            : []
+        def excludedTestClasses = task.project.path == ':feature:fido2'
+            ? policy.required_workload.routine_device_test_class_exclusions[':feature:fido2'].collect { it.class_name.toString() }
+            : []
+        if (!excludedClasses.isEmpty()) {
+            def excludedPackages = excludedClasses.collect { it.substring(0, it.lastIndexOf('.')) }.unique()
+            if (excludedPackages.size() != 1) {
+                throw new GradleException("${task.path} requires a single AndroidJUnitRunner exclusion package for the policy-defined research classes")
+            }
+            def excludedPackage = excludedPackages[0]
+            def sourceRoots = ['src/androidDeviceTest/kotlin', 'src/androidDeviceTest/java']
+                .collect { new File(task.project.projectDir, it) }
+                .findAll { it.isDirectory() }
+            def packageDeclarations = []
+            sourceRoots.each { sourceRoot ->
+                sourceRoot.eachFileRecurse { sourceFile ->
+                    if (!sourceFile.isFile() || !(sourceFile.name.endsWith('.kt') || sourceFile.name.endsWith('.java'))) return
+                    def declaredPackage = sourceFile.readLines().find { line -> line.trim().startsWith('package ') }
+                    if (declaredPackage?.trim() == "package ${excludedPackage}") {
+                        sourceFile.readLines().each { line ->
+                            def classDeclaration = line =~ /^(?:(?:public|internal|private|protected|abstract|open|final|data|sealed|enum|annotation|value|expect|actual)\s+)*(?:class|object|interface)\s+([A-Za-z_][A-Za-z0-9_]*)/
+                            if (classDeclaration.find()) packageDeclarations << classDeclaration[0][1]
+                        }
+                    }
+                }
+            }
+            def expectedDeclarations = excludedClasses.collect { it.substring(it.lastIndexOf('.') + 1) }.sort()
+            if (packageDeclarations.unique().sort() != expectedDeclarations) {
+                throw new GradleException("${task.path} will exclude package ${excludedPackage}, but its Android device-test source declarations do not exactly match policy: expected ${expectedDeclarations}, found ${packageDeclarations.unique().sort()}")
+            }
+        }
+        def sourceRootsForClassExclusions = ['src/androidDeviceTest/kotlin', 'src/androidDeviceTest/java']
+            .collect { new File(task.project.projectDir, it) }
+        def missingExcludedClasses = excludedTestClasses.findAll { className ->
+            def classPath = className.replace('.', '/')
+            !sourceRootsForClassExclusions.any { sourceRoot ->
+                new File(sourceRoot, "${classPath}.kt").isFile() || new File(sourceRoot, "${classPath}.java").isFile()
+            }
+        }
+        if (!missingExcludedClasses.isEmpty()) {
+            throw new GradleException("${task.path} routine class exclusions are not declared by its Android device-test sources: ${missingExcludedClasses.sort()}")
+        }
+        task.extensions.extraProperties.set('hdkExcludedRoutineDeviceTestClasses', excludedClasses + excludedTestClasses)
     }
 
     // Declare hashing closures before any deferred/task-action closures capture them.
@@ -631,6 +676,7 @@ gradle.projectsEvaluated {
                 if (!executed) failures.add("${record.module_path}: required device test task did not complete successfully: ${record.task.path}")
                 [module_path: record.module_path, task_path: record.task.path, executed: executed,
                     skipped: state != null && state.skipped, failed: state != null && state.failure != null,
+                    excluded_test_classes: record.task.extensions.extraProperties.get('hdkExcludedRoutineDeviceTestClasses'),
                     junit_xml_directory: relativeJUnitXmlDirectory(record.task, true)]
             }
             def optionalDeviceTaskEvidence = optionalDeviceTaskRecords.collect { record ->
@@ -638,6 +684,7 @@ gradle.projectsEvaluated {
                 [module_path: record.module_path, task_path: record.task.path,
                     executed: state != null && state.executed && !state.skipped && state.failure == null,
                     skipped: state != null && state.skipped, failed: state != null && state.failure != null,
+                    excluded_test_classes: record.task.extensions.extraProperties.get('hdkExcludedRoutineDeviceTestClasses'),
                     junit_xml_directory: relativeJUnitXmlDirectory(record.task, true)]
             }
             def summarize = { File reportFile ->

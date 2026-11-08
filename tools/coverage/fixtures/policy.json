@@ -102,6 +102,20 @@
             ":feature:settings": "connectedDebugAndroidTest",
             ":app": "connectedShrunkDebugAndroidTest"
           },
+          "routine_device_test_exclusions": {
+            ":feature:fido2": [
+              { "class_name": "com.chimali.fido2.util.performance.EmpiricalCalibrationDeviceTest", "reason": "Controlled Feature 062 Perfetto holdout; requires its frozen calibration_phase and candidate arguments." },
+              { "class_name": "com.chimali.fido2.util.performance.FilteredMeasurementPilotDeviceTest", "reason": "Controlled Feature 062 measurement pilot; requires its unique run_id and condition." },
+              { "class_name": "com.chimali.fido2.util.performance.LowerOverheadControlExplorationDeviceTest", "reason": "Controlled Feature 062 overhead exploration; requires Android Q tracing and frozen run_id, condition, and order_seed." },
+              { "class_name": "com.chimali.fido2.util.performance.PerformanceTraceDeviceTest", "reason": "Opt-in Perfetto instrumentation; requires an active trace session including the test app." },
+              { "class_name": "com.chimali.fido2.util.performance.TraceOverheadExplorationDeviceTest", "reason": "Controlled Feature 062 overhead exploration; requires its unique run_id and condition." }
+            ]
+          },
+          "routine_device_test_class_exclusions": {
+            ":feature:fido2": [
+              { "class_name": "com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest", "reason": "Opt-in two-device stress test; requires a separate active FIDO BLE advertiser and its dedicated reconnect-stress procedure." }
+            ]
+          },
           "no_source_host_test_proof": "GradleNoSourceWithZeroCompiledTestClasses"
         },
         "device_requirements": {
@@ -734,6 +748,13 @@
       "mutations": { "production_scope.compilations.release.test_tasks": [] },
       "expected_valid": false,
       "expected_error": "test_tasks must not be empty"
+    },
+    {
+      "id": "POL_024_ROUTINE_RESEARCH_EXCLUSIONS_ARE_FIXED",
+      "description": "Routine device coverage must preserve the exact reviewed opt-in Perfetto research exclusions",
+      "mutations": { "required_workload.routine_device_test_exclusions.:feature:fido2": [] },
+      "expected_valid": false,
+      "expected_error": "must be exactly the reviewed opt-in Perfetto research classes"
     }
   ]
 }

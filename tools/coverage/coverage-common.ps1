@@ -989,7 +989,7 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
     $reasons += @(& $checkKeys $Policy.generated_exclusion_rules @('exclude_sqldelight', 'allow_handwritten_exclusions') 'generated_exclusion_rules')
     if ($Policy.generated_exclusion_rules.exclude_sqldelight -isnot [bool] -or -not $Policy.generated_exclusion_rules.exclude_sqldelight) { $reasons += 'SQLDelight generated-code exclusion must remain enabled' }
     if ($Policy.generated_exclusion_rules.allow_handwritten_exclusions -isnot [bool] -or $Policy.generated_exclusion_rules.allow_handwritten_exclusions) { $reasons += 'Handwritten production-code exclusions are prohibited' }
-    $reasons += @(& $checkKeys $Policy.required_workload @('host_unit_tests', 'connected_device_tests', 'required_device_test_modules', 'optional_device_test_modules', 'device_test_tasks', 'no_source_host_test_proof') 'required_workload')
+    $reasons += @(& $checkKeys $Policy.required_workload @('host_unit_tests', 'connected_device_tests', 'required_device_test_modules', 'optional_device_test_modules', 'device_test_tasks', 'routine_device_test_exclusions', 'routine_device_test_class_exclusions', 'no_source_host_test_proof') 'required_workload')
     if ($Policy.required_workload.host_unit_tests -isnot [bool] -or -not $Policy.required_workload.host_unit_tests -or $Policy.required_workload.connected_device_tests -isnot [bool] -or -not $Policy.required_workload.connected_device_tests) { $reasons += 'Host and connected-device workloads are both mandatory' }
     $reasons += @(& $checkOrderedStrings $Policy.required_workload.required_device_test_modules @(':feature:fido2', ':core:common', ':feature:settings') 'required_workload.required_device_test_modules')
     $reasons += @(& $checkOrderedStrings $Policy.required_workload.optional_device_test_modules @(':app') 'required_workload.optional_device_test_modules')
@@ -1000,6 +1000,26 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
         if ([string]::IsNullOrWhiteSpace([string]$Policy.required_workload.device_test_tasks.$deviceModule) -or [string]$Policy.required_workload.device_test_tasks.$deviceModule -notmatch '^connected[A-Za-z0-9]+AndroidTest$|^connectedAndroidDeviceTest$') {
             $reasons += "required_workload.device_test_tasks has an invalid exact task name for $deviceModule"
         }
+    }
+    $expectedRoutineExclusions = @(
+        'com.chimali.fido2.util.performance.EmpiricalCalibrationDeviceTest',
+        'com.chimali.fido2.util.performance.FilteredMeasurementPilotDeviceTest',
+        'com.chimali.fido2.util.performance.LowerOverheadControlExplorationDeviceTest',
+        'com.chimali.fido2.util.performance.PerformanceTraceDeviceTest',
+        'com.chimali.fido2.util.performance.TraceOverheadExplorationDeviceTest'
+    )
+    $reasons += @(& $checkKeys $Policy.required_workload.routine_device_test_exclusions @(':feature:fido2') 'required_workload.routine_device_test_exclusions')
+    $actualRoutineExclusions = @($Policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+    if (($actualRoutineExclusions -join "`n") -cne ($expectedRoutineExclusions -join "`n")) { $reasons += 'The routine FIDO2 device-test exclusions must be exactly the reviewed opt-in Perfetto research classes in canonical order' }
+    foreach ($exclusion in @($Policy.required_workload.routine_device_test_exclusions.':feature:fido2')) {
+        if ([string]::IsNullOrWhiteSpace([string]$exclusion.reason)) { $reasons += "Routine device-test exclusion '$($exclusion.class_name)' must have a reason" }
+    }
+    $reasons += @(& $checkKeys $Policy.required_workload.routine_device_test_class_exclusions @(':feature:fido2') 'required_workload.routine_device_test_class_exclusions')
+    $expectedRoutineClassExclusions = @('com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest')
+    $actualRoutineClassExclusions = @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+    if (($actualRoutineClassExclusions -join "`n") -cne ($expectedRoutineClassExclusions -join "`n")) { $reasons += 'The routine FIDO2 class exclusions must be exactly the reviewed opt-in two-device stress test in canonical order' }
+    foreach ($exclusion in @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2')) {
+        if ([string]::IsNullOrWhiteSpace([string]$exclusion.reason)) { $reasons += "Routine device-test class exclusion '$($exclusion.class_name)' must have a reason" }
     }
     if ($Policy.required_workload.no_source_host_test_proof -cne 'GradleNoSourceWithZeroCompiledTestClasses') { $reasons += 'required_workload.no_source_host_test_proof must require Gradle NO-SOURCE plus zero compiled test classes' }
 
@@ -1361,6 +1381,13 @@ function Test-WorkloadTaskInventory {
                 $taskPath -cne "${modulePath}:$expectedTaskName") {
                 $errors += "$($category.name) contains an unowned or unconfigured task: $taskPath"
             }
+            $actualExcludedClasses = @($record.excluded_test_classes | ForEach-Object { [string]$_ })
+            $expectedExcludedClasses = if ($modulePath -eq ':feature:fido2') {
+                @(@($Policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }) + @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }))
+            } else { @() }
+            if (($actualExcludedClasses -join "`n") -cne ($expectedExcludedClasses -join "`n")) {
+                $errors += "$($category.name) exclusion evidence differs from reviewed routine workload policy for $modulePath"
+            }
             $junitDirectory = ([string]$record.junit_xml_directory).Replace('\', '/').TrimEnd('/')
             if (-not [string]::IsNullOrWhiteSpace($junitDirectory)) {
                 $projectDirectory = $modulePath.TrimStart(':').Replace(':', '/')
@@ -1594,6 +1621,16 @@ function Test-WorkloadSuiteExecutionCounts {
         }
         if ($ownedSuites.Count -eq 0 -or $testCount -le [System.Numerics.BigInteger]::Zero) {
             $errors += "Required workload task has no actual testcase outcomes: $($record.task_path)"
+        }
+        $excludedClasses = @($record.excluded_test_classes | ForEach-Object { [string]$_ })
+        if ($excludedClasses.Count -gt 0) {
+            $presentExcludedSuites = @($ownedSuites | Where-Object {
+                $suiteName = [string]$_.suite_name
+                -not [string]::IsNullOrWhiteSpace($suiteName) -and $excludedClasses -ccontains $suiteName
+            })
+            if ($presentExcludedSuites.Count -gt 0) {
+                $errors += "Required workload task report contains policy-excluded routine device suites: $((@($presentExcludedSuites | ForEach-Object { [string]$_.suite_name }) | Sort-Object -Unique) -join ', ')"
+            }
         }
     }
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }

@@ -2490,3 +2490,113 @@
 - **limitations**: Coverage completeness, Tier 1/Tier 2/repository floors and nonregression are Unverified. The prior indexed baseline targets `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`; live GitHub ref lookup failed for missing credentials, and the checkout is dirty. No `tools/integration-ci.ps1` comparison was run. Hosted integration remains waived and its runner disabled.
 - **status**: Unverified (coverage gate and accepted-target comparison did not complete; no pass is claimed).
 - **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\coverage-attempt-summary.json`; `TEST-ASUS_AI2302 - 15.xml`; `TEST-Mi A2 - 10.xml`.
+
+### Record 206: Rebased Candidate Local CI Passes; BLE Coverage Capture Remains Incomplete (T038 — Unverified)
+- **requirement**: BLE T038; complete current-tree coverage, required floors and accepted-target raw-count nonregression, coordinated by parent T039.
+- **scope**: Exact clean rebased candidate, ordinary local CI and a single-device ASUS/API35 candidate coverage capture.
+- **revision**: Branch `064-bluetooth-transport-selection`; candidate `6c483486f83a8df20d8fdc59a05a05ce9558c567`; tree `5423439e15fb5c832fecad43e05eaadfc8a8e490`; target `e7918b6e256319b1305536c7815a92f6132ece99` is an ancestor.
+- **named_procedure**: `tools/local-ci.ps1 -NoFix -NoConfigurationCache`, followed by candidate capture run `5eae2e16-2add-4256-847f-dae87026a1dd` using `tools/coverage/capture.ps1` and ASUS serial `R7AIB7002901AZ3`.
+- **environment**: Windows; Gradle 9.6.0, Java 21.0.10, Kotlin 2.3.21, AGP 9.4.1, JaCoCo 0.8.15; ASUS AI2302 / Android 15 API35; 2026-11-08.
+- **expected_observed_result**: Exact-candidate KtLint, Detekt, Release lint, comprehensive compilation, unit tests and KMP Android host tests passed in 197.87 seconds. Coverage capture ended Incomplete/Failed because the connected FIDO2 suite had six setup/precondition failures: remote-advertiser/reconnect stress was not opted in with a distinct advertiser, and Perfetto research/trace tests lacked the declared session. Although partial module counters were emitted, the capture reported changed/missing execution inputs and attribution mismatches.
+- **limitations**: The incomplete capture cannot establish inventory completeness, module floors, repository floors or nonregression. The local evidence-root index points to old target `fa93a40cf34f6e130f7e4c79a4b55886d9afe9f2`; the canonical archived index observed on `swe/coverage-evidence` is for protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`. Neither matches target `e7918b6e256319b1305536c7815a92f6132ece99`. No accepted index was altered or created from a target-only measurement. Parent T039 and BLE T038 remain open; hosted enforcement remains waived/disabled.
+- **status**: Passed (exact-candidate non-coverage local CI); Unverified (coverage gate and accepted-target comparison).
+- **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\candidate-6c48348\5eae2e16-2add-4256-847f-dae87026a1dd\summary.md`; `manifest.json`; `counters.json`; `reports/tests`; parent Record 232.
+
+### Record 207: Exact Rebased Target Baseline Recapture Still Incomplete (T038 — Unverified)
+- **requirement**: BLE T038; complete coverage and accepted-target raw-count nonregression, coordinated by parent T039.
+- **scope**: Fresh measurement of the exact rebased target in an isolated clean checkout. No candidate comparison or baseline promotion was performed.
+- **revision**: Target/harness `e7918b6e256319b1305536c7815a92f6132ece99`; target tree `afe0683226166775f4fccdfc8accb06c46bd5697`.
+- **named_procedure**: `tools/coverage/capture.ps1` with Purpose `Comparison`, target equal to source revision, ASUS serial `R7AIB7002901AZ3`; run `57372dab-0995-436c-b07c-83c4f6d791d1`.
+- **environment**: Windows; Gradle 9.6.0, Kotlin 2.3.21, AGP 9.4.1, JaCoCo 0.8.15; ASUS AI2302 / Android 15 API35; 2026-11-08.
+- **expected_observed_result**: `:feature:fido2:connectedAndroidDeviceTest` reported 5 setup-dependent failures among 46 tests. The failed cases require the opt-in Perfetto/tracing session; capture stopped before canonical counters, complete evidence, or a target bundle was produced.
+- **limitations**: No baseline was created, and the accepted-target index was not changed. BLE T038 and parent T039 remain Unverified. Retry requires a valid authorized Perfetto/session setup or a reviewed correction to the workload selection.
+- **status**: Unverified (target measurement incomplete; not coverage evidence).
+- **artifact_link**: Parent Record 233; `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\recreated-baseline-e791\57372dab-0995-436c-b07c-83c4f6d791d1\summary.md`; target connected-test report in the isolated target checkout.
+
+### Record 208: Routine Filter Verified; Initial Full Baseline Rehearsal Blocked by App Keystore Data (T038 — Unverified)
+- **requirement**: BLE T038 complete target coverage and accepted-target raw-count nonregression under parent T039.
+- **scope**: Verify the corrected Feature 058 filter on the exact target, then run its full host/device coverage task graph without accepting incomplete results.
+- **revision**: Exact target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; harness branch `064-bluetooth-transport-selection`, dirty at `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus coverage-tool changes.
+- **named_procedure**: Ran `:feature:fido2:connectedAndroidDeviceTest` with `tools/hdk-coverage.init.gradle` and AndroidJUnitRunner `notPackage=com.chimali.fido2.util.performance`, followed by manual `hdkHostCoverage hdkCoverageAnalyze` against the clean target. The latter was a rehearsal, not a `capture.ps1` bundle.
+- **environment**: Windows; ASUS AI2302/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; AGP 9.4.1; 2026-11-08.
+- **expected_observed_result**: FIDO2 connected tests passed 41/41 in 10 suites with no failures/errors/skips and none of the five excluded Perfetto suites. The full graph reached `:app:connectedShrunkDebugAndroidTest`; three `CredentialCryptoProviderTest` cases passed, but `LeakCanaryMnemonicOwnerTest` failed during app startup as Android Keystore raised `VERIFICATION_FAILED`/`AEADBadTagException` decrypting the installed `com.chimali` wallet database. `hdkCoverageAnalyze` did not complete. The Feature 058 policy suite passed 520/520.
+- **limitations**: This record describes the initial failed rehearsal. Child Record 209 documents the later successful manual workload and analysis after clearing only the previously authorized `com.chimali.shrunk` package; separate `com.chimali` data remained untouched. No immutable target bundle, compatible index promotion or candidate comparison resulted.
+- **status**: Passed (routine FIDO2 selection and policy enforcement); Unverified (full target coverage and comparison; no baseline promoted).
+- **artifact_link**: Feature 058 evidence §§11.146–11.147; target ASUS FIDO2 JUnit `D:\octav\source\repos\.worktrees\chimali\baseline-e791-source\feature\fido2\build\outputs\androidTest-results\connected\androidMain\TEST-ASUS_AI2302 - 15.xml`; failed app JUnit `D:\octav\source\repos\.worktrees\chimali\baseline-e791-source\app\build\outputs\androidTest-results\connected\shrunkDebug\TEST-ASUS_AI2302 - 15.xml`; [trusted archive index](https://github.com/octaviordz/chimali/blob/swe/coverage-evidence/baselines/current.json).
+
+### Record 209: Exact-Target Manual Coverage Analysis Recreated; Acceptance Still Pending (T038 — Unverified)
+- **requirement**: BLE T038 target workload and accepted-target raw-count assessment, coordinated by parent T039.
+- **scope**: Follow-up to Record 208. Cleared only `com.chimali.shrunk` under prior user authorization; exact-target full host/device workload and `hdkCoverageAnalyze` completed on ASUS.
+- **revision**: Target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; dirty current harness.
+- **named_procedure**: Corrected routine Perfetto filter; manual `hdkHostCoverage hdkCoverageAnalyze`; app 11/11 and FIDO2 41/41 instrumentation, required core:common/settings device work and host suites completed. A subsequent verifier invocation reran connected tasks and failed at app Keystore startup.
+- **environment**: ASUS AI2302 Android 15 API35 (`R7AIB7002901AZ3`); Windows; 2026-11-08.
+- **expected_observed_result**: Repository instructions 77,209/134,569 (57.38%). Tier 1 instruction/branch: data 87.95%/77.03%, domain 71.33%/71.28%, security 81.40%/66.84%, FIDO2 64.47%/61.62%. Applicable Tier 2 instruction results exceed 20%.
+- **limitations**: Manual output only; dirty harness prevents immutable capture. No successful floor-verifier receipt, accepted-index promotion or candidate comparison. Archive index still names target `f1fd56baf8641cea99edc7fafa8725fdda21044c`, incompatible with `e7918b6`.
+- **status**: Manual target workload/analysis completed; T038 remains Unverified pending formal baseline and candidate comparison.
+- **artifact_link**: Parent Record 235; Feature 058 §11.148; target `build/reports/hdk-coverage/counters.json` and `production-inventory.json`.
+
+### Record 210: Feature Worktree Local CI Passed (T038 — Partial)
+- **requirement**: BLE T038 local static analysis and required host tests before coverage comparison.
+- **scope**: Current feature worktree local CI with optional connected coverage excluded.
+- **revision**: HEAD `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus current staged/unstaged changes.
+- **named_procedure**: `tools/local-ci.ps1 -NoFix -NoConfigurationCache`; Gradle report output disabled in the script to avoid a Windows denied-write failure.
+- **environment**: Windows PowerShell; Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: KtLint, Detekt, Release lint, compile-all, unit tests and KMP Android host tests passed; exit code 0 in 74.67 seconds. Feature 058 offline policy fixtures passed 520/520; PowerShell parsing passed for the modified scripts.
+- **limitations**: Local success does not establish connected-device coverage, accepted-target compatibility or raw-count nonregression. Those remain Unverified.
+- **status**: Local checks passed; T038 remains Unverified pending formal target capture and candidate comparison.
+- **artifact_link**: Parent Record 236; `tools/local-ci.ps1`; Feature 058 §11.148.
+
+### Record 211: Exact-Target Full Coverage and Floor Verification Passed (T038 — Partial)
+- **requirement**: BLE T038 target completeness, configured floors and accepted-target comparison, coordinated by parent T039.
+- **scope**: Follow-up to BLE Record 209. Reset only `com.chimali.shrunk`, then ran the exact-target full `hdkCoverageVerify` task graph; separate `com.chimali` app data was preserved.
+- **revision**: Target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; dirty current harness.
+- **named_procedure**: ASUS API35 with corrected routine Perfetto exclusions; app 11/11, FIDO2 41/41, core:common 3/3, settings device task and host suites passed; analysis and exact integer floor verifier passed. Gradle exit 0 in 13m04s.
+- **environment**: ASUS AI2302 Android 15 API35 (`R7AIB7002901AZ3`); Windows; 2026-11-08.
+- **expected_observed_result**: Repository instructions 77,209/134,569 (57.38%). Tier 1 instruction/branch: data 87.95%/77.03%, domain 71.33%/71.28%, security 81.40%/66.84%, FIDO2 64.47%/61.62%; applicable Tier 2 floors passed.
+- **limitations**: Manual run only, no immutable capture. Accepted index remains bound to `f1fd56baf8641cea99edc7fafa8725fdda21044c`; no compatible baseline promotion or candidate raw-count comparison exists. T038 remains Unverified for the full gate.
+- **status**: Target completeness and floors passed; formal capture, baseline review and candidate comparison remain open.
+- **artifact_link**: Parent Record 237; Feature 058 §11.149; target counters/inventory and app/FIDO2 JUnit XML.
+
+### Record 212: Candidate Coverage Floors Pass; T038 Accepted-Target Comparison Remains Unverified
+- **requirement**: BLE T038 candidate completeness, configured floors and accepted-target raw-count nonregression under parent T039 coordination.
+- **scope**: Full manual candidate `hdkCoverageVerify` on ASUS/API35 after Feature 058 runner updates; the production-ID `com.chimali` data was preserved.
+- **revision**: Candidate `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus dirty staged/unstaged harness and docs; target `e7918b6e256319b1305536c7815a92f6132ece99`.
+- **named_procedure**: Full Gradle verifier graph with the reviewed routine Perfetto filter; all required device and host tasks completed; exit 0 in 32m42s. Exact integer coverage verifier passed.
+- **environment**: ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Windows; Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: Tier 1 floors passed: data 1,277/1,452 instructions and 57/74 branches; domain 5,124/7,184 and 412/578; security 3,624/4,452 and 258/386; FIDO2 67,527/100,198 and 4,029/6,662. Repository was 88,322/149,128 instructions (59.23%); applicable Tier 2 floors passed.
+- **limitations**: Dirty harness prevents immutable capture. Accepted index still targets `f1fd56baf8641cea99edc7fafa8725fdda21044c`; no accepted-target comparison/promotion. FIDO2 production inventory differs from target rehearsal, so raw counts are not a nonregression result. T038 remains Unverified for the complete gate.
+- **status**: Candidate full workload and configured floors passed; formal capture and accepted-target comparison remain open.
+- **artifact_link**: Parent Record 238; Feature 058 §11.150; current candidate counters/inventory and device JUnit reports.
+
+### Record 213: Exact-Target Verifier Passes After Install-Then-Clear; BLE Coverage Comparison Remains Open (T038 — Unverified)
+- **requirement**: BLE T038; complete the parent-coordinated exact target and candidate coverage comparison with a compatible indexed baseline.
+- **scope**: Exact target `e7918b6e256319b1305536c7815a92f6132ece99` measured on ASUS/API35 using the current Feature 058 routine Perfetto filter. Clearing production package `com.chimali` did not solve the Keystore error. The app instrumentation package is separate `com.chimali.shrunk`; it was absent before Gradle's connected task, so the exact target APK was installed, that package was cleared, then the full verifier ran.
+- **revision**: Target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; dirty harness based on feature HEAD `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus Feature 058 changes.
+- **named_procedure**: `adb install -r app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk`, `adb shell pm clear com.chimali.shrunk`, and full ASUS/API35 `hdkCoverageVerify` with `notPackage=com.chimali.fido2.util.performance`; app suite 11/11, FIDO2 41/41, required core:common/settings device tasks and configured host tasks completed. Gradle daemon recorded successful completion. Feature 058 policy suite passed 520/520 after updating capture to build/install/clear in that order.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: Exact target passed configured floors: repository 77,209/134,569 instructions (57.38%); Tier 1 data 87.95% instructions / 77.03% branches, domain 71.33% / 71.28%, security 81.40% / 66.84%, FIDO2 64.47% / 61.62%. No workload task reported failure.
+- **limitations**: Manual verifier only; the dirty harness prevented immutable capture. Accepted index still targets `f1fd56baf8641cea99edc7fafa8725fdda21044c`; no compatible target baseline was promoted or used for candidate raw-count comparison. Parent T039 coordination therefore remains incomplete.
+- **status**: Exact-target manual workload and floors passed; T038 remains Unverified pending immutable capture, accepted-target compatibility/review, and candidate comparison.
+- **artifact_link**: Parent Record 239; Feature 058 §11.151; target `build/reports/hdk-coverage/counters.json` and `production-inventory.json`; FIDO2 connected JUnit report; `tools/coverage/capture.ps1`.
+
+### Record 214: Routine BLE Coverage Workload and Floors Pass; Accepted-Target Comparison Remains Unverified
+- **requirement**: BLE T038; complete the parent-coordinated coverage workload and compatible accepted-target raw-count assessment.
+- **scope**: Current candidate ASUS/API35 manual verifier after Feature 058 explicitly excluded only the opt-in two-device reconnect stress test from the single-phone routine workload. The class needs a distinct FIDO BLE advertiser and remains a separate specialized procedure.
+- **revision**: Candidate branch HEAD `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus dirty working changes; parent target `e7918b6e256319b1305536c7815a92f6132ece99`.
+- **named_procedure**: `hdkCoverageVerify` with the five reviewed Perfetto classes excluded by package and `FidoBleReconnectStressDeviceTest` excluded by exact AndroidJUnitRunner class filter. Exit 0 in 5m59s; FIDO2 JUnit 57/57 with zero failures/errors/skips; app 13/13; all required device/host workloads and configured floors passed. Feature 058 policy suite passed 520/520.
+- **environment**: ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Windows 11; Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: FIDO2 Tier 1 67,685/100,179 instructions and 4,037/6,660 branches. Repository 89,780/149,027 instructions (60.24%); data 1,277/1,452 and 57/74; domain 5,124/7,184 and 412/578; security 3,624/4,452 and 258/386. Floors passed. Counter/inventory digests are in parent Record 240 and Feature 058 §11.152.
+- **limitations**: Dirty harness prevents immutable capture. Accepted index remains for `f1fd56baf8641cea99edc7fafa8725fdda21044c`, incompatible with the target; no accepted-target comparison or promotion. User-authorized `com.chimali` data clearing occurred; the isolated `com.chimali.shrunk` test package was reset for the run. Hosted integration remains waived.
+- **status**: Routine BLE coverage workload and floors pass; T038 remains Unverified until the parent coordinates immutable capture and a compatible accepted-target raw-count comparison.
+- **artifact_link**: Parent Record 240; Feature 058 §11.152; candidate counters/inventory and connected JUnit reports.
+
+### Record 215: Capture-Style Routine BLE Suite Filter Verified
+- **requirement**: BLE T038; ensure the routine connected FIDO2 test suite excludes the opt-in two-device stress class while retaining regular BLE tests.
+- **scope**: Focused Android device suite on ASUS/API35 using the same environment arguments used by `tools/coverage/capture.ps1`.
+- **revision**: Candidate HEAD `6c483486f83a8df20d8fdc59a05a05ce9558c567` plus dirty harness changes.
+- **named_procedure**: `:feature:fido2:connectedAndroidDeviceTest`, Perfetto `notPackage` plus exact BLE reconnect-stress `notClass`. Gradle exit 0 in 1m43s; FIDO2 JUnit 57/57 with zero failures/errors/skips and the opt-in class absent.
+- **environment**: ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Windows 11; Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: The capture-style environment filters are honored by AndroidJUnitRunner; regular BLE device tests pass.
+- **limitations**: Focused filter verification only. T038 still needs an immutable full candidate capture and compatible accepted-target raw-count comparison.
+- **status**: Filter behavior verified; T038 remains Unverified.
+- **artifact_link**: Parent Record 241; Feature 058 §11.153; FIDO2 connected JUnit report.

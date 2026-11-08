@@ -306,6 +306,59 @@ New-Item -ItemType Directory -Path $reportsDir -Force | Out-Null
 $startTimeUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 Write-Host "Starting coverage capture run $runId (Purpose: $Purpose) at $startTimeUtc..." -ForegroundColor Cyan
 
+# The app's shrunkDebug instrumentation target is an isolated test package. Install the
+# exact source-revision APK before clearing it: a fresh install can restore stale encrypted
+# wallet data from Android backup, and clearing before install would miss that data. The
+# subsequent Gradle instrumentation install is an update of this same APK, preserving the
+# clean app-data state. Never touch the production application ID (`com.chimali`).
+$deviceAppDataReset = [PSCustomObject]@{
+    package_name = 'com.chimali.shrunk'
+    action = 'install_exact_apk_then_pm_clear_before_capture'
+    outcome = if ($SkipExecution) { 'NotRun' } else { 'Pending' }
+    install_output = $null
+    clear_output = $null
+}
+if (-not $SkipExecution) {
+    Push-Location $RepositoryRoot
+    try {
+        $env:ANDROID_SERIAL = $DeviceSerial
+        $initScript = Join-Path $HarnessRoot 'tools/hdk-coverage.init.gradle'
+        $prepareArgs = @('--no-configuration-cache', '-I', $initScript)
+        $prepareArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
+        $prepareArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
+        $prepareArgs += @(':app:assembleShrunkDebug')
+        Write-Host 'Building the exact shrunkDebug APK before clearing its device data...' -ForegroundColor Cyan
+        & .\gradlew.bat @prepareArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not build the shrunkDebug APK before the device reset (Gradle exit $LASTEXITCODE)."
+        }
+
+        $apkPath = Join-Path $RepositoryRoot 'app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk'
+        if (-not (Test-Path -LiteralPath $apkPath -PathType Leaf)) {
+            throw "The exact shrunkDebug APK was not produced at $apkPath."
+        }
+        $installOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'install', '-r', $apkPath) -TimeoutSeconds 120)
+        $installResult = ($installOutput -join "`n").Trim()
+        if ($installResult -notmatch '(?m)^Success$') {
+            throw "Android did not confirm installing the shrunkDebug test package: $installResult"
+        }
+        $deviceAppDataReset.install_output = $installResult
+
+        $clearOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'pm', 'clear', 'com.chimali.shrunk') -TimeoutSeconds 20)
+        $clearResult = ($clearOutput -join "`n").Trim()
+        if ($clearResult -cne 'Success') {
+            throw "Android did not confirm clearing the shrunkDebug test package: $clearResult"
+        }
+        $deviceAppDataReset.clear_output = $clearResult
+        $deviceAppDataReset.outcome = 'InstalledAndCleared'
+    } catch {
+        Write-CoverageError "Could not install and reset only the shrunkDebug test package before capture: $_"
+        exit 2
+    } finally {
+        Pop-Location
+    }
+}
+
 $changedPathsFile = $null
 if (-not [string]::IsNullOrWhiteSpace($TargetRevision)) {
     $changedPathsFile = Join-Path $runDir 'changed-paths.txt'
@@ -319,12 +372,29 @@ if (-not [string]::IsNullOrWhiteSpace($TargetRevision)) {
 $gradleSuccess = $true
 if (-not $SkipExecution) {
     Push-Location $RepositoryRoot
+    $instrumentationFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notPackage'
+    $instrumentationClassFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notClass'
+    $originalInstrumentationFilter = [Environment]::GetEnvironmentVariable($instrumentationFilterProperty, 'Process')
+    $originalInstrumentationClassFilter = [Environment]::GetEnvironmentVariable($instrumentationClassFilterProperty, 'Process')
     try {
         $env:ANDROID_SERIAL = $DeviceSerial
         $initScript = Join-Path $HarnessRoot "tools/hdk-coverage.init.gradle"
         $gradleArgs = @('--no-configuration-cache', '-I', $initScript)
         $gradleArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
         $gradleArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
+        $routineDeviceExclusions = @($policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+        $routineDeviceClassExclusions = @($policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+        if ($routineDeviceExclusions.Count -gt 0) {
+            $routineDeviceExclusionPackages = @($routineDeviceExclusions | ForEach-Object { $_.Substring(0, $_.LastIndexOf('.')) } | Select-Object -Unique)
+            if ($routineDeviceExclusionPackages.Count -ne 1) {
+                Write-CoverageError 'Feature 062 routine-device exclusions must resolve to exactly one AndroidJUnitRunner package.'
+                exit 3
+            }
+            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $routineDeviceExclusionPackages[0], 'Process')
+        } else {
+            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $null, 'Process')
+        }
+        [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, ($routineDeviceClassExclusions -join ','), 'Process')
         if ($changedPathsFile) {
             $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile")
             $gradleArgs += @('--project-prop', "coverageChangedPathsTarget=$TargetRevision")
@@ -338,6 +408,8 @@ if (-not $SkipExecution) {
             Write-Warning "Gradle coverage collection exited with code $LASTEXITCODE"
         }
     } finally {
+        [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $originalInstrumentationFilter, 'Process')
+        [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $originalInstrumentationClassFilter, 'Process')
         Pop-Location
     }
 }
@@ -1007,6 +1079,7 @@ $manifest = [PSCustomObject]@{
         model = $deviceModel
         api_level = $deviceApi
         abi = $deviceAbi
+        pre_run_app_data_reset = $deviceAppDataReset
     }
     decisions = [PSCustomObject]@{
         collection = $collectionStatus

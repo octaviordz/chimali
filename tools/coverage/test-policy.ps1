@@ -281,10 +281,11 @@ foreach ($file in $fixtureFiles) {
                     $workload = [PSCustomObject]@{
                         host_test_tasks = $hostTasks
                         required_device_tasks = @($coveragePolicy.required_workload.required_device_test_modules | ForEach-Object {
-                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/androidMain" }
+                            $excludedClasses = if ([string]$_ -eq ':feature:fido2') { @(@($coveragePolicy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }) + @($coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })) } else { @() }
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; excluded_test_classes = $excludedClasses; junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/androidMain" }
                         })
                         optional_device_tasks = @($coveragePolicy.required_workload.optional_device_test_modules | ForEach-Object {
-                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/shrunkDebug" }
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; excluded_test_classes = @(); junit_xml_directory = "$($_.ToString().TrimStart(':').Replace(':', '/'))/build/outputs/androidTest-results/connected/shrunkDebug" }
                         })
                     }
                     switch ([string]$case.mutation) {
@@ -293,6 +294,7 @@ foreach ($file in $fixtureFiles) {
                         'reassign-host' { $workload.host_test_tasks[0].task_path = ':feature:settings:testShrunkDebugUnitTest' }
                         'omit-device' { $workload.required_device_tasks = @($workload.required_device_tasks | Select-Object -Skip 1) }
                         'broad-device' { $workload.required_device_tasks[0].task_path = ':feature:connectedAndroidTest' }
+                        'omit-routine-exclusion-evidence' { $workload.required_device_tasks[0].PSObject.Properties.Remove('excluded_test_classes') }
                         'broad-root' { $workload.host_test_tasks[0].junit_xml_directory = 'core/build/test-results' }
                     }
                     $inventory = Test-WorkloadTaskInventory -Workload $workload -Policy $coveragePolicy
@@ -309,6 +311,12 @@ foreach ($file in $fixtureFiles) {
                     if ($case.mutation -eq 'zero-optional-device-suite') {
                         $optionalRoot = ([string]$workload.optional_device_tasks[0].junit_xml_directory).Replace('\', '/').TrimEnd('/')
                         ($suites | Where-Object { $_.suite_identity.StartsWith("$optionalRoot/", [System.StringComparison]::OrdinalIgnoreCase) })[0].tests = 0
+                    }
+                    if ($case.mutation -eq 'include-routine-excluded-suite') {
+                        $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
+                        $excludedClass = [string]$fidoTask.excluded_test_classes[0]
+                        $fidoRoot = ([string]$fidoTask.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                        $suites += [PSCustomObject]@{ suite_identity = "$fidoRoot/TEST-device.xml|1|$excludedClass"; suite_name = $excludedClass; tests = 1 }
                     }
                     $execution = Test-WorkloadSuiteExecutionCounts -Workload $workload -Suites $suites
                     $combinedErrors = @($inventory.Errors) + @($execution.Errors)
@@ -328,7 +336,7 @@ foreach ($file in $fixtureFiles) {
                         Set-Content -LiteralPath (Join-Path $staleDir 'TEST-stale.xml') -Value '<testsuite name="stale" tests="99" />'
                         $workload = [PSCustomObject]@{
                             host_test_tasks = @([PSCustomObject]@{ task_path = ':core:domain:testDebugUnitTest'; disposition = 'Applicable'; executed = $true; junit_xml_directory = 'core/domain/build/test-results/testDebugUnitTest' })
-                            required_device_tasks = @([PSCustomObject]@{ task_path = ':core:common:connectedAndroidDeviceTest'; executed = $true; junit_xml_directory = 'core/common/build/outputs/androidTest-results/connected/androidMain' })
+                            required_device_tasks = @([PSCustomObject]@{ task_path = ':core:common:connectedAndroidDeviceTest'; executed = $true; excluded_test_classes = @(); junit_xml_directory = 'core/common/build/outputs/androidTest-results/connected/androidMain' })
                             optional_device_tasks = @()
                         }
                         if ($case.mode -eq 'missing-file') { Remove-Item -LiteralPath (Join-Path $deviceDir 'TEST-device.xml') }
@@ -854,10 +862,11 @@ foreach ($file in $fixtureFiles) {
                         }
                         $manifestToValidate.workload.host_test_tasks = @($hostRecords)
                         $manifestToValidate.workload.required_device_tasks = @($coveragePolicy.required_workload.required_device_test_modules | ForEach-Object {
-                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; junit_xml_directory = $junitDirectoryByTask[[string]$_] }
+                            $excludedClasses = if ([string]$_ -eq ':feature:fido2') { @(@($coveragePolicy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }) + @($coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })) } else { @() }
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; excluded_test_classes = $excludedClasses; junit_xml_directory = $junitDirectoryByTask[[string]$_] }
                         })
                         $manifestToValidate.workload.optional_device_tasks = @($coveragePolicy.required_workload.optional_device_test_modules | ForEach-Object {
-                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; junit_xml_directory = 'app/build/outputs/androidTest-results/connected/shrunkDebug' }
+                            [PSCustomObject]@{ module_path = [string]$_; task_path = "${_}:$($coveragePolicy.required_workload.device_test_tasks.$_)"; executed = $true; skipped = $false; failed = $false; excluded_test_classes = @(); junit_xml_directory = 'app/build/outputs/androidTest-results/connected/shrunkDebug' }
                         })
                         $hostJUnitArtifact = 'reports/tests/core/domain/build/test-results/testAndroidHostTest/TEST-fixture.xml'
                         if ($null -ne $manifestToValidate.artifacts) {

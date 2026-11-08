@@ -59,6 +59,20 @@
       "description": "Allows an explicitly optional device task to have no testcase outcomes",
       "mutation": "zero-optional-device-suite",
       "expected_valid": true
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_010_EXCLUSION_RECEIPT_REQUIRED",
+      "description": "Requires the FIDO2 workload receipt to retain the policy-applied empirical test exclusions",
+      "mutation": "omit-routine-exclusion-evidence",
+      "expected_error": "exclusion evidence differs from reviewed routine workload policy",
+      "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_011_APPLIED_EXCLUSION_ABSENT_FROM_JUNIT",
+      "description": "Rejects a routine device JUnit report that still contains an excluded research suite",
+      "mutation": "include-routine-excluded-suite",
+      "expected_error": "contains policy-excluded routine device suites",
+      "expected_valid": false
     }
   ]
 }
