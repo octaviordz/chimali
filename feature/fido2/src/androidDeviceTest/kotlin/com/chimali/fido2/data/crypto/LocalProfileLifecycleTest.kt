@@ -671,10 +671,9 @@ class LocalProfileLifecycleTest {
 
                     var replacementFailure: java.sql.SQLException? = null
                     try {
-                        // The candidate duplicates another row's primary key. The DAO first deletes
-                        // the old RP/user projection; the real SQLDelight transaction must restore
-                        // that row when the insertion then fails.
-                        dao.replaceCredentialsForRpAndUser(
+                        // The candidate duplicates another row's primary key. The failed projection
+                        // insert must leave the pre-existing credential row intact.
+                        dao.insertCredentialProjection(
                             deviceTestCredential(conflictId, "example.com", "user-1"),
                         )
                     } catch (failure: java.sql.SQLException) {

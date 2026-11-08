@@ -1,0 +1,58 @@
+-- Migration 2: allow multiple passkeys for the same relying party account.
+-- Preserve all existing credential records while removing the RP/user uniqueness constraint.
+CREATE TABLE passkey_credential_new (
+    id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    updated_at INTEGER NOT NULL,
+    aaguid TEXT NOT NULL,
+    cose_algorithm INTEGER NOT NULL,
+    credential_id TEXT NOT NULL,
+    cred_protect_policy INTEGER NOT NULL DEFAULT 1,
+    derivation_profile TEXT NOT NULL,
+    encrypted_metadata BLOB,
+    label TEXT,
+    public_key TEXT NOT NULL,
+    rp_id BLOB NOT NULL,
+    rp_id_index BLOB,
+    rp_name BLOB NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    user_display_name BLOB NOT NULL,
+    user_id BLOB NOT NULL,
+    user_id_index BLOB,
+    user_name BLOB NOT NULL
+);
+
+INSERT INTO passkey_credential_new (
+    id, created_at, last_used_at, updated_at, aaguid, cose_algorithm, credential_id,
+    cred_protect_policy, derivation_profile, encrypted_metadata, label, public_key,
+    rp_id, rp_id_index, rp_name, sign_count, user_display_name, user_id, user_id_index, user_name
+)
+SELECT
+    id, created_at, last_used_at, updated_at, aaguid, cose_algorithm, credential_id,
+    cred_protect_policy, derivation_profile, encrypted_metadata, label, public_key,
+    rp_id, rp_id_index, rp_name, sign_count, user_display_name, user_id, user_id_index, user_name
+FROM passkey_credential;
+
+-- SQLite views can block table renames when their referenced table is dropped.
+-- Drop/rebuild the dependent summary view around the table replacement.
+DROP VIEW IF EXISTS credential_summary;
+DROP TABLE passkey_credential;
+ALTER TABLE passkey_credential_new RENAME TO passkey_credential;
+
+CREATE INDEX idx_passkey_credential_rp_id ON passkey_credential(rp_id);
+CREATE INDEX idx_passkey_credential_user_id ON passkey_credential(user_id);
+CREATE INDEX idx_passkey_credential_rp_id_index ON passkey_credential(rp_id_index);
+CREATE INDEX idx_passkey_credential_user_id_index ON passkey_credential(user_id_index);
+
+CREATE VIEW credential_summary AS
+SELECT
+    pc.id,
+    pc.rp_id,
+    pc.rp_name,
+    pc.user_name,
+    pc.user_display_name,
+    pc.created_at,
+    pc.last_used_at,
+    pc.sign_count
+FROM passkey_credential pc;

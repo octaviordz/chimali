@@ -128,8 +128,8 @@ class CredentialRepositoryImpl(
                     )
                 }
 
-                // Event append has committed. Replace the projection as a separate atomic phase.
-                passkeyCredentialDao.replaceCredentialsForRpAndUser(credential)
+                // Event append has committed. Persist this credential without discarding other IDs.
+                passkeyCredentialDao.insertCredentialProjection(credential)
                 Outcome.Success(Unit)
             } finally {
                 aggregateResult.getOrNull()?.eraseSensitiveMetadata()

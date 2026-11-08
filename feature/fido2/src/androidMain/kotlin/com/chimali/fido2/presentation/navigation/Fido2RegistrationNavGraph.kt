@@ -33,6 +33,7 @@ fun Fido2RegistrationNavGraph(
     onAuthenticationComplete: (credentialId: String) -> Unit = {},
     onAuthenticationCancelled: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onExternalCeremonyRequest: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
     startDestination: String = Fido2Destinations.HOME_ROUTE,
     modifier: Modifier = Modifier,
@@ -52,9 +53,11 @@ fun Fido2RegistrationNavGraph(
                             navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)
                         },
                         onRegisterRequest = {
+                            onExternalCeremonyRequest()
                             navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)
                         },
                         onAuthenticateRequest = {
+                            onExternalCeremonyRequest()
                             navController.navigate(Fido2Destinations.AUTHENTICATION_ROUTE)
                         },
                         onEditDevice = { macAddress ->
@@ -79,6 +82,7 @@ fun Fido2RegistrationNavGraph(
                             navController.popBackStack()
                             onRegistrationCancelled()
                         },
+                        onOpenSettings = onOpenSettings,
                     )
                 }
 
@@ -92,6 +96,7 @@ fun Fido2RegistrationNavGraph(
                             navController.popBackStack()
                             onAuthenticationCancelled()
                         },
+                        onOpenSettings = onOpenSettings,
                     )
                 }
 

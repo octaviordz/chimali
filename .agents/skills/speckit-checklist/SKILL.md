@@ -1,12 +1,13 @@
 ---
 name: "speckit-checklist"
-description: "Generate a custom checklist for the current feature based on user requirements."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Generate a focused requirements-quality checklist for the current feature."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/checklist.md"
+  source: extension:spec-kit
 ---
 
+# Generate a Requirements Checklist
 
 ## Checklist Purpose: "Unit Tests for English"
 

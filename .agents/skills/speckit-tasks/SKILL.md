@@ -1,12 +1,13 @@
 ---
 name: "speckit-tasks"
-description: "Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Create an actionable, dependency-ordered task list from the feature's design artifacts."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/tasks.md"
+  source: extension:spec-kit
 ---
 
+# Generate Implementation Tasks
 
 ## User Input
 

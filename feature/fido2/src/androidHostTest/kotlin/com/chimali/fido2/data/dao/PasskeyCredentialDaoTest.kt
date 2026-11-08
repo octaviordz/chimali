@@ -14,9 +14,7 @@ import io.mockk.mockk
 import java.security.KeyPairGenerator
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 
@@ -218,53 +216,5 @@ class PasskeyCredentialDaoTest {
                 assertEquals(testEntity, result)
                 coVerify(exactly = 1) { queries.select_by_id(testCredential.id.encoded) }
             }
-    }
-
-    /** @see NFR-SEC-041 and TR-AUTH-031 */
-    @Test
-    fun `replacement erases retained row metadata after success failure and cancellation`() {
-        fun retainedRow(): Pair<Passkey_credential, List<ByteArray>> {
-            val fields =
-                listOf(
-                    "synthetic-rp".encodeToByteArray(),
-                    "synthetic-rp-name".encodeToByteArray(),
-                    "synthetic-display".encodeToByteArray(),
-                    "synthetic-user-id".encodeToByteArray(),
-                    "synthetic-user-name".encodeToByteArray(),
-                )
-            return testEntity.copy(
-                rp_id = fields[0],
-                rp_name = fields[1],
-                user_display_name = fields[2],
-                user_id = fields[3],
-                user_name = fields[4],
-            ) to fields
-        }
-
-        val (successRow, successBuffers) = retainedRow()
-        dao.deleteAndEraseCredentialRows(listOf(successRow), ensureActive = {}, deleteById = {})
-        successBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
-
-        val (failureRow, failureBuffers) = retainedRow()
-        assertFailsWith<IllegalStateException> {
-            dao.deleteAndEraseCredentialRows(
-                listOf(failureRow),
-                ensureActive = {},
-                deleteById = { error("synthetic delete failure") },
-            )
-        }
-        failureBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
-
-        val (cancelledRow, cancelledBuffers) = retainedRow()
-        assertFailsWith<java.util.concurrent.CancellationException> {
-            dao.deleteAndEraseCredentialRows(
-                listOf(cancelledRow),
-                ensureActive = {
-                    throw java.util.concurrent.CancellationException("synthetic replacement cancellation")
-                },
-                deleteById = {},
-            )
-        }
-        cancelledBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
     }
 }

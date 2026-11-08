@@ -124,7 +124,7 @@ class CredentialRepositorySearchableMetadataTest {
                     credentialId = ByteArray(32) { 3 },
                     derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
                 )
-            dao.replaceCredentialsForRpAndUser(original)
+            dao.insertCredentialProjection(original)
             val stored = requireNotNull(dao.getCredentialById(original.id))
             val restored = stored.toDomainModel(PublicKeyDecoder(), protection)
             assertTrue(restored is Outcome.Success)
@@ -139,7 +139,7 @@ class CredentialRepositorySearchableMetadataTest {
                     credentialId = ByteArray(32) { 4 },
                 )
             failEncryption = true
-            assertFailsWith<IllegalStateException> { dao.replaceCredentialsForRpAndUser(replacement) }
+            assertFailsWith<IllegalStateException> { dao.insertCredentialProjection(replacement) }
             assertEquals(
                 original.id.encoded,
                 dao
@@ -464,7 +464,7 @@ class CredentialRepositorySearchableMetadataTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `projection replacement rolls back deletions when insertion preparation fails`() =
+    fun `projection insertion failure leaves the existing credential intact`() =
         runTest {
             seedCredentialDirectly("original", rpId = "example.com", userId = "user-1")
             val seeded =
@@ -496,7 +496,7 @@ class CredentialRepositorySearchableMetadataTest {
                 IllegalStateException("synthetic projection failure")
 
             assertFailsWith<IllegalStateException> {
-                passkeyDao.replaceCredentialsForRpAndUser(replacement)
+                passkeyDao.insertCredentialProjection(replacement)
             }
 
             val afterFailure =
@@ -508,7 +508,7 @@ class CredentialRepositorySearchableMetadataTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `projection replacement rolls back deletions when cancelled before commit`() =
+    fun `projection insertion cancellation leaves the existing credential intact`() =
         runTest {
             seedCredentialDirectly("original", rpId = "example.com", userId = "user-1")
             val original =
@@ -534,7 +534,7 @@ class CredentialRepositorySearchableMetadataTest {
                 launch {
                     operationJob = currentCoroutineContext()[Job]!!
                     try {
-                        passkeyDao.replaceCredentialsForRpAndUser(replacement)
+                        passkeyDao.insertCredentialProjection(replacement)
                     } catch (_: CancellationException) {
                         // The DAO checks cancellation before commit; this child remains cancelled.
                     }

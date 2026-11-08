@@ -18,8 +18,7 @@ CREATE TABLE passkey_credential (
     user_display_name BLOB NOT NULL,
     user_id BLOB NOT NULL,
     user_id_index BLOB,
-    user_name BLOB NOT NULL,
-    UNIQUE(rp_id, user_id)
+    user_name BLOB NOT NULL
 );
 
 CREATE TABLE relying_party (

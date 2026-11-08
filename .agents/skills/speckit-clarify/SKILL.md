@@ -1,12 +1,13 @@
 ---
 name: "speckit-clarify"
-description: "Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Resolve up to five high-impact ambiguities in the current feature specification."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/clarify.md"
+  source: extension:spec-kit
 ---
 
+# Clarify Feature Requirements
 
 ## User Input
 

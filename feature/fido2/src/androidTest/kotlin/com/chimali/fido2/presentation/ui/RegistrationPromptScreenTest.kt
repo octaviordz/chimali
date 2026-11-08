@@ -120,6 +120,7 @@ class RegistrationPromptScreenTest {
         composeTestRule.onNodeWithContentDescription("Confirm registration button").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Cancel registration button").assertIsDisplayed()
     }
+    }
 
     /**
      * @see FR-HID-030

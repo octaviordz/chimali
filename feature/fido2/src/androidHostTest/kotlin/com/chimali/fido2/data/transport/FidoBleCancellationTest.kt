@@ -29,14 +29,23 @@ class FidoBleCancellationTest {
 
     private class FakeBleAdvertiserController : BleAdvertiserController {
         var stopCalls = 0
+        var stopObservingCalls = 0
+        var unexpectedFailure: ((Throwable) -> Unit)? = null
 
         override suspend fun startAdvertising(
             serviceUuid: UUID,
             onUnexpectedFailure: (Throwable) -> Unit,
-        ): Result<Unit> = Result.success(Unit)
+        ): Result<Unit> {
+            unexpectedFailure = onUnexpectedFailure
+            return Result.success(Unit)
+        }
 
         override fun stopAdvertising() {
             stopCalls++
+        }
+
+        override fun stopObservingAdapterState() {
+            stopObservingCalls++
         }
     }
 
@@ -133,6 +142,46 @@ class FidoBleCancellationTest {
 
             transport.disconnect()
             assertEquals(1, fakeAdvertiser.stopCalls)
+        }
+
+    @Test
+    @Req("FR-BLE-050", "FR-BLE-080", "TR-BLE-020", "TR-BLE-040")
+    fun `Bluetooth loss cancels active request, clears the session, and exposes retryable error`() =
+        runTest {
+            val deferred = CompletableDeferred<RawCtapResult>()
+            var wasCancelled = false
+            coEvery { rawCtapOperation.handle(any(), any()) } coAnswers {
+                try {
+                    deferred.await()
+                } catch (e: CancellationException) {
+                    wasCancelled = true
+                    throw e
+                }
+            }
+
+            val transport =
+                BleGattTransport(
+                    rawCtapOperation = rawCtapOperation,
+                    sessionOwner = sessionOwner,
+                    advertiserController = fakeAdvertiser,
+                    responseSender = fakeSender,
+                    coroutineScope = this,
+                    deviceLookup = { testDevice },
+                )
+            fakeSender.onNotificationSentCallback = { transport.onNotificationSent(true) }
+            transport.connect()
+            transport.onPacketReceived(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CMD_GET_ASSERTION))
+            runCurrent()
+            val notificationsBeforeRadioLoss = fakeSender.sentNotifications.size
+
+            fakeAdvertiser.unexpectedFailure?.invoke(IllegalStateException("Bluetooth adapter turned off"))
+            runCurrent()
+
+            assertTrue(wasCancelled)
+            assertEquals(null, sessionOwner.activeDeviceAddress)
+            assertTrue(transport.connectionState.value is Fido2ConnectionState.Error)
+            assertEquals(1, fakeAdvertiser.stopObservingCalls)
+            assertEquals(notificationsBeforeRadioLoss, fakeSender.sentNotifications.size)
         }
 
     @Test

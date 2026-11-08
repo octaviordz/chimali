@@ -8,7 +8,6 @@ import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
-import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.PasskeyCredential
 import kotlinx.coroutines.currentCoroutineContext
@@ -101,58 +100,18 @@ class PasskeyCredentialDao(
     }
 
     /**
-     * Replaces all projections for this RP/user and inserts the new credential atomically.
+     * Persists this credential projection without removing other credentials for the same RP/user.
      * The event append is deliberately owned by the repository and commits before this phase.
      */
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend fun replaceCredentialsForRpAndUser(credential: PasskeyCredential) {
+    suspend fun insertCredentialProjection(credential: PasskeyCredential) {
         val context = currentCoroutineContext()
         context.ensureActive()
-        var rpIdIndex: ByteArray? = null
-        var userIdIndex: ByteArray? = null
-        try {
-            rpIdIndex = metadataProtectionService.getRpIdIndex(credential.rpId)
-            userIdIndex = metadataProtectionService.getUserIdIndex(credential.userId)
-            database.transaction {
-                context.ensureActive()
-                val existing =
-                    database.passkeyCredentialQueries
-                        .select_by_rp_id_and_user_id(
-                            rp_id_index = requireNotNull(rpIdIndex),
-                            user_id_index = requireNotNull(userIdIndex),
-                        ).executeAsList()
-
-                deleteAndEraseCredentialRows(
-                    existing = existing,
-                    ensureActive = context::ensureActive,
-                    deleteById = { id -> database.passkeyCredentialQueries.delete_by_id(id = id) },
-                )
-
-                context.ensureActive()
-                insertCredential(credential)
-                context.ensureActive()
-            }
-        } finally {
-            rpIdIndex?.fill(0)
-            userIdIndex?.fill(0)
-        }
-    }
-
-    /** Deletes rows loaded only for replacement and erases their owned mutable metadata on every exit path. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    internal fun deleteAndEraseCredentialRows(
-        existing: List<PasskeyCredentialEntity>,
-        ensureActive: () -> Unit,
-        deleteById: (String) -> Unit,
-    ) {
-        try {
-            existing.forEach { entity ->
-                ensureActive()
-                deleteById(entity.id)
-            }
-        } finally {
-            existing.forEach(PasskeyCredentialEntity::eraseSensitiveMetadata)
+        database.transaction {
+            context.ensureActive()
+            insertCredential(credential)
+            context.ensureActive()
         }
     }
 

@@ -12,8 +12,11 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.chimali.fido2.data.transport.Fido2ConnectionState
 import com.chimali.fido2.domain.model.PairedDevice
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -228,6 +231,66 @@ class AuthenticatorDashboardComponentsTest {
         composeTestRule.onNodeWithText("Retry Authenticator").assertExists()
         composeTestRule.onNodeWithText("Retry Authenticator").performClick()
         composeTestRule.runOnIdle { assertEquals(EXPECTED_TOGGLE_COUNT_AFTER_RETRY, toggleCount) }
+    }
+
+    /** @see FR-BLE-070 and TR-BLE-040 */
+    @Test
+    fun pairingRecoveryDialogExposesBluetoothSettingsAndRetryActions() {
+        var settingsCount = 0
+        var retryCount = 0
+        composeTestRule.setContent {
+            MaterialTheme {
+                PairingRecoveryDialog(
+                    onDismiss = {},
+                    onOpenBluetoothSettings = { settingsCount++ },
+                    onRetry = { retryCount++ },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Open phone Bluetooth settings").assertExists()
+        composeTestRule.onNodeWithText("saved phone pairing from the PC", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Windows may list the phone by its model name", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Saved passkeys stay on the phone.", substring = true).assertExists()
+        composeTestRule.onNodeWithText("Open phone Bluetooth settings").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, settingsCount) }
+        composeTestRule.onNodeWithText("Retry").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, retryCount) }
+    }
+
+    /** @see FR-BLE-070 and TR-BLE-040 */
+    @Test
+    fun pairingHelpIsAvailableWhenBleIsIdleAdvertisingOrErrored() {
+        assertTrue(shouldShowPairingHelp(BluetoothTransportMode.FIDO_BLE, Fido2ConnectionState.Idle))
+        assertTrue(shouldShowPairingHelp(BluetoothTransportMode.FIDO_BLE, Fido2ConnectionState.Advertising))
+        assertTrue(shouldShowPairingHelp(BluetoothTransportMode.FIDO_BLE, Fido2ConnectionState.Error("offline")))
+        assertFalse(shouldShowPairingHelp(BluetoothTransportMode.CLASSIC_HID, Fido2ConnectionState.Advertising))
+        assertFalse(
+            shouldShowPairingHelp(
+                BluetoothTransportMode.FIDO_BLE,
+                Fido2ConnectionState.Connecting(),
+            ),
+        )
+        assertFalse(
+            shouldShowPairingHelp(
+                BluetoothTransportMode.FIDO_BLE,
+                Fido2ConnectionState.Connected(),
+            ),
+        )
+    }
+
+    /** @see FR-BLE-070 and TR-BLE-040 */
+    @Test
+    fun pairingHelpButtonInvokesItsAccessibleAction() {
+        var clickCount = 0
+        composeTestRule.setContent {
+            MaterialTheme {
+                PairingHelpButton(onClick = { clickCount++ })
+            }
+        }
+
+        composeTestRule.onNodeWithText("Pairing help").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, clickCount) }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

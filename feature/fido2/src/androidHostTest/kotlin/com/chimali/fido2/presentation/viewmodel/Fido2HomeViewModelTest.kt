@@ -32,6 +32,13 @@ class Fido2HomeViewModelTest {
                 TransportAvailability.Ready,
             ),
         )
+        assertEquals(
+            TransportToggleAction.Retry,
+            transportToggleAction(
+                Fido2ConnectionState.Idle,
+                TransportAvailability.Ready,
+            ),
+        )
     }
 
     @Test
@@ -45,5 +52,41 @@ class Fido2HomeViewModelTest {
             TransportToggleAction.Stop,
             transportToggleAction(Fido2ConnectionState.Advertising, TransportAvailability.Ready),
         )
+    }
+
+    @Test
+    @Req("FR-BT-SEL-050", "TR-BT-SEL-020")
+    fun `dashboard exposes each unavailable reason and keeps retry guidance`() {
+        val cases =
+            listOf(
+                TransportUnavailableReason.PreferenceReadFailed to
+                    "Could not read the saved Bluetooth transport. Retry or open Transport Settings.",
+                TransportUnavailableReason.InvalidPreference to
+                    "The saved Bluetooth transport is invalid. Choose a transport in Settings.",
+                TransportUnavailableReason.InitializationTimeout to
+                    "Bluetooth transport initialization timed out. Retry or choose another transport in Settings.",
+                TransportUnavailableReason.Unsupported to
+                    "This Bluetooth transport is unsupported on this device. Choose the alternative in Settings.",
+                TransportUnavailableReason.PermissionRequired to
+                    "Bluetooth permission is required. Grant it and retry.",
+                TransportUnavailableReason.BluetoothOff to
+                    "Bluetooth is off. Turn it on and retry.",
+                TransportUnavailableReason.StartupFailed to
+                    "Bluetooth transport failed to start. Retry or choose another transport in Settings.",
+            )
+
+        cases.forEach { (reason, expectedMessage) ->
+            val availability = TransportAvailability.Unavailable(reason)
+            assertEquals(
+                Fido2ConnectionState.Error(expectedMessage),
+                dashboardStateForTransport(Fido2ConnectionState.Idle, availability),
+                "Unexpected dashboard message for $reason",
+            )
+            assertEquals(
+                TransportToggleAction.Retry,
+                transportToggleAction(Fido2ConnectionState.Idle, availability),
+                "Unavailable transport $reason must remain retryable",
+            )
+        }
     }
 }

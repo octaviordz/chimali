@@ -1,12 +1,13 @@
 ---
 name: "speckit-specify"
-description: "Create or update the feature specification from a natural language feature description."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Create or update a feature specification from the user's description."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/specify.md"
+  source: extension:spec-kit
 ---
 
+# Specify a Feature
 
 ## User Input
 

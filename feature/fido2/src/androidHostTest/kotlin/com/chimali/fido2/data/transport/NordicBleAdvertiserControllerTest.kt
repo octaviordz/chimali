@@ -118,5 +118,34 @@ class NordicBleAdvertiserControllerTest {
             controller.stopAdvertising()
         }
 
+    @Test
+    @Req("FR-BLE-080", "TR-BLE-040")
+    fun `Bluetooth state remains monitored after advertising stops for a GATT connection`() =
+        runTest {
+            val context = mockk<Context>(relaxed = true)
+            val receiver = slot<BroadcastReceiver>()
+            every { context.registerReceiver(capture(receiver), any<IntentFilter>()) } returns null
+            every { context.registerReceiver(capture(receiver), any<IntentFilter>(), any<Int>()) } returns null
+            val advertiser = mockk<BleAdvertiser>()
+            every { advertiser.advertise(any()) } returns
+                flow {
+                    emit(startedEvent(BleAdvertisingStatus.ADVERTISE_SUCCESS))
+                    awaitCancellation()
+                }
+            val controller = NordicBleAdvertiserController(context, this, { advertiser })
+            val failures = mutableListOf<Throwable>()
+            val offIntent = mockk<Intent>()
+            every { offIntent.action } returns BluetoothAdapter.ACTION_STATE_CHANGED
+            every { offIntent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) } returns
+                BluetoothAdapter.STATE_OFF
+
+            assertTrue(controller.startAdvertising(UUID.randomUUID(), failures::add).isSuccess)
+            controller.stopAdvertising() // GATT accepts a host and pauses advertising.
+            receiver.captured.onReceive(context, offIntent)
+
+            assertEquals(1, failures.size)
+            controller.stopObservingAdapterState()
+        }
+
     private fun startedEvent(status: BleAdvertisingStatus) = OnAdvertisingSetStarted(mockk(), 0, status)
 }

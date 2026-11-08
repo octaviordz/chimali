@@ -82,7 +82,7 @@ A user selects their preferred transport, then experiences an app force-stop, de
 
 1. **Given** the user has selected "Classic HID", **When** the device is rebooted and Chimali is launched, **Then** Classic HID is selected and becomes active when the authenticator is started successfully.
 2. **Given** the user has selected "FIDO BLE", **When** the app is force-stopped and relaunched, **Then** FIDO BLE is selected and becomes active when the authenticator is started successfully.
-3. **Given** the user is mid-ceremony when they change the transport setting, **When** the change is recorded but not yet applied (pending restart), **Then** the current active session continues using the previously active transport uninterrupted.
+3. **Given** a registration or authentication request is waiting on the user's confirmation, **When** the user opens Transport settings from the consent prompt, changes the saved transport, returns without confirming or cancelling, and then confirms the ceremony, **Then** the request completes on the previously active transport, the new choice remains pending until process restart, and the active session is not interrupted.
 
 ---
 

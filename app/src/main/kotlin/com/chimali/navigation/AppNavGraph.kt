@@ -100,66 +100,73 @@ fun AppNavGraph(
             )
         }
 
-        AppScreen.Shell -> {
-            MainShell(
-                routingState = routingState ?: AppRoutingState(false, false, false, ""),
-                dataStore = dataStore,
-                onOpenSettings = {
-                    onboardingReturnScreen = AppScreen.Shell
-                    screenOverride = AppScreen.Settings
+        AppScreen.Shell, AppScreen.Settings -> {
+            AppShellWithOverlay(
+                mainContent = {
+                    MainShell(
+                        routingState = routingState ?: AppRoutingState(false, false, false, ""),
+                        dataStore = dataStore,
+                        onOpenSettings = {
+                            onboardingReturnScreen = AppScreen.Shell
+                            screenOverride = AppScreen.Settings
+                        },
+                        onExternalCeremonyRequest = { screenOverride = null },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 },
-                modifier = modifier,
-            )
-        }
-
-        AppScreen.Settings -> {
-            val transportSettingsViewModel: TransportSettingsViewModel = koinViewModel()
-            val transportSettings by transportSettingsViewModel.state.collectAsState()
-            val processTransport = transportSettings.processState
-            val availabilityCode =
-                when (val availability = processTransport.availability) {
-                    TransportAvailability.Loading -> "loading"
-                    TransportAvailability.SelectedNotStarted -> "selected_not_started"
-                    TransportAvailability.Starting -> "starting"
-                    TransportAvailability.Ready -> "ready"
-                    is TransportAvailability.Unavailable ->
-                        when (availability.reason) {
-                            TransportUnavailableReason.PreferenceReadFailed -> "preference_read_failed"
-                            TransportUnavailableReason.InvalidPreference -> "invalid_preference"
-                            TransportUnavailableReason.InitializationTimeout -> "initialization_timeout"
-                            TransportUnavailableReason.Unsupported -> "unsupported"
-                            TransportUnavailableReason.PermissionRequired -> "permission_required"
-                            TransportUnavailableReason.BluetoothOff -> "bluetooth_off"
-                            TransportUnavailableReason.StartupFailed -> "startup_failed"
-                        }
-                }
-            val transportUiState =
-                BluetoothTransportSettingsUiState(
-                    savedTransportCode = transportSettings.savedChoice?.wireValue,
-                    processTransportCode = processTransport.processChoice?.wireValue,
-                    availabilityCode = availabilityCode,
-                    isLoading = transportSettings.isReading,
-                    isSaving = transportSettings.isSaving,
-                    readError = transportSettings.readError,
-                    saveError = transportSettings.saveError,
-                    restartRequired = transportSettings.restartRequired,
-                )
-            SettingsScreen(
-                vaultEnabled = routingState?.vaultEnabled ?: false,
-                passkeyEnabled = routingState?.passkeyEnabled ?: false,
-                bluetoothTransportSettings = transportUiState,
-                onSelectTransport = { code ->
-                    BluetoothTransportMode.fromWire(code)?.let(transportSettingsViewModel::select)
+                overlayContent = {
+                    if (targetScreen == AppScreen.Settings) {
+                        val transportSettingsViewModel: TransportSettingsViewModel = koinViewModel()
+                        val transportSettings by transportSettingsViewModel.state.collectAsState()
+                        val processTransport = transportSettings.processState
+                        val availabilityCode =
+                            when (val availability = processTransport.availability) {
+                                TransportAvailability.Loading -> "loading"
+                                TransportAvailability.SelectedNotStarted -> "selected_not_started"
+                                TransportAvailability.Starting -> "starting"
+                                TransportAvailability.Ready -> "ready"
+                                is TransportAvailability.Unavailable ->
+                                    when (availability.reason) {
+                                        TransportUnavailableReason.PreferenceReadFailed -> "preference_read_failed"
+                                        TransportUnavailableReason.InvalidPreference -> "invalid_preference"
+                                        TransportUnavailableReason.InitializationTimeout -> "initialization_timeout"
+                                        TransportUnavailableReason.Unsupported -> "unsupported"
+                                        TransportUnavailableReason.PermissionRequired -> "permission_required"
+                                        TransportUnavailableReason.BluetoothOff -> "bluetooth_off"
+                                        TransportUnavailableReason.StartupFailed -> "startup_failed"
+                                    }
+                            }
+                        val transportUiState =
+                            BluetoothTransportSettingsUiState(
+                                savedTransportCode = transportSettings.savedChoice?.wireValue,
+                                processTransportCode = processTransport.processChoice?.wireValue,
+                                availabilityCode = availabilityCode,
+                                isLoading = transportSettings.isReading,
+                                isSaving = transportSettings.isSaving,
+                                readError = transportSettings.readError,
+                                saveError = transportSettings.saveError,
+                                restartRequired = transportSettings.restartRequired,
+                            )
+                        SettingsScreen(
+                            vaultEnabled = routingState?.vaultEnabled ?: false,
+                            passkeyEnabled = routingState?.passkeyEnabled ?: false,
+                            bluetoothTransportSettings = transportUiState,
+                            onSelectTransport = { code ->
+                                BluetoothTransportMode.fromWire(code)?.let(transportSettingsViewModel::select)
+                            },
+                            onRetryTransportSettings = transportSettingsViewModel::retryRead,
+                            onCancelPendingTransportChange = transportSettingsViewModel::cancelPendingChange,
+                            onRetakeOnboarding = {
+                                onboardingReturnScreen = AppScreen.Settings
+                                screenOverride = AppScreen.Onboarding
+                            },
+                            onBack = { screenOverride = null },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 },
-                onRetryTransportSettings = transportSettingsViewModel::retryRead,
-                onCancelPendingTransportChange = transportSettingsViewModel::cancelPendingChange,
-                onRetakeOnboarding = {
-                    onboardingReturnScreen = AppScreen.Settings
-                    screenOverride = AppScreen.Onboarding
-                },
-                onBack = {
-                    screenOverride = null
-                },
+                overlayVisible = targetScreen == AppScreen.Settings,
+                onOverlayBack = { screenOverride = null },
                 modifier = modifier,
             )
         }
@@ -181,6 +188,7 @@ private fun MainShell(
     routingState: AppRoutingState,
     dataStore: DataStore<UserPreferences>,
     onOpenSettings: () -> Unit,
+    onExternalCeremonyRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dualFeatureSelection = routingState.hasVaultAndPasskeyEnabled
@@ -245,7 +253,10 @@ private fun MainShell(
                 }
 
                 Fido2Destinations.HOME_ROUTE -> {
-                    AuthenticatorFeatureScreen(onOpenSettings = onOpenSettings)
+                    AuthenticatorFeatureScreen(
+                        onOpenSettings = onOpenSettings,
+                        onExternalCeremonyRequest = onExternalCeremonyRequest,
+                    )
                 }
 
                 Fido2Destinations.DEVELOPMENT_ROUTE -> {
@@ -254,7 +265,10 @@ private fun MainShell(
                 }
 
                 else -> {
-                    AuthenticatorFeatureScreen(onOpenSettings = onOpenSettings)
+                    AuthenticatorFeatureScreen(
+                        onOpenSettings = onOpenSettings,
+                        onExternalCeremonyRequest = onExternalCeremonyRequest,
+                    )
                 }
             }
         }
@@ -267,7 +281,10 @@ private fun VaultFeatureScreen(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun AuthenticatorFeatureScreen(onOpenSettings: () -> Unit) {
+private fun AuthenticatorFeatureScreen(
+    onOpenSettings: () -> Unit,
+    onExternalCeremonyRequest: () -> Unit,
+) {
     Fido2RegistrationNavGraph(
         onRegistrationComplete = { },
         onRegistrationCancelled = { },
@@ -275,5 +292,6 @@ private fun AuthenticatorFeatureScreen(onOpenSettings: () -> Unit) {
         onAuthenticationCancelled = { },
         startDestination = Fido2Destinations.HOME_ROUTE,
         onOpenSettings = onOpenSettings,
+        onExternalCeremonyRequest = onExternalCeremonyRequest,
     )
 }

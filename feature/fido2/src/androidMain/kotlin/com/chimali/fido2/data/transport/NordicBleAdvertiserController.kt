@@ -135,19 +135,23 @@ class NordicBleAdvertiserController(
             } else if (adapterTurnedOff.get()) {
                 val failure = IllegalStateException("Bluetooth adapter turned off during BLE startup")
                 stopAdvertising()
+                stopObservingAdapterState()
                 return Result.failure(failure)
             }
             result
         } catch (e: SecurityException) {
             stopAdvertising()
+            stopObservingAdapterState()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalArgumentException) {
             stopAdvertising()
+            stopObservingAdapterState()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalStateException) {
             stopAdvertising()
+            stopObservingAdapterState()
             Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         }
@@ -157,6 +161,9 @@ class NordicBleAdvertiserController(
         advertisingJob = null
         advertiser = null
         advertisingStarted = false
+    }
+
+    override fun stopObservingAdapterState() {
         unregisterAdapterStateReceiver()
     }
 

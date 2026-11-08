@@ -1,12 +1,13 @@
 ---
 name: "speckit-plan"
-description: "Execute the implementation planning workflow using the plan template to generate design artifacts."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Create an implementation plan and supporting design artifacts from the feature specification."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/plan.md"
+  source: extension:spec-kit
 ---
 
+# Plan a Feature
 
 ## User Input
 

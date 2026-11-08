@@ -1,7 +1,7 @@
 ---
 name: speckit-bug-fix
 description: Apply the remediation from a bug assessment and record what was changed
-compatibility: Requires spec-kit project structure with .specify/ directory
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: spec-kit-core
   source: extension:bug

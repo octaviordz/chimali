@@ -85,6 +85,9 @@ import com.chimali.fido2.presentation.ui.components.ChimaliButton
 import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import com.chimali.fido2.presentation.viewmodel.TransportToggleAction
+import com.chimali.fido2.presentation.viewmodel.dashboardStateForTransport
+import com.chimali.fido2.presentation.viewmodel.transportToggleAction
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val DISCOVERABLE_DURATION_SECONDS = 120
@@ -125,6 +128,8 @@ fun Fido2HomeScreen(
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
     val showPairingHelp = remember { mutableStateOf(false) }
     val selectedMode = processState.processChoice ?: BluetoothTransportMode.FIDO_BLE
+    val toggleAction = transportToggleAction(connectionState, processState.availability)
+    val dashboardConnectionState = dashboardStateForTransport(connectionState, processState.availability)
 
     Fido2EventObserver(
         pendingRegistration = viewModel.pendingRegistrationRequest,
@@ -188,22 +193,12 @@ fun Fido2HomeScreen(
     }
 
     if (showPairingHelp.value) {
-        AlertDialog(
-            onDismissRequest = { showPairingHelp.value = false },
-            title = { Text(stringResource(R.string.fido_ble_pairing_help_title)) },
-            text = { Text(stringResource(R.string.fido_ble_pairing_help_body)) },
-            dismissButton = {
-                TextButton(onClick = { showPairingHelp.value = false }) {
-                    Text(stringResource(R.string.fido_ble_pairing_help_dismiss))
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPairingHelp.value = false
-                    viewModel.retryTransport()
-                }) {
-                    Text(stringResource(R.string.fido_ble_pairing_help_retry))
-                }
+        PairingRecoveryDialog(
+            onDismiss = { showPairingHelp.value = false },
+            onOpenBluetoothSettings = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+            onRetry = {
+                showPairingHelp.value = false
+                viewModel.retryTransport()
             },
         )
     }
@@ -258,15 +253,13 @@ fun Fido2HomeScreen(
         ) {
             val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
             StatusIndicator(
-                state = connectionState,
+                state = dashboardConnectionState,
                 displayName = connectedDisplayName,
                 hasPairedDevices = pairedDevices.isNotEmpty(),
             )
 
-            if (selectedMode == BluetoothTransportMode.FIDO_BLE && connectionState is Fido2ConnectionState.Error) {
-                TextButton(onClick = { showPairingHelp.value = true }) {
-                    Text(stringResource(R.string.fido_ble_pairing_help_button))
-                }
+            if (shouldShowPairingHelp(selectedMode, connectionState)) {
+                PairingHelpButton(onClick = { showPairingHelp.value = true })
             }
 
             PairedDevicesSection(
@@ -281,7 +274,8 @@ fun Fido2HomeScreen(
             )
 
             TransportToggleButton(
-                connectionState = connectionState,
+                connectionState = dashboardConnectionState,
+                retryAvailable = toggleAction == TransportToggleAction.Retry,
                 onToggle = handleToggle,
             )
 
@@ -419,6 +413,51 @@ fun StatusIndicator(
  * Observes retained pending requests so navigation cannot miss a non-replaying event during startup.
  */
 @Composable
+internal fun PairingHelpButton(onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(stringResource(R.string.fido_ble_pairing_help_button))
+    }
+}
+
+internal fun shouldShowPairingHelp(
+    mode: BluetoothTransportMode,
+    connectionState: Fido2ConnectionState,
+): Boolean =
+    mode == BluetoothTransportMode.FIDO_BLE &&
+        connectionState !is Fido2ConnectionState.Connecting &&
+        connectionState !is Fido2ConnectionState.Connected
+
+@Composable
+internal fun PairingRecoveryDialog(
+    onDismiss: () -> Unit,
+    onOpenBluetoothSettings: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.fido_ble_pairing_help_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.fido_ble_pairing_help_body))
+                TextButton(onClick = onOpenBluetoothSettings) {
+                    Text(stringResource(R.string.fido_ble_pairing_help_open_settings))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.fido_ble_pairing_help_dismiss))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onRetry) {
+                Text(stringResource(R.string.fido_ble_pairing_help_retry))
+            }
+        },
+    )
+}
+
+@Composable
 private fun Fido2EventObserver(
     pendingRegistration: kotlinx.coroutines.flow.StateFlow<Fido2UiEvent.RegistrationRequested?>,
     pendingAuthentication: kotlinx.coroutines.flow.StateFlow<Fido2UiEvent.AuthenticationRequested?>,
@@ -533,10 +572,12 @@ fun TransportToggleButton(
     connectionState: Fido2ConnectionState,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    retryAvailable: Boolean = connectionState is Fido2ConnectionState.Error,
 ) {
     val isRunning =
         connectionState !is Fido2ConnectionState.Idle &&
-            connectionState !is Fido2ConnectionState.Error
+            connectionState !is Fido2ConnectionState.Error &&
+            !retryAvailable
 
     ChimaliButton(
         onClick = onToggle,
@@ -566,7 +607,7 @@ fun TransportToggleButton(
                 Icon(
                     imageVector =
                         when {
-                            connectionState is Fido2ConnectionState.Error -> Icons.Default.Refresh
+                            retryAvailable || connectionState is Fido2ConnectionState.Error -> Icons.Default.Refresh
                             running -> Icons.Default.Stop
                             else -> Icons.Default.PlayArrow
                         },
@@ -575,7 +616,7 @@ fun TransportToggleButton(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     when {
-                        connectionState is Fido2ConnectionState.Error -> "Retry Authenticator"
+                        retryAvailable || connectionState is Fido2ConnectionState.Error -> "Retry Authenticator"
                         running -> "Stop Authenticator"
                         else -> "Start Authenticator"
                     },

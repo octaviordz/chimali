@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +86,7 @@ fun RegistrationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
     viewModel: RegistrationPromptViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -191,6 +193,7 @@ fun RegistrationPromptScreen(
         onConfirm = { viewModel.handleIntent(RegistrationIntent.ConfirmRegistration) },
         onCancel = { viewModel.handleIntent(RegistrationIntent.CancelRegistration) },
         onRetry = { viewModel.handleIntent(RegistrationIntent.Retry) },
+        onOpenSettings = onOpenSettings,
         modifier = modifier,
     )
 }
@@ -204,6 +207,7 @@ internal fun RegistrationPromptContent(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -226,6 +230,7 @@ internal fun RegistrationPromptContent(
                         state = currentState,
                         onConfirm = onConfirm,
                         onCancel = onCancel,
+                        onOpenSettings = onOpenSettings,
                     )
                 }
 
@@ -330,6 +335,7 @@ private fun AwaitingConsentContent(
     state: RegistrationState.AwaitingUserConsent,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Column(
         modifier =
@@ -466,6 +472,12 @@ private fun AwaitingConsentContent(
                     .semantics { contentDescription = "Cancel registration button" },
         ) {
             Text("Cancel")
+        }
+        TextButton(
+            onClick = onOpenSettings,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open transport settings" },
+        ) {
+            Text("Transport settings")
         }
     }
 }

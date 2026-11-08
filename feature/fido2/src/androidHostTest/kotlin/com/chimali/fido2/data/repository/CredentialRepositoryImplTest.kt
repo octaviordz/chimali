@@ -181,7 +181,7 @@ class CredentialRepositoryImplTest {
             coEvery { publicKeyDecoder.decodePublicKey(any(), any()) } returns Outcome.Success(testPublicKey)
             // Default Mocks
             coEvery { passkeyCredentialDao.insertCredential(any()) } just Runs
-            coEvery { passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential) } just Runs
+            coEvery { passkeyCredentialDao.insertCredentialProjection(testCredential) } just Runs
             coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
             coEvery { passkeyCredentialDao.getCredentialsByRpText(any()) } returns flowOf(listOf())
             coEvery { passkeyCredentialDao.getCredentialsByUserId(any()) } returns flowOf(listOf())
@@ -347,7 +347,7 @@ class CredentialRepositoryImplTest {
                             }
                         }
                         "projection" -> {
-                            coEvery { passkeyCredentialDao.replaceCredentialsForRpAndUser(any()) } throws failure
+                            coEvery { passkeyCredentialDao.insertCredentialProjection(any()) } throws failure
                             returnedError = assertIs<Outcome.Error<*>>(repository.saveCredential(testCredential)).error
                         }
                         "event" -> {
@@ -641,7 +641,7 @@ class CredentialRepositoryImplTest {
                 assertTrue(result.isSuccess, "Result was $result")
                 coVerifyOrder {
                     aggregateService.execute(testCredential.id.encoded, any())
-                    passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential)
+                    passkeyCredentialDao.insertCredentialProjection(testCredential)
                 }
             }
 
@@ -737,7 +737,7 @@ class CredentialRepositoryImplTest {
         fun `projection failure is returned after the event append succeeds`() =
             runTest {
                 val commandSlot = slot<PasskeyCommand>()
-                coEvery { passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential) } throws
+                coEvery { passkeyCredentialDao.insertCredentialProjection(testCredential) } throws
                     android.database.SQLException("projection failed")
 
                 val result = repository.saveCredential(testCredential)
@@ -745,7 +745,7 @@ class CredentialRepositoryImplTest {
                 assertTrue(result is Outcome.Error)
                 coVerifyOrder {
                     aggregateService.execute(testCredential.id.encoded, capture(commandSlot))
-                    passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential)
+                    passkeyCredentialDao.insertCredentialProjection(testCredential)
                 }
                 val registration = commandSlot.captured as PasskeyCommand.Register
                 assertEquals(testCredential.coseAlgorithm, registration.coseAlgorithm)
@@ -764,7 +764,7 @@ class CredentialRepositoryImplTest {
         @Test
         fun `projection cancellation propagates after the registration event phase`() =
             runTest {
-                coEvery { passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential) } throws
+                coEvery { passkeyCredentialDao.insertCredentialProjection(testCredential) } throws
                     CancellationException("synthetic projection cancellation")
 
                 assertFailsWith<CancellationException> {
@@ -773,7 +773,7 @@ class CredentialRepositoryImplTest {
 
                 coVerifyOrder {
                     aggregateService.execute(testCredential.id.encoded, any())
-                    passkeyCredentialDao.replaceCredentialsForRpAndUser(testCredential)
+                    passkeyCredentialDao.insertCredentialProjection(testCredential)
                 }
             }
 

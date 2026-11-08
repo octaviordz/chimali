@@ -1,12 +1,13 @@
 ---
 name: "speckit-constitution"
-description: "Create or update the project constitution from interactive or provided principle inputs."
-compatibility: "Requires spec-kit project structure with .specify/ directory"
+description: "Create or revise the project constitution from user-provided principles."
+compatibility: "Requires a Spec Kit project with a .specify/ directory."
 metadata:
   author: "github-spec-kit"
-  source: "templates/commands/constitution.md"
+  source: extension:spec-kit
 ---
 
+# Create or Update the Constitution
 
 ## User Input
 

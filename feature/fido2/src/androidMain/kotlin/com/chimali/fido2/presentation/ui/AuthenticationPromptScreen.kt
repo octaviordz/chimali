@@ -27,6 +27,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -80,6 +81,7 @@ fun AuthenticationPromptScreen(
     onSuccess: (credentialId: String) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
     viewModel: AuthenticationPromptViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -187,6 +189,7 @@ fun AuthenticationPromptScreen(
         onCancel = { viewModel.handleIntent(AuthenticationIntent.CancelAuthentication) },
         onSelectCredential = { viewModel.handleIntent(AuthenticationIntent.SelectCredential(it)) },
         onRetry = { viewModel.handleIntent(AuthenticationIntent.Retry) },
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -198,6 +201,7 @@ internal fun AuthenticationPromptContent(
     onSelectCredential: (PasskeyCredential) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         AnimatedContent(
@@ -278,6 +282,15 @@ internal fun AuthenticationPromptContent(
                                     .semantics { contentDescription = "Cancel authentication button" },
                         ) {
                             Text("Cancel")
+                        }
+                        TextButton(
+                            onClick = onOpenSettings,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .semantics { contentDescription = "Open transport settings" },
+                        ) {
+                            Text("Transport settings")
                         }
                     }
                 }

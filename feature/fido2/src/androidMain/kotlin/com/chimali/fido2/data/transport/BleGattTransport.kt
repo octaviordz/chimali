@@ -35,6 +35,9 @@ interface BleAdvertiserController {
     ): Result<Unit>
 
     fun stopAdvertising()
+
+    /** Stops Bluetooth state observation after the transport is disconnected. */
+    fun stopObservingAdapterState() = Unit
 }
 
 /**
@@ -147,8 +150,7 @@ class BleGattTransport(
             val result =
                 advertiserController.startAdvertising(FidoBleGattServer.UUID_FIDO_SERVICE) { failure ->
                     if (isStarted) {
-                        Logger.e(failure) { "BleGattTransport: BLE advertising stopped unexpectedly" }
-                        _connectionState.value = Fido2ConnectionState.Error("BLE advertising stopped unexpectedly")
+                        onBluetoothUnavailable(failure)
                     }
                 }
             if (result.isSuccess) {
@@ -171,6 +173,7 @@ class BleGattTransport(
             isStarted = false
             cancelReceiveTimeout()
             advertiserController.stopAdvertising()
+            advertiserController.stopObservingAdapterState()
             gattServerHost?.stop()
             cancelCurrentMessage()
             val activeDevice = sessionOwner.activeDeviceAddress
@@ -508,18 +511,18 @@ class BleGattTransport(
                         val result =
                             advertiserController.startAdvertising(FidoBleGattServer.UUID_FIDO_SERVICE) { failure ->
                                 if (isStarted) {
-                                    Logger.e(failure) { "BleGattTransport: Resumed BLE advertising stopped" }
-                                    _connectionState.value =
-                                        Fido2ConnectionState.Error("BLE advertising stopped unexpectedly")
+                                    onBluetoothUnavailable(failure)
                                 }
                             }
                         if (isStarted) {
-                            _connectionState.value =
-                                if (result.isSuccess) {
-                                    Fido2ConnectionState.Advertising
-                                } else {
-                                    Fido2ConnectionState.Error("Failed to resume advertising")
-                                }
+                            if (result.isSuccess) {
+                                _connectionState.value = Fido2ConnectionState.Advertising
+                            } else {
+                                onBluetoothUnavailable(
+                                    result.exceptionOrNull()
+                                        ?: IllegalStateException("Failed to resume BLE advertising"),
+                                )
+                            }
                         }
                     }
                 } else {
@@ -536,6 +539,20 @@ class BleGattTransport(
         cancelCurrentMessage()
         advertiserController.stopAdvertising()
         _connectionState.value = Fido2ConnectionState.Error("Bluetooth pairing authentication failed")
+    }
+
+    internal fun onBluetoothUnavailable(failure: Throwable) {
+        Logger.e(failure) { "BleGattTransport: Bluetooth became unavailable during an active BLE session" }
+        isStarted = false
+        cancelReceiveTimeout()
+        cancelCurrentMessage()
+        val activeDevice = activeHostAddress ?: sessionOwner.activeDeviceAddress
+        activeHostAddress = null
+        if (activeDevice != null) sessionOwner.disconnectHost(activeDevice)
+        advertiserController.stopAdvertising()
+        advertiserController.stopObservingAdapterState()
+        _connectionState.value = Fido2ConnectionState.Error("Bluetooth is off; restore Bluetooth and retry")
+        gattServerHost?.stop()
     }
 
     private fun cancelCurrentMessage() {

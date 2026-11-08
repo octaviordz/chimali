@@ -385,7 +385,7 @@ class CredentialAuditSchemaTest {
                 assertEquals(1L, rolledBackCredential.sign_count)
                 assertEquals(updatedCredential.updated_at, rolledBackCredential.updated_at)
 
-                val failedReplacement =
+                val failedAdditionalCredential =
                     credential.copy(
                         id = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { 6 }),
                         credentialId = ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { 6 },
@@ -395,7 +395,7 @@ class CredentialAuditSchemaTest {
                     metadata.encryptCredentialMetadata(any(), any())
                 } throws IllegalStateException("synthetic failure")
                 assertFailsWith<IllegalStateException> {
-                    passkeyDao.replaceCredentialsForRpAndUser(failedReplacement)
+                    passkeyDao.insertCredentialProjection(failedAdditionalCredential)
                 }
                 val retainedAfterRollback =
                     database.passkeyCredentialQueries.select_by_id(credentialId.encoded).executeAsOne()
@@ -404,32 +404,38 @@ class CredentialAuditSchemaTest {
                 assertTrue(retainedAfterRollback.updated_at >= requireNotNull(retainedAfterRollback.last_used_at))
                 assertEquals(
                     null,
-                    database.passkeyCredentialQueries.select_by_id(failedReplacement.id.encoded).executeAsOneOrNull(),
+                    database.passkeyCredentialQueries
+                        .select_by_id(failedAdditionalCredential.id.encoded)
+                        .executeAsOneOrNull(),
                 )
                 every { metadata.encryptCredentialMetadata(any(), any()) } returns byteArrayOf(1, 2)
-                failedReplacement.eraseSensitiveText()
+                failedAdditionalCredential.eraseSensitiveText()
 
-                val replacement =
+                val additionalCredential =
                     credential.copy(
                         id = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { 7 }),
                         credentialId = ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { 7 },
                         lastUsedAt = now.plus(kotlin.time.Duration.parse("20s")),
                     )
-                passkeyDao.replaceCredentialsForRpAndUser(replacement)
-                val replacementRow =
-                    database.passkeyCredentialQueries.select_by_id(replacement.id.encoded).executeAsOne()
-                assertTrue(replacementRow.updated_at >= requireNotNull(replacementRow.last_used_at))
-                val replacementCredential =
+                passkeyDao.insertCredentialProjection(additionalCredential)
+                val credentialsForAccount = database.passkeyCredentialQueries.select_all().executeAsList()
+                assertEquals(2, credentialsForAccount.size)
+                assertTrue(credentialsForAccount.any { it.id == credentialId.encoded })
+                assertTrue(credentialsForAccount.any { it.id == additionalCredential.id.encoded })
+                val additionalCredentialRow =
+                    database.passkeyCredentialQueries.select_by_id(additionalCredential.id.encoded).executeAsOne()
+                assertTrue(additionalCredentialRow.updated_at >= requireNotNull(additionalCredentialRow.last_used_at))
+                val additionalCredentialDomain =
                     assertIs<Outcome.Success<*>>(
-                        replacementRow.toDomainModel(PublicKeyDecoder(), metadata),
+                        additionalCredentialRow.toDomainModel(PublicKeyDecoder(), metadata),
                     ).data as PasskeyCredential
-                assertEquals(replacement.id.encoded, replacementCredential.id.encoded)
+                assertEquals(additionalCredential.id.encoded, additionalCredentialDomain.id.encoded)
                 assertEquals(
-                    replacement.lastUsedAt.toEpochMilliseconds(),
-                    replacementCredential.lastUsedAt.toEpochMilliseconds(),
+                    additionalCredential.lastUsedAt.toEpochMilliseconds(),
+                    additionalCredentialDomain.lastUsedAt.toEpochMilliseconds(),
                 )
-                replacementCredential.eraseSensitiveText()
-                replacement.eraseSensitiveText()
+                additionalCredentialDomain.eraseSensitiveText()
+                additionalCredential.eraseSensitiveText()
             } finally {
                 credential.eraseSensitiveText()
                 originalCredential.eraseSensitiveText()

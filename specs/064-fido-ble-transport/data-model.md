@@ -1,6 +1,6 @@
 # Data Model: FIDO BLE Transport
 
-No persistent schema is added. Android owns bond records; existing credentials/events and the parent selector preference remain authoritative.
+The BLE transport adds no persistent transport or bond schema. Android owns bond records; existing events and the parent selector preference remain authoritative. The shared credential projection now supports multiple credential IDs for one RP/user: SQLDelight migration 2 copies existing projection rows while removing the previous uniqueness constraint. This preserves earlier WebAuthn credential IDs when a new same-account credential is registered over another transport. It does not rewrite or prune append-only events. See the parent [integration handoff](../064-bluetooth-transport-selection/integration.md) for the source correction and migration evidence.
 
 ## Entities and Ownership
 

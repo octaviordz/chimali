@@ -10,6 +10,7 @@ import com.chimali.fido2.data.transport.ProcessTransportSelection
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportUnavailableReason
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.service.Fido2TransportService
@@ -156,7 +157,7 @@ internal fun transportToggleAction(
 ): TransportToggleAction =
     when (connectionState) {
         Fido2ConnectionState.Idle -> {
-            if (availability is TransportAvailability.Unavailable) {
+            if (availability is TransportAvailability.Unavailable || availability is TransportAvailability.Ready) {
                 TransportToggleAction.Retry
             } else {
                 TransportToggleAction.Start
@@ -164,4 +165,35 @@ internal fun transportToggleAction(
         }
         is Fido2ConnectionState.Error -> TransportToggleAction.Retry
         else -> TransportToggleAction.Stop
+    }
+
+internal fun dashboardStateForTransport(
+    connectionState: Fido2ConnectionState,
+    availability: TransportAvailability,
+): Fido2ConnectionState =
+    when {
+        connectionState !is Fido2ConnectionState.Idle -> connectionState
+        availability is TransportAvailability.Unavailable ->
+            Fido2ConnectionState.Error(availability.reason.dashboardMessage())
+        availability is TransportAvailability.Ready ->
+            Fido2ConnectionState.Error("Transport is not reporting an active connection; retry to restore it")
+        else -> connectionState
+    }
+
+private fun TransportUnavailableReason.dashboardMessage(): String =
+    when (this) {
+        TransportUnavailableReason.PreferenceReadFailed ->
+            "Could not read the saved Bluetooth transport. Retry or open Transport Settings."
+        TransportUnavailableReason.InvalidPreference ->
+            "The saved Bluetooth transport is invalid. Choose a transport in Settings."
+        TransportUnavailableReason.InitializationTimeout ->
+            "Bluetooth transport initialization timed out. Retry or choose another transport in Settings."
+        TransportUnavailableReason.Unsupported ->
+            "This Bluetooth transport is unsupported on this device. Choose the alternative in Settings."
+        TransportUnavailableReason.PermissionRequired ->
+            "Bluetooth permission is required. Grant it and retry."
+        TransportUnavailableReason.BluetoothOff ->
+            "Bluetooth is off. Turn it on and retry."
+        TransportUnavailableReason.StartupFailed ->
+            "Bluetooth transport failed to start. Retry or choose another transport in Settings."
     }
