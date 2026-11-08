@@ -1,13 +1,12 @@
 ---
 name: "speckit-analyze"
-description: "Check the current feature's spec, plan, tasks, and supporting documents for conflicts and gaps."
-compatibility: "Requires a Spec Kit project with a .specify/ directory."
+description: "Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation."
+compatibility: "Requires spec-kit project structure with .specify/ directory"
 metadata:
   author: "github-spec-kit"
-  source: extension:spec-kit
+  source: "templates/commands/analyze.md"
 ---
 
-# Analyze Specification Consistency
 
 ## User Input
 

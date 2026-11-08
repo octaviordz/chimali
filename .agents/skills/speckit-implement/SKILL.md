@@ -1,13 +1,12 @@
 ---
 name: "speckit-implement"
-description: "Execute the current feature's dependency-ordered tasks and update their status."
-compatibility: "Requires a Spec Kit project with a .specify/ directory."
+description: "Execute the implementation plan by processing and executing all tasks defined in tasks.md"
+compatibility: "Requires spec-kit project structure with .specify/ directory"
 metadata:
   author: "github-spec-kit"
-  source: extension:spec-kit
+  source: "templates/commands/implement.md"
 ---
 
-# Implement a Feature
 
 ## User Input
 
