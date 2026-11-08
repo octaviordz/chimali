@@ -230,9 +230,13 @@ gradle.projectsEvaluated {
             }
         }
     }
-    deviceCoverageTasks.each { task ->
+    // Connected instrumentation tasks share the selected physical device and
+    // its single app/test APK installation. Keep them out of Gradle's parallel
+    // execution even when the root coverage task is invoked with --parallel.
+    deviceCoverageTasks.eachWithIndex { task, index ->
         task.outputs.upToDateWhen { false }
         task.mustRunAfter(coveragePrepare)
+        if (index > 0) task.mustRunAfter(deviceCoverageTasks[index - 1])
         def excludedClasses = task.project.path == ':feature:fido2'
             ? policy.required_workload.routine_device_test_exclusions[':feature:fido2'].collect { it.class_name.toString() }
             : []
