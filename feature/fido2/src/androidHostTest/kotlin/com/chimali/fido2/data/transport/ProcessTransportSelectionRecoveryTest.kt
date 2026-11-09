@@ -139,6 +139,28 @@ class ProcessTransportSelectionRecoveryTest {
             } finally {
                 failedController.close()
             }
+
+            val throwingClassic =
+                RecoveryTransport(connectException = IllegalStateException("HID activation threw"))
+            val throwingController =
+                ProcessTransportSelection(
+                    settingsRepository = repository,
+                    capabilityChecker = RecoveryCapabilityChecker(),
+                    bleTransportFactory = { error("BLE must not be selected") },
+                    classicTransportFactory = { throwingClassic },
+                    coroutineScope = this,
+                )
+            try {
+                assertTrue(throwingController.connectDevice("AA:BB:CC:DD:EE:FF").isFailure)
+                assertEquals(1, throwingClassic.connectCallCount.get())
+                assertEquals(1, throwingClassic.disconnectCallCount.get())
+                assertEquals(
+                    TransportAvailability.Unavailable(TransportUnavailableReason.StartupFailed),
+                    throwingController.state.value.availability,
+                )
+            } finally {
+                throwingController.close()
+            }
         }
 
     @Test
@@ -196,6 +218,7 @@ private class RecoveryCapabilityChecker(
 
 private class RecoveryTransport(
     private val connectResult: Result<Unit> = Result.success(Unit),
+    private val connectException: Exception? = null,
 ) : Fido2Transport {
     private val mutableConnectionState = MutableStateFlow<Fido2ConnectionState>(Fido2ConnectionState.Idle)
     override val connectionState: StateFlow<Fido2ConnectionState> = mutableConnectionState.asStateFlow()
@@ -205,6 +228,7 @@ private class RecoveryTransport(
 
     override suspend fun connect(): Result<Unit> {
         connectCallCount.incrementAndGet()
+        connectException?.let { throw it }
         if (connectResult.isSuccess) mutableConnectionState.value = Fido2ConnectionState.Advertising
         return connectResult
     }
