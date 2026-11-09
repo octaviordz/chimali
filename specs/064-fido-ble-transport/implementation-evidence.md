@@ -2653,3 +2653,13 @@
 - **limitations**: The post-merge candidate has no coverage capture. Fingerprint compatibility with the current accepted bundle is unresolved. Local `git ls-remote` fails because GitHub CLI authentication is invalid; the connector confirms the target SHA but cannot satisfy the script's authenticated remote check. BLE T038 remains Unverified.
 - **status**: Parent sync complete; fresh candidate capture and formal accepted-target comparison remain open.
 - **artifact_link**: Parent Feature 064 Record 246; accepted bundle run `c1b392a9-f830-4283-83f2-44e36ac5d731`; Feature 058 §11.157.
+### Record 221: Post-Merge BLE Candidate Floors Pass; Indexed Baseline Fails Compatibility
+- **requirement**: BLE T038; verify exact candidate FIDO2 coverage and compare it to the trusted accepted target using the reviewed policy.
+- **scope**: Candidate run after merging protected main; accepted bundle digest, candidate floors and comparison decision.
+- **revision**: Candidate `08a7e318666d1d67ddbf25053d5615cc55f6c46f`, tree `3ee1abd006f2676f7152bce95a4483c6b1287b19`; accepted target `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: Capture `3026b76a-4a15-44fa-ac56-03b523cde305` on ASUS/API35: complete collection, passing tests and floors; FIDO2 68,342/100,196 instructions and 4,106/6,662 branches. The current accepted archive run digest matches its index. Trusted `verify.ps1` reports Incompatible because accepted/candidate measurement fingerprints differ (`6b2b9e49...` versus `b1be466f...`); harness-file hashes and FIDO2 exclusion evidence differ too. No baseline index was edited.
+- **environment**: Windows 11; ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08 local time.
+- **expected_observed_result**: FIDO2 floors pass for the exact current candidate; the older accepted bundle is rejected as incompatible under current measured policy.
+- **limitations**: No valid regression decision or end-to-end integration result. A current-harness exact-target capture and reviewed baseline update/comparison are required. The local integration wrapper also needs working GitHub CLI credentials for `git ls-remote`. BLE T038 remains Unverified.
+- **status**: Candidate floors pass; accepted-target gate remains unverified due confirmed compatibility mismatch.
+- **artifact_link**: Parent Feature 064 Record 247; candidate run `3026b76a-4a15-44fa-ac56-03b523cde305`; trusted accepted run `c1b392a9-f830-4283-83f2-44e36ac5d731`; Feature 058 §11.158.

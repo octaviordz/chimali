@@ -2589,3 +2589,16 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | Post-merge candidate capture and accepted-target compatibility remain unverified. Terminal GitHub CLI credentials are invalid and local `git ls-remote` fails; connected GitHub read verifies the SHA but does not replace the integration script's live remote check. No accepted index or baseline was changed. |
 | `status` | Main integration complete, fresh capture and formal comparison pending. |
 | `artifact_link` | Merge `f6e85e53d63eafdd551772d012dedc67ca8c7d9e`; accepted archive index and run `c1b392a9-f830-4283-83f2-44e36ac5d731`; parent Feature 064 Record 246; BLE Record 220. |
+### 11.158 Post-merge Feature 064 capture passes floors; current accepted bundle is incompatible (2026-11-08)
+
+| Field | Evidence |
+|---|---|
+| `requirement` | Capture the exact post-merge Feature 064 candidate and compare against the independently indexed current accepted target under the active policy. |
+| `scope` | Candidate commit `08a7e318666d1d67ddbf25053d5615cc55f6c46f`, target `f1fd56baf8641cea99edc7fafa8725fdda21044c`, ASUS/API35. |
+| `revision` | Candidate tree `3ee1abd006f2676f7152bce95a4483c6b1287b19`; capture `3026b76a-4a15-44fa-ac56-03b523cde305`; current clean harness at candidate commit. |
+| `named_procedure` | Captured with `tools/coverage/capture.ps1`; collection Complete and tests Passed. `tools/coverage/verify.ps1` floor assessment: repository 90,437/149,044 instructions (60.678%), FIDO2 68,342/100,196 instructions and 4,106/6,662 branches; floors Passed. Retrieved accepted index and run `c1b392a9-f830-4283-83f2-44e36ac5d731` from `origin/swe/coverage-evidence`; the index's bundle digest `d71928160a4ce5f3f9a989f2fff6263d8246d9eb8fbbe8c49c88a0d9f9eabfa1` matches the extracted bundle. Verification against this index reports `comparison_compatibility=Incompatible` and `regression=Failed`: accepted fingerprint `6b2b9e491e02baf41f8084e3df9cfe1555b5005c525d34eaf89889d79590b3bd`; current fingerprint `b1be466f4ebf9003f5bd6330030e2888c12b9a94b5e6068f7b50ef48b14cae1c`. Verifier also identifies accepted harness-file digest mismatches and different FIDO2 required-device-task exclusion evidence. |
+| `environment` | Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; local date 2026-11-08. |
+| `expected_observed_result` | Exact candidate measurement and all configured floors pass; accepted indexed bundle remains trusted but is incompatible with the current measurement profile. |
+| `limitations` | `integration-ci.ps1` has not run end-to-end because local GitHub CLI authentication is invalid and `git ls-remote` fails; the GitHub connector independently confirmed the live main SHA. No baseline index was changed. Current-harness target capture and a reviewed baseline-comparison/refresh path remain unresolved. |
+| `status` | Candidate capture/floors complete; accepted-target comparison Unverified due incompatible measurement policy. |
+| `artifact_link` | Candidate bundle and decision `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-main-final-2026-11-08\3026b76a-4a15-44fa-ac56-03b523cde305`; accepted index/bundle under sibling `trusted-baseline`; parent Record 247; BLE Record 221. |
