@@ -266,9 +266,16 @@ gradle.projectsEvaluated {
                 }
             }
             def expectedDeclarations = excludedClasses.collect { it.substring(it.lastIndexOf('.') + 1) }.sort()
-            if (packageDeclarations.unique().sort() != expectedDeclarations) {
-                throw new GradleException("${task.path} will exclude package ${excludedPackage}, but its Android device-test source declarations do not exactly match policy: expected ${expectedDeclarations}, found ${packageDeclarations.unique().sort()}")
+            def actualDeclarations = packageDeclarations.unique().sort()
+            def unreviewedDeclarations = actualDeclarations.findAll { !expectedDeclarations.contains(it) }
+            if (!unreviewedDeclarations.isEmpty()) {
+                throw new GradleException("${task.path} will exclude package ${excludedPackage}, but its Android device-test source contains classes not named by routine workload policy: ${unreviewedDeclarations}")
             }
+            // The reviewed routine exclusion package was introduced after the
+            // historical target. Record only classes present in this revision;
+            // a missing source class cannot affect execution or be claimed as
+            // an applied exclusion.
+            task.extensions.extraProperties.set('hdkPresentRoutineDeviceTestPackageClasses', actualDeclarations.collect { "${excludedPackage}.${it}" })
         }
         def sourceRootsForClassExclusions = ['src/androidDeviceTest/kotlin', 'src/androidDeviceTest/java']
             .collect { new File(task.project.projectDir, it) }
@@ -281,7 +288,9 @@ gradle.projectsEvaluated {
         // A trusted harness can measure source revisions from before an explicitly
         // excluded opt-in test was added. In that revision the runner filter is a
         // harmless no-op; report only exclusions that exist in the measured sources.
-        task.extensions.extraProperties.set('hdkExcludedRoutineDeviceTestClasses', excludedClasses + presentExcludedTestClasses)
+        def presentPackageClasses = task.extensions.extraProperties.has('hdkPresentRoutineDeviceTestPackageClasses')
+            ? task.extensions.extraProperties.get('hdkPresentRoutineDeviceTestPackageClasses') : []
+        task.extensions.extraProperties.set('hdkExcludedRoutineDeviceTestClasses', presentPackageClasses + presentExcludedTestClasses)
     }
 
     // Declare hashing closures before any deferred/task-action closures capture them.

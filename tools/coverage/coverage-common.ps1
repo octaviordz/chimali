@@ -1382,18 +1382,16 @@ function Test-WorkloadTaskInventory {
                 $errors += "$($category.name) contains an unowned or unconfigured task: $taskPath"
             }
             $actualExcludedClasses = @($record.excluded_test_classes | ForEach-Object { [string]$_ })
-            $expectedRequiredExclusions = if ($modulePath -eq ':feature:fido2') {
-                @($Policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
-            } else { @() }
             $sourceOptionalExclusions = if ($modulePath -eq ':feature:fido2') {
-                @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+                @(@($Policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }) +
+                  @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }))
             } else { @() }
-            $actualRequiredExclusions = @($actualExcludedClasses | Where-Object { $_ -notin $sourceOptionalExclusions })
-            $actualOptionalExclusions = @($actualExcludedClasses | Where-Object { $_ -in $sourceOptionalExclusions })
-            $expectedOptionalExclusions = @($sourceOptionalExclusions | Where-Object { $_ -in $actualOptionalExclusions })
-            if (@($actualExcludedClasses | Sort-Object -Unique).Count -ne $actualExcludedClasses.Count -or
-                ($actualRequiredExclusions -join "`n") -cne ($expectedRequiredExclusions -join "`n") -or
-                ($actualOptionalExclusions -join "`n") -cne ($expectedOptionalExclusions -join "`n")) {
+            $expectedAppliedExclusions = @($sourceOptionalExclusions | Where-Object { $_ -in $actualExcludedClasses })
+            $actualExclusionKey = [string](@($actualExcludedClasses) -join "`n")
+            $expectedExclusionKey = [string](@($expectedAppliedExclusions) -join "`n")
+            if (-not $record.PSObject.Properties['excluded_test_classes'] -or
+                @($actualExcludedClasses | Sort-Object -Unique).Count -ne $actualExcludedClasses.Count -or
+                $actualExclusionKey -cne $expectedExclusionKey) {
                 $errors += "$($category.name) exclusion evidence differs from reviewed routine workload policy for $modulePath"
             }
             $junitDirectory = ([string]$record.junit_xml_directory).Replace('\', '/').TrimEnd('/')
@@ -1633,7 +1631,8 @@ function Test-WorkloadSuiteExecutionCounts {
         }
         $excludedClasses = @($record.excluded_test_classes | ForEach-Object { [string]$_ })
         $sourceOptionalExclusions = if ([string]$record.module_path -eq ':feature:fido2') {
-            @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
+            @(@($Policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }) +
+              @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name }))
         } else { @() }
         $excludedClasses += $sourceOptionalExclusions
         if ($excludedClasses.Count -gt 0) {

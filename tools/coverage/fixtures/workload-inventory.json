@@ -68,6 +68,12 @@
       "expected_valid": false
     },
     {
+      "id": "WORKLOAD_INVENTORY_014_HISTORICAL_ROUTINE_EXCLUSION_SOURCES_ABSENT",
+      "description": "Allows an exact historical target whose sources predate the reviewed opt-in routine test classes, while retaining zero applied-exclusion evidence",
+      "mutation": "historical-routine-exclusions-absent",
+      "expected_valid": true
+    },
+    {
       "id": "WORKLOAD_INVENTORY_011_APPLIED_EXCLUSION_ABSENT_FROM_JUNIT",
       "description": "Rejects a routine device JUnit report that still contains an excluded research suite",
       "mutation": "include-routine-excluded-suite",

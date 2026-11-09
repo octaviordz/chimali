@@ -295,6 +295,10 @@ foreach ($file in $fixtureFiles) {
                         'omit-device' { $workload.required_device_tasks = @($workload.required_device_tasks | Select-Object -Skip 1) }
                         'broad-device' { $workload.required_device_tasks[0].task_path = ':feature:connectedAndroidTest' }
                         'omit-routine-exclusion-evidence' { $workload.required_device_tasks[0].PSObject.Properties.Remove('excluded_test_classes') }
+                        'historical-routine-exclusions-absent' {
+                            $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
+                            $fidoTask.excluded_test_classes = @()
+                        }
                         'omit-source-optional-exclusion' {
                             $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
                             $optionalClass = [string]$coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2'[0].class_name
