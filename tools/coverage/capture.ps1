@@ -409,12 +409,12 @@ if (-not $SkipExecution) {
             }
             [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $routineDeviceExclusionPackages[0], 'Process')
         } else {
-            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $null, 'Process')
+            Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
         }
         if ($applicableRoutineDeviceClassExclusions.Count -gt 0) {
             [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, ($applicableRoutineDeviceClassExclusions -join ','), 'Process')
         } else {
-            [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $null, 'Process')
+            Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
         }
         if ($changedPathsFile) {
             $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile")
@@ -429,8 +429,16 @@ if (-not $SkipExecution) {
             Write-Warning "Gradle coverage collection exited with code $LASTEXITCODE"
         }
     } finally {
-        [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $originalInstrumentationFilter, 'Process')
-        [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $originalInstrumentationClassFilter, 'Process')
+        if ($null -eq $originalInstrumentationFilter) {
+            Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $originalInstrumentationFilter, 'Process')
+        }
+        if ($null -eq $originalInstrumentationClassFilter) {
+            Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $originalInstrumentationClassFilter, 'Process')
+        }
         Pop-Location
     }
 }

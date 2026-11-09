@@ -2549,3 +2549,17 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | Capture stopped before test execution, device data reset and counter collection. The harness was dirty during validation; the fix must be committed before trusted capture. This does not establish or promote an accepted baseline. |
 | `status` | Harness compatibility change validated with policy fixtures and both Gradle configurations; a clean-harness exact-target capture is pending. |
 | `artifact_link` | `tools/hdk-coverage.init.gradle`; capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1`; parent Feature 064 Record 242; BLE Feature 064 Record 216. |
+
+### 11.155 Remove absent AndroidJUnitRunner filters instead of leaving blank values (2026-11-08)
+
+| Field | Evidence |
+|---|---|
+| `requirement` | Ensure historical target captures omit a routine class filter when none of its exact class exclusions exists, and never let an empty AndroidJUnitRunner argument turn a successful Gradle task into a zero-test result. |
+| `scope` | `tools/coverage/capture.ps1` process-environment setup/cleanup and focused exact-target FIDO2 connected suite. |
+| `revision` | Feature 064 branch `064-bluetooth-transport-selection`; harness base `9c0aa97f7d5d8b7f01760e411cb4e8cd6f7fb5b4`; target `e7918b6e256319b1305536c7815a92f6132ece99`. |
+| `named_procedure` | Diagnosed capture `34b5850b-a782-4269-9361-24fb3e32869e`: `[Environment]::SetEnvironmentVariable(name, $null, 'Process')` left `ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notClass` present with an empty value. AGP then invoked `am instrument ... -e notClass -e notPackage ...`; AndroidJUnitRunner returned zero tests while Gradle could exit successfully. Changed capture setup and restoration to use `Remove-Item Env:<name>` when a filter is absent. Verified exact-target `:feature:fido2:connectedAndroidDeviceTest` with only the routine `notPackage` filter; its command omitted `notClass`, JUnit reported 41/41 with zero failures/errors/skips, and device `coverage.ec` was nonempty. |
+| `environment` | Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08. |
+| `expected_observed_result` | Missing filters are absent from Gradle's process environment and instrumentation arguments; the exact-target FIDO2 suite discovers and runs its expected tests. |
+| `limitations` | Focused target suite only. A new immutable full capture and candidate comparison remain pending. The trusted accepted-baseline index still does not identify target `e7918b6e256319b1305536c7815a92f6132ece99`; no promotion or nonregression claim is made. |
+| `status` | Empty-filter root cause fixed and focused test verified; formal T039/T038 coverage gates remain Unverified. Offline policy fixtures are being rerun. |
+| `artifact_link` | Updated `tools/coverage/capture.ps1`; exact-target JUnit XML and `coverage.ec`; prior failed capture manifest `34b5850b-a782-4269-9361-24fb3e32869e`; parent Feature 064 Record 244; BLE Feature 064 Record 218. |

@@ -167,6 +167,8 @@ Use [integration.md](integration.md) as the shared milestone and ownership guide
 
 The latest full manual ASUS/API35 `hdkCoverageVerify` passed with clean JUnit outcomes (app 13/13; FIDO2 57/57) and all configured floors: repository 89,780/149,027 instructions (60.24%); FIDO2 67,685/100,179 instructions and 4,037/6,660 branches. The routine workload now excludes the five reviewed Perfetto classes and the exact opt-in two-device reconnect-stress class, whose first attempt reported an assumption failure without the separate advertiser. The policy suite passed 520/520. The candidate and harness remain dirty, so this is not an immutable capture. The accepted index still targets incompatible `f1fd56baf8641cea99edc7fafa8725fdda21044c`; no accepted-target raw-count comparison or promotion is claimed. T039 remains open; see Record 240 and Feature 058 §11.152.
 
+**Latest exact-target capture follow-up (2026-11-08)**: The clean capture in run `34b5850b-a782-4269-9361-24fb3e32869e` passed an empty `notClass` runner argument because PowerShell did not remove the unset environment variable; this produced zero-test reports. The displayed `Invalid userId -2` message was nonfatal. `capture.ps1` now removes absent runner filters, and the focused exact-target FIDO2 rerun passed 41/41 with nonempty JaCoCo data (Record 244). The immutable full capture and compatible accepted-target comparison remain open; the trusted index still targets a different commit. T039 remains Unverified.
+
 - US1: T017 and T018 write different test files after the foundation; T019–T021 integrate sequentially.
 - US2: T023 and T024 write different test files after US1; T025 precedes T026–T027.
 - US3: T028 and T029 write different test files after US2; T030 precedes T031.

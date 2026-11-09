@@ -2611,3 +2611,25 @@
 - **limitations**: No coverage workloads, counters or immutable bundle were produced by this attempt. The harness correction must be committed before a trusted capture. The accepted index remains bound to `f1fd56baf8641cea99edc7fafa8725fdda21044c`, incompatible with target `e7918b6`; no baseline promotion or nonregression comparison is claimed.
 - **status**: Source-compatibility fix configured and policy-validated; T038 remains Unverified pending capture and accepted-baseline review.
 - **artifact_link**: Capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1`; parent Record 242; Feature 058 §11.154; `tools/hdk-coverage.init.gradle`.
+
+### Record 217: Exact-Target Capture Passed an Empty notClass Filter and Silently Ran Zero Tests (T038 — Unverified)
+- **requirement**: BLE T038; complete the parent-coordinated immutable capture and compatible accepted-target raw-count comparison.
+- **scope**: Follow-up to Record 216 using the committed, clean Feature 058 harness and serialized connected-device task graph.
+- **revision**: Harness `9c0aa97f7d5d8b7f01760e411cb4e8cd6f7fb5b4`, clean; target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`.
+- **named_procedure**: Exact-target comparison capture on ASUS API35, run `34b5850b-a782-4269-9361-24fb3e32869e`. Connected tests ran sequentially after the ordering fix, but PowerShell left an empty `notClass` variable, so AGP passed `-e notClass` with no value and JUnit reported zero tests. The `Invalid userId -2` message was nonfatal and not causal. Direct instrumentation with `--user 0` and the routine `notPackage` filter passed 41/41 FIDO2 tests.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: The earlier capture was correctly marked Incomplete/Failed. The empty-filter cause is corrected in the follow-up parent Record 244; the focused Gradle task now produces 41/41 tests and nonempty execution data.
+- **limitations**: Capture manifest is Incomplete/Failed, with no counters, production inventory, or comparable bundle. Trusted accepted index remains for `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not the parent target `e7918b6`; no candidate nonregression result exists.
+- **status**: T038 remains Unverified under parent T039 coordination.
+- **artifact_link**: Parent Record 243; run manifest and logs at `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\34b5850b-a782-4269-9361-24fb3e32869e`.
+
+### Record 218: Exact-Target FIDO2 Coverage Runs 41/41 After Empty Filter Removal (T038 — Partial)
+- **requirement**: BLE T038; verify true FIDO2 device-test discovery before the parent-coordinated full capture.
+- **scope**: Focused FIDO2 connected suite on exact target `e7918b6e256319b1305536c7815a92f6132ece99` after the capture script removes absent runner filters.
+- **revision**: Target tree `afe0683226166775f4fccdfc8accb06c46bd5697`; pending Feature 058 harness fix in the feature branch.
+- **named_procedure**: Ran `:feature:fido2:connectedAndroidDeviceTest` on ASUS/API35 with package exclusion `com.chimali.fido2.util.performance`, no class exclusion, fresh Gradle daemon and in-process Kotlin compiler. The instrumentation command omitted `notClass`; JUnit reported 41 tests, zero failures/errors/skips; nonempty JaCoCo device data was collected.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: The exact-target FIDO2 connected suite is discovered and passes after removing the empty filter; this resolves the prior zero-test suite issue.
+- **limitations**: No full immutable capture, compatible accepted baseline, or raw-count comparison is established. Keep T038 Unverified until parent T039 is completed.
+- **status**: Focused device suite passed; parent-coordinated full coverage gate remains open.
+- **artifact_link**: Target FIDO2 JUnit report and coverage.ec; parent Record 244; Feature 058 §11.155.

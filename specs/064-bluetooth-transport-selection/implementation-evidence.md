@@ -2987,3 +2987,25 @@ The deterministic T032 host tests cover registration and authentication on each 
 - **limitations**: This attempted run produced no target counters or immutable bundle. The trusted harness must be clean before capture, so commit the correction first. The indexed accepted baseline still targets protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not current target `e7918b6`; no index promotion or raw-count comparison is authorized by this measurement.
 - **status**: Compatibility fix is policy-tested and Gradle-configured on target and candidate; T039 remains Unverified pending clean-harness exact-target capture and compatible independently indexed baseline review.
 - **artifact_link**: Capture attempt `c273eb13-14a9-4909-a08e-b9593b582de1`; target checkout `D:\octav\source\repos\.worktrees\chimali\baseline-e791-recapture-20261108`; Feature 058 §11.154; `tools/hdk-coverage.init.gradle`.
+
+### Record 243: Exact-Target Capture Passed an Empty notClass Filter and Silently Ran Zero Tests (T039 — Unverified)
+- **requirement**: Parent T039; complete immutable exact-target capture and candidate-versus-accepted-target comparison.
+- **scope**: Follow-up capture using the clean, committed Feature 058 harness after serializing connected-device test tasks.
+- **revision**: Harness `9c0aa97f7d5d8b7f01760e411cb4e8cd6f7fb5b4`, clean; target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`.
+- **named_procedure**: `tools/coverage/capture.ps1 -Purpose Comparison` on ASUS API35, run `34b5850b-a782-4269-9361-24fb3e32869e`. Gradle dry-run confirmed connected tasks serialize. Capture installed and cleared only `com.chimali.shrunk`, then ran connected suites sequentially. Because PowerShell's `[Environment]::SetEnvironmentVariable(name, $null, 'Process')` left an empty environment variable, AGP passed `-e notClass` with no value. Each connected task reported zero JUnit tests; the displayed `Invalid userId -2` message was nonfatal and not the root cause. Capture correctly marked collection Incomplete, tests Failed, and floors Unverified rather than accepting zero-test results.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: The ordering fix prevents connected-task concurrency. The zero-test outcome was traced to an empty runner filter, not a UTP user-selection defect. Direct instrumentation with `--user 0` and Gradle instrumentation with the empty filter removed both pass FIDO2 41/41.
+- **limitations**: No target coverage counters, inventory, immutable comparable bundle or candidate comparison were produced. The independently trusted accepted index still points to protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`, incompatible with target `e7918b6`; no baseline promotion is claimed.
+- **status**: Harness serialization committed; exact-target capture remains Incomplete/Failed and T039 Unverified.
+- **artifact_link**: Capture manifest and Gradle logs under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\34b5850b-a782-4269-9361-24fb3e32869e`; harness commit `9c0aa97f7d5d8b7f01760e411cb4e8cd6f7fb5b4`.
+
+### Record 244: Exact-Target FIDO2 Runner Executes 41 Tests After Omitting Empty Filter (T039 — Partial)
+- **requirement**: Parent T039; establish a truthful nonzero connected test result before retrying formal capture.
+- **scope**: Focused exact-target FIDO2 connected suite on ASUS/API35 after changing capture environment cleanup to remove absent runner filters.
+- **revision**: Target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; pending harness fix in the feature worktree.
+- **named_procedure**: Ran `:feature:fido2:connectedAndroidDeviceTest` with the Feature 058 init script, routine `notPackage=com.chimali.fido2.util.performance`, no `notClass` variable, `--no-daemon`, and in-process Kotlin compilation. The Gradle worker command contained `notPackage` only. Exit 0; JUnit XML reports 41 tests, zero failures/errors/skips; a nonempty JaCoCo `coverage.ec` was collected.
+- **environment**: Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08.
+- **expected_observed_result**: Removing the unset class-filter environment key restores actual AndroidJUnitRunner discovery and yields the expected 41-test FIDO2 suite.
+- **limitations**: This is a focused device suite, not a full immutable capture. The accepted baseline index is still incompatible with target `e7918b6`; no candidate comparison or promotion is claimed.
+- **status**: Root cause corrected in `capture.ps1`; focused target test passed; full capture and accepted-target comparison remain open.
+- **artifact_link**: Target FIDO2 JUnit report and `coverage.ec`; run command captured in Gradle daemon `daemon-52076.out.log`; Feature 058 §11.155.
