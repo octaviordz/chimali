@@ -198,6 +198,7 @@ class BleSessionOwnerTest {
     @Test
     @Req("FR-BLE-020", "FR-BLE-050", "TR-BLE-020")
     fun `commands are rejected when revision or notifications are not ready`() {
+        assertFalse(sessionOwner.isCommandReady)
         sessionOwner.connectHost(DEVICE_A)
         val packet = byteArrayOf(0x81.toByte(), 0x00, 0x01, 0x42)
 
