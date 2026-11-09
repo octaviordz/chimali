@@ -1,5 +1,15 @@
 # Implementation Evidence: FIDO BLE Transport
 
+### Record 225: Mi/API29 FIDO2 Connected Suite Partially Passes; Coverage Policy Rejects Device (T045 / T038 — Partial)
+- **requirement**: BLE T038 and parent T045; final connected-device and Tier 1 coverage/nonregression follow-up after T044.
+- **scope**: Exact current parent candidate on Mi/API29. ASUS was not used. This was a direct connected FIDO2 instrumentation run plus the exact-candidate coverage runner preflight.
+- **revision**: Candidate `05e1c0f79df1e9ef39d9c0076198c5fb24ae573a`, tree `aae19e27b2a3266d6541b93f1712e7c90f641a55`; protected-main target `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: `:feature:fido2:connectedAndroidTest` on serial `2ac6876` with the performance utility package filter; exact-candidate `tools/integration-ci.ps1` coverage phase using the same Mi serial and external evidence root.
+- **environment**: Windows 11; Mi A2 / Android 10/API29; Gradle 9.6.0; 2026-11-09.
+- **expected_observed_result**: Connected suite XML contains 55 tests: 53 passed and 2 failures, with no errors or skips. BLE advertiser discovery failed because no separate device advertised FIDO service `0000fffd`; reconnect stress failed its required explicit-opt-in/separate-advertiser precondition. The coverage runner stopped before capture because Mi API29 does not meet the policy minimum API35. No BLE coverage counters, tier floor verdict, or exact-target raw-ratio comparison exists.
+- **limitations**: Mi results are useful device checks but do not satisfy the configured coverage gate. The two multi-device cases need their declared second-advertiser setup/opt-in. No accepted baseline comparison or promotion was performed. The earlier BLE T038 pass is recorded for candidate `c1411ed141d2c4064c0db22967d4c8ea04c70af1` in original Record 223; this Mi attempt does not alter it. Parent T045's post-T044 run remains open. Hosted enforcement/publication remains waived; the hosted runner stays disabled.
+- **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\assessments\mi-connected-fido2-2026-11-09\summary.json`, `TEST-Mi-A2-Android10.xml`, and `html-report`.
+
 ### Record 222: Exact Protected-Main and Candidate Captures Match; Formal BLE Gate Still Unverified
 - **requirement**: BLE T038; complete local coverage, verify configured floors, and compare affected Tier 1 raw ratios using an independently trusted accepted-target baseline.
 - **scope**: Full ASUS/API35 captures for protected main and the Feature 064 candidate with the same clean trusted harness and measurement fingerprint.

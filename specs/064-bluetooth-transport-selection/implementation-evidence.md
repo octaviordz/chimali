@@ -1,5 +1,15 @@
 # Implementation Evidence: Bluetooth Transport Selection
 
+### Record 254: Mi/API29 Connected Checks Run; Coverage Gate Is Ineligible (T045 / T039 — Partial)
+- **requirement**: T045 and parent T039; run final exact-candidate connected checks and coverage/nonregression assessment after T044.
+- **scope**: Exact current candidate local CI, Mi FIDO2 connected instrumentation, and the configured exact-candidate coverage assessment. The ASUS device was not used.
+- **revision**: Candidate `05e1c0f79df1e9ef39d9c0076198c5fb24ae573a`, tree `aae19e27b2a3266d6541b93f1712e7c90f641a55`; protected-main target `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: `tools/integration-ci.ps1 -TargetRef origin/main -DeviceSerial 2ac6876 -EvidenceRoot D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09`; then `:feature:fido2:connectedAndroidTest` with `android.testInstrumentationRunnerArguments.notPackage=com.chimali.fido2.util.performance` and `ANDROID_SERIAL=2ac6876`.
+- **environment**: Windows 11; Mi A2, Android 10/API29, serial `2ac6876`; Gradle 9.6.0; 2026-11-09.
+- **expected_observed_result**: Local static analysis, compile, unit, and Android host checks passed. Connected FIDO2 reported 55 tests: 53 passed, 2 failed, 0 errors, 0 skipped. The advertiser discovery test found no distinct remote FIDO advertiser. The 50-cycle reconnect stress test's explicit opt-in/separate-advertiser precondition was unmet. Coverage capture rejected Mi before creating a run because API29 is below the configured API35 minimum; no counters, completeness/floor decision, or candidate-versus-target coverage comparison was produced.
+- **limitations**: This is useful Mi connected-test evidence only. It does not satisfy coverage policy, establish a coverage floor, or establish candidate nonregression. The existing accepted-target index and coverage baseline were not used to produce a comparison. Parent T039's local integration pass for candidate `c1411ed141d2c4064c0db22967d4c8ea04c70af1` is separately recorded in original Record 250; it does not cover this post-T044 candidate. T045 remains open. Hosted enforcement/publication remains waived and the hosted runner remains disabled.
+- **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\assessments\mi-connected-fido2-2026-11-09\summary.json`, `TEST-Mi-A2-Android10.xml`, and `html-report`; candidate ordinary local CI passed in the integration runner output.
+
 ### Record 248: Fresh Main/Candidate Coverage Pair Passes Floors and Direct Ratios; T039 Remains Unverified
 - **requirement**: Parent T039; exact-candidate coverage and Tier 1 raw-ratio nonregression against the current protected-main target.
 - **scope**: Complete ASUS/API35 coverage captures for protected main and the Feature 064 candidate, using the same clean Feature 058 harness and matching measurement fingerprint.
