@@ -295,6 +295,16 @@ foreach ($file in $fixtureFiles) {
                         'omit-device' { $workload.required_device_tasks = @($workload.required_device_tasks | Select-Object -Skip 1) }
                         'broad-device' { $workload.required_device_tasks[0].task_path = ':feature:connectedAndroidTest' }
                         'omit-routine-exclusion-evidence' { $workload.required_device_tasks[0].PSObject.Properties.Remove('excluded_test_classes') }
+                        'omit-source-optional-exclusion' {
+                            $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
+                            $optionalClass = [string]$coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2'[0].class_name
+                            $fidoTask.excluded_test_classes = @($fidoTask.excluded_test_classes | Where-Object { [string]$_ -cne $optionalClass })
+                        }
+                        'include-source-optional-excluded-suite' {
+                            $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
+                            $optionalClass = [string]$coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2'[0].class_name
+                            $fidoTask.excluded_test_classes = @($fidoTask.excluded_test_classes | Where-Object { [string]$_ -cne $optionalClass })
+                        }
                         'broad-root' { $workload.host_test_tasks[0].junit_xml_directory = 'core/build/test-results' }
                     }
                     $inventory = Test-WorkloadTaskInventory -Workload $workload -Policy $coveragePolicy
@@ -318,7 +328,13 @@ foreach ($file in $fixtureFiles) {
                         $fidoRoot = ([string]$fidoTask.junit_xml_directory).Replace('\', '/').TrimEnd('/')
                         $suites += [PSCustomObject]@{ suite_identity = "$fidoRoot/TEST-device.xml|1|$excludedClass"; suite_name = $excludedClass; tests = 1 }
                     }
-                    $execution = Test-WorkloadSuiteExecutionCounts -Workload $workload -Suites $suites
+                    if ($case.mutation -eq 'include-source-optional-excluded-suite') {
+                        $fidoTask = @($workload.required_device_tasks | Where-Object { $_.module_path -eq ':feature:fido2' })[0]
+                        $optionalClass = [string]$coveragePolicy.required_workload.routine_device_test_class_exclusions.':feature:fido2'[0].class_name
+                        $fidoRoot = ([string]$fidoTask.junit_xml_directory).Replace('\', '/').TrimEnd('/')
+                        $suites += [PSCustomObject]@{ suite_identity = "$fidoRoot/TEST-optional-device.xml|1|$optionalClass"; suite_name = $optionalClass; tests = 1 }
+                    }
+                    $execution = Test-WorkloadSuiteExecutionCounts -Workload $workload -Suites $suites -Policy $coveragePolicy
                     $combinedErrors = @($inventory.Errors) + @($execution.Errors)
                     if ($case.expected_valid -and $combinedErrors.Count -eq 0) { $casePassed = $true }
                     elseif (-not $case.expected_valid -and ($combinedErrors | Where-Object { $_ -like "*$($case.expected_error)*" })) { $casePassed = $true }

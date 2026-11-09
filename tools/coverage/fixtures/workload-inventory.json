@@ -73,6 +73,19 @@
       "mutation": "include-routine-excluded-suite",
       "expected_error": "contains policy-excluded routine device suites",
       "expected_valid": false
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_012_HISTORICAL_SOURCE_OPTIONAL_EXCLUSION",
+      "description": "Allows an optional class exclusion to be absent from a historical source revision when its JUnit suite is also absent",
+      "mutation": "omit-source-optional-exclusion",
+      "expected_valid": true
+    },
+    {
+      "id": "WORKLOAD_INVENTORY_013_SOURCE_OPTIONAL_EXCLUSION_MUST_NOT_RUN",
+      "description": "Rejects an optional class exclusion that is absent from the capture receipt when its JUnit suite is present",
+      "mutation": "include-source-optional-excluded-suite",
+      "expected_error": "contains policy-excluded routine device suites",
+      "expected_valid": false
     }
   ]
 }
