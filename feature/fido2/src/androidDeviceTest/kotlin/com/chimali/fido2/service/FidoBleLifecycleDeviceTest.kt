@@ -174,6 +174,28 @@ class FidoBleLifecycleDeviceTest {
     }
 
     @Test
+    fun actionlessServiceStartReactivatesSelectedTransportForStickyRecovery() {
+        val restartIntent = android.content.Intent(context, Fido2TransportService::class.java)
+        context.startForegroundService(restartIntent)
+
+        assertTrue(
+            "actionless restart did not reconnect the selected transport",
+            fakeTransport.successfulConnect.await(SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+        )
+        assertEquals(1, fakeTransport.connectCalls.get())
+        assertTrue("restart did not restore the foreground notification", awaitNotification(true))
+
+        // Android's sticky restart supplies no action; this actionless Intent exercises the same service branch.
+        assertEquals("actionless restart must not duplicate an active transport", 1, fakeTransport.connectCalls.get())
+        assertEquals(Fido2ConnectionState.Advertising, fakeTransport.connectionState.value)
+        assertTrue("sticky restart removed the foreground notification", awaitNotification(true))
+
+        context.startService(Fido2TransportService.stopIntent(context))
+        assertTrue("transport did not stop after lifecycle recovery", awaitDisconnectCount(1))
+        assertTrue("foreground notification remained after lifecycle recovery", awaitNotification(false))
+    }
+
+    @Test
     fun retryAfterFailedStartupConnectsAgainAndRestoresForegroundNotification() {
         fakeTransport.failNextConnect.set(true)
         context.startForegroundService(Fido2TransportService.startIntent(context))

@@ -87,6 +87,7 @@ import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
 import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
 import com.chimali.fido2.presentation.viewmodel.TransportToggleAction
 import com.chimali.fido2.presentation.viewmodel.dashboardStateForTransport
+import com.chimali.fido2.presentation.viewmodel.isTransportStartEnabled
 import com.chimali.fido2.presentation.viewmodel.transportToggleAction
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -127,7 +128,7 @@ fun Fido2HomeScreen(
     val outboundBleUnsupported by viewModel.outboundBleUnsupported.collectAsState()
     val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
     val showPairingHelp = remember { mutableStateOf(false) }
-    val selectedMode = processState.processChoice ?: BluetoothTransportMode.FIDO_BLE
+    val selectedMode = processState.processChoice
     val toggleAction = transportToggleAction(connectionState, processState.availability)
     val dashboardConnectionState = dashboardStateForTransport(connectionState, processState.availability)
 
@@ -159,7 +160,7 @@ fun Fido2HomeScreen(
             if (permissions.values.all { it }) {
                 if (selectedMode == BluetoothTransportMode.CLASSIC_HID) {
                     launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
-                } else {
+                } else if (selectedMode == BluetoothTransportMode.FIDO_BLE) {
                     viewModel.toggleTransport()
                 }
             } else {
@@ -179,7 +180,7 @@ fun Fido2HomeScreen(
                 bluetoothPermissionLauncher.launch(required)
             } else if (selectedMode == BluetoothTransportMode.CLASSIC_HID) {
                 launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }
-            } else {
+            } else if (selectedMode == BluetoothTransportMode.FIDO_BLE) {
                 viewModel.toggleTransport()
             }
         }
@@ -258,7 +259,7 @@ fun Fido2HomeScreen(
                 hasPairedDevices = pairedDevices.isNotEmpty(),
             )
 
-            if (shouldShowPairingHelp(selectedMode, connectionState)) {
+            if (selectedMode?.let { shouldShowPairingHelp(it, connectionState) } == true) {
                 PairingHelpButton(onClick = { showPairingHelp.value = true })
             }
 
@@ -277,6 +278,7 @@ fun Fido2HomeScreen(
                 connectionState = dashboardConnectionState,
                 retryAvailable = toggleAction == TransportToggleAction.Retry,
                 onToggle = handleToggle,
+                enabled = isTransportStartEnabled(selectedMode) || connectionState !is Fido2ConnectionState.Idle,
             )
 
             ChimaliOutlinedButton(
@@ -288,16 +290,18 @@ fun Fido2HomeScreen(
                 Text("Manage Saved Passkeys")
             }
 
-            Text(
-                text =
-                    if (selectedMode == BluetoothTransportMode.FIDO_BLE) {
-                        stringResource(R.string.fido_transport_ble)
-                    } else {
-                        stringResource(R.string.fido_transport_classic_hid)
-                    },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            selectedMode?.let { mode ->
+                Text(
+                    text =
+                        if (mode == BluetoothTransportMode.FIDO_BLE) {
+                            stringResource(R.string.fido_transport_ble)
+                        } else {
+                            stringResource(R.string.fido_transport_classic_hid)
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -573,6 +577,7 @@ fun TransportToggleButton(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     retryAvailable: Boolean = connectionState is Fido2ConnectionState.Error,
+    enabled: Boolean = true,
 ) {
     val isRunning =
         connectionState !is Fido2ConnectionState.Idle &&
@@ -582,6 +587,7 @@ fun TransportToggleButton(
     ChimaliButton(
         onClick = onToggle,
         modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
         colors =
             ButtonDefaults.buttonColors(
                 containerColor =

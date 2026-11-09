@@ -192,5 +192,17 @@ The latest full manual ASUS/API35 `hdkCoverageVerify` passed with clean JUnit ou
 
 **Latest T039 evidence (2026-11-09)**: Exact HEAD `c1411ed141d2c4064c0db22967d4c8ea04c70af1` now has a complete immutable ASUS/API35 capture. Production verification against the independently indexed `MeasuredAcceptedTarget` bundle for protected main reports collection/tests/floors/comparison compatibility/regression Passed and `overall_passed=true` (Record 249). The canonical accepted archive index was not changed. T039 remains unchecked because `tools/integration-ci.ps1` live remote validation did not run; `gh auth status` reports the local GitHub CLI token is invalid, leaving integration Unverified and publication pending.
 
-
 **T039 completion (2026-11-09)**: The local integration wrapper passed with exact candidate c1411ed141d2c4064c0db22967d4c8ea04c70af1, live target origin/main f1fd56baf8641cea99edc7fafa8725fdda21044c, passing local CI, complete ASUS coverage, passing floors, compatible comparison and passed regression (Record 250). Hosted integration/publication remain explicitly waived/unverified/pending; no hosted runner or canonical index promotion was performed.
+
+## Phase 8: Convergence
+
+- [X] T042 Compare exact credential records and committed event state before and after both transport-switch directions, record hashes/counts and ceremony outcomes, and resolve the remaining SC-002 mapping gap in `specs/064-bluetooth-transport-selection/implementation-evidence.md` (SC-002, partial).
+- [X] T043 Verify active authenticator/service recovery under genuine OS memory pressure, or add deterministic lifecycle coverage that exercises the OS-reclamation behavior if physical reproduction is impractical; record the environment and outcome in `specs/064-bluetooth-transport-selection/implementation-evidence.md` (US4/AC1, partial).
+
+## Phase 9: Convergence
+
+- [X] T044 Gate authenticator start and transport-specific permission/discoverability handling until the process preference snapshot is frozen; remove the BLE presentation fallback while the choice is unresolved and add a regression test for immediate start with saved Classic and BLE choices in `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt` and its existing host/device tests (FR-003, FR-010, FR-011; US2/AC2; plan: snapshot-before-activation, partial).
+
+## Phase 10: Convergence
+
+- [ ] T045 Run the final local connected-device coverage and exact-candidate nonregression assessment for the current parent and independent BLE implementation, including T044's Tier 1 changes; record fresh outcomes and limitations in both implementation-evidence files and preserve the hosted waiver (parent T039, BLE T038; plan: coverage and changed-Tier-1 nonregression, partial).

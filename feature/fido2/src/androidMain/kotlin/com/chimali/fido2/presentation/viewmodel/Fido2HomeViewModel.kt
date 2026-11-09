@@ -151,6 +151,8 @@ internal enum class TransportToggleAction {
     Stop,
 }
 
+internal fun isTransportStartEnabled(processChoice: BluetoothTransportMode?): Boolean = processChoice != null
+
 internal fun transportToggleAction(
     connectionState: Fido2ConnectionState,
     availability: TransportAvailability,

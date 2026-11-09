@@ -2,12 +2,21 @@ package com.chimali.fido2.presentation.viewmodel
 
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.data.transport.Fido2ConnectionState
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.domain.repository.TransportUnavailableReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class Fido2HomeViewModelTest {
+    @Test
+    @Req("FR-BT-SEL-030", "FR-BT-SEL-040")
+    fun `start is gated until the process preference is frozen`() {
+        assertEquals(false, isTransportStartEnabled(null))
+        assertEquals(true, isTransportStartEnabled(BluetoothTransportMode.CLASSIC_HID))
+        assertEquals(true, isTransportStartEnabled(BluetoothTransportMode.FIDO_BLE))
+    }
+
     @Test
     @Req("FR-BLE-070", "FR-BT-SEL-050", "TR-BLE-040")
     fun `start action retries a frozen unavailable transport`() {
