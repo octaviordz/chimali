@@ -2633,3 +2633,13 @@
 - **limitations**: No full immutable capture, compatible accepted baseline, or raw-count comparison is established. Keep T038 Unverified until parent T039 is completed.
 - **status**: Focused device suite passed; parent-coordinated full coverage gate remains open.
 - **artifact_link**: Target FIDO2 JUnit report and coverage.ec; parent Record 244; Feature 058 §11.155.
+### Record 219: Immutable BLE Coverage Captures Pass Floors; Trusted Accepted-Target Gate Remains Open
+- **requirement**: BLE T038; complete candidate coverage and verify affected Tier 1 raw-ratio nonregression against the trusted accepted target.
+- **scope**: Exact target and candidate Feature 064 BLE transport bundles, ASUS/API35, with direct FIDO2 Tier 1 raw-count comparison.
+- **revision**: Target `e7918b6e256319b1305536c7815a92f6132ece99`, tree `afe0683226166775f4fccdfc8accb06c46bd5697`; candidate `52dfb065b475df74821e4135e3f22da9ddd2f774`.
+- **named_procedure**: Exact-target run `f05928c2-d767-4363-a572-b3f1e28351dd` and candidate run `2c62cd8b-abd2-4f4a-ba9b-2f25143e50c3` both have complete immutable manifests, tests Passed, configured floors Passed, and the same measurement fingerprint `b1be466f4ebf9003f5bd6330030e2888c12b9a94b5e6068f7b50ef48b14cae1c`. FIDO2 changed-module counts are target 56,458/87,578 instructions and 3,461/5,617 branches; candidate 68,342/100,196 instructions and 4,106/6,662 branches. Candidate repository aggregate is 90,437/149,044 instructions (60.678%).
+- **environment**: Windows 11; ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-08 local time.
+- **expected_observed_result**: Candidate FIDO2 instruction and branch ratios are nondecreasing relative to the exact target; configured floors pass.
+- **limitations**: The independently trusted accepted index still identifies protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not the measured target. `integration-ci.ps1` did not accept these runs as the formal current-target comparison; no index was created or promoted. Hosted enforcement remains waived.
+- **status**: Captures and floors pass; BLE T038 remains Unverified pending trusted accepted-baseline resolution and formal integration comparison.
+- **artifact_link**: Target `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\recreated-baseline-e791\f05928c2-d767-4363-a572-b3f1e28351dd`; candidate `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\2c62cd8b-abd2-4f4a-ba9b-2f25143e50c3`; parent Record 245.
