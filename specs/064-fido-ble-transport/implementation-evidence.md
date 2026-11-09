@@ -2643,3 +2643,13 @@
 - **limitations**: The independently trusted accepted index still identifies protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not the measured target. `integration-ci.ps1` did not accept these runs as the formal current-target comparison; no index was created or promoted. Hosted enforcement remains waived.
 - **status**: Captures and floors pass; BLE T038 remains Unverified pending trusted accepted-baseline resolution and formal integration comparison.
 - **artifact_link**: Target `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\recreated-baseline-e791\f05928c2-d767-4363-a572-b3f1e28351dd`; candidate `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\2c62cd8b-abd2-4f4a-ba9b-2f25143e50c3`; parent Record 245.
+### Record 220: Parent Branch Synced with Protected Main; BLE Coverage Must Be Recaptured
+- **requirement**: BLE T038; candidate coverage and nonregression must bind the exact current parent candidate and accepted target.
+- **scope**: Parent Feature 064 merge of protected main and required follow-up to BLE coverage evidence.
+- **revision**: Merge commit `f6e85e53d63eafdd551772d012dedc67ca8c7d9e`, containing accepted main `f1fd56baf8641cea99edc7fafa8725fdda21044c`; current tree `8d58832266f54094a85eb1206cb084ac8ff339a4` differs from the last measured candidate tree.
+- **named_procedure**: Parent merge pre-commit Local CI passed. Connected GitHub reader confirmed live main still resolves to the accepted-index commit. The accepted archive run fingerprint is `6b2b9e491e02baf41f8084e3df9cfe1555b5005c525d34eaf89889d79590b3bd`; prior Feature 064 captures use `b1be466f4ebf9003f5bd6330030e2888c12b9a94b5e6068f7b50ef48b14cae1c`.
+- **environment**: Windows 11; ASUS AI2302/API35 attached; 2026-11-08 local time.
+- **expected_observed_result**: The current branch includes the accepted main target and local host/unit checks pass; the previous capture is explicitly treated as pre-merge evidence.
+- **limitations**: The post-merge candidate has no coverage capture. Fingerprint compatibility with the current accepted bundle is unresolved. Local `git ls-remote` fails because GitHub CLI authentication is invalid; the connector confirms the target SHA but cannot satisfy the script's authenticated remote check. BLE T038 remains Unverified.
+- **status**: Parent sync complete; fresh candidate capture and formal accepted-target comparison remain open.
+- **artifact_link**: Parent Feature 064 Record 246; accepted bundle run `c1b392a9-f830-4283-83f2-44e36ac5d731`; Feature 058 §11.157.

@@ -2576,3 +2576,16 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | The canonical trusted `baselines/current.json` remains tied to protected `main` at `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not this measured target. The target measurement does not itself authorize accepted-index creation or promotion. Therefore `integration-ci.ps1` accepted-target comparison remains unrun/unverified; parent T039 and BLE T038 stay open. Hosted integration remains owner-waived. |
 | `status` | Measurement, test, and floor evidence complete; formal trusted accepted-target comparison Unverified. |
 | `artifact_link` | Target bundle/decision `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\recreated-baseline-e791\f05928c2-d767-4363-a572-b3f1e28351dd`; candidate bundle/decision `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-coverage-2026-11-08\2c62cd8b-abd2-4f4a-ba9b-2f25143e50c3`; parent Feature 064 Record 245; BLE Record 219. |
+### 11.157 Feature 064 synchronized with accepted main; capture identity changed (2026-11-08)
+
+| Field | Evidence |
+|---|---|
+| `requirement` | Ensure Feature 064's final candidate is a descendant of current accepted main and preserve exact candidate/target identity before integration coverage assessment. |
+| `scope` | Merge protected `main` into Feature 064, then audit current tree and accepted baseline identity. |
+| `revision` | Merge commit `f6e85e53d63eafdd551772d012dedc67ca8c7d9e`, tree `8d58832266f54094a85eb1206cb084ac8ff339a4`, with accepted target `f1fd56baf8641cea99edc7fafa8725fdda21044c` as ancestor. |
+| `named_procedure` | Protected `main` ref was read via connected GitHub repository reader and confirmed at `f1fd56baf8641cea99edc7fafa8725fdda21044c`. Merge pre-commit Local CI passed. `.specify/feature.json` remains `specs/064-bluetooth-transport-selection`. Accepted run `c1b392a9-f830-4283-83f2-44e36ac5d731` has measurement fingerprint `6b2b9e491e02baf41f8084e3df9cfe1555b5005c525d34eaf89889d79590b3bd`; Feature 064's recent exact-target/candidate runs used `b1be466f4ebf9003f5bd6330030e2888c12b9a94b5e6068f7b50ef48b14cae1c`. |
+| `environment` | Windows 11; Feature 064 `ofrenda` worktree; ASUS AI2302/API35 attached; 2026-11-08 local time. |
+| `expected_observed_result` | Main is in candidate ancestry and local code checks pass; the previous pre-merge candidate evidence is not reused for the new tree. |
+| `limitations` | Post-merge candidate capture and accepted-target compatibility remain unverified. Terminal GitHub CLI credentials are invalid and local `git ls-remote` fails; connected GitHub read verifies the SHA but does not replace the integration script's live remote check. No accepted index or baseline was changed. |
+| `status` | Main integration complete, fresh capture and formal comparison pending. |
+| `artifact_link` | Merge `f6e85e53d63eafdd551772d012dedc67ca8c7d9e`; accepted archive index and run `c1b392a9-f830-4283-83f2-44e36ac5d731`; parent Feature 064 Record 246; BLE Record 220. |
