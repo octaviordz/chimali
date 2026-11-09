@@ -67,6 +67,54 @@ class BleSessionOwnerTest {
     }
 
     @Test
+    @Req("FR-BLE-040", "TR-BLE-020")
+    fun `unrelated disconnect preserves active host while addressless disconnect resets it`() {
+        sessionOwner.connectHost(DEVICE_A)
+        val initialGeneration = sessionOwner.currentSessionGeneration
+
+        sessionOwner.disconnectHost(DEVICE_B)
+
+        assertEquals(DEVICE_A, sessionOwner.activeDeviceAddress)
+        assertEquals(initialGeneration, sessionOwner.currentSessionGeneration)
+
+        sessionOwner.disconnectHost(null)
+
+        assertNull(sessionOwner.activeDeviceAddress)
+        assertTrue(sessionOwner.currentSessionGeneration > initialGeneration)
+    }
+
+    @Test
+    @Req("FR-BLE-040", "TR-BLE-020")
+    fun `side effect runs only for the active session generation`() {
+        sessionOwner.connectHost(DEVICE_A)
+        val generation = sessionOwner.currentSessionGeneration
+        val addresses = mutableListOf<String>()
+
+        assertTrue(sessionOwner.runForCurrentSession(generation) { addresses += it })
+        assertFalse(sessionOwner.runForCurrentSession(generation - 1) { addresses += it })
+        assertEquals(listOf(DEVICE_A), addresses)
+
+        sessionOwner.disconnectHost(DEVICE_A)
+        assertFalse(sessionOwner.runForCurrentSession(generation) { addresses += it })
+        assertEquals(listOf(DEVICE_A), addresses)
+    }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `message value identity includes CTAP payload and session generation`() {
+        val message = FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), sessionGeneration = 3L)
+        val equalMessage = FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), sessionGeneration = 3L)
+
+        assertEquals(message, message)
+        assertEquals(message, equalMessage)
+        assertEquals(message.hashCode(), equalMessage.hashCode())
+        assertFalse(message == FidoBleMessage(0x82.toByte(), byteArrayOf(0x01, 0x02), 3L))
+        assertFalse(message == FidoBleMessage(0x83.toByte(), byteArrayOf(0x01), 3L))
+        assertFalse(message == FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), 4L))
+        assertFalse(message.equals("not a FIDO BLE message"))
+    }
+
+    @Test
     @Req("FR-BLE-020", "TR-BLE-010")
     fun `only revision 0x20 is selectable`() {
         sessionOwner.connectHost(DEVICE_A)
@@ -208,6 +256,27 @@ class BleSessionOwnerTest {
         val contPacket = byteArrayOf(0x00, 0x04, 0x05)
         val result = sessionOwner.processIncomingWrite(contPacket)
         assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, (result as BleIncomingWriteResult.Error).errorCode)
+    }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `assembly expiry ignores stale generation and token then expires the matching request`() {
+        sessionOwner.connectHost(DEVICE_A)
+        sessionOwner.selectRevision(REVISION_FIDO2_0x20)
+        sessionOwner.setNotificationsEnabled(true)
+        val progress =
+            sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01)) as
+                BleIncomingWriteResult.InProgress
+
+        assertNull(sessionOwner.expireIncompleteRequest(progress.sessionGeneration - 1, progress.timeoutToken))
+        assertNull(sessionOwner.expireIncompleteRequest(progress.sessionGeneration, progress.timeoutToken + 1))
+
+        virtualTimeNanos += BleSessionOwner.RECEIVE_TIMEOUT_NANOS
+        val expired = sessionOwner.expireIncompleteRequest(progress.sessionGeneration, progress.timeoutToken)
+
+        assertIs<BleIncomingWriteResult.Error>(expired)
+        assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, expired.errorCode)
+        assertNull(sessionOwner.expireIncompleteRequest(progress.sessionGeneration, progress.timeoutToken))
     }
 
     @Test

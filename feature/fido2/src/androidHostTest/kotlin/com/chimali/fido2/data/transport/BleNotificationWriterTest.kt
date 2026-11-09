@@ -121,6 +121,119 @@ class BleNotificationWriterTest {
         }
 
     @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `failed GATT acknowledgement reports failure and stalls the active session`() =
+        runTest {
+            val writer = createWriter(this)
+            val deliveryResults = mutableListOf<Boolean>()
+
+            assertTrue(
+                writer.enqueue(
+                    byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x00),
+                    isKeepalive = false,
+                    sessionGeneration = 1L,
+                    onDeliveryResult = deliveryResults::add,
+                ),
+            )
+            runCurrent()
+
+            writer.onNotificationSent(success = false)
+
+            assertEquals(listOf(false), deliveryResults)
+            assertTrue(sessionStalledCalled, "A failed GATT acknowledgement must abort the current session")
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `notification initiation rejection drains queued delivery and stalls session`() =
+        runTest {
+            var stalledGeneration: Long? = null
+            val deliveryResults = mutableListOf<Boolean>()
+            val writer =
+                BleNotificationWriter(
+                    scope = this,
+                    sendGattNotification = { _, _ -> false },
+                    onSessionStalled = { stalledGeneration = it },
+                )
+
+            assertTrue(writer.enqueue(byteArrayOf(0x01), isKeepalive = false, sessionGeneration = 7L))
+            assertTrue(
+                writer.enqueue(
+                    byteArrayOf(0x02),
+                    isKeepalive = false,
+                    sessionGeneration = 7L,
+                    onDeliveryResult = deliveryResults::add,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(7L, stalledGeneration)
+            assertEquals(listOf(false), deliveryResults)
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `platform exceptions while initiating notification stall the current session`() =
+        runTest {
+            val failures =
+                listOf(
+                    SecurityException("permission revoked"),
+                    IllegalArgumentException("invalid GATT value"),
+                    IllegalStateException("GATT server stopped"),
+                )
+
+            for (failure in failures) {
+                var stalledGeneration: Long? = null
+                val writer =
+                    BleNotificationWriter(
+                        scope = this,
+                        sendGattNotification = { _, _ -> throw failure },
+                        onSessionStalled = { stalledGeneration = it },
+                    )
+
+                assertTrue(writer.enqueue(byteArrayOf(0x03), isKeepalive = false, sessionGeneration = 8L))
+                runCurrent()
+
+                assertEquals(8L, stalledGeneration, "${failure::class.simpleName} must fail closed")
+                writer.clear()
+            }
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `explicit stalled-session abort is fenced by the current session`() =
+        runTest {
+            var currentGeneration = 4L
+            val stalledGenerations = mutableListOf<Long>()
+            val deliveryResults = mutableListOf<Boolean>()
+            val writer =
+                BleNotificationWriter(
+                    scope = this,
+                    sendGattNotification = { _, _ -> true },
+                    isSessionCurrent = { it == currentGeneration },
+                    onSessionStalled = stalledGenerations::add,
+                )
+
+            writer.abortStalledSession()
+            assertTrue(stalledGenerations.isEmpty(), "An idle writer has no session to abort")
+
+            assertTrue(
+                writer.enqueue(
+                    byteArrayOf(0x04),
+                    isKeepalive = false,
+                    sessionGeneration = currentGeneration,
+                    onDeliveryResult = deliveryResults::add,
+                ),
+            )
+            runCurrent()
+            currentGeneration = 5L
+            writer.abortStalledSession()
+
+            assertTrue(stalledGenerations.isEmpty(), "A stale session must not notify its successor")
+            assertEquals(listOf(false), deliveryResults)
+        }
+
+    @Test
     @Req("FR-BLE-060", "TR-BLE-040")
     fun `keepalive notifications are coalesced when already pending`() =
         runTest {

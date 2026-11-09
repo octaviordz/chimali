@@ -727,6 +727,8 @@ class ProcessTransportSelectionTest {
 
             val connectResult = controller.connect()
             assertTrue(connectResult.isFailure)
+            val outboundResult = controller.connectDevice("AA:BB:CC:DD:EE:FF")
+            assertTrue(outboundResult.isFailure)
             assertEquals(false, bleCalled)
             assertEquals(false, classicCalled)
         }

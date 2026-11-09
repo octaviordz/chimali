@@ -20,12 +20,14 @@ data class FidoBleMessage(
         if (this === other) return true
         if (other !is FidoBleMessage) return false
         if (command != other.command) return false
+        if (sessionGeneration != other.sessionGeneration) return false
         return data.contentEquals(other.data)
     }
 
     override fun hashCode(): Int {
         var result = command.toInt()
         result = 31 * result + data.contentHashCode()
+        result = 31 * result + sessionGeneration.hashCode()
         return result
     }
 }

@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothProfile
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
 import io.mockk.mockk
@@ -102,6 +103,43 @@ class FidoBleGattContractTest {
         callback.onNotificationSent(callbackDevice, callbackStatus)
 
         assertEquals(listOf(callbackDevice to callbackStatus), notificationsSent)
+    }
+
+    @Test
+    @Req("FR-BLE-040", "TR-BLE-020")
+    fun `connection callbacks enforce one active host and update MTU only for that host`() {
+        val events = mutableListOf<Pair<Int, Int>>()
+        val rejected = mutableListOf<BluetoothDevice>()
+        val callbackOwner = BleSessionOwner()
+        val callback =
+            FidoBleGattServer(
+                sessionOwner = callbackOwner,
+                responseSender = fakeSender,
+                onConnectionStateChanged = { _, status, state -> events += status to state },
+                onConnectionRejected = rejected::add,
+            )
+        val secondDevice = mockk<BluetoothDevice>(relaxed = true)
+        every { secondDevice.address } returns "AA:BB:CC:DD:EE:FF"
+
+        callback.onConnectionStateChange(testDevice, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+        callback.onMtuChanged(testDevice, 100)
+        callback.onMtuChanged(secondDevice, 200)
+        callback.onConnectionStateChange(secondDevice, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+
+        assertEquals(listOf(BluetoothGatt.GATT_SUCCESS to BluetoothProfile.STATE_CONNECTED), events)
+        assertEquals(listOf(secondDevice), rejected)
+        assertEquals(97, callbackOwner.writeCapacity)
+
+        callback.onConnectionStateChange(testDevice, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_DISCONNECTED)
+
+        assertEquals(
+            listOf(
+                BluetoothGatt.GATT_SUCCESS to BluetoothProfile.STATE_CONNECTED,
+                BluetoothGatt.GATT_SUCCESS to BluetoothProfile.STATE_DISCONNECTED,
+            ),
+            events,
+        )
+        assertNull(callbackOwner.activeDeviceAddress)
     }
 
     @Test
@@ -572,5 +610,40 @@ class FidoBleGattContractTest {
             value = packet,
         )
         assertEquals(BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED, fakeSender.responses[1].status)
+    }
+
+    @Test
+    @Req("FR-BLE-030", "FR-BLE-050", "TR-BLE-020")
+    fun `write admission silently rejects requests that do not require an ATT response`() {
+        val controlPoint = mockk<BluetoothGattCharacteristic>()
+        every { controlPoint.uuid } returns FidoBleGattServer.UUID_FIDO_CONTROL_POINT
+        val unknown = mockk<BluetoothGattCharacteristic>()
+        every { unknown.uuid } returns UUID.randomUUID()
+
+        gattServer.onCharacteristicWriteRequest(testDevice, 1, controlPoint, true, false, 0, null)
+        gattServer.onCharacteristicWriteRequest(testDevice, 2, controlPoint, false, false, 1, null)
+        gattServer.onCharacteristicWriteRequest(testDevice, 3, unknown, false, false, 0, null)
+
+        assertTrue(fakeSender.responses.isEmpty())
+        assertFalse(sessionOwner.isCommandReady)
+    }
+
+    @Test
+    @Req("FR-BLE-020", "TR-BLE-020")
+    fun `CCCD rejects malformed values and prepared writes without changing subscription`() {
+        val cccd = mockk<BluetoothGattDescriptor>()
+        every { cccd.uuid } returns FidoBleGattServer.UUID_CCCD
+
+        gattServer.onDescriptorWriteRequest(testDevice, 1, cccd, false, true, 0, byteArrayOf(0x01))
+        assertEquals(BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED, fakeSender.responses.last().status)
+        assertFalse(sessionOwner.isNotificationsEnabled)
+
+        gattServer.onDescriptorWriteRequest(testDevice, 2, cccd, true, true, 0, byteArrayOf(0x01, 0x00))
+        assertEquals(BluetoothGatt.GATT_INVALID_OFFSET, fakeSender.responses.last().status)
+        assertFalse(sessionOwner.isNotificationsEnabled)
+
+        gattServer.onDescriptorWriteRequest(testDevice, 3, cccd, false, false, 0, byteArrayOf(0x01))
+        assertEquals(2, fakeSender.responses.size)
+        assertFalse(sessionOwner.isNotificationsEnabled)
     }
 }
