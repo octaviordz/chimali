@@ -187,3 +187,5 @@ The latest full manual ASUS/API35 `hdkCoverageVerify` passed with clean JUnit ou
 2. Deliver US1 as the MVP only when real FIDO BLE exists and physical Windows registration and authentication succeed. A preference-only increment is preparatory, not an accepted MVP.
 3. Add US2, US3 and US4 in order, reusing common storage and process state; validate each independently.
 4. Complete accessibility, traceability, local coverage and acceptance evidence. Keep incomplete physical/hosted evidence explicitly unverified and preserve the approved hosted waiver.
+
+**Coverage follow-up (2026-11-08 local time)**: A fresh exact protected-main/candidate pair is complete with passing workloads, matching measurement fingerprints, passing candidate floors and nondecreasing direct Tier 1 raw ratios (Record 248). T039 remains unchecked because the fresh target capture is not the run in the trusted accepted index, and terminal GitHub authentication is invalid. No index was promoted; hosted integration remains unverified. Evidence package: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09`.
