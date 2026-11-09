@@ -2674,3 +2674,23 @@
 - **limitations**: No valid regression decision or end-to-end integration result. A current-harness exact-target capture and reviewed baseline update/comparison are required. The local integration wrapper also needs working GitHub CLI credentials for `git ls-remote`. BLE T038 remains Unverified.
 - **status**: Candidate floors pass; accepted-target gate remains unverified due confirmed compatibility mismatch.
 - **artifact_link**: Parent Feature 064 Record 247; candidate run `3026b76a-4a15-44fa-ac56-03b523cde305`; trusted accepted run `c1b392a9-f830-4283-83f2-44e36ac5d731`; Feature 058 §11.158.
+### Record 223: Exact Parent Candidate Capture and FIDO2 Regression Decision Pass; Integration Wrapper Pending
+- **requirement**: BLE T038; verify candidate FIDO2 coverage floors and current-harness raw-count nonregression under parent T039 coordination.
+- **scope**: Exact parent HEAD candidate bundle, measured protected-main target bundle, and production verifier decision.
+- **revision**: Candidate `c1411ed141d2c4064c0db22967d4c8ea04c70af1`, tree `bd1887a8b1220f88945a948eece9317b1cc2d1ea`; target `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: Candidate run `c6156938-bfd8-4084-b2c9-de30341d9055`, ASUS AI2302/API35, collection Complete and tests Passed. FIDO2 instructions 68,342/99,968 (68.364%), branches 4,106/6,578 (62.420%); configured floors pass. The external measured-target index identifies exact-main run `b24e1d3c-e0e9-4896-91f6-cb41ea60db23`, digest `b07f05ae590454c44f2eb8a4f4416fb5cf8478cc77334f1476e069e66cf3ee41`. Production verifier outcomes: comparison Compatible, regression Passed, overall Passed; candidate bundle digest `68bf8b297d0c9c9c52e48801ce765dd4e1c3ef4b991d4f07e3edae9f5197b39a`.
+- **environment**: Windows 11; ASUS AI2302 / Android 15 API35; Gradle 9.6.0; 2026-11-09 UTC.
+- **expected_observed_result**: FIDO2 floors pass and no raw-ratio regression is found against the measured target.
+- **limitations**: `tools/integration-ci.ps1` live remote validation remains unrun because local GitHub CLI authentication is invalid. Decision retains `integration=Unverified`, and no canonical accepted archive index was modified. BLE T038 remains unchecked pending parent T039 wrapper completion.
+- **status**: Exact capture and trusted measured-target comparison pass; BLE T038 remains Unverified solely at the shared live integration-wrapper gate.
+- **artifact_link**: Candidate run and decision in `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09`; measured-target run/index in `measured-target-index`.
+### Record 224: Parent Integration Wrapper Passes BLE Coverage and Nonregression Gate
+- **requirement**: BLE T038; complete local coverage floors and accepted-target raw-count nonregression under parent T039's integration orchestration.
+- **scope**: Exact Feature 064 candidate and protected-main comparison using the reviewed trusted harness and external indexed target evidence.
+- **revision**: Candidate `c1411ed141d2c4064c0db22967d4c8ea04c70af1`; protected `origin/main` `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: Parent `tools/integration-ci.ps1` passed end to end with live origin/main SHA validation before and after. Candidate ASUS/API35 run `a04ca570-043f-43e8-8de5-8bf705016327` has complete collection and passing connected tests. FIDO2 instruction coverage is 68,342/99,968 (68.364%) and branches 4,106/6,578 (62.420%); configured floors pass. Production verifier reports Compatible comparison, Passed regression and overall passed.
+- **environment**: Windows 11; ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-09 local time.
+- **expected_observed_result**: BLE/FIDO2 coverage meets configured floors and does not regress against the independently indexed target.
+- **limitations**: Hosted integration remains waived and unverified; publication remains pending. The canonical accepted archive index was not promoted. Wrapper shutdown reported only a locked temporary build file during detached-worktree cleanup.
+- **status**: BLE T038 local coverage and regression requirements pass; retain the explicit hosted waiver.
+- **artifact_link**: Candidate bundle and decision under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\measured-target-index` (`a04ca570-043f-43e8-8de5-8bf705016327`).
