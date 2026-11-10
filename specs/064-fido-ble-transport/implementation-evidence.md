@@ -2704,3 +2704,15 @@
 - **limitations**: Hosted integration remains waived and unverified; publication remains pending. The canonical accepted archive index was not promoted. Wrapper shutdown reported only a locked temporary build file during detached-worktree cleanup.
 - **status**: BLE T038 local coverage and regression requirements pass; retain the explicit hosted waiver.
 - **artifact_link**: Candidate bundle and decision under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\measured-target-index` (`a04ca570-043f-43e8-8de5-8bf705016327`).
+
+### Record 226: API 35 BLE Candidate Coverage Passes with Stress Exclusion (T038/T045/T047)
+- **requirement**: BLE T038 and parent-coordinated T045/T047; verify the exact post-T044 candidate's configured BLE/FIDO2 device coverage, floors, and changed Tier 1 regression against the indexed accepted target.
+- **scope**: Shared exact-candidate ASUS API 35 capture and the independent BLE implementation's FIDO2 coverage results; no additional BLE implementation changes or credential ceremony claims.
+- **revision**: Candidate `76a87005fabaf94f46c7d73b5bd226d26ebe2944`, tree `783750ac986d4d03267e8f800d59223fb92304d0`; target `f1fd56baf8641cea99edc7fafa8725fdda21044c`; run `a9245ce6-2801-4f4c-9e04-5662ec0a1675`.
+- **named_procedure**: Parent `tools/integration-ci.ps1` passed locally using the trusted measured-target index. The required `:feature:fido2:connectedAndroidDeviceTest` executed and passed on ASUS AI2302/API35. Candidate FIDO2 coverage was 68,363/100,049 instructions (68.330%) and 4,110/6,598 branches (62.292%); target FIDO2 coverage was 54,633/86,070 instructions (63.466%) and 3,367/5,510 branches (61.143%). Production verifier outcomes: floors Passed, comparison Compatible, regression Passed, overall passed.
+- **environment**: Windows 11; ASUS AI2302 / Android 15 API35 (`R7AIB7002901AZ3`); Gradle 9.6.0; 2026-11-10.
+- **expected_observed_result**: Configured FIDO2 connected coverage completes, floors pass, and candidate instruction and branch ratios do not regress against the indexed exact-main target.
+- **limitations**: The checked-in Feature 058 policy excludes `FidoBleReconnectStressDeviceTest` because it requires a second active FIDO BLE advertiser and its dedicated two-device procedure; no separate advertiser was connected. Five opt-in Perfetto classes were also excluded under policy prerequisites. This run does not establish two-device reconnect-stress behavior or a WebAuthn ceremony result. Hosted enforcement remains waived/disabled; no accepted index was promoted.
+- **date**: 2026-11-10.
+- **status**: Passed for the configured connected BLE/FIDO2 workload, floors and accepted-target regression under the parent integration wrapper; the policy-excluded two-device stress scenario remains unverified.
+- **artifact_link**: Candidate bundle and decision under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\measured-target-index\a9245ce6-2801-4f4c-9e04-5662ec0a1675`; parent Record 255; accepted target run `b24e1d3c-e0e9-4896-91f6-cb41ea60db23`.
