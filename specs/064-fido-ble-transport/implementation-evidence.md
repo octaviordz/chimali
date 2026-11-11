@@ -60,10 +60,10 @@
 | **FR-014** (Stale bond recovery) | `FR-BLE-070`; `TR-BLE-040` | GATT auth rejection, BLE transport error state, Home pairing guidance and Retry; `FidoBleLifecycleTest` | Generic auth/link failure recovery host tests passed; exact stale-bond cause and physical recovery unverified |
 | **FR-015** (Keepalive cadence) | `FR-BLE-060`; `TR-BLE-040` | Notification writer and CTAP processing loop; assertion/cancellation tests | Host cadence tests passed; physical cadence unverified |
 | **FR-016** (Cooperative CMD_CANCEL) | `FR-BLE-060`; `TR-BLE-040` | `BleGattTransport`; `FidoBleCancellationTest` | Host cancellation passed; Android prompt dismissal unverified |
-| **SC-001** (Windows MakeCredential) | `FR-BLE-030/050/060/080`; `TR-BLE-030` | Registration / physical BLE procedure | Unverified: no Android radio or Windows host |
-| **SC-002** (Windows GetAssertion) | `FR-BLE-030/050/060/080`; `TR-BLE-030` | Assertion / physical BLE procedure | Unverified: no Android radio or Windows host |
-| **SC-003** (Fragmentation byte integrity) | `FR-BLE-050`; `TR-BLE-020` | `FidoBleFramingTest`, independent wire vectors and physical link | Host framing passed; secured-link integrity unverified |
-| **SC-004** (50 reconnect cycles) | `FR-BLE-040/070`; `TR-BLE-020/040` | Physical reconnect stress procedure | Unverified: device cycles and memory observation unavailable |
+| **SC-001** (Windows MakeCredential) | `FR-BLE-030/050/060/080`; `TR-BLE-030` | Registration / physical BLE procedure | Passed on ASUS/API35: BLE MakeCredential and WebAuthn.io registration completed (BLE Records 142–144; parent Record 129) |
+| **SC-002** (Windows GetAssertion) | `FR-BLE-030/050/060/080`; `TR-BLE-030` | Assertion / physical BLE procedure | Passed on bonded ASUS/API35–Windows link: GetInfo and GetAssertion terminal notifications were acknowledged and WebAuthn.io login succeeded (parent Record 258) |
+| **SC-003** (Fragmentation byte integrity) | `FR-BLE-050`; `TR-BLE-020` | Independent valid corpus byte vectors and authenticated physical link | Two-case byte-exact host corpus passes; physical BLE login passes, but complete physical corpus byte comparison remains unverified (Records 227, 258) |
+| **SC-004** (50 reconnect cycles) | `FR-BLE-040/070`; `TR-BLE-020/040` | 50-cycle physical reconnect procedure, process/service continuity and retained-resource assessment | Current 50-cycle GATT discovery run and same-process/service continuity pass; authenticated CTAP interruption, successor request, and retained-owner/leak acceptance remain unverified (Records 228, 259) |
 | **SC-005** (Start/Stop timing) | `FR-BLE-010/080`; `TR-BLE-010` | Physical startup, Stop and background procedure | ASUS Start 419ms, Stop 476ms, and 10-second advertising persistence passed (Record 026); interruption/cycle behavior remains unverified |
 | **SC-006** (Internal operation latency) |`NFR-PERF-030`; `TR-PERF-010` | Synthetic latency assessment | Host pass: 10 measured samples per operation; maxima GetAssertion 32.272ms, GetInfo 5.151ms, MakeCredential 13.635ms, ResetAuthenticator 2.783ms. Current release AAB/base and idle/advertising memory comparisons are recorded in Records 011, 030 and 031; physical timing remains diagnostic/unverified. |
 
@@ -2716,3 +2716,179 @@
 - **date**: 2026-11-10.
 - **status**: Passed for the configured connected BLE/FIDO2 workload, floors and accepted-target regression under the parent integration wrapper; the policy-excluded two-device stress scenario remains unverified.
 - **artifact_link**: Candidate bundle and decision under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-current-main-comparison-2026-11-09\measured-target-index\a9245ce6-2801-4f4c-9e04-5662ec0a1675`; parent Record 255; accepted target run `b24e1d3c-e0e9-4896-91f6-cb41ea60db23`.
+
+### Record 227: Exact Fragmented Assertion Bytes and Interrupted-Request Recovery (T048/T049 — Partial)
+- **requirement**: T048/SC-003 exact fragmented CTAP request/response bytes and FIFO ordering; T049/SC-004 interrupted request cleanup followed by a clean request.
+- **scope**: Deterministic Android host tests for the BLE transport at default ATT MTU, plus the preceding physical 50-cycle Mi-to-ASUS GATT discovery run (parent Record 257). This record does not claim authenticated-link physical corpus completion.
+- **revision**: Feature 064 worktree `064-bluetooth-transport-selection`; host test source changed in `FidoBleAssertionTest.kt` and `FidoBleLifecycleTest.kt`.
+- **named_procedure**: Ran `:feature:fido2:testAndroidHostTest` filtered to `FidoBleAssertionTest` and `FidoBleLifecycleTest`, followed by `:feature:fido2:ktlintAndroidHostTestSourceSetCheck`. JUnit reports: assertion 7/7 passed; lifecycle 15/15 passed; zero failures/errors/skips; KtLint passed. The defined two-case corpus contains GetAssertion (89-byte valid request with one allow-list credential/117-byte response with a verified 72-byte P-256 ECDSA signature; 5 request frames/7 response notifications) and MakeCredential (150-byte valid request/161-byte valid `fmt=none` response; 8 request frames/9 response notifications) at default MTU. Both tests compare the complete CTAP request passed to the raw operation and exact ordered notification packet bytes. The lifecycle test cancels a pending CTAP request on peer disconnect, reconnects the peer, and verifies a fresh GetInfo reaches the CTAP operation and emits the expected response.
+- **environment**: Windows 11; Gradle 9.6.0; host tests; ASUS AI2302/API35 `R7AIB7002901AZ3` and Mi A2/API29 `2ac6876` attached over ADB; 2026-11-10 local time (JUnit timestamps are UTC on 2026-11-11).
+- **expected_observed_result**: Exact bytes/order for both fragmented valid CTAP request/response corpus cases pass deterministically. The interrupted-operation recovery path returns a clean subsequent response in the host model.
+- **limitations**: The two-case corpus is deterministic host evidence, not the complete corpus exercised over a physical authenticated BLE link. A separate physical GetAssertion succeeded over the bonded BLE connection (parent Record 258), but no physical full-byte packet capture or complete corpus comparison was collected. The physical 50-cycle discovery run was unauthenticated, has only before/after process snapshots, and did not exercise an interrupted CTAP request; see parent Record 257. Retained-owner/leak acceptance and authenticated reconnect/interruption remain unverified.
+- **date**: 2026-11-10 local time.
+- **status**: Passed for the defined two-case byte-exact host corpus, cancellation/reconnect recovery, and a physical BLE GetAssertion/WebAuthn login; T048 and T049 remain Partial pending running both corpus cases with byte comparison over physical authenticated BLE and stronger authenticated stress/resource evidence.
+- **artifact_link**: `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleAssertionTest.kt`; `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleLifecycleTest.kt`; Gradle XML reports under `feature/fido2/build/test-results/testAndroidHostTest/`; parent Record 257.
+
+### Record 228: Current-Build 50-Cycle GATT Reconnect and Idle Memory Follow-Up (T049 — Partial)
+- **requirement**: T049 / SC-004; exercise 50 reconnect cycles and inspect advertiser process continuity and memory after the run.
+- **scope**: Current installed ASUS API35 BLE authenticator advertised its FIDO service to the separate Mi A2/API29 central. This record is GATT discovery evidence, not secured CTAP protocol stress.
+- **revision**: Worktree HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; installed ASUS app SHA-256 `713445A8AE1EDC599CD3EF8D781C727BF8B52211554A19620EDE4F76A4C16754`; test APK SHA-256 `F8A3B2387785179741966B3CBB4D70D224E83A59692715F0C7FE52E20CF1369`.
+- **named_procedure**: Ran `FidoBleReconnectStressDeviceTest` on Mi using AndroidJUnitRunner argument `runFidoBleReconnectStress=true`; it returned `OK (1 test)` in 86.547 seconds and logged 50 successful GATT connect/service-discovery/disconnect/close cycles. Captured ASUS memory before, immediately after, and after about 56 seconds idle. ASUS process PID remained 24389, foreground `Fido2TransportService` stayed active, and GATT advertiser/server remained registered.
+- **environment**: ASUS AI2302/API35 `R7AIB7002901AZ3`; Mi A2/API29 `2ac6876`; Windows bond remained present on ASUS; 2026-11-10 local time.
+- **expected_observed_result**: No process/service restart occurred. ASUS native heap PSS/allocated changed 13,505/16,393 KiB → 13,657/16,457 KiB immediately after → 13,409/16,391 KiB after idle. Dalvik heap PSS/allocated changed 27,438/7,536 KiB → 14,227/7,504 KiB → 11,223/7,532 KiB; total PSS after idle was 136,076 KiB. Mi central Java/native heap snapshots increased 2,023,240/6,081,736 → 2,903,720/6,697,384 bytes.
+- **date**: 2026-11-10 local time.
+- **limitations**: Mi was not bonded to ASUS; no CTAP command, active request interruption, encrypted write, or authenticated successor request was exercised. Heap snapshots are noisy process-wide readings and do not directly enumerate retained owners/buffers. T049 remains partial; T048 physical full-corpus byte comparison remains unverified.
+- **status**: Passed for 50 GATT reconnect/discovery cycles and same-process/service continuity; resource-leak and authenticated interruption recovery acceptance remains unverified.
+- **artifact_link**: Parent Record 259; `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t049-reconnect-2026-11-10\run.md`; `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt`.
+
+### Record 229: Bonded Windows-to-ASUS FIDO Advertiser Reconnect Churn (T049 — Partial)
+- **requirement**: T049 / SC-004; repeated reconnects through the existing authenticated host bond while verifying service/process continuity.
+- **scope**: Windows WinRT/Bleak 3.1.0 central connected to ASUS AI2302/API35 `Zenfone 10`, selected by advertised FIDO service UUID; the Windows bond was preserved and no pairing/WebAuthn prompt was initiated.
+- **revision**: Worktree HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; installed ASUS app SHA-256 `713445A8AE1EDC599CD3EF8D781C727BF8B52211554A19620EDE4F76A4C16754`.
+- **named_procedure**: Completed 50 consecutive Windows GATT connect/disconnect cycles; all 50 succeeded without exceptions. WinRT reported the target device as paired (`is_paired=true`, `can_pair=false`, protection level 3). ASUS process remained PID 24389, `Fido2TransportService` remained foreground, and Android reported the FIDO service/characteristics as started after the run.
+- **environment**: Windows 11; ASUS AI2302/API35 `R7AIB7002901AZ3`; existing Windows bond to `LOQ15IRX10-3`; 2026-11-10.
+- **expected_observed_result**: Bonded connection churn and service/process continuity passed.
+- **limitations**: Windows WinRT/Bleak exposed Generic Attribute, Generic Access, and unrelated `0x1849`, `0x184C`, `0x1855` services rather than Chimali's FIDO GATT database, despite the FIDO service in the advertisement and Android's database reporting it active. Uncached discovery returned the same list; the FIDO control-point-length characteristic was unavailable. This run therefore does not prove encrypted characteristic access, CTAP packet exchange, interrupted-request recovery, clean successor behavior, or retained-owner/leak acceptance. T049 remains partial; T048 remains open.
+- **date**: 2026-11-10 local time.
+- **status**: 50/50 bonded connect/disconnect cycles and process/service continuity passed; FIDO GATT discovery discrepancy blocks physical CTAP corpus and interruption testing from this Windows client.
+- **artifact_link**: Parent Record 260; `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t049-reconnect-2026-11-10\run.md`.
+
+### Record 230: Fresh Mi-to-ASUS Service Discovery vs Windows WinRT after Bond Removal (T048/T049 — Partial)
+- **requirement**: BLE T048/SC-003 and T049/SC-004; establish physical FIDO GATT availability for packet corpus and reconnect/recovery acceptance.
+- **scope**: Same current ASUS FIDO BLE advertiser checked by a Windows WinRT central and a Xiaomi Mi A2/API29 Android central after clearing the Windows/ASUS bond.
+- **revision**: Worktree HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; device-test APK rebuilt from current source, SHA-256 `FEAEFFD1A4ACC13136827B44FAD27B6158ACDB6990369C6453E01FC54B75A622`.
+- **named_procedure**: Windows uncached discovery after both sides were unpaired still returned standard/unrelated services `1801`, `1800`, `1849`, `184C`, `1855`, `180A`, but not FIDO `FFFD`, despite a fresh ASUS advertising address and the FIDO UUID in the advertisement. Windows reported `paired=false`, `can_pair=true`. Rebuilt and installed the current FIDO2 Android device-test APK on Mi, then reran `remoteFidoGattServiceSupportsFiftyDiscoverDisconnectReconnectCycles`; result `OK (1 test)` in 80.018 seconds, with the FIDO service assertion passing through all 50 cycles.
+- **environment**: Windows 11; ASUS AI2302/API35 `R7AIB7002901AZ3`; Mi A2/API29 `2ac6876`; 2026-11-11.
+- **expected_observed_result**: Fresh Mi-central GATT service discovery passes against ASUS; Windows WinRT does not expose the FIDO GATT service even after unpairing/cache invalidation.
+- **limitations**: Does not distinguish a Windows policy/WinRT issue from Windows-to-ASUS Android stack interoperability. An immediate first Mi retry failed to connect at cycle 1 within 8 seconds; the later 50-cycle run passed. Pairing must be restored with user confirmation on both devices before authenticated physical CTAP tests. T048 and T049 remain open.
+- **date**: 2026-11-11.
+- **status**: Android-central service discovery passed; Windows-specific GATT service visibility remains unresolved and blocks physical CTAP packet/recovery testing.
+- **artifact_link**: Parent Record 261; `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t049-reconnect-2026-11-10\run.md`; current source `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt`.
+
+### Record 231: Windows WebAuthn Registration Succeeds after ASUS Re-pair (T020 — Partial)
+- **requirement**: BLE US1 physical registration acceptance; supplementary evidence for authenticated Windows/ASUS operation after bond recreation.
+- **scope**: Current ASUS AI2302/API35 BLE authenticator, Windows host re-paired, synthetic WebAuthn registration on `webauthn.io`.
+- **revision**: ASUS installed application remained current worktree build; Windows WinRT reported paired/authenticated bond and the FIDO BLE advertiser remained active.
+- **named_procedure**: User clicked Register for `codex-synthetic-064-20261103`, selected the Bluetooth security key in Windows, and completed the ASUS prompt. WebAuthn.io showed `Success! Now try to authenticate...`.
+- **environment**: Windows 11; ASUS AI2302/API35 `R7AIB7002901AZ3`; 2026-11-11.
+- **expected_observed_result**: Physical Windows WebAuthn registration succeeds after re-pair, showing the OS WebAuthn path works even though the separate WinRT/Bleak diagnostic client does not enumerate FIDO service `FFFD`.
+- **limitations**: No raw physical CTAP byte capture or full corpus comparison; no authentication, interrupted operation, or clean successor has yet been observed in this run. T020, T048, and T049 remain open pending the remaining acceptance evidence.
+- **date**: 2026-11-11.
+- **status**: Registration passed; packet corpus and reconnect recovery remain unverified.
+- **artifact_link**: Parent Record 262; visible WebAuthn.io success result.
+
+### Record 232: Windows WebAuthn Authentication Succeeds after ASUS Re-pair (T020 — Partial)
+- **requirement**: BLE US1 physical authentication acceptance; supplementary evidence for authenticated Windows/ASUS BLE operation after bond recreation.
+- **scope**: Current ASUS AI2302/API35 FIDO BLE authenticator, Windows 11 host `LOQ15IRX10-3`, and synthetic account `codex-synthetic-064-20261103` on `webauthn.io`.
+- **revision**: Worktree HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; local `shrunkDebug` APK SHA-256 `713445A8AE1EDC599CD3EF8D781C727BF8B52211554A19620EDE4F76A4C16754`.
+- **named_procedure**: User started Authenticate after successful registration, selected the Bluetooth security key in Windows, and completed ASUS verification. WebAuthn.io displayed “You're logged in!”; the credential profile listed transports `ble` and `usb`.
+- **environment**: Windows 11; ASUS AI2302/API35 `R7AIB7002901AZ3`; 2026-11-11.
+- **expected_observed_result**: Windows WebAuthn authentication succeeded over the Bluetooth security-key route after re-pair, and the credential metadata included BLE transport.
+- **limitations**: This confirms a real ceremony but captures neither full physical CTAP request/response bytes nor the valid fragmented corpus. No authenticated interrupted operation, clean successor request, or retained-owner/leak assessment was performed. SC-003 physical corpus and SC-004 reconnect/recovery acceptance remain partial.
+- **status**: Physical WebAuthn authentication passed; T048/T049 remain partial.
+- **artifact_link**: Parent Record 263; WebAuthn.io profile screenshot showing login success and transports `ble`/`usb`; parent Record 262 for registration.
+
+### Record 233: Mi-to-ASUS Authenticated Corpus Harness Stops before CTAP (SC-003/SC-004 — Unverified)
+- **requirement**: SC-003/SC-004; send the defined valid fragmented corpus over an authenticated BLE link and check interruption recovery plus repeated successor connections.
+- **scope**: ASUS AI2302/API35 ran the isolated opt-in GATT test endpoint; Mi A2/API29 ran the Android GATT central test. The user confirmed numeric comparison and the two devices bonded.
+- **revision**: Worktree HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; rebuilt Android device-test APK was installed on both devices.
+- **named_procedure**: Started `FidoBleReconnectStressDeviceTest` on ASUS with `runFidoBlePhysicalCorpusServer=true`, then started `FidoBlePhysicalCorpusClientDeviceTest` on Mi with `runFidoBlePhysicalCorpusClient=true`. Mi discovered the FIDO service, connected, and successfully enabled its local notification subscription. It then timed out waiting for the encrypted CCCD `onDescriptorWrite` callback (`GATT_SUCCESS` expected, no callback received). ASUS's endpoint received no CTAP corpus request and timed out waiting for the sequence.
+- **environment**: ASUS AI2302/API35 `R7AIB7002901AZ3`; Mi A2/API29 `2ac6876`; Windows 11; 2026-11-11.
+- **expected_observed_result**: Bonding and service discovery succeeded; encrypted notification configuration did not complete, so the test stopped before CTAP.
+- **limitations**: No physical request/response bytes were compared, and no interruption, successor CTAP request, 50-cycle authenticated run, or retained-owner/resource measurement occurred. This failed test-harness path does not establish a product protocol failure. SC-003/SC-004 remain partial. Mi–ASUS bond remains; ASUS authenticator service was relaunched only to its app screen and requires Start Authenticator before BLE advertising resumes.
+- **status**: Physical corpus/recovery harness remains unverified after CCCD setup failure.
+- **artifact_link**: Parent Record 264; `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBlePhysicalCorpusClientDeviceTest.kt`; AndroidJUnitRunner output and device logcat.
+
+### Record 234: Reverse-direction Android Client Restricted before CTAP (SC-003/SC-004 — Unverified)
+- **requirement**: SC-003 physical corpus and SC-004 interrupted-request/reconnect acceptance; attempt the corpus with ASUS as the Android GATT central and Mi as the FIDO GATT server.
+- **configuration**: Mi A2/API29 `2ac6876` hosted the opt-in server endpoint; ASUS AI2302/API35 `R7AIB7002901AZ3` ran the opt-in client. Devices were bonded and the test APK was rebuilt and installed on both.
+- **named_procedure**: Ran the single server test `authenticatedRemoteGattLinkTransportsCorpusAndInterruptedRequestRecovery` on Mi and single client test `authenticatedMiCentralComparesPhysicalCorpusAndFiftySuccessors` on ASUS. The client connected and discovered the FIDO service, then failed at `setCharacteristicNotification` with `SecurityException: Need BLUETOOTH_PRIVILEGED` from Android's `registerForNotification`. Replacing the instrumentation context with the target app context did not change the result.
+- **environment**: Mi A2/API29; ASUS AI2302/API35; Windows 11; 2026-11-11.
+- **expected_observed_result**: No CCCD write or CTAP request followed because ASUS Android denied notification registration to the app-level client.
+- **limitations**: The attempt does not assess the authenticator's CTAP behavior. No request/response bytes, interrupted request, successor operation, or 50-cycle authenticated run occurred. Both product apps were relaunched and BLE advertising restored; Mi–ASUS bond remains.
+- **status**: Inconclusive harness/platform restriction; SC-003/SC-004 remain partial.
+- **artifact_link**: Parent Record 265; AndroidJUnitRunner output from ASUS; `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBlePhysicalCorpusClientDeviceTest.kt`.
+
+### Record 235: Corpus and Lifecycle Test Verification (SC-003/SC-004 — Host Coverage)
+- **requirement**: Verify the revised corpus/lifecycle host tests and compile the opt-in physical device-test source.
+- **procedure/result**: `:feature:fido2:testAndroidHostTest` passed 1,172 tests (0 failures, errors, or skips); `:feature:fido2:compileAndroidDeviceTest` and `:feature:fido2:ktlintAndroidDeviceTestSourceSetCheck` passed.
+- **limitations**: This verifies host behavior and device-test source only; it does not establish physical packet parity or authenticated interruption/reconnection behavior. SC-003/SC-004 remain partial.
+- **status**: Test suite and device-test source verification passed; device-level acceptance remains unverified.
+- **artifact_link**: Parent Record 266; `feature/fido2/build/test-results/testAndroidHostTest`.
+
+### Record 236: Authenticated Physical Corpus and Reconnect Recovery (SC-003 Passed; SC-004 Partial)
+- **requirements**: BLE SC-003 and SC-004; parent T048/T049.
+- **configuration**: Mi A2/API29 `2ac6876` hosted the isolated FIDO GATT transport endpoint; ASUS AI2302/API35 `R7AIB7002901AZ3` was the authenticated GATT central. The user confirmed numeric comparison and both bonds remained present. Android test APK SHA-256 `30330647A5E8FBB787A1F5B6A72523619743D3AE2888CEC56DE34CE65314F8EA`, built from branch `064-bluetooth-transport-selection`, HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`.
+- **named_procedure**: Started the opt-in server test on Mi and the opt-in corpus client on ASUS. With ATT MTU 23, the client sent MakeCredential, GetAssertion, and an interrupted GetAssertion; it then performed 50 cycles, each waiting for the Mi FIDO advertisement to resume before reconnecting and sending GetInfo. The server fixture asserted every complete request and its order; the client asserted complete response bytes. Both instrumentation runs passed `OK (1 test)`. Server log: `requests=53 responseNotifications=70 interruptedRequestCancelled=true successorCycles=50`. Client log: `makeCredential=true getAssertion=true interruptedRequest=true successorGetInfoCycles=50 gattSetupAttempts=53`; two setup retries occurred before CTAP began, and no CTAP request was retried. The single server process remained active for the complete successful run; its transient session owner state reset after disconnect. Both product apps were relaunched and advertising afterward.
+- **T049 memory observation**: After clearing the test recorder buffers and forcing GC, Java heap was 2,231,048 bytes before and 3,215,608 bytes quiescent (+984,560); native heap was 6,015,344 bytes before and 6,573,432 bytes quiescent (+558,088). Endpoint test process PID was 27681. This is one process-level sample, not a defined leak threshold or proof of zero leak. The isolated AndroidJUnitRunner endpoint uses a deterministic CTAP operation fixture, not the wallet-backed app process.
+- **environment**: Mi A2/API29 and ASUS AI2302/API35; 2026-11-11 local time.
+- **expected_observed_result**: The two valid fragmented CTAP2 request/response corpus cases passed physical byte comparison over the authenticated link. Disconnect cancelled the in-flight CTAP operation; the first successor GetInfo succeeded; all 50 authenticated reconnect/GetInfo cycles then passed without restarting the isolated endpoint process. SC-003 passed. The functional portion of SC-004 passed.
+- **limitations**: One before/quiescent memory sample cannot determine whether the reported heap growth is bounded platform/test allocation or a leak. SC-004 remains partial pending a repeated-batch or equivalent leak/stability assessment. This endpoint proves BLE framing/lifecycle behavior, not wallet persistence or production CTAP semantics.
+- **revision**: HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; Android device-test source compiled, ktlint passed, and the APK assembled successfully.
+- **date**: 2026-11-11.
+- **status**: SC-003 passed; SC-004 functional checks passed, memory-leak acceptance partial.
+- **artifact_link**: Parent Record 267; physical device-test sources and AndroidJUnitRunner/logcat output on Mi and ASUS.
+
+### Record 237: Five-Batch Authenticated Reconnect and Memory Follow-up (SC-004 — Partial)
+- **requirement**: BLE SC-004; five batches of 50 authenticated reconnect/GetInfo operations with interruption recovery, session-owner cleanup, and quiescent memory observations.
+- **configuration**: Mi A2/API29 `2ac6876` isolated FIDO GATT endpoint; bonded ASUS AI2302/API35 `R7AIB7002901AZ3` central; candidate HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`, working-tree device-test APK SHA-256 `49751B50829A50D164FEB2962E3CB446E9FAC4DEA1871A10F4628386602F95B1` (parent Record 268).
+- **procedure/result**: Following MakeCredential/GetAssertion, interrupted GetAssertion, and a clean successor, both physical instrumentation sessions passed five batches of 50 exact GetInfo request/response comparisons. At each batch boundary the test cleared recorder buffers, forced GC, verified the GATT session owner was reset, and sampled heap. Mi reported 253 total requests, 270 response notifications, cancellation success, 250 successors, and five batches; ASUS reported 250 successors in five batches and 252 setup attempts. Neither process was restarted.
+- **memory_observation**: After recorder clearing and `System.gc()` requests, Java heap readings increased across batches from 4,473,688 to 8,340,312 bytes; native heap ranged from 6,748,632 to 7,355,944 bytes. ART counters remained at one collection and 1,410,880 bytes freed throughout the checkpoints, so these are not repeated post-GC live-heap samples. The observations cannot distinguish transport retention from Android/runtime/test-harness allocation and do not prove a leak.
+- **expected_observed_result**: Interrupted request cancellation, first clean successor, exact corpus behavior, owner reset, and all 250 reconnect successors passed. The functional part of SC-004 passed.
+- **limitations**: Memory rose after recorder buffers were cleared and GC was requested at every boundary; stability/leak acceptance is therefore unresolved. No quantitative threshold is defined, and this isolated endpoint is a deterministic fixture rather than the wallet-backed product service.
+- **date**: 2026-11-11 local time.
+- **status**: SC-004 functional recovery/reconnect passed; memory stability remains partial and requires investigation.
+- **artifact_link**: Parent Record 268; `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt`; physical instrumentation outputs and Mi logcat.
+
+### Record 238: ART GC Counter Check for Reconnect Memory Measurements (SC-004 — Partial)
+- **requirement**: BLE SC-004; validate that repeated reconnect memory samples follow actual collection before interpreting retained heap.
+- **configuration**: Mi A2/API29 isolated FIDO endpoint and bonded ASUS AI2302/API35 Android central; same candidate HEAD and device-test APK as parent Record 269.
+- **procedure/result**: Physical corpus, interrupted GetAssertion, clean successor, and all 250 authenticated GetInfo reconnect cycles passed in five batches on both devices. ART runtime statistics were recorded after the existing `System.gc()` request at each checkpoint.
+- **memory_observation**: `art.gc.gc-count` stayed at 1 and `art.gc.bytes-freed` at 1,410,880 for all batches; `bytes-allocated` rose from 5,884,568 to 9,751,192. The observed heap readings therefore were not post-GC live-heap measurements after the first batch.
+- **expected_observed_result**: Functional recovery/reconnect passed; memory retention cannot yet be judged from the available samples.
+- **limitations**: The revised device-test sampler now applies bounded temporary allocation pressure and waits for a higher ART GC count before accepting a memory checkpoint. This sampler requires another physical run; no leak-free claim is made.
+- **date**: 2026-11-11 local time.
+- **status**: SC-004 functional checks passed; repeated-GC memory stability remains unverified.
+- **artifact_link**: Parent Record 269; `feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt`; physical runner outputs and Mi logcat.
+
+### Record 239: Pressure-Assisted GC Samples through Three Reconnect Batches (SC-004 — Partial)
+- **requirement**: BLE SC-004; compare post-GC heap during authenticated reconnect batches.
+- **configuration**: Mi A2/API29 isolated FIDO endpoint and bonded ASUS AI2302/API35 central; candidate HEAD and device-test APK SHA-256 as parent Record 270.
+- **procedure/result**: Physical corpus, interrupted request cancellation, clean successor, and three batches of 50 exact GetInfo reconnects passed. The revised test applied bounded temporary allocation pressure and required ART's GC count to increase before sampling. The user then requested an immediate stop to unplug ASUS; both instrumentation runners were force-stopped before batches 4–5.
+- **memory_observation**: Batches 1–3 measured Java heap at `2,230,960; 2,258,400; 2,242,424` bytes and native heap at `6,909,240; 6,786,376; 7,143,536` bytes. ART GC counts were `5; 6; 7`, with cumulative bytes-freed values `2,932,808; 3,970,328; 5,018,496`. These are confirmed post-GC samples and Java heap was stable over the three observed batches.
+- **limitations**: The planned five-batch run was stopped after batch 3; no conclusion about the final two batches or full SC-004 memory stability is claimed.
+- **date**: 2026-11-11 local time.
+- **status**: First 150 authenticated successors passed with stable post-GC Java heap; SC-004 remains partial.
+- **artifact_link**: Parent Record 270; device-test source and Mi/ASUS runner logs.
+
+### Record 240: Successor Notification Stall after Interrupted CTAP (SC-004 — Partial)
+- **requirement**: BLE SC-004; validate cancellation followed by a clean authenticated GetInfo request and sustained reconnects.
+- **configuration**: Mi A2/API29 `2ac6876` hosted the isolated FIDO endpoint; bonded ASUS AI2302/API35 `R7AIB7002901AZ3` was the central. Candidate HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`; the failed run used APK SHA-256 `3100D108A83081F9DF718DD4F14AD45FD4308836EFC45DCD6F31A14C39472FBF`.
+- **named_procedure**: Sent the valid corpus and interrupted a GetAssertion by disconnecting the peer, then started the first successor GetInfo. Mi logcat showed the interrupted operation cancel and session-generation advance, followed by GetInfo execution whose terminal notification was not acknowledged. The server aborted the session on notification stall; ASUS failed at response fragment 1. The server runner was stopped after the client failure.
+- **code_correction**: Clear the transport notification writer on peer disconnect, explicit stop, authentication failure, and Bluetooth unavailability. Inspection also identified the Mi API29 legacy notification slot: `AndroidFidoBleGattServerHost` kept its payload until `onNotificationSent` or server stop, so a disconnect without the callback could leave the slot occupied and reject a successor notification. The host now releases the buffer for the owning peer on disconnect/authentication failure, with per-peer checks to keep an unrelated stale callback from releasing a successor's value. Added status logs distinguish GATT initiation rejection from callback failure. The host lifecycle regression exercises an outstanding keepalive, disconnect, and same-peer successor.
+- **verification**: `FidoBleLifecycleTest` passed 15/15 and `BleNotificationWriterTest` passed 16/16; the full `:feature:fido2:testAndroidHostTest` suite passed 1,172/1,172 (0 failures/errors/skips); Android device-test source compilation and AndroidMain/AndroidHostTest ktlint checks passed. The physical run predated these corrections, so no physical recovery result is claimed for the corrected version.
+- **expected_observed_result**: This run did not recover: the first successor GetInfo response was not delivered. The correction removes retained notification state at the lifecycle boundary; the next physical run must verify the actual GATT callback and response behavior.
+- **limitations**: No one of 250 successor cycles or memory checkpoints completed in this attempt. The only currently connected central candidate, Motorola XT1097/API23, is below the project’s API28 minimum; the Mi endpoint cannot replace the second Android central. Repeat with ASUS or another supported Android central before marking SC-004 complete.
+- **environment**: Mi A2/API29; ASUS AI2302/API35; 2026-11-11 local time.
+- **status**: A recovery failure was observed and a code-side cleanup correction passed local checks; physical SC-004 remains open.
+- **artifact_link**: Parent Record 271; `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/BleGattTransport.kt`; `feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/transport/AndroidFidoBleGattServerHost.kt`; `feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleLifecycleTest.kt`; runner output and Mi logcat.
+
+### Record 241: Windows WinRT Central Omits Mi FIDO Service (SC-004 — No CTAP Traffic)
+- **requirement**: BLE SC-004; validate interrupted-request recovery, a clean successor, 50 reconnect cycles, and memory retention on the corrected GATT server.
+- **configuration**: Mi A2/API29 `2ac6876` hosted the isolated endpoint with device-test APK SHA-256 `C44748CF82D5115ADBCD8EB5A68E0C93804A64A499314BF2DFC269955BDE3583`; Windows 11 used Bleak 3.1.0 with uncached WinRT service discovery. Candidate HEAD `6aab8ae066744011983d8e79f9d8ab4e37c714f8`.
+- **named_procedure**: Start the reconnect-stress test in server mode on Mi, discover/connect from Windows, and run the corpus plus 250 requested reconnects. Discovery exposed only services `1801`, `1800`, and `180A`; service `FFFD` and its FIDO characteristics were absent. No CTAP request was sent. The waiting instrumentation process was stopped after discovery failed.
+- **expected_observed_result**: The run did not reach protocol or stress assertions. Windows GATT service discovery is not a valid substitute for the Android central procedure when the FIDO service is omitted.
+- **limitations**: Physical recovery after the notification cleanup, authenticated successor traffic, reconnect-cycle acceptance, and memory checkpoints remain unverified. The Motorola XT1097/API23 cannot run the test app due to the project API28 minimum; rerun when a supported Android central is available, or establish another central that exposes the FIDO service and sends authenticated CTAP traffic.
+- **environment**: Mi A2/API29 endpoint; Windows 11/Bleak 3.1.0 central; 2026-11-11 local time.
+- **status**: T049/SC-004 remains open; this is a central discovery limitation, not evidence of a product protocol failure.
+- **artifact_link**: Parent Record 272; ignored `.tmp/t049-pc-central.py` harness; Windows uncached discovery error.
+
+### Record 242: Motorola API23 Cannot Establish Authenticated Mi BLE Bond (SC-004 — No CTAP Traffic)
+- **requirement**: BLE SC-004; validate interrupted-request recovery, a clean successor, reconnect cycles, and memory stability on the corrected GATT server.
+- **configuration**: Mi A2/API29 `2ac6876` ran the production BLE authenticator; Motorola XT1097/API23 `TA44908TMQ` ran an ignored temporary BLE GATT client with minSdk 23. No Chimali build was installed on Moto.
+- **named_procedure**: The helper scanned for the FIDO service and first attempted Android's bond request, which timed out. A follow-up used the protected FIDO GATT descriptor to trigger system pairing. Mi displayed “Tap to pair with null” with no numeric comparison value. After Pair & Connect was accepted, the encrypted CCCD callback timed out and the subsequent 120-second bond wait ended without an authenticated bond. No CTAP traffic was sent.
+- **expected_observed_result**: The API23 Moto did not establish the authenticated bond required by the BLE security contract, so it could not act as a central for this acceptance run.
+- **limitations**: T049 remains open. This result is limited to the unsupported API23 central and its pairing path; it does not establish a product protocol failure. Repeat with ASUS or another API28+ Android central that supports the required numeric-comparison bond.
+- **environment**: Mi A2/API29; Motorola XT1097/API23; Windows 11; 2026-11-11 local time.
+- **status**: No authenticated corpus, interrupted request, successor, reconnect cycle, or memory checkpoint ran.
+- **artifact_link**: Parent Record 273; `.tmp/t049-moto-client`; Moto helper screen/log and Mi pairing prompt.

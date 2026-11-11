@@ -176,6 +176,7 @@ class BleGattTransport(
             advertiserController.stopObservingAdapterState()
             gattServerHost?.stop()
             cancelCurrentMessage()
+            notificationWriter.clear()
             val activeDevice = sessionOwner.activeDeviceAddress
             if (activeDevice != null) {
                 sessionOwner.disconnectHost(activeDevice)
@@ -501,6 +502,10 @@ class BleGattTransport(
                     activeHostAddress = null
                     cancelReceiveTimeout()
                     cancelCurrentMessage()
+                    // A keepalive or response notification can still be in flight when the peer drops.
+                    // Release its queue before advertising a successor session so old packets and callbacks
+                    // cannot hold the writer's single-flight slot across reconnects.
+                    notificationWriter.clear()
                 }
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     _connectionState.value = Fido2ConnectionState.Error("Bluetooth connection or pairing failed")
@@ -537,6 +542,7 @@ class BleGattTransport(
         activeHostAddress = null
         cancelReceiveTimeout()
         cancelCurrentMessage()
+        notificationWriter.clear()
         advertiserController.stopAdvertising()
         _connectionState.value = Fido2ConnectionState.Error("Bluetooth pairing authentication failed")
     }
@@ -548,6 +554,7 @@ class BleGattTransport(
         cancelCurrentMessage()
         val activeDevice = activeHostAddress ?: sessionOwner.activeDeviceAddress
         activeHostAddress = null
+        notificationWriter.clear()
         if (activeDevice != null) sessionOwner.disconnectHost(activeDevice)
         advertiserController.stopAdvertising()
         advertiserController.stopObservingAdapterState()

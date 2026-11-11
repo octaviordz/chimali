@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
@@ -30,6 +31,12 @@ interface BleGattServerHost {
     fun stop()
 }
 
+private data class PendingLegacyNotification(
+    val deviceAddress: String,
+    val characteristic: BluetoothGattCharacteristic,
+    val value: ByteArray,
+)
+
 /** Android public-API GATT server host used by the selected BLE transport. */
 @Req("FR-BLE-010", "FR-BLE-020", "FR-BLE-070", "TR-BLE-010", "TR-BLE-040")
 class AndroidFidoBleGattServerHost(
@@ -44,7 +51,7 @@ class AndroidFidoBleGattServerHost(
     private var connectionStateListener: (BluetoothDevice, Int, Int) -> Unit = { _, _, _ -> }
     private var authenticationFailureListener: (BluetoothDevice) -> Unit = {}
     private val legacyNotificationLock = Any()
-    private var legacyNotificationValue: Pair<BluetoothGattCharacteristic, ByteArray>? = null
+    private var legacyNotificationValue: PendingLegacyNotification? = null
     private val callback by lazy {
         FidoBleGattServer(
             sessionOwner = sessionOwner,
@@ -53,12 +60,21 @@ class AndroidFidoBleGattServerHost(
                 serviceRegistrations[uuid]?.complete(status)
             },
             notificationSentListener = { device, status ->
-                releaseLegacyNotificationValue()
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    Logger.w { "AndroidFidoBleGattServerHost: GATT notification callback failed status=$status" }
+                }
+                releaseLegacyNotificationValue(expectedDeviceAddress = device.address)
                 notificationSentListener(device, status)
             },
-            onConnectionStateChanged = { device, status, state -> connectionStateListener(device, status, state) },
+            onConnectionStateChanged = { device, status, state ->
+                if (state == BluetoothProfile.STATE_DISCONNECTED) {
+                    releaseLegacyNotificationValue(expectedDeviceAddress = device.address)
+                }
+                connectionStateListener(device, status, state)
+            },
             onConnectionRejected = { device -> gattServer?.cancelConnection(device) },
             onAuthenticationFailure = { device ->
+                releaseLegacyNotificationValue(expectedDeviceAddress = device.address)
                 authenticationFailureListener(device)
                 gattServer?.cancelConnection(device)
             },
@@ -151,17 +167,21 @@ class AndroidFidoBleGattServerHost(
     ): Boolean {
         val server = gattServer ?: return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return server.notifyCharacteristicChanged(device, characteristic, confirm, value) ==
-                BluetoothStatusCodes.SUCCESS
+            val status = server.notifyCharacteristicChanged(device, characteristic, confirm, value)
+            if (status != BluetoothStatusCodes.SUCCESS) {
+                Logger.w { "AndroidFidoBleGattServerHost: GATT notification initiation failed status=$status" }
+            }
+            return status == BluetoothStatusCodes.SUCCESS
         }
 
         val ownedValue = value.copyOf()
         synchronized(legacyNotificationLock) {
             if (legacyNotificationValue != null) {
                 ownedValue.fill(0)
+                Logger.w { "AndroidFidoBleGattServerHost: Legacy GATT notification already pending" }
                 return false
             }
-            legacyNotificationValue = characteristic to ownedValue
+            legacyNotificationValue = PendingLegacyNotification(device.address, characteristic, ownedValue)
             @Suppress("DEPRECATION")
             characteristic.value = ownedValue
         }
@@ -170,30 +190,42 @@ class AndroidFidoBleGattServerHost(
         try {
             @Suppress("DEPRECATION")
             initiated = server.notifyCharacteristicChanged(device, characteristic, confirm)
+            if (!initiated) {
+                Logger.w { "AndroidFidoBleGattServerHost: Legacy GATT notification initiation was rejected" }
+            }
             return initiated
         } finally {
-            if (!initiated) releaseLegacyNotificationValue(characteristic, ownedValue)
+            if (!initiated) {
+                releaseLegacyNotificationValue(
+                    expectedDeviceAddress = device.address,
+                    expectedCharacteristic = characteristic,
+                    expectedValue = ownedValue,
+                )
+            }
         }
     }
 
     private fun releaseLegacyNotificationValue(
+        expectedDeviceAddress: String? = null,
         expectedCharacteristic: BluetoothGattCharacteristic? = null,
         expectedValue: ByteArray? = null,
     ) {
         val retained =
             synchronized(legacyNotificationLock) {
                 val pending = legacyNotificationValue ?: return
-                if ((expectedCharacteristic != null && pending.first !== expectedCharacteristic) ||
-                    (expectedValue != null && pending.second !== expectedValue)
-                ) {
+                val sameDevice = expectedDeviceAddress == null || pending.deviceAddress == expectedDeviceAddress
+                val sameCharacteristic =
+                    expectedCharacteristic == null || pending.characteristic === expectedCharacteristic
+                val sameValue = expectedValue == null || pending.value === expectedValue
+                if (!sameDevice || !sameCharacteristic || !sameValue) {
                     return
                 }
                 legacyNotificationValue = null
                 pending
             }
-        retained.second.fill(0)
+        retained.value.fill(0)
         @Suppress("DEPRECATION")
-        retained.first.value = null
+        retained.characteristic.value = null
     }
 
     override fun stop() {

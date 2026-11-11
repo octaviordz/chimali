@@ -393,13 +393,19 @@ class FidoBleLifecycleTest {
             val operation = CompletableDeferred<RawCtapResult>()
             var operationStarted = false
             var operationCancelled = false
+            var operationCount = 0
             coEvery { rawCtapOperation.handle(any(), any()) } coAnswers {
-                operationStarted = true
-                try {
-                    operation.await()
-                } catch (failure: CancellationException) {
-                    operationCancelled = true
-                    throw failure
+                operationCount++
+                if (operationCount == 1) {
+                    operationStarted = true
+                    try {
+                        operation.await()
+                    } catch (failure: CancellationException) {
+                        operationCancelled = true
+                        throw failure
+                    }
+                } else {
+                    RawCtapResult(responseBytes = byteArrayOf(0x00))
                 }
             }
             transport =
@@ -410,6 +416,7 @@ class FidoBleLifecycleTest {
                     responseSender = fakeSender,
                     coroutineScope = this,
                     gattServerHost = gattHost,
+                    deviceLookup = { address -> if (address == host.address) host else null },
                 )
 
             assertTrue(transport.connect().isSuccess)
@@ -429,6 +436,14 @@ class FidoBleLifecycleTest {
             runCurrent()
             assertTrue(operationStarted)
 
+            // Match the physical interruption case: a processing keepalive has been sent,
+            // but its completion callback may still be pending when the peer disconnects.
+            advanceTimeBy(101)
+            runCurrent()
+            assertEquals(1, fakeSender.sentNotifications.size)
+            assertEquals(BleGattTransport.CMD_KEEPALIVE, fakeSender.sentNotifications.single()[0])
+            fakeSender.sentNotifications.clear()
+
             sessionOwner.disconnectHost(host.address)
             gattHost.reportConnectionState(host, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_DISCONNECTED)
             runCurrent()
@@ -437,6 +452,30 @@ class FidoBleLifecycleTest {
             assertTrue(fakeSender.sentNotifications.isEmpty(), "A disconnected peer must not receive a late response")
             assertEquals(Fido2ConnectionState.Advertising, transport.connectionState.value)
             assertTrue(fakeAdvertiser.isAdvertising)
+
+            // The same bonded peer reconnects and starts a fresh request after its prior CTAP owner was cancelled.
+            assertTrue(sessionOwner.connectHost(host.address))
+            gattHost.reportConnectionState(host, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+            assertTrue(sessionOwner.selectRevision(BleSessionOwner.REVISION_FIDO2_0x20))
+            sessionOwner.setNotificationsEnabled(true)
+            transport.onPacketReceived(
+                byteArrayOf(
+                    BleGattTransport.CMD_MSG,
+                    0,
+                    1,
+                    RawCtapOperationImpl.CMD_GET_INFO,
+                ),
+            )
+            runCurrent()
+            gattHost.reportNotificationSent(host, BluetoothGatt.GATT_SUCCESS)
+            runCurrent()
+
+            assertEquals(2, operationCount, "The successor request must reach a fresh CTAP operation")
+            assertEquals(1, fakeSender.sentNotifications.size, "Only the successor request may produce a response")
+            assertContentEquals(
+                byteArrayOf(BleGattTransport.CMD_MSG, 0, 1, 0x00),
+                fakeSender.sentNotifications.single(),
+            )
             transport.disconnect()
         }
 
