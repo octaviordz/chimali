@@ -2926,3 +2926,14 @@
 - **environment**: Mi A2/API29; ASUS AI2302/API35; Windows 11; 2026-11-11 local time.
 - **status**: SC-004 passed for the tested lifecycle and device pair, with limits recorded.
 - **artifact_link**: `.tmp/t049-perfetto-profile3/raw-trace`; `.tmp/t049-perfetto-profile3/heap_dump.*.unknown.pb`; `.tmp/t049-profiled-mi.log`; `.tmp/t049-profiled-asus.log`; physical corpus/reconnect test sources.
+
+### Record 246: Current-HEAD API 35+ Coverage Refresh Did Not Start (T038 — Unverified)
+
+- **requirement**: Complete BLE coverage floors and exact-candidate nonregression under the shared Feature 058 policy using a current clean capture and a compatible accepted-target index.
+- **scope**: Current candidate `3cdc4765a3ecda824cec2a9748e82ba0440267e`, protected-main target `f1fd56baf8641cea99edc7fafa8725fdda21044c`, trusted harness `2ff2bb400726ad18b9ceb35351b7087c4c49bf9c`; API 35+ device required.
+- **named_procedure**: Attempted a trusted exact-main Comparison capture on ASUS serial `R7AIB7002901AZ3`. Capture refused at device preflight because the ASUS had dropped from ADB. Remaining connected devices were Mi A2/API29 and Motorola moto g stylus 5G (2022)/API33; both are below API35. No test workload ran and no coverage bundle or index was created.
+- **environment**: Windows 11; ASUS unavailable; Mi A2/API29 and Motorola/API33 attached; 2026-11-12.
+- **expected_observed_result**: Coverage remains unverified until an authorized API 35+ device is connected. A lower API device cannot satisfy the configured coverage gate.
+- **limitations**: The accepted index and app data were untouched; no remote publication or hosted check occurred. T038 remains open for a clean current-HEAD candidate capture and compatible accepted-target comparison. Hosted enforcement remains waived/disabled.
+- **status**: Unverified; device prerequisite not met.
+- **artifact_link**: Parent Record 277; candidate commit `3cdc4765a3ecda824cec2a9748e82ba0440267e`; trusted harness commit `2ff2bb400726ad18b9ceb35351b7087c4c49bf9c`; output root absent at `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-target-refresh-2026-11-12`.

@@ -3338,3 +3338,14 @@ The deterministic T032 host tests cover registration and authentication on each 
 - **environment**: Mi A2/API29; ASUS AI2302/API35; Windows 11; 2026-11-11 local time.
 - **status**: T049 passed for the tested transport lifecycle and device pair; limitations recorded.
 - **artifact_link**: `.tmp/t049-perfetto-profile3/raw-trace`; `.tmp/t049-perfetto-profile3/heap_dump.*.unknown.pb`; `.tmp/t049-profiled-mi.log`; `.tmp/t049-profiled-asus.log`; AndroidJUnitRunner output; [Perfetto native heap profiler](https://perfetto.dev/docs/data-sources/native-heap-profiler).
+
+### Record 277: Exact-Main Coverage Refresh Preflight Finds No API 35+ Device (T039/T045/T047 — Unverified)
+
+- **requirement**: Capture the exact current protected-main target with a clean independent harness before refreshing its incompatible accepted measurement profile; rerun the exact candidate comparison on a supported API 35+ device.
+- **scope**: Feature 058 refreshed-baseline implementation, Feature 064 parent T039/T045/T047, and BLE T038. Candidate HEAD `3cdc4765a3ecda824cec2a9748e82ba0440267e`; trusted harness commit `2ff2bb400726ad18b9ceb35351b7087c4c49bf9c`; live protected `main` and target worktree `f1fd56baf8641cea99edc7fafa8725fdda21044c`.
+- **named_procedure**: Invoked the trusted `capture.ps1` for a Comparison run with source and target both bound to `f1fd56baf8641cea99edc7fafa8725fdda21044c`, using the clean independent harness and ASUS serial `R7AIB7002901AZ3`. Capture stopped at device preflight because that serial was no longer attached. Follow-up `adb devices -l` showed only Mi A2 (`2ac6876`, API 29) and Motorola (`ZY22G3FJSX`, API 33); neither meets the API 35+ coverage policy. The requested output directory was never created, and no Gradle/device workload started.
+- **environment**: Windows 11; Mi A2/API29; Motorola moto g stylus 5G (2022)/API33; ASUS absent from ADB; 2026-11-12.
+- **expected_observed_result**: An API 35+ authorized device is required for this policy-bound capture. Preflight failed closed before measurement; no baseline, candidate, or integration result is inferred.
+- **limitations**: T039, T045, T047 and BLE T038 remain unverified for current HEAD. The accepted index was not changed, no app data was cleared, and no remote archive or hosted check was touched. The local integration wrapper and refreshed-baseline publisher were not run against this candidate/device capture.
+- **status**: Blocked at device availability; evidence and index remain unchanged.
+- **artifact_link**: Candidate commit `3cdc4765a3ecda824cec2a9748e82ba0440267e`; harness commit `2ff2bb400726ad18b9ceb35351b7087c4c49bf9c`; output root absent at `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-target-refresh-2026-11-12`.
