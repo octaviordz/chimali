@@ -320,6 +320,12 @@ $deviceAppDataReset = [PSCustomObject]@{
 }
 if (-not $SkipExecution) {
     Push-Location $RepositoryRoot
+    $instrumentationFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notPackage'
+    $instrumentationClassFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notClass'
+    $originalInstrumentationFilter = [Environment]::GetEnvironmentVariable($instrumentationFilterProperty, 'Process')
+    $originalInstrumentationClassFilter = [Environment]::GetEnvironmentVariable($instrumentationClassFilterProperty, 'Process')
+    Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
     try {
         $env:ANDROID_SERIAL = $DeviceSerial
         $initScript = Join-Path $HarnessRoot 'tools/hdk-coverage.init.gradle'
@@ -355,6 +361,16 @@ if (-not $SkipExecution) {
         Write-CoverageError "Could not install and reset only the shrunkDebug test package before capture: $_"
         exit 2
     } finally {
+        if ($null -eq $originalInstrumentationFilter) {
+            Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $originalInstrumentationFilter, 'Process')
+        }
+        if ($null -eq $originalInstrumentationClassFilter) {
+            Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $originalInstrumentationClassFilter, 'Process')
+        }
         Pop-Location
     }
 }
@@ -372,50 +388,12 @@ if (-not [string]::IsNullOrWhiteSpace($TargetRevision)) {
 $gradleSuccess = $true
 if (-not $SkipExecution) {
     Push-Location $RepositoryRoot
-    $instrumentationFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notPackage'
-    $instrumentationClassFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notClass'
-    $originalInstrumentationFilter = [Environment]::GetEnvironmentVariable($instrumentationFilterProperty, 'Process')
-    $originalInstrumentationClassFilter = [Environment]::GetEnvironmentVariable($instrumentationClassFilterProperty, 'Process')
     try {
         $env:ANDROID_SERIAL = $DeviceSerial
         $initScript = Join-Path $HarnessRoot "tools/hdk-coverage.init.gradle"
         $gradleArgs = @('--no-configuration-cache', '-I', $initScript)
         $gradleArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
         $gradleArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
-        $routineDeviceExclusions = @($policy.required_workload.routine_device_test_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
-        $routineDeviceClassExclusions = @($policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
-        $fido2ProjectDirectory = Join-Path $RepositoryRoot 'feature/fido2'
-        $routineDeviceSourceRoots = @(
-            (Join-Path $fido2ProjectDirectory 'src/androidDeviceTest/kotlin')
-            (Join-Path $fido2ProjectDirectory 'src/androidDeviceTest/java')
-        )
-        $applicableRoutineDeviceClassExclusions = @($routineDeviceClassExclusions | Where-Object {
-            $sourceRelativePath = $_.Replace('.', [string][System.IO.Path]::DirectorySeparatorChar)
-            $sourceFileFound = $false
-            foreach ($sourceRoot in $routineDeviceSourceRoots) {
-                if ((Test-Path -LiteralPath (Join-Path $sourceRoot "$sourceRelativePath.kt") -PathType Leaf) -or
-                    (Test-Path -LiteralPath (Join-Path $sourceRoot "$sourceRelativePath.java") -PathType Leaf)) {
-                    $sourceFileFound = $true
-                    break
-                }
-            }
-            $sourceFileFound
-        })
-        if ($routineDeviceExclusions.Count -gt 0) {
-            $routineDeviceExclusionPackages = @($routineDeviceExclusions | ForEach-Object { $_.Substring(0, $_.LastIndexOf('.')) } | Select-Object -Unique)
-            if ($routineDeviceExclusionPackages.Count -ne 1) {
-                Write-CoverageError 'Feature 062 routine-device exclusions must resolve to exactly one AndroidJUnitRunner package.'
-                exit 3
-            }
-            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $routineDeviceExclusionPackages[0], 'Process')
-        } else {
-            Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
-        }
-        if ($applicableRoutineDeviceClassExclusions.Count -gt 0) {
-            [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, ($applicableRoutineDeviceClassExclusions -join ','), 'Process')
-        } else {
-            Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
-        }
         if ($changedPathsFile) {
             $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile")
             $gradleArgs += @('--project-prop', "coverageChangedPathsTarget=$TargetRevision")
@@ -429,16 +407,6 @@ if (-not $SkipExecution) {
             Write-Warning "Gradle coverage collection exited with code $LASTEXITCODE"
         }
     } finally {
-        if ($null -eq $originalInstrumentationFilter) {
-            Remove-Item -LiteralPath "Env:$instrumentationFilterProperty" -ErrorAction SilentlyContinue
-        } else {
-            [Environment]::SetEnvironmentVariable($instrumentationFilterProperty, $originalInstrumentationFilter, 'Process')
-        }
-        if ($null -eq $originalInstrumentationClassFilter) {
-            Remove-Item -LiteralPath "Env:$instrumentationClassFilterProperty" -ErrorAction SilentlyContinue
-        } else {
-            [Environment]::SetEnvironmentVariable($instrumentationClassFilterProperty, $originalInstrumentationClassFilter, 'Process')
-        }
         Pop-Location
     }
 }

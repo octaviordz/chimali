@@ -3,10 +3,40 @@
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import groovy.json.JsonSlurper
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 gradle.beforeProject { project ->
+    if (project.path == ':feature:fido2') {
+        project.pluginManager.withPlugin('com.android.kotlin.multiplatform.library') {
+            def androidComponents = project.extensions.findByName('androidComponents')
+            if (androidComponents == null) throw new GradleException('Android Components API is unavailable for :feature:fido2 coverage runner filters')
+            def configuredHarnessRoot = gradle.startParameter.projectProperties.get('coverageHarnessRoot')
+            def harnessRoot = configuredHarnessRoot ? new File(configuredHarnessRoot).canonicalFile : gradle.rootProject.projectDir
+            def policyFile = new File(harnessRoot, 'tools/coverage/policy.json')
+            if (!policyFile.isFile()) throw new GradleException("Coverage runner policy is missing: ${policyFile}")
+            def policy = new JsonSlurper().parse(policyFile)
+            def packageClasses = policy.required_workload.routine_device_test_exclusions[':feature:fido2'].collect { it.class_name.toString() }
+            def packages = packageClasses.collect { it.substring(0, it.lastIndexOf('.')) }.unique().sort()
+            def excludedTestClasses = policy.required_workload.routine_device_test_class_exclusions[':feature:fido2']
+                .collect { it.class_name.toString() }
+                .findAll { className ->
+                    def classPath = className.replace('.', File.separator)
+                    ['src/androidDeviceTest/kotlin', 'src/androidDeviceTest/java'].any { sourceRoot ->
+                        new File(project.projectDir, "${sourceRoot}${File.separator}${classPath}.kt").isFile() ||
+                            new File(project.projectDir, "${sourceRoot}${File.separator}${classPath}.java").isFile()
+                    }
+                }
+            androidComponents.onVariants(androidComponents.selector().all(), { variant ->
+                if (variant.name == 'androidMain' && variant.androidTest != null) {
+                    def runnerArguments = variant.androidTest.instrumentationRunnerArguments
+                    if (!packages.isEmpty()) runnerArguments.put('notPackage', packages.join(','))
+                    if (!excludedTestClasses.isEmpty()) runnerArguments.put('notClass', excludedTestClasses.join(','))
+                }
+            } as org.gradle.api.Action)
+        }
+    }
     project.pluginManager.apply('jacoco')
     project.pluginManager.withPlugin('com.android.library') {
         if (project.path == ':feature:settings') {
