@@ -261,3 +261,11 @@ The latest full manual ASUS/API35 `hdkCoverageVerify` passed with clean JUnit ou
 **Accepted-index verifier result (2026-11-12):** The trusted verifier compared the exact candidate with the bundle named by the current accepted index and returned Incompatible / Failed for fingerprint, harness digest, and workload-exclusion differences. Candidate floors pass and the separately captured same-profile main comparison has nondecreasing Tier 1 ratios, but that does not satisfy the indexed gate. T039, T047, and BLE T038 remain unchecked.
 
 **Coverage completion update (2026-11-12)**: Parent T039 and T047 pass locally on the exact candidate; see Record 279. The candidate archive publication and hosted check remain pending/unverified under the active waiver; the hosted runner remains disabled.
+
+## Phase 13: Convergence
+
+- [X] T050 Gate transport preference writes and settings selection until the process startup choice is frozen, including calls made directly to the ViewModel and races between preference reads and snapshot resolution; add focused coverage proving no write occurs while the choice is unresolved and that selection resumes after resolution per T014, FR-010 and plan: snapshot-before-activation (contradicts). Verified with `:feature:fido2:testAndroidHostTest --tests com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest`.
+
+## Phase 14: Convergence
+
+- [ ] T051 Run the final connected-device coverage, configured floors and accepted-target raw-count nonregression assessment for the candidate containing T050's Tier 1 changes; record candidate identity, outcomes and limitations in both Feature 064 implementation-evidence files and preserve the hosted waiver per T045, T047 and Constitution V (partial).

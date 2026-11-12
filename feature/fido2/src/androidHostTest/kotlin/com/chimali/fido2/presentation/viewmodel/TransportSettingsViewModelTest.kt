@@ -95,6 +95,41 @@ class TransportSettingsViewModelTest {
     }
 
     @Test
+    @Req("FR-BT-SEL-020", "FR-BT-SEL-030", "FR-BT-SEL-060")
+    fun `selection is blocked until process snapshot resolves and allowed afterward`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val repository = FakeSettingsRepository()
+            val process =
+                ProcessTransportSelection(
+                    settingsRepository = repository,
+                    capabilityChecker = FakeCapabilityChecker(),
+                    bleTransportFactory = { error("settings must not construct transport") },
+                    classicTransportFactory = { error("settings must not construct transport") },
+                    coroutineScope = backgroundScope,
+                )
+            val viewModel = TransportSettingsViewModel(repository, process)
+            advanceUntilIdle()
+
+            assertNull(viewModel.state.value.processState.processChoice)
+            viewModel.select(BluetoothTransportMode.CLASSIC_HID)
+            advanceUntilIdle()
+            assertEquals(0, repository.writes)
+            assertEquals(BluetoothTransportMode.FIDO_BLE, viewModel.state.value.savedChoice)
+
+            process.startSnapshot()
+            advanceUntilIdle()
+            runCurrent()
+            assertEquals(BluetoothTransportMode.FIDO_BLE, viewModel.state.value.processState.processChoice)
+            viewModel.select(BluetoothTransportMode.CLASSIC_HID)
+            advanceUntilIdle()
+
+            assertEquals(1, repository.writes)
+            assertEquals(BluetoothTransportMode.CLASSIC_HID, viewModel.state.value.savedChoice)
+            process.close()
+        }
+
+    @Test
     @Req("FR-BT-SEL-010", "FR-BT-SEL-050")
     fun `read failure leaves choice unresolved and allows retry`() =
         runTest {

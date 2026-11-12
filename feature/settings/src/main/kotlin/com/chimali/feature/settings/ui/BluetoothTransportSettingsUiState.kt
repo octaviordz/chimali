@@ -10,4 +10,5 @@ data class BluetoothTransportSettingsUiState(
     val readError: String?,
     val saveError: String?,
     val restartRequired: Boolean,
+    val processChoiceResolved: Boolean = processTransportCode != null,
 )

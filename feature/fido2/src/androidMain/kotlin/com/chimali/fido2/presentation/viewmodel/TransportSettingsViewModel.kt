@@ -99,11 +99,12 @@ class TransportSettingsViewModel(
 
     @Req("FR-BT-SEL-020", "FR-BT-SEL-030", "FR-BT-SEL-060")
     fun select(mode: BluetoothTransportMode) {
-        if (_state.value.isReading || _state.value.isSaving || _state.value.readError != null) return
+        if (!canChangePreference(_state.value)) return
         viewModelScope.launch {
             if (!saveMutex.tryLock()) return@launch
             try {
                 val current = _state.value
+                if (!canChangePreference(current)) return@launch
                 if (current.savedChoice == mode) return@launch
                 _state.value = current.copy(isSaving = true, saveError = null)
                 when (val result = settingsRepository.saveTransportPreference(mode)) {
@@ -131,6 +132,12 @@ class TransportSettingsViewModel(
             }
         }
     }
+
+    private fun canChangePreference(state: TransportSettingsState): Boolean =
+        !state.isReading &&
+            !state.isSaving &&
+            state.readError == null &&
+            state.processState.processChoice != null
 
     @Req("FR-BT-SEL-030")
     fun cancelPendingChange() {

@@ -111,7 +111,8 @@ private fun BluetoothTransportSettingsCard(
     onRetry: () -> Unit,
     onCancelPendingChange: () -> Unit,
 ) {
-    val interactionEnabled = !state.isLoading && !state.isSaving && state.readError == null
+    val interactionEnabled =
+        !state.isLoading && !state.isSaving && state.readError == null && state.processChoiceResolved
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
