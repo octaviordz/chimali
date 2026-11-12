@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserConsentRecord.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">domain</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.model</a> &gt; <span class="el_source">UserConsentRecord.kt</span></div><h1>UserConsentRecord.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.model
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * Domain model representing a user consent record for FIDO2 operations.
+ * This entity tracks user consent for authentication and registration operations.
+ */
+<span class="fc" id="L16">@Serializable</span>
+<span class="fc" id="L17">class UserConsentRecord private constructor(</span>
+<span class="fc" id="L18">    val id: String,</span>
+<span class="fc" id="L19">    val operationType: ConsentOperationType,</span>
+<span class="fc" id="L20">    @SerialName(&quot;rpId&quot;) private val rpIdOwner: SensitiveText,</span>
+<span class="fc" id="L21">    val credentialId: CredentialId?,</span>
+<span class="fc" id="L22">    val timestamp: Instant,</span>
+<span class="fc" id="L23">    val isBiometricUsed: Boolean,</span>
+<span class="fc" id="L24">    val isPinUsed: Boolean,</span>
+<span class="fc" id="L25">    val ipAddress: String?,</span>
+<span class="fc" id="L26">    val userAgent: String?,</span>
+<span class="fc" id="L27">    val deviceId: String?,</span>
+) {
+    /** Copies a compatibility RP value into independent mutable model ownership. */
+    constructor(
+        id: String,
+        operationType: ConsentOperationType,
+        rpId: RpId,
+        credentialId: CredentialId?,
+        timestamp: Instant,
+        isBiometricUsed: Boolean,
+        isPinUsed: Boolean,
+        ipAddress: String?,
+        userAgent: String?,
+        deviceId: String?,
+<span class="fc" id="L41">    ) : this(</span>
+<span class="fc" id="L42">        id,</span>
+<span class="fc" id="L43">        operationType,</span>
+<span class="fc" id="L44">        SensitiveText.copyOf(rpId.value),</span>
+<span class="fc" id="L45">        credentialId,</span>
+<span class="fc" id="L46">        timestamp,</span>
+<span class="fc" id="L47">        isBiometricUsed,</span>
+<span class="fc" id="L48">        isPinUsed,</span>
+<span class="fc" id="L49">        ipAddress,</span>
+<span class="fc" id="L50">        userAgent,</span>
+<span class="fc" id="L51">        deviceId,</span>
+<span class="fc" id="L52">    )</span>
+
+    /** Compatibility/display RP value; persistence and policy code borrow rpIdText. */
+<span class="fc" id="L55">    val rpId: RpId get() = RpId(rpIdOwner.toBoundaryString())</span>
+
+    /** Borrowed RP text, valid until this consent owner ends. */
+<span class="fc" id="L58">    val rpIdText: SensitiveText get() = rpIdOwner</span>
+
+<span class="fc" id="L60">    init {</span>
+<span class="fc" id="L61">        try {</span>
+<span class="fc" id="L62">            validate()</span>
+<span class="fc" id="L63">        } catch (failure: IllegalArgumentException) {</span>
+<span class="fc" id="L64">            rpIdOwner.erase()</span>
+<span class="fc" id="L65">            throw failure</span>
+        }
+<span class="fc" id="L67">    }</span>
+
+    /** Erases the RP association owned by this record. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L71">    fun eraseSensitiveText() = rpIdOwner.erase()</span>
+
+    /** Deep-copies the owned RP while retaining the existing public optional-field contract. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L75">    fun copy(</span>
+<span class="fc" id="L76">        id: String = this.id,</span>
+<span class="fc" id="L77">        operationType: ConsentOperationType = this.operationType,</span>
+<span class="fc" id="L78">        rpId: RpId? = null,</span>
+<span class="fc" id="L79">        credentialId: CredentialId? = this.credentialId,</span>
+<span class="fc" id="L80">        timestamp: Instant = this.timestamp,</span>
+<span class="fc" id="L81">        isBiometricUsed: Boolean = this.isBiometricUsed,</span>
+<span class="fc" id="L82">        isPinUsed: Boolean = this.isPinUsed,</span>
+<span class="fc" id="L83">        ipAddress: String? = this.ipAddress,</span>
+<span class="fc" id="L84">        userAgent: String? = this.userAgent,</span>
+<span class="fc" id="L85">        deviceId: String? = this.deviceId,</span>
+    ): UserConsentRecord =
+<span class="fc" id="L87">        copyWithOwnerFactory(</span>
+<span class="fc" id="L88">            id,</span>
+<span class="fc" id="L89">            operationType,</span>
+<span class="fc" id="L90">            rpId,</span>
+<span class="fc" id="L91">            credentialId,</span>
+<span class="fc" id="L92">            timestamp,</span>
+<span class="fc" id="L93">            isBiometricUsed,</span>
+<span class="fc" id="L94">            isPinUsed,</span>
+<span class="fc" id="L95">            ipAddress,</span>
+<span class="fc" id="L96">            userAgent,</span>
+<span class="fc" id="L97">            deviceId,</span>
+<span class="fc" id="L98">        )</span>
+
+    /** Creates a copy through an injectable owner factory so rejection cleanup is observable. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L102">    internal fun copyWithOwnerFactory(</span>
+<span class="nc" id="L103">        id: String = this.id,</span>
+<span class="fc" id="L104">        operationType: ConsentOperationType = this.operationType,</span>
+<span class="fc" id="L105">        rpId: RpId? = null,</span>
+<span class="fc" id="L106">        credentialId: CredentialId? = this.credentialId,</span>
+<span class="fc" id="L107">        timestamp: Instant = this.timestamp,</span>
+<span class="fc" id="L108">        isBiometricUsed: Boolean = this.isBiometricUsed,</span>
+<span class="fc" id="L109">        isPinUsed: Boolean = this.isPinUsed,</span>
+<span class="fc" id="L110">        ipAddress: String? = this.ipAddress,</span>
+<span class="fc" id="L111">        userAgent: String? = this.userAgent,</span>
+<span class="fc" id="L112">        deviceId: String? = this.deviceId,</span>
+<span class="fc" id="L113">        ownerFactory: (CharSequence) -&gt; SensitiveText = SensitiveText::copyOf,</span>
+    ): UserConsentRecord {
+<span class="fc" id="L115">        var createdOwner: SensitiveText? = null</span>
+<span class="fc" id="L116">        try {</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">            createdOwner = ownerFactory(rpId?.value ?: rpIdOwner)</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">            return UserConsentRecord(</span>
+<span class="fc" id="L119">                id,</span>
+<span class="fc" id="L120">                operationType,</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">                requireNotNull(createdOwner),</span>
+<span class="fc" id="L122">                credentialId,</span>
+<span class="fc" id="L123">                timestamp,</span>
+<span class="fc" id="L124">                isBiometricUsed,</span>
+<span class="fc" id="L125">                isPinUsed,</span>
+<span class="fc" id="L126">                ipAddress,</span>
+<span class="fc" id="L127">                userAgent,</span>
+<span class="fc" id="L128">                deviceId,</span>
+<span class="fc" id="L129">            ).also { createdOwner = null }</span>
+        } finally {
+<span class="fc" id="L131">            createdOwner?.erase()</span>
+        }
+    }
+
+    /** Compares record fields without materializing the RP association. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean =
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        other is UserConsentRecord &amp;&amp;</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">            id == other.id &amp;&amp;</span>
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">            operationType == other.operationType &amp;&amp;</span>
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">            rpIdOwner == other.rpIdOwner &amp;&amp;</span>
+<span class="pc bpc" id="L142" title="5 of 8 branches missed.">            credentialId == other.credentialId &amp;&amp;</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            timestamp == other.timestamp &amp;&amp;</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">            isBiometricUsed == other.isBiometricUsed &amp;&amp;</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            isPinUsed == other.isPinUsed &amp;&amp;</span>
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            ipAddress == other.ipAddress &amp;&amp;</span>
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">            userAgent == other.userAgent &amp;&amp;</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">            deviceId == other.deviceId</span>
+
+    /** Hashes fields used by equals without RP text copies. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun hashCode(): Int =
+<span class="fc" id="L153">        listOf(</span>
+<span class="fc" id="L154">            id,</span>
+<span class="fc" id="L155">            operationType,</span>
+<span class="fc" id="L156">            rpIdOwner,</span>
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">            credentialId,</span>
+<span class="fc" id="L158">            timestamp,</span>
+<span class="fc" id="L159">            isBiometricUsed,</span>
+<span class="fc" id="L160">            isPinUsed,</span>
+<span class="fc" id="L161">            ipAddress,</span>
+<span class="fc" id="L162">            userAgent,</span>
+<span class="fc" id="L163">            deviceId,</span>
+<span class="fc" id="L164">        ).hashCode()</span>
+
+    /** Redacts the RP and optional identifying fields from diagnostics. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L168">    override fun toString(): String = &quot;UserConsentRecord([sensitive metadata redacted])&quot;</span>
+
+    /**
+     * Validates the UserConsentRecord according to security requirements.
+     * Throws IllegalArgumentException if validation fails.
+     */
+    private fun validate() {
+        // Validate required fields
+<span class="fc bfc" id="L176" title="All 4 branches covered.">        require(id.isNotBlank()) { &quot;Consent record ID cannot be blank&quot; }</span>
+
+<span class="fc" id="L178">        val now = Clock.System.now()</span>
+<span class="fc bfc" id="L179" title="All 4 branches covered.">        require(timestamp &lt;= now + FUTURE_GRACE) {</span>
+<span class="fc" id="L180">            &quot;Consent timestamp cannot be in the future&quot;</span>
+        }
+
+        // Validate RP ID format
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        require(isValidRpId(rpIdOwner)) {</span>
+<span class="fc" id="L185">            &quot;RP ID must be a valid domain or HTTPS origin&quot;</span>
+        }
+
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        credentialId?.let { id -&gt;</span>
+<span class="pc bpc" id="L189" title="2 of 4 branches missed.">            require(id.toByteArray().size &lt;= MAX_CREDENTIAL_ID_LENGTH) {</span>
+<span class="nc" id="L190">                &quot;Credential ID exceeds maximum length of $MAX_CREDENTIAL_ID_LENGTH bytes&quot;</span>
+            }
+<span class="fc" id="L192">        }</span>
+
+        // Validate optional fields
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        ipAddress?.let { ip -&gt;</span>
+<span class="fc bfc" id="L196" title="All 4 branches covered.">            require(ip.isNotBlank()) { &quot;IP address cannot be blank if provided&quot; }</span>
+<span class="fc bfc" id="L197" title="All 4 branches covered.">            require(ip.length &lt;= MAX_IP_ADDRESS_LENGTH) {</span>
+<span class="fc" id="L198">                &quot;IP address exceeds maximum length of $MAX_IP_ADDRESS_LENGTH&quot;</span>
+            }
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            require(isValidIpAddress(ip)) { &quot;Invalid IP address format: $ip&quot; }</span>
+<span class="fc" id="L201">        }</span>
+
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        userAgent?.let { ua -&gt;</span>
+<span class="fc bfc" id="L204" title="All 4 branches covered.">            require(ua.isNotBlank()) { &quot;User agent cannot be blank if provided&quot; }</span>
+<span class="fc bfc" id="L205" title="All 4 branches covered.">            require(ua.length &lt;= MAX_USER_AGENT_LENGTH) {</span>
+<span class="fc" id="L206">                &quot;User agent exceeds maximum length of $MAX_USER_AGENT_LENGTH&quot;</span>
+            }
+<span class="fc" id="L208">        }</span>
+
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        deviceId?.let { device -&gt;</span>
+<span class="fc bfc" id="L211" title="All 4 branches covered.">            require(device.isNotBlank()) { &quot;Device ID cannot be blank if provided&quot; }</span>
+<span class="fc bfc" id="L212" title="All 4 branches covered.">            require(device.length &lt;= MAX_DEVICE_ID_LENGTH) {</span>
+<span class="fc" id="L213">                &quot;Device ID exceeds maximum length of $MAX_DEVICE_ID_LENGTH&quot;</span>
+            }
+<span class="fc" id="L215">        }</span>
+<span class="fc" id="L216">    }</span>
+
+    /**
+     * Checks if this consent is still considered recent (e.g., within 5 minutes).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L222">    fun isRecent(minutes: Int = 5): Boolean {</span>
+<span class="fc" id="L223">        val now = Clock.System.now()</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">        return (now - timestamp) &lt;= minutes.minutes</span>
+    }
+
+    /**
+     * Checks if this consent was for a specific credential ID.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">    fun isForCredential(credentialId: CredentialId): Boolean = this.credentialId == credentialId</span>
+
+    /**
+     * Checks if this consent was for a specific relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L237">    fun isForRelyingParty(rpId: RpId): Boolean = rpIdOwner.contentEquals(rpId.value, ignoreCase = true)</span>
+
+    /**
+     * Returns the consent method used.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getConsentMethod(): ConsentMethod =
+<span class="fc" id="L244">        when {</span>
+<span class="fc bfc" id="L245" title="All 4 branches covered.">            isBiometricUsed &amp;&amp; isPinUsed -&gt; ConsentMethod.BIOMETRIC_AND_PIN</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">            isBiometricUsed -&gt; ConsentMethod.BIOMETRIC</span>
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            isPinUsed -&gt; ConsentMethod.PIN</span>
+<span class="fc" id="L248">            else -&gt; ConsentMethod.NONE</span>
+<span class="fc" id="L249">        }</span>
+
+    /**
+     * Returns a safe representation of the credential ID.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc bfc" id="L255" title="All 2 branches covered.">    fun getSafeCredentialId(): String = credentialId?.encoded ?: &quot;N/A&quot;</span>
+
+    /**
+     * Checks if this consent record is for registration.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">    fun isRegistrationConsent(): Boolean = operationType == ConsentOperationType.REGISTRATION</span>
+
+    /**
+     * Checks if this consent record is for authentication.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc bfc" id="L267" title="All 2 branches covered.">    fun isAuthenticationConsent(): Boolean = operationType == ConsentOperationType.AUTHENTICATION</span>
+
+<span class="fc" id="L269">    companion object {</span>
+        const val MAX_IP_ADDRESS_LENGTH = 45
+        const val MAX_USER_AGENT_LENGTH = 512
+        const val MAX_DEVICE_ID_LENGTH = 64
+        const val MAX_CREDENTIAL_ID_LENGTH = 1023
+        private const val MAX_IPV6_GROUP_LENGTH = 4
+<span class="fc" id="L275">        private val FUTURE_GRACE = 1.minutes</span>
+
+        /** Copies a borrowed RP into a new consent owner; the caller erases the returned record. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L279">        fun fromText(</span>
+            id: String,
+            operationType: ConsentOperationType,
+            rpId: CharSequence,
+<span class="fc" id="L283">            credentialId: CredentialId? = null,</span>
+<span class="fc" id="L284">            timestamp: Instant = Clock.System.now(),</span>
+<span class="fc" id="L285">            isBiometricUsed: Boolean = false,</span>
+<span class="fc" id="L286">            isPinUsed: Boolean = false,</span>
+        ): UserConsentRecord =
+<span class="fc" id="L288">            UserConsentRecord(</span>
+<span class="fc" id="L289">                id,</span>
+<span class="fc" id="L290">                operationType,</span>
+<span class="fc" id="L291">                SensitiveText.copyOf(rpId),</span>
+<span class="fc" id="L292">                credentialId,</span>
+<span class="fc" id="L293">                timestamp,</span>
+<span class="fc" id="L294">                isBiometricUsed,</span>
+<span class="fc" id="L295">                isPinUsed,</span>
+<span class="fc" id="L296">                null,</span>
+<span class="fc" id="L297">                null,</span>
+<span class="fc" id="L298">                null,</span>
+<span class="fc" id="L299">            )</span>
+
+        /**
+         * Creates a new UserConsentRecord with validation.
+         */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L305">        fun create(</span>
+            id: String,
+            operationType: ConsentOperationType,
+            rpId: RpId,
+<span class="nc" id="L309">            credentialId: CredentialId? = null,</span>
+<span class="nc" id="L310">            timestamp: Instant = Clock.System.now(),</span>
+<span class="nc" id="L311">            isBiometricUsed: Boolean = false,</span>
+<span class="nc" id="L312">            isPinUsed: Boolean = false,</span>
+<span class="nc" id="L313">            ipAddress: String? = null,</span>
+<span class="nc" id="L314">            userAgent: String? = null,</span>
+<span class="nc" id="L315">            deviceId: String? = null,</span>
+        ): UserConsentRecord =
+<span class="nc" id="L317">            UserConsentRecord(</span>
+<span class="nc" id="L318">                id = id,</span>
+<span class="nc" id="L319">                operationType = operationType,</span>
+<span class="nc" id="L320">                rpId = rpId,</span>
+<span class="nc" id="L321">                credentialId = credentialId,</span>
+<span class="nc" id="L322">                timestamp = timestamp,</span>
+<span class="nc" id="L323">                isBiometricUsed = isBiometricUsed,</span>
+<span class="nc" id="L324">                isPinUsed = isPinUsed,</span>
+<span class="nc" id="L325">                ipAddress = ipAddress,</span>
+<span class="nc" id="L326">                userAgent = userAgent,</span>
+<span class="nc" id="L327">                deviceId = deviceId,</span>
+<span class="nc" id="L328">            )</span>
+
+        /**
+         * Validates RP ID format according to FIDO2 specifications.
+         */
+        private fun isValidRpId(rpId: CharSequence): Boolean =
+<span class="fc" id="L334">            Regex(&quot;^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/[a-zA-Z0-9./_-]*)?$&quot;).matches(rpId)</span>
+
+        /**
+         * Validates IP address format (IPv4 or IPv6).
+         */
+        private fun isValidIpAddress(ip: String): Boolean {
+<span class="fc" id="L340">            return try {</span>
+                // IPv4 validation
+<span class="fc" id="L342">                val ipv4Regex =</span>
+<span class="fc" id="L343">                    Regex(&quot;^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$&quot;)</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">                if (ipv4Regex.matches(ip)) return true</span>
+
+                // IPv6 validation (supports compression)
+<span class="fc bfc" id="L347" title="All 2 branches covered.">                if (ip.contains(':')) {</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">                    if (ip.contains(&quot;:::&quot;)) return false</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">                    val colons = ip.count { it == ':' }</span>
+<span class="pc bpc" id="L350" title="3 of 6 branches missed.">                    if (colons !in 2..7) return false</span>
+
+<span class="pc bpc" id="L352" title="6 of 16 branches missed.">                    val validChars = ip.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == ':' }</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">                    if (!validChars) return false</span>
+
+<span class="fc" id="L355">                    val groups = ip.split(&quot;:&quot;)</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">                    return groups.all { it.length &lt;= MAX_IPV6_GROUP_LENGTH }</span>
+                }
+<span class="fc" id="L358">                false</span>
+<span class="nc" id="L359">            } catch (_: Exception) {</span>
+<span class="pc" id="L360">                false</span>
+            }
+        }
+    }
+}
+
+/**
+ * Enumeration of consent operation types.
+ */
+<span class="fc" id="L369">@Serializable</span>
+enum class ConsentOperationType {
+<span class="fc" id="L371">    REGISTRATION,</span>
+<span class="fc" id="L372">    AUTHENTICATION,</span>
+<span class="fc" id="L373">    CREDENTIAL_DELETION,</span>
+<span class="fc" id="L374">    CREDENTIAL_UPDATE,</span>
+<span class="fc" id="L375">}</span>
+
+/**
+ * Enumeration of consent methods.
+ */
+<span class="fc" id="L380">@Serializable</span>
+enum class ConsentMethod {
+<span class="fc" id="L382">    NONE,</span>
+<span class="fc" id="L383">    BIOMETRIC,</span>
+<span class="fc" id="L384">    PIN,</span>
+<span class="fc" id="L385">    BIOMETRIC_AND_PIN,</span>
+<span class="fc" id="L386">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

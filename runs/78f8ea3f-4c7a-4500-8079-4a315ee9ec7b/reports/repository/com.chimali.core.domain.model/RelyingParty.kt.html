@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RelyingParty.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.model</a> &gt; <span class="el_source">RelyingParty.kt</span></div><h1>RelyingParty.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.model
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.valueobject.RpId
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * Domain model representing a FIDO2 Relying Party (RP).
+ * This entity represents the service/website that requests authentication.
+ */
+<span class="fc" id="L15">@Serializable</span>
+<span class="pc" id="L16">class RelyingParty private constructor(</span>
+<span class="fc" id="L17">    @SerialName(&quot;id&quot;) private val idOwner: SensitiveText,</span>
+<span class="fc" id="L18">    @SerialName(&quot;name&quot;) private val nameOwner: SensitiveText,</span>
+<span class="fc" id="L19">    val iconUrl: String?,</span>
+<span class="fc" id="L20">    val credentialCount: Int,</span>
+<span class="fc" id="L21">    val createdAt: Instant,</span>
+<span class="pc" id="L22">    val lastUsedAt: Instant? = null,</span>
+<span class="pc" id="L23">    val isBlocked: Boolean = false,</span>
+<span class="nc" id="L24">) {</span>
+    /** Copies compatibility inputs; production operations use fromOwnedText and borrowed text views. */
+<span class="fc" id="L26">    constructor(</span>
+        id: RpId,
+        name: String,
+        iconUrl: String?,
+        credentialCount: Int,
+        createdAt: Instant,
+<span class="nc" id="L32">        lastUsedAt: Instant? = null,</span>
+<span class="fc" id="L33">        isBlocked: Boolean = false,</span>
+<span class="fc" id="L34">    ) : this(</span>
+<span class="fc" id="L35">        SensitiveText.copyOf(id.value),</span>
+<span class="fc" id="L36">        SensitiveText.copyOf(name),</span>
+<span class="fc" id="L37">        iconUrl,</span>
+<span class="fc" id="L38">        credentialCount,</span>
+<span class="fc" id="L39">        createdAt,</span>
+<span class="fc" id="L40">        lastUsedAt,</span>
+<span class="fc" id="L41">        isBlocked,</span>
+<span class="fc" id="L42">    )</span>
+
+    /** Compatibility/rendering RP value; internal operations borrow idText instead. */
+<span class="fc" id="L45">    val id: RpId get() = RpId(idOwner.toBoundaryString())</span>
+
+    /** Compatibility/rendering name; internal operations borrow nameText instead. */
+<span class="fc" id="L48">    val name: String get() = nameOwner.toBoundaryString()</span>
+
+    /** Borrows the live RP owner; callers must neither erase nor retain it beyond this model. */
+<span class="fc" id="L51">    val idText: SensitiveText get() = idOwner</span>
+
+    /** Borrows the live display-name owner with the same lifetime as this model. */
+<span class="fc" id="L54">    val nameText: SensitiveText get() = nameOwner</span>
+
+<span class="fc" id="L56">    init {</span>
+<span class="fc" id="L57">        try {</span>
+<span class="fc" id="L58">            validate()</span>
+<span class="fc" id="L59">        } catch (failure: IllegalArgumentException) {</span>
+<span class="fc" id="L60">            eraseSensitiveText()</span>
+<span class="fc" id="L61">            throw failure</span>
+        }
+<span class="fc" id="L63">    }</span>
+
+    /** Erases metadata owned by this model, leaving separately copied models usable. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun eraseSensitiveText() {
+<span class="fc" id="L68">        idOwner.erase()</span>
+<span class="fc" id="L69">        nameOwner.erase()</span>
+<span class="fc" id="L70">    }</span>
+
+    /** Deep-copies owned metadata; unchanged fields never pass through immutable text. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L74">    fun copy(</span>
+<span class="fc" id="L75">        id: RpId? = null,</span>
+<span class="fc" id="L76">        name: String? = null,</span>
+<span class="fc" id="L77">        iconUrl: String? = this.iconUrl,</span>
+<span class="fc" id="L78">        credentialCount: Int = this.credentialCount,</span>
+<span class="fc" id="L79">        createdAt: Instant = this.createdAt,</span>
+<span class="fc" id="L80">        lastUsedAt: Instant? = this.lastUsedAt,</span>
+<span class="fc" id="L81">        isBlocked: Boolean = this.isBlocked,</span>
+    ): RelyingParty =
+<span class="fc" id="L83">        RelyingParty(</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">            SensitiveText.copyOf(id?.value ?: idOwner),</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            SensitiveText.copyOf(name ?: nameOwner),</span>
+<span class="fc" id="L86">            iconUrl,</span>
+<span class="fc" id="L87">            credentialCount,</span>
+<span class="fc" id="L88">            createdAt,</span>
+<span class="fc" id="L89">            lastUsedAt,</span>
+<span class="fc" id="L90">            isBlocked,</span>
+<span class="fc" id="L91">        )</span>
+
+    /** Compares model metadata by value without creating plaintext Strings. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean =
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        other is RelyingParty &amp;&amp;</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            idOwner == other.idOwner &amp;&amp;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            nameOwner == other.nameOwner &amp;&amp;</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            iconUrl == other.iconUrl &amp;&amp;</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            credentialCount == other.credentialCount &amp;&amp;</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            createdAt == other.createdAt &amp;&amp;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            lastUsedAt == other.lastUsedAt &amp;&amp;</span>
+<span class="pc bnc" id="L103" title="All 2 branches missed.">            isBlocked == other.isBlocked</span>
+
+    /** Hashes the value fields used by equals. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun hashCode(): Int =
+<span class="nc" id="L108">        listOf(</span>
+<span class="nc" id="L109">            idOwner,</span>
+<span class="nc" id="L110">            nameOwner,</span>
+<span class="nc" id="L111">            iconUrl,</span>
+<span class="nc" id="L112">            credentialCount,</span>
+<span class="nc" id="L113">            createdAt,</span>
+<span class="nc" id="L114">            lastUsedAt,</span>
+<span class="nc" id="L115">            isBlocked,</span>
+<span class="nc" id="L116">        ).hashCode()</span>
+
+    /** Redacts RP and display-name data in model diagnostics. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L120">    override fun toString(): String = &quot;RelyingParty([sensitive metadata redacted])&quot;</span>
+
+    /**
+     * Validates the RelyingParty according to FIDO2 specifications.
+     * Throws IllegalArgumentException if validation fails.
+     */
+    private fun validate() {
+        // Validate required fields
+<span class="fc bfc" id="L128" title="All 4 branches covered.">        require(nameOwner.isNotBlank()) { &quot;RP name cannot be blank&quot; }</span>
+
+        // Validate formats
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        require(isValidRpId(idOwner)) {</span>
+<span class="fc" id="L132">            &quot;RP ID must be a valid domain or HTTPS origin&quot;</span>
+        }
+<span class="fc bfc" id="L134" title="All 4 branches covered.">        require(nameOwner.length &lt;= MAX_NAME_LENGTH) { &quot;RP name cannot exceed $MAX_NAME_LENGTH characters&quot; }</span>
+<span class="fc bfc" id="L135" title="All 4 branches covered.">        require(credentialCount &gt;= 0) { &quot;Credential count cannot be negative&quot; }</span>
+
+        // Validate icon URL if present
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        iconUrl?.let { url -&gt;</span>
+<span class="fc bfc" id="L139" title="All 4 branches covered.">            require(url.isNotBlank()) { &quot;Icon URL cannot be blank if provided&quot; }</span>
+<span class="fc bfc" id="L140" title="All 4 branches covered.">            require(url.length &lt;= MAX_ICON_URL_LENGTH) { &quot;Icon URL cannot exceed $MAX_ICON_URL_LENGTH characters&quot; }</span>
+<span class="pc bpc" id="L141" title="1 of 6 branches missed.">            require(url.startsWith(&quot;https://&quot;) || url.startsWith(&quot;http://&quot;)) {</span>
+<span class="fc" id="L142">                &quot;Icon URL must use HTTP or HTTPS protocol&quot;</span>
+            }
+<span class="fc" id="L144">        }</span>
+
+        // Validate timestamps
+<span class="fc" id="L147">        val now = Clock.System.now()</span>
+<span class="fc bfc" id="L148" title="All 4 branches covered.">        require(createdAt &lt;= now + FUTURE_GRACE) {</span>
+<span class="fc" id="L149">            &quot;Creation time cannot be more than 60 seconds in the future&quot;</span>
+        }
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        lastUsedAt?.let { lastUsed -&gt;</span>
+<span class="fc bfc" id="L152" title="All 4 branches covered.">            require(lastUsed &lt;= now + FUTURE_GRACE) {</span>
+<span class="fc" id="L153">                &quot;Last used time cannot be more than 60 seconds in the future&quot;</span>
+            }
+<span class="fc bfc" id="L155" title="All 4 branches covered.">            require(lastUsed &gt;= createdAt) {</span>
+<span class="fc" id="L156">                &quot;Last used time cannot be before creation time&quot;</span>
+            }
+<span class="fc" id="L158">        }</span>
+<span class="fc" id="L159">    }</span>
+
+    /**
+     * Checks if this RP has any credentials.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc bfc" id="L165" title="All 2 branches covered.">    fun hasCredentials(): Boolean = credentialCount &gt; 0</span>
+
+    /**
+     * Returns the domain from the RP ID.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getDomain(): String {
+<span class="fc" id="L172">        val value = id.value</span>
+<span class="fc" id="L173">        val schemeIndex = value.indexOf(&quot;://&quot;)</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (schemeIndex == -1) return value</span>
+
+<span class="fc" id="L176">        val afterScheme = value.substring(schemeIndex + SCHEME_PREFIX_LENGTH)</span>
+<span class="fc" id="L177">        val slashIndex = afterScheme.indexOf('/')</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        return if (slashIndex == -1) afterScheme else afterScheme.substring(0, slashIndex)</span>
+    }
+
+    /**
+     * Checks if this RP is trusted based on criteria.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L185">    fun isTrusted(trustedDomains: Set&lt;String&gt;): Boolean = trustedDomains.contains(getDomain())</span>
+
+    /**
+     * Returns a safe name for display.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc bnc" id="L191" title="All 2 branches missed.">    fun getSafeName(): String = name.ifBlank { getDomain() }</span>
+
+    /**
+     * Creates a copy with updated credential count.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun withCredentialCount(newCount: Int): RelyingParty =
+<span class="fc" id="L198">        copy(credentialCount = newCount, lastUsedAt = Clock.System.now())</span>
+
+    /**
+     * Creates a copy with updated last used time.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L204">    fun withLastUsedAt(newLastUsedAt: Instant): RelyingParty = copy(lastUsedAt = newLastUsedAt)</span>
+
+    /**
+     * Returns the RP age in days.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getAgeInDays(): Long {
+<span class="fc" id="L211">        val diff = Clock.System.now() - createdAt</span>
+<span class="fc" id="L212">        return diff.inWholeDays</span>
+    }
+
+    /**
+     * Checks if this RP has been used recently.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L219">    fun isRecentlyUsed(days: Int = 30): Boolean {</span>
+<span class="fc" id="L220">        val cutoff = Clock.System.now() - kotlin.time.Duration.parse(&quot;${days}d&quot;)</span>
+<span class="fc bfc" id="L221" title="All 4 branches covered.">        return lastUsedAt?.let { it &gt; cutoff } ?: false</span>
+    }
+
+    companion object {
+        const val MAX_NAME_LENGTH = 64
+        const val MAX_ICON_URL_LENGTH = 256
+        private const val SCHEME_PREFIX_LENGTH = 3
+        private const val HTTP_PREFIX_LENGTH = 7
+        private const val HTTP_SCHEME_LENGTH = 4
+        private const val HTTPS_SCHEME_LENGTH = 5
+<span class="fc" id="L231">        private val FUTURE_GRACE = 1.minutes</span>
+
+        /** Consumes both text owners on entry; callers erase a returned model when its operation ends. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L235">        fun fromOwnedText(</span>
+            id: SensitiveText,
+            name: SensitiveText,
+<span class="fc" id="L238">            iconUrl: String? = null,</span>
+<span class="fc" id="L239">            credentialCount: Int = 0,</span>
+<span class="fc" id="L240">            createdAt: Instant = Clock.System.now(),</span>
+<span class="fc" id="L241">            lastUsedAt: Instant? = null,</span>
+<span class="fc" id="L242">            isBlocked: Boolean = false,</span>
+<span class="fc" id="L243">        ): RelyingParty = RelyingParty(id, name, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)</span>
+
+        /**
+         * Creates a new RelyingParty with validation.
+         */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L249">        fun create(</span>
+            id: RpId,
+            name: String,
+<span class="fc" id="L252">            iconUrl: String? = null,</span>
+        ): RelyingParty {
+<span class="fc" id="L254">            val now = Clock.System.now()</span>
+            // Auto-set name to domain extracted from id if blank
+<span class="fc" id="L256">            val resolvedName =</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                name.ifBlank {</span>
+<span class="fc" id="L258">                    val value = id.value</span>
+<span class="fc" id="L259">                    val schemeIndex = value.indexOf(&quot;://&quot;)</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                    if (schemeIndex == -1) {</span>
+<span class="fc" id="L261">                        value</span>
+                    } else {
+<span class="fc" id="L263">                        val afterScheme = value.substring(schemeIndex + SCHEME_PREFIX_LENGTH)</span>
+<span class="fc" id="L264">                        val slashIndex = afterScheme.indexOf('/')</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">                        if (slashIndex == -1) afterScheme else afterScheme.substring(0, slashIndex)</span>
+<span class="fc" id="L266">                    }</span>
+                }
+<span class="fc" id="L268">            return RelyingParty(</span>
+<span class="fc" id="L269">                id = id,</span>
+<span class="fc" id="L270">                name = resolvedName,</span>
+<span class="fc" id="L271">                iconUrl = iconUrl,</span>
+<span class="fc" id="L272">                credentialCount = 0,</span>
+<span class="fc" id="L273">                createdAt = now,</span>
+<span class="fc" id="L274">                lastUsedAt = null,</span>
+            )
+        }
+
+        /** Validates RP ID format without forcing borrowed mutable text into an immutable String. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun isValidRpId(rpId: CharSequence): Boolean {
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            if (rpId.isBlank()) return false</span>
+<span class="fc" id="L282">            var schemeSeparator = -1</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            for (index in 0 until (rpId.length - 2).coerceAtLeast(0)) {</span>
+<span class="pc bpc" id="L284" title="1 of 6 branches missed.">                if (rpId[index] == ':' &amp;&amp; rpId[index + 1] == '/' &amp;&amp; rpId[index + 2] == '/') {</span>
+<span class="fc" id="L285">                    schemeSeparator = index</span>
+<span class="fc" id="L286">                    break</span>
+                }
+            }
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            if (schemeSeparator &lt; 0) {</span>
+                // Bare domain: must contain a dot (e.g., example.com) or be localhost.
+<span class="fc bfc" id="L291" title="All 2 branches covered.">                return rpId.contentEquals(&quot;localhost&quot;) ||</span>
+<span class="fc bfc" id="L292" title="All 2 branches covered.">                    rpId.startsWith(&quot;localhost:&quot;) ||</span>
+<span class="pc bpc" id="L293" title="1 of 4 branches missed.">                    (rpId.contains('.') &amp;&amp; !rpId.contains(' '))</span>
+            }
+
+            // Check the supported scheme without copying the RP ID into a String.
+<span class="fc" id="L297">            val isHttp =</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">                schemeSeparator == HTTP_SCHEME_LENGTH &amp;&amp;</span>
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">                    &quot;http&quot;.indices.all { index -&gt;</span>
+<span class="fc" id="L300">                        rpId[index].equals(&quot;http&quot;[index], ignoreCase = true)</span>
+                    }
+<span class="fc" id="L302">            val isHttps =</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">                schemeSeparator == HTTPS_SCHEME_LENGTH &amp;&amp;</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">                    &quot;https&quot;.indices.all { index -&gt;</span>
+<span class="fc" id="L305">                        rpId[index].equals(&quot;https&quot;[index], ignoreCase = true)</span>
+                    }
+<span class="fc bfc" id="L307" title="All 4 branches covered.">            if (!isHttp &amp;&amp; !isHttps) return false</span>
+<span class="fc" id="L308">            val authorityStart = schemeSeparator + SCHEME_PREFIX_LENGTH</span>
+<span class="fc" id="L309">            var authorityEnd = rpId.length</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">            for (index in authorityStart until rpId.length) {</span>
+<span class="fc bfc" id="L311" title="All 6 branches covered.">                if (rpId[index] == '/' || rpId[index] == '?' || rpId[index] == '#') {</span>
+<span class="fc" id="L312">                    authorityEnd = index</span>
+<span class="fc" id="L313">                    break</span>
+                }
+            }
+<span class="fc bfc" id="L316" title="All 2 branches covered.">            if (authorityStart &gt;= authorityEnd) return false</span>
+<span class="fc" id="L317">            return (authorityStart until authorityEnd).none { rpId[it].isWhitespace() }</span>
+        }
+
+        /**
+         * Normalizes RP ID to HTTPS format.
+         */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun normalizeRpId(rpId: String): String {
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            if (rpId.startsWith(&quot;http://localhost&quot;)) return rpId</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">            if (rpId.startsWith(&quot;http://&quot;)) return &quot;https://&quot; + rpId.substring(HTTP_PREFIX_LENGTH)</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">            if (rpId.startsWith(&quot;https://&quot;)) return rpId</span>
+<span class="fc" id="L328">            return &quot;https://$rpId&quot;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

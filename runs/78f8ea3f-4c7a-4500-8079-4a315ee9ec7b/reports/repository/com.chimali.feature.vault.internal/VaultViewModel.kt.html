@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.internal</a> &gt; <span class="el_source">VaultViewModel.kt</span></div><h1>VaultViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.internal
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.chimali.core.clipboard.ClipboardManagerService
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.feature.vault.api.VaultIntent
+import com.chimali.feature.vault.api.VaultItem
+import com.chimali.feature.vault.api.VaultMutationState
+import com.chimali.feature.vault.api.VaultService
+import com.chimali.feature.vault.api.VaultState
+import com.chimali.feature.vault.api.VaultType
+import com.chimali.feature.vault.internal.crypto.VaultCryptoService
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.PasswordPayload
+import com.chimali.feature.vault.internal.payload.SecureNotePayload
+import com.chimali.feature.vault.internal.payload.SensitivePayload
+import java.util.UUID
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+<span class="fc" id="L29">class VaultViewModel(</span>
+<span class="fc" id="L30">    private val vaultService: VaultService,</span>
+<span class="fc" id="L31">    private val clipboardManager: ClipboardManagerService,</span>
+<span class="fc" id="L32">    private val vaultCryptoService: VaultCryptoService,</span>
+) : ViewModel() {
+<span class="fc" id="L34">    private val _state = MutableStateFlow(VaultState())</span>
+<span class="fc" id="L35">    val state: StateFlow&lt;VaultState&gt; = _state.asStateFlow()</span>
+
+    private var submissionJob: Job? = null
+    private var activeSubmission: SensitivePayload? = null
+    private var retryId: UUID? = null
+    private var detailGeneration = 0L
+
+    fun processIntent(intent: VaultIntent) {
+<span class="fc" id="L43">        when (intent) {</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">            is VaultIntent.LoadItems -&gt; loadItems(intent)</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">            is VaultIntent.SaveItem -&gt; saveItem(intent)</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">            is VaultIntent.LoadLabels -&gt; loadLabels()</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">            is VaultIntent.CreateLabel -&gt; createLabel(intent)</span>
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">            is VaultIntent.DeleteLabel -&gt; deleteLabel(intent)</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            is VaultIntent.SavePassword -&gt; savePassword(intent)</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            is VaultIntent.SaveCreditCard -&gt; saveCreditCard(intent)</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">            is VaultIntent.SaveSecureNote -&gt; saveSecureNote(intent)</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">            is VaultIntent.DeleteItem -&gt; deleteItem(intent)</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">            is VaultIntent.DecryptItem -&gt; decryptItem(intent)</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">            VaultIntent.ClearSelectedItem -&gt; clearSelectedItem()</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            VaultIntent.ResetMutation -&gt; {</span>
+<span class="nc" id="L56">                retryId = null</span>
+<span class="nc" id="L57">                _state.update { it.copy(mutationState = VaultMutationState.IDLE) }</span>
+            }
+<span class="fc bfc" id="L59" title="All 2 branches covered.">            VaultIntent.AbandonMutation -&gt; abandonMutation()</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">            VaultIntent.ClearClipboard -&gt; clearClipboard()</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">            VaultIntent.ClearCopyMessage -&gt; _state.update { it.copy(copyMessage = null) }</span>
+<span class="fc" id="L62">            is VaultIntent.CopyPassword -&gt; copyPassword(intent.password)</span>
+        }
+<span class="fc" id="L64">    }</span>
+
+    private fun loadItems(intent: VaultIntent.LoadItems) {
+<span class="fc" id="L67">        viewModelScope.launch {</span>
+<span class="fc" id="L68">            _state.update { it.copy(isLoading = true, errorMessage = null, selectedLabelId = intent.filterLabelId) }</span>
+<span class="fc" id="L69">            when (val result = vaultService.getItems(intent.filterLabelId)) {</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">                is Outcome.Success -&gt; replaceItems(result.data)</span>
+<span class="nc" id="L71">                is Outcome.Error -&gt;</span>
+<span class="nc" id="L72">                    _state.update {</span>
+<span class="nc" id="L73">                        it.copy(isLoading = false, errorMessage = result.error.message)</span>
+                    }
+            }
+<span class="fc" id="L76">        }</span>
+<span class="fc" id="L77">    }</span>
+
+    private fun saveItem(intent: VaultIntent.SaveItem) {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (_state.value.mutationState == VaultMutationState.PENDING) return</span>
+<span class="nc" id="L81">        viewModelScope.launch {</span>
+<span class="nc" id="L82">            _state.update {</span>
+<span class="nc" id="L83">                it.copy(</span>
+<span class="nc" id="L84">                    isLoading = true,</span>
+<span class="nc" id="L85">                    errorMessage = null,</span>
+<span class="nc" id="L86">                    mutationState = VaultMutationState.PENDING,</span>
+<span class="nc" id="L87">                )</span>
+            }
+<span class="nc" id="L89">            try {</span>
+<span class="nc" id="L90">                when (val saveResult = vaultService.saveItem(intent.item)) {</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                    is Outcome.Success -&gt; {</span>
+<span class="nc" id="L92">                        _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }</span>
+<span class="nc" id="L93">                        reloadItems()</span>
+                    }
+<span class="nc" id="L95">                    is Outcome.Error -&gt;</span>
+<span class="nc" id="L96">                        _state.update {</span>
+<span class="nc" id="L97">                            it.copy(</span>
+<span class="nc" id="L98">                                isLoading = false,</span>
+<span class="nc" id="L99">                                errorMessage = saveResult.error.message,</span>
+<span class="nc" id="L100">                                mutationState = VaultMutationState.FAILED,</span>
+<span class="nc" id="L101">                            )</span>
+                        }
+                }
+            } finally {
+<span class="nc" id="L105">                intent.item.clearMemory()</span>
+            }
+<span class="nc" id="L107">        }</span>
+<span class="nc" id="L108">    }</span>
+
+    /** FR-VAULT-026: completion handlers also cover jobs cancelled before their body starts. */
+    private fun launchSubmission(
+        payload: SensitivePayload,
+        save: suspend () -&gt; Unit,
+    ) {
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (_state.value.mutationState == VaultMutationState.PENDING) {</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">            if (payload !== activeSubmission) payload.clearMemory()</span>
+<span class="fc" id="L117">            return</span>
+        }
+<span class="fc" id="L119">        activeSubmission = payload</span>
+<span class="fc" id="L120">        _state.update { it.copy(isLoading = true, errorMessage = null, mutationState = VaultMutationState.PENDING) }</span>
+<span class="fc" id="L121">        submissionJob =</span>
+<span class="fc" id="L122">            viewModelScope.launch { save() }.also { job -&gt;</span>
+<span class="fc" id="L123">                job.invokeOnCompletion {</span>
+<span class="fc" id="L124">                    payload.clearMemory()</span>
+<span class="pc bpc" id="L125" title="1 of 2 branches missed.">                    if (activeSubmission === payload) {</span>
+<span class="fc" id="L126">                        activeSubmission = null</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">                        if (job.isCancelled) {</span>
+<span class="fc" id="L128">                            _state.update { state -&gt;</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                                if (state.mutationState == VaultMutationState.PENDING) {</span>
+<span class="fc" id="L130">                                    state.copy(isLoading = false, mutationState = VaultMutationState.IDLE)</span>
+                                } else {
+<span class="fc" id="L132">                                    state</span>
+<span class="fc" id="L133">                                }</span>
+                            }
+                        }
+                    }
+<span class="fc" id="L137">                }</span>
+<span class="fc" id="L138">            }</span>
+<span class="fc" id="L139">    }</span>
+
+    override fun onCleared() {
+<span class="fc" id="L142">        clearSelectedItem()</span>
+<span class="fc" id="L143">        super.onCleared()</span>
+<span class="fc" id="L144">    }</span>
+
+    private fun abandonMutation() {
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">        submissionJob?.cancel()</span>
+<span class="fc" id="L148">        submissionJob = null</span>
+<span class="fc" id="L149">        retryId = null</span>
+<span class="fc" id="L150">        _state.update { it.copy(isLoading = false, mutationState = VaultMutationState.IDLE) }</span>
+<span class="fc" id="L151">    }</span>
+
+    private fun savePassword(intent: VaultIntent.SavePassword) {
+<span class="fc" id="L154">        launchSubmission(intent.payload) {</span>
+<span class="fc" id="L155">            savePayload(intent.id, intent.labelIds) { id -&gt;</span>
+<span class="fc" id="L156">                vaultCryptoService.encryptPassword(id, intent.payload, intent.identityId)</span>
+            }
+<span class="fc" id="L158">        }</span>
+<span class="fc" id="L159">    }</span>
+
+    private fun saveCreditCard(intent: VaultIntent.SaveCreditCard) {
+<span class="fc" id="L162">        launchSubmission(intent.payload) {</span>
+<span class="fc" id="L163">            savePayload(intent.id, intent.labelIds) { id -&gt;</span>
+<span class="fc" id="L164">                vaultCryptoService.encryptCreditCard(id, intent.payload, intent.identityId)</span>
+            }
+<span class="fc" id="L166">        }</span>
+<span class="fc" id="L167">    }</span>
+
+    private fun saveSecureNote(intent: VaultIntent.SaveSecureNote) {
+<span class="fc" id="L170">        launchSubmission(intent.payload) {</span>
+<span class="fc" id="L171">            savePayload(intent.id, intent.labelIds) { id -&gt;</span>
+<span class="fc" id="L172">                vaultCryptoService.encryptSecureNote(id, intent.payload, intent.identityId)</span>
+            }
+<span class="fc" id="L174">        }</span>
+<span class="fc" id="L175">    }</span>
+
+<span class="fc" id="L177">    private suspend fun savePayload(</span>
+        id: UUID?,
+        labelIds: List&lt;UUID&gt;,
+        encrypt: suspend (UUID) -&gt; Outcome&lt;VaultItem, DomainError&gt;,
+    ) {
+<span class="fc bfc" id="L182" title="All 4 branches covered.">        val stableId = id ?: retryId ?: UUID.randomUUID().also { retryId = it }</span>
+<span class="fc" id="L183">        val encrypted = encrypt(stableId)</span>
+<span class="fc" id="L184">        currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L185">        val outcome =</span>
+<span class="fc" id="L186">            when (encrypted) {</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                is Outcome.Error -&gt; encrypted</span>
+<span class="fc" id="L188">                is Outcome.Success -&gt; {</span>
+<span class="fc" id="L189">                    try {</span>
+<span class="fc" id="L190">                        val saved = vaultService.saveItem(encrypted.data)</span>
+<span class="fc" id="L191">                        currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L192">                        when (saved) {</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">                            is Outcome.Error -&gt; saved</span>
+<span class="fc" id="L194">                            is Outcome.Success -&gt; vaultService.setItemLabels(encrypted.data.id, labelIds)</span>
+                        }
+                    } finally {
+<span class="fc" id="L197">                        encrypted.data.clearMemory()</span>
+                    }
+                }
+            }
+<span class="fc" id="L201">        currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L202">        when (outcome) {</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">            is Outcome.Success -&gt; {</span>
+<span class="fc" id="L204">                reloadItems()</span>
+<span class="fc" id="L205">                currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L206">                _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }</span>
+            }
+<span class="fc" id="L208">            is Outcome.Error -&gt;</span>
+<span class="fc" id="L209">                _state.update {</span>
+<span class="fc" id="L210">                    it.copy(</span>
+<span class="fc" id="L211">                        isLoading = false,</span>
+<span class="fc" id="L212">                        errorMessage = outcome.error.message,</span>
+<span class="fc" id="L213">                        mutationState = VaultMutationState.FAILED,</span>
+<span class="fc" id="L214">                    )</span>
+                }
+        }
+<span class="fc" id="L217">    }</span>
+
+    private fun deleteItem(intent: VaultIntent.DeleteItem) {
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (_state.value.mutationState == VaultMutationState.PENDING) return</span>
+<span class="fc" id="L221">        viewModelScope.launch {</span>
+<span class="fc" id="L222">            _state.update {</span>
+<span class="fc" id="L223">                it.copy(</span>
+<span class="fc" id="L224">                    isLoading = true,</span>
+<span class="fc" id="L225">                    errorMessage = null,</span>
+<span class="fc" id="L226">                    mutationState = VaultMutationState.PENDING,</span>
+<span class="fc" id="L227">                )</span>
+            }
+<span class="fc" id="L229">            when (val deleteResult = vaultService.deleteItem(intent.id)) {</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">                is Outcome.Success -&gt; {</span>
+<span class="fc" id="L231">                    _state.update { it.copy(mutationState = VaultMutationState.SUCCEEDED) }</span>
+<span class="fc" id="L232">                    clearSelectedItem()</span>
+<span class="fc" id="L233">                    reloadItems()</span>
+                }
+<span class="nc" id="L235">                is Outcome.Error -&gt;</span>
+<span class="nc" id="L236">                    _state.update {</span>
+<span class="nc" id="L237">                        it.copy(</span>
+<span class="nc" id="L238">                            isLoading = false,</span>
+<span class="nc" id="L239">                            errorMessage = deleteResult.error.message,</span>
+<span class="nc" id="L240">                            mutationState = VaultMutationState.FAILED,</span>
+<span class="nc" id="L241">                        )</span>
+                    }
+            }
+<span class="fc" id="L244">        }</span>
+<span class="fc" id="L245">    }</span>
+
+    private fun decryptItem(intent: VaultIntent.DecryptItem) {
+<span class="fc" id="L248">        clearSelectedItem()</span>
+<span class="fc" id="L249">        val generation = detailGeneration</span>
+<span class="fc" id="L250">        viewModelScope.launch {</span>
+<span class="fc" id="L251">            _state.update { it.copy(isLoading = true, errorMessage = null) }</span>
+<span class="fc" id="L252">            val stored = vaultService.getItems(null)</span>
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">            if (generation != detailGeneration) return@launch</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">            if (stored is Outcome.Error) {</span>
+<span class="nc" id="L255">                _state.update { it.copy(isLoading = false, errorMessage = stored.error.message) }</span>
+<span class="nc" id="L256">                return@launch</span>
+            }
+<span class="pc bpc" id="L258" title="2 of 4 branches missed.">            val item = (stored as Outcome.Success).data.find { it.id == intent.id }</span>
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">            if (item != null) {</span>
+<span class="fc" id="L260">                val labelIds = vaultService.getItemLabelIds(intent.id)</span>
+<span class="fc bfc" id="L261" title="All 8 branches covered.">                val selectedLabelIds = (labelIds as? Outcome.Success)?.data?.toSet() ?: emptySet()</span>
+<span class="fc" id="L262">                val dec =</span>
+<span class="fc bfc" id="L263" title="All 3 branches covered.">                    when (item.type) {</span>
+<span class="fc" id="L264">                        VaultType.PASSWORD -&gt; vaultCryptoService.decryptPassword(item)</span>
+<span class="fc" id="L265">                        VaultType.CREDIT_CARD -&gt; vaultCryptoService.decryptCreditCard(item)</span>
+<span class="fc" id="L266">                        VaultType.NOTE -&gt; vaultCryptoService.decryptSecureNote(item)</span>
+                    }
+<span class="pc bpc" id="L268" title="1 of 4 branches missed.">                if (generation != detailGeneration || !currentCoroutineContext()[Job]!!.isActive) {</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">                    if (dec is Outcome.Success) dec.data.clearMemory()</span>
+<span class="fc" id="L270">                    return@launch</span>
+                }
+<span class="fc" id="L272">                when (dec) {</span>
+<span class="pc bpc" id="L273" title="1 of 2 branches missed.">                    is Outcome.Success -&gt;</span>
+<span class="fc" id="L274">                        _state.update {</span>
+<span class="fc" id="L275">                            it.copy(</span>
+<span class="fc" id="L276">                                isLoading = false,</span>
+<span class="fc" id="L277">                                selectedItem = item,</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">                                selectedPasswordPayload = dec.data as? PasswordPayload,</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">                                selectedCreditCardPayload = dec.data as? CreditCardPayload,</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">                                selectedSecureNotePayload = dec.data as? SecureNotePayload,</span>
+<span class="fc" id="L281">                                selectedItemLabelIds = selectedLabelIds,</span>
+<span class="fc" id="L282">                            )</span>
+                        }
+<span class="nc" id="L284">                    is Outcome.Error -&gt; _state.update { it.copy(isLoading = false, errorMessage = dec.error.message) }</span>
+                }
+            } else {
+<span class="nc" id="L287">                _state.update { it.copy(isLoading = false, errorMessage = &quot;Item not found&quot;) }</span>
+            }
+<span class="fc" id="L289">        }</span>
+<span class="fc" id="L290">    }</span>
+
+    private fun clearSelectedItem() {
+<span class="fc" id="L293">        detailGeneration++</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">        _state.value.selectedPasswordPayload?.clearMemory()</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        _state.value.selectedCreditCardPayload?.clearMemory()</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        _state.value.selectedSecureNotePayload?.clearMemory()</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">        _state.value.selectedItem?.clearMemory()</span>
+<span class="fc" id="L298">        _state.update {</span>
+<span class="fc" id="L299">            it.copy(</span>
+<span class="fc" id="L300">                selectedItem = null,</span>
+<span class="fc" id="L301">                selectedPasswordPayload = null,</span>
+<span class="fc" id="L302">                selectedCreditCardPayload = null,</span>
+<span class="fc" id="L303">                selectedSecureNotePayload = null,</span>
+<span class="fc" id="L304">                selectedItemLabelIds = emptySet(),</span>
+<span class="fc" id="L305">            )</span>
+        }
+<span class="fc" id="L307">    }</span>
+
+<span class="fc" id="L309">    private suspend fun reloadItems() {</span>
+<span class="fc" id="L310">        val loadResult = vaultService.getItems(_state.value.selectedLabelId)</span>
+<span class="fc" id="L311">        currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L312">        when (loadResult) {</span>
+<span class="pc bpc" id="L313" title="1 of 2 branches missed.">            is Outcome.Success -&gt; replaceItems(loadResult.data)</span>
+<span class="nc" id="L314">            is Outcome.Error -&gt;</span>
+<span class="nc" id="L315">                _state.update {</span>
+<span class="nc" id="L316">                    it.copy(isLoading = false, errorMessage = loadResult.error.message)</span>
+                }
+        }
+<span class="fc" id="L319">    }</span>
+
+    private fun replaceItems(items: List&lt;VaultItem&gt;) {
+<span class="fc" id="L322">        val oldItems = _state.value.items</span>
+<span class="fc" id="L323">        _state.update { it.copy(isLoading = false, items = items) }</span>
+<span class="pc" id="L324">        oldItems.forEach { it.clearMemory() }</span>
+<span class="fc" id="L325">    }</span>
+
+    private fun loadLabels() {
+<span class="nc" id="L328">        viewModelScope.launch {</span>
+<span class="nc" id="L329">            when (val result = vaultService.getLabels()) {</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                is Outcome.Success -&gt; _state.update { it.copy(labels = result.data) }</span>
+<span class="nc" id="L331">                is Outcome.Error -&gt; _state.update { it.copy(errorMessage = result.error.message) }</span>
+            }
+<span class="nc" id="L333">        }</span>
+<span class="nc" id="L334">    }</span>
+
+    private fun createLabel(intent: VaultIntent.CreateLabel) {
+<span class="nc" id="L337">        viewModelScope.launch {</span>
+<span class="nc" id="L338">            when (val result = vaultService.createLabel(intent.name, intent.colorHex)) {</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">                is Outcome.Success -&gt; loadLabels()</span>
+<span class="nc" id="L340">                is Outcome.Error -&gt; _state.update { it.copy(errorMessage = result.error.message) }</span>
+            }
+<span class="nc" id="L342">        }</span>
+<span class="nc" id="L343">    }</span>
+
+    private fun deleteLabel(intent: VaultIntent.DeleteLabel) {
+<span class="nc" id="L346">        viewModelScope.launch {</span>
+<span class="nc" id="L347">            when (val result = vaultService.deleteLabel(intent.id)) {</span>
+<span class="nc bnc" id="L348" title="All 2 branches missed.">                is Outcome.Success -&gt; loadLabels()</span>
+<span class="nc" id="L349">                is Outcome.Error -&gt; _state.update { it.copy(errorMessage = result.error.message) }</span>
+            }
+<span class="nc" id="L351">        }</span>
+<span class="nc" id="L352">    }</span>
+
+    private fun clearClipboard() {
+<span class="nc" id="L355">        viewModelScope.launch {</span>
+<span class="nc" id="L356">            clipboardManager.clearClipboard()</span>
+<span class="nc" id="L357">        }</span>
+<span class="nc" id="L358">    }</span>
+
+    private fun copyPassword(password: CharArray) {
+<span class="fc" id="L361">        viewModelScope</span>
+<span class="fc" id="L362">            .launch {</span>
+<span class="fc" id="L363">                try {</span>
+                    // Approved I.5 platform adapter: no String is stored in an intent or application state.
+<span class="fc" id="L365">                    val result = clipboardManager.copySensitiveData(&quot;Password&quot;, String(password))</span>
+<span class="fc" id="L366">                    val message =</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">                        result.fold(</span>
+<span class="fc" id="L368">                            onSuccess = { &quot;Password copied. Clipboard clears in 60s.&quot; },</span>
+<span class="fc" id="L369">                            onFailure = { &quot;Unable to copy password to clipboard.&quot; },</span>
+                        )
+<span class="fc" id="L371">                    currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L372">                    _state.update { it.copy(copyMessage = message) }</span>
+                } finally {
+<span class="fc" id="L374">                    password.fill('\u0000')</span>
+                }
+<span class="fc" id="L376">            }.invokeOnCompletion { password.fill('\u0000') }</span>
+<span class="fc" id="L377">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

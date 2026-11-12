@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "review_type": "AcceptedTargetRefresh",
+  "decision": "ACCEPT",
+  "decision_id": "ff67cfbc-db84-4801-b56f-92bd7709d7c5",
+  "reviewed_at": "2026-11-12T16:31:51Z",
+  "repository": "octaviordz/chimali",
+  "actor": {
+    "authenticated_user": "octaviordz",
+    "permission": "admin",
+    "agent_identity": "Codex",
+    "authorized_user": "octaviordz"
+  },
+  "authenticated_user": "octaviordz",
+  "permission": "admin",
+  "run_id": "78f8ea3f-4c7a-4500-8079-4a315ee9ec7b",
+  "manifest_digest": "42dfe2681109bde6c44b8af9bc3aa897ad5a4e3bb5cd90b15f2aa75e8db04a99",
+  "bundle_digest": "d8f8613fe0e5df247ad7314f2eb1d94db95b677c31369598b7d5917fce450c64",
+  "target_commit": "f1fd56baf8641cea99edc7fafa8725fdda21044c",
+  "target_tree": "3a41f6da4b81d7d16e3d90afad6f1b0c9d881487",
+  "measurement_fingerprint": "d242e5d6221b90aa5c5fe4e14e27cdcf40c06c4d1502ae15ecc3e78af36105c0",
+  "prior_index_digest": "584a43fd3834945e835a78a840fe6b6723b90807182fdf5e5b126201ac4bc3c4",
+  "prior_run_id": "c1b392a9-f830-4283-83f2-44e36ac5d731",
+  "reason": "Owner-authorized same-tree baseline profile refresh for current protected main after review of the exact API35 run, complete tests and floors, and incompatible indexed profile. User explicitly authorized the archive update in this Codex thread on 2026-11-12; hosted integration remains waived.",
+  "verifier_decision_digest": "2473c8155d661fd1b6c5d907b1de03301c1481efb473bfa2ce0cca280ff612dc",
+  "verifier_decision_path": "assessments/78f8ea3f-4c7a-4500-8079-4a315ee9ec7b/target-refresh-verification/decision.json",
+  "hosted_check": "Unverified"
+}

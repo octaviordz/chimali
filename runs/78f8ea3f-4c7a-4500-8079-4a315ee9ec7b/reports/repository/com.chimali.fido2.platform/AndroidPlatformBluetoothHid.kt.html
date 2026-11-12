@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AndroidPlatformBluetoothHid.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.platform</a> &gt; <span class="el_source">AndroidPlatformBluetoothHid.kt</span></div><h1>AndroidPlatformBluetoothHid.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.platform
+
+import android.bluetooth.BluetoothManager
+import android.content.Context
+import android.content.pm.PackageManager
+
+/**
+ * T191 — Android implementation of [PlatformBluetoothHid].
+ *
+ * Checks whether the device supports the Bluetooth HID Device profile using
+ * PackageManager feature flags (no permissions required for capability checks).
+ */
+<span class="nc" id="L13">class AndroidPlatformBluetoothHid(</span>
+<span class="nc" id="L14">    private val context: Context,</span>
+) : PlatformBluetoothHid {
+<span class="nc" id="L16">    private val bluetoothManager: BluetoothManager? by lazy {</span>
+<span class="nc bnc" id="L17" title="All 2 branches missed.">        context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager</span>
+    }
+
+    /**
+     * True if the device hardware supports the Bluetooth HID Device profile.
+     * BluetoothHidDeviceWrapper requires this to be true before calling initialize().
+     */
+    override fun isSupported(): Boolean =
+<span class="nc bnc" id="L25" title="All 2 branches missed.">        android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.P &amp;&amp;</span>
+<span class="nc bnc" id="L26" title="All 2 branches missed.">            context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) &amp;&amp;</span>
+<span class="nc bnc" id="L27" title="All 4 branches missed.">            bluetoothManager?.adapter != null</span>
+
+    /**
+     * True if the Bluetooth adapter is currently powered on.
+     * Callers should check this before attempting to register the HID app.
+     */
+    override fun isAdapterEnabled(): Boolean =
+<span class="nc" id="L34">        runCatching {</span>
+<span class="nc bnc" id="L35" title="All 6 branches missed.">            bluetoothManager?.adapter?.isEnabled == true</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        }.getOrDefault(false)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

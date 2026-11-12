@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MasterSeedProvider.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">security</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.api</a> &gt; <span class="el_source">MasterSeedProvider.kt</span></div><h1>MasterSeedProvider.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.api
+
+import com.chimali.core.common.annotation.Req
+
+/** Lifetime class for a bounded operation owner; foreground loss only cancels foreground work. */
+enum class MasterSeedOwnerKind {
+<span class="fc" id="L7">    BOUNDED,</span>
+<span class="fc" id="L8">    FOREGROUND,</span>
+<span class="fc" id="L9">    AUTHENTICATOR,</span>
+}
+
+/**
+ * Provides owned operation copies of the current wallet's derivation material.
+ *
+ * A ready provider session caches at most one 32-byte root PRK and one P-256 parent key pair.
+ * Every getter returns separate caller-owned storage. Callers erase private copies in `finally`;
+ * no PQ child seed or per-credential secret is cached by this provider.
+ */
+interface MasterSeedProvider {
+    /**
+     * Runs one bounded operation under a provider-tracked owner. Implementations must bind the
+     * owner to the calling coroutine, cancel it when its generation is fenced, and release it in
+     * `finally`; when the last current-generation owner exits, cached root material is erased.
+     * Set [initialize] to false for an authorized operation such as mnemonic display that reads
+     * encrypted recovery material without deriving the wallet root.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L28">    suspend fun &lt;T&gt; withSessionOwner(</span>
+<span class="fc" id="L29">        initialize: Boolean = true,</span>
+<span class="fc" id="L30">        ownerKind: MasterSeedOwnerKind = MasterSeedOwnerKind.BOUNDED,</span>
+        operation: suspend (generation: Long) -&gt; T,
+<span class="nc" id="L32">    ): T</span>
+
+    /** Cancels active owners of [ownerKind] without fencing unrelated owners or generations. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun cancelSessionOwners(ownerKind: MasterSeedOwnerKind)
+
+    /** Current cache generation, changed whenever the active wallet session is fenced. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun sessionGeneration(): Long
+
+    /** Returns whether work admitted in [generation] may still publish a result. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun isSessionGenerationCurrent(generation: Long): Boolean
+
+    /** Fences the active generation and erases cached root/parent material and derived metadata keys. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun clearSession()
+
+    /**
+     * Returns an owned 32-byte RFC 5869 root PRK copy, or `null` if initialization is unavailable.
+     * The caller must erase this array after its operation; it never aliases the provider cache.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun getMasterSeed(): ByteArray?
+
+    /** Returns an owned parent key-pair copy, or `null` if initialization is unavailable. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun getDeviceKeyPair(): HdkKeyPair?
+
+    /**
+     * Returns the current English mnemonic in an owned mutable space-separated character buffer,
+     * or `null` when no wallet is provisioned. The caller must erase the returned buffer.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun getMnemonic(): CharArray?
+
+    /**
+     * Imports/replaces the wallet mnemonic using this operation-owned buffer. The provider always
+     * erases [mnemonic] on success, failure, or cancellation before returning/throwing.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun importMnemonic(mnemonic: CharArray): ImportMnemonicResult
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

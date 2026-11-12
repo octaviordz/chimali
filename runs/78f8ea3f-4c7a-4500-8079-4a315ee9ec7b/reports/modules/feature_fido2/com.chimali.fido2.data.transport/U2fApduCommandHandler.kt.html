@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>U2fApduCommandHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">U2fApduCommandHandler.kt</span></div><h1>U2fApduCommandHandler.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.bluetooth.CTAPHID_CBOR
+import com.chimali.fido2.bluetooth.CTAPHID_MSG
+import com.chimali.fido2.bluetooth.CtapHidMessage
+import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+
+/** Handles the bounded ISO 7816 APDU compatibility path and routes CTAP2-over-MSG to the transport. */
+<span class="fc" id="L12">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L13">internal class U2fApduCommandHandler(</span>
+<span class="fc" id="L14">    private val hidReportParser: HidReportParser,</span>
+<span class="fc" id="L15">    private val responseBuilder: Ctap2ResponseBuilder,</span>
+<span class="fc" id="L16">    private val enqueuePackets: (List&lt;ByteArray&gt;, Long) -&gt; Unit,</span>
+<span class="fc" id="L17">    private val launchCborOperation: suspend (CtapHidMessage, Long) -&gt; Unit,</span>
+) {
+    private companion object {
+        private const val ERR_INVALID_LEN: Byte = 0x03
+        private const val INS_REGISTER = 0x01
+        private const val INS_AUTHENTICATE = 0x02
+        private const val INS_VERSION = 0x03
+        private const val INS_CTAP2_OVER_MSG = 0x10
+        private const val SW_SUCCESS_1 = 0x90.toByte()
+        private const val SW_SUCCESS_2 = 0x00.toByte()
+        private const val SW_CONDITIONS_NOT_SATISFIED_1 = 0x69.toByte()
+        private const val SW_CONDITIONS_NOT_SATISFIED_2 = 0x85.toByte()
+        private const val SW_WRONG_DATA_1 = 0x6A.toByte()
+        private const val SW_WRONG_DATA_2 = 0x80.toByte()
+        private const val SW_UNKNOWN_1 = 0x6F.toByte()
+        private const val SW_UNKNOWN_2 = 0x00.toByte()
+        private const val SW_INS_NOT_SUPPORTED_1 = 0x6D.toByte()
+        private const val SW_INS_NOT_SUPPORTED_2 = 0x00.toByte()
+        private const val APDU_MIN_SIZE = 4
+        private const val APDU_LC_SHORT_OFFSET = 4
+        private const val APDU_LC_EXTENDED_OFFSET = 5
+        private const val APDU_LC_EXTENDED_MIN_SIZE = 7
+        private const val APDU_DATA_OFFSET_SHORT = 5
+        private const val BYTE_MASK = 0xFF
+        private const val SHIFT_8 = 8
+        private const val HEX_RADIX = 16
+    }
+
+    /**
+     * Borrows the reassembled APDU payload for dispatch; the caller erases it after this returns.
+     * The extracted CTAP2 payload transfers to [launchCborOperation], whose terminal job owner
+     * erases it after handler completion or rejected admission.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun handle(
+        message: CtapHidMessage,
+        sessionGeneration: Long,
+    ) {
+<span class="fc" id="L55">        val cid = message.channelId</span>
+<span class="fc" id="L56">        val payload = message.payload</span>
+<span class="fc" id="L57">        Logger.d { &quot;CTAPHID_MSG len=${payload.size} cid=${cid.toHex()}&quot; }</span>
+
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">        if (payload.size &lt; APDU_MIN_SIZE) {</span>
+<span class="nc" id="L60">            enqueuePackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN), sessionGeneration)</span>
+<span class="nc" id="L61">            return</span>
+        }
+
+<span class="fc" id="L64">        val ins = payload[1].toInt() and BYTE_MASK</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (ins == INS_CTAP2_OVER_MSG) {</span>
+<span class="fc" id="L66">            val cborData = extractApduData(payload)</span>
+<span class="pc bpc" id="L67" title="3 of 6 branches missed.">            if (cborData == null || cborData.isEmpty()) {</span>
+<span class="nc" id="L68">                Logger.w { &quot;CTAPHID_MSG INS=0x10 but APDU data is empty&quot; }</span>
+<span class="nc" id="L69">                enqueuePackets(u2fErrorResponse(cid, SW_UNKNOWN_1.toInt(), SW_UNKNOWN_2.toInt()), sessionGeneration)</span>
+<span class="nc" id="L70">                return</span>
+            }
+<span class="fc" id="L72">            Logger.d {</span>
+<span class="fc" id="L73">                &quot;CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and BYTE_MASK).toString(HEX_RADIX)} as CBOR&quot;</span>
+            }
+<span class="fc" id="L75">            var transferred = false</span>
+<span class="fc" id="L76">            try {</span>
+<span class="fc" id="L77">                launchCborOperation(CtapHidMessage(cid, CTAPHID_CBOR, cborData), sessionGeneration)</span>
+<span class="fc" id="L78">                transferred = true</span>
+            } finally {
+<span class="pc bnc" id="L80" title="All 2 branches missed.">                if (!transferred) cborData.fill(0)</span>
+<span class="fc" id="L81">            }</span>
+<span class="fc" id="L82">            return</span>
+        }
+
+<span class="nc bnc" id="L85" title="All 4 branches missed.">        when (ins) {</span>
+            INS_VERSION -&gt; {
+<span class="nc" id="L87">                val u2fVersion = &quot;U2F_V2&quot;.toByteArray(Charsets.US_ASCII)</span>
+<span class="nc" id="L88">                enqueuePackets(u2fSuccessResponse(cid, u2fVersion), sessionGeneration)</span>
+            }
+            INS_REGISTER -&gt; {
+<span class="nc" id="L91">                Logger.i {</span>
+<span class="nc" id="L92">                    &quot;CTAPHID_MSG U2F_REGISTER → returning SW_CONDITIONS_NOT_SATISFIED (0x6985) to escalate to CTAP2&quot;</span>
+                }
+<span class="nc" id="L94">                enqueuePackets(</span>
+<span class="nc" id="L95">                    u2fErrorResponse(cid, SW_CONDITIONS_NOT_SATISFIED_1.toInt(), SW_CONDITIONS_NOT_SATISFIED_2.toInt()),</span>
+<span class="nc" id="L96">                    sessionGeneration,</span>
+                )
+            }
+            INS_AUTHENTICATE -&gt; {
+<span class="nc" id="L100">                Logger.d { &quot;CTAPHID_MSG U2F_AUTHENTICATE → SW_WRONG_DATA (triggers CTAP2 GetAssertion)&quot; }</span>
+<span class="nc" id="L101">                enqueuePackets(</span>
+<span class="nc" id="L102">                    u2fErrorResponse(cid, SW_WRONG_DATA_1.toInt(), SW_WRONG_DATA_2.toInt()),</span>
+<span class="nc" id="L103">                    sessionGeneration,</span>
+                )
+            }
+            else -&gt; {
+<span class="nc" id="L107">                Logger.d { &quot;CTAPHID_MSG U2F INS=0x${ins.toString(HEX_RADIX)} unknown — returning SW_INS_NOT_SUPPORTED&quot; }</span>
+<span class="nc" id="L108">                enqueuePackets(</span>
+<span class="nc" id="L109">                    u2fErrorResponse(cid, SW_INS_NOT_SUPPORTED_1.toInt(), SW_INS_NOT_SUPPORTED_2.toInt()),</span>
+<span class="nc" id="L110">                    sessionGeneration,</span>
+                )
+            }
+        }
+<span class="nc" id="L114">    }</span>
+
+    /** Extracts the declared data bytes from short or extended ISO 7816-4 APDU framing. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    private fun extractApduData(apdu: ByteArray): ByteArray? {
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (apdu.size &lt; APDU_MIN_SIZE) return null</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        if (apdu.size == APDU_MIN_SIZE) return ByteArray(0)</span>
+
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        return if (apdu[APDU_LC_SHORT_OFFSET] != 0x00.toByte()) {</span>
+<span class="fc" id="L123">            val lc = apdu[APDU_LC_SHORT_OFFSET].toInt() and BYTE_MASK</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">            if (apdu.size &gt;= APDU_DATA_OFFSET_SHORT + lc) {</span>
+<span class="fc" id="L125">                apdu.copyOfRange(APDU_DATA_OFFSET_SHORT, APDU_DATA_OFFSET_SHORT + lc)</span>
+            } else {
+<span class="nc" id="L127">                null</span>
+            }
+        } else {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (apdu.size &lt; APDU_LC_EXTENDED_MIN_SIZE) return null</span>
+<span class="nc" id="L131">            val lc =</span>
+<span class="nc" id="L132">                ((apdu[APDU_LC_EXTENDED_OFFSET].toInt() and BYTE_MASK) shl SHIFT_8) or</span>
+<span class="nc" id="L133">                    (apdu[APDU_LC_EXTENDED_OFFSET + 1].toInt() and BYTE_MASK)</span>
+<span class="nc" id="L134">            val endOffset = APDU_LC_EXTENDED_MIN_SIZE + lc</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            if (apdu.size &gt;= endOffset) {</span>
+<span class="nc" id="L136">                apdu.copyOfRange(APDU_LC_EXTENDED_MIN_SIZE, endOffset)</span>
+            } else {
+<span class="nc" id="L138">                Logger.e { &quot;BluetoothHidTransport: APDU data extraction failed - buffer too small for lc=$lc&quot; }</span>
+<span class="nc" id="L139">                null</span>
+            }
+        }
+    }
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    private fun u2fSuccessResponse(
+        cid: ByteArray,
+        data: ByteArray,
+    ): List&lt;ByteArray&gt; =
+<span class="nc" id="L149">        hidReportParser.encodeResponse(CtapHidMessage(cid, CTAPHID_MSG, data + byteArrayOf(SW_SUCCESS_1, SW_SUCCESS_2)))</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    private fun u2fErrorResponse(
+        cid: ByteArray,
+        sw1: Int,
+        sw2: Int,
+    ): List&lt;ByteArray&gt; =
+<span class="nc" id="L157">        hidReportParser.encodeResponse(CtapHidMessage(cid, CTAPHID_MSG, byteArrayOf(sw1.toByte(), sw2.toByte())))</span>
+
+<span class="fc" id="L159">    private fun ByteArray.toHex(): String = joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

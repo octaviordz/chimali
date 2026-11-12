@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserId.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">domain</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.valueobject</a> &gt; <span class="el_source">UserId.kt</span></div><h1>UserId.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.valueobject
+
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+import kotlin.jvm.JvmInline
+import kotlinx.serialization.Serializable
+
+/**
+ * Represents the User ID, uniquely identifying a user account associated with a Passkey.
+ */
+@OptIn(ExperimentalEncodingApi::class)
+@Serializable
+@JvmInline
+value class UserId(
+    val value: String,
+) {
+    init {
+<span class="nc bnc" id="L18" title="All 4 branches missed.">        require(value.isNotBlank()) { &quot;UserId cannot be blank&quot; }</span>
+    }
+
+    /**
+     * Converts the Base64URL encoded string back to a ByteArray.
+     */
+<span class="nc" id="L24">    fun toByteArray(): ByteArray = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(value)</span>
+
+    companion object {
+        /**
+         * Creates a UserId from a ByteArray by encoding it as Base64URL.
+         */
+        fun fromByteArray(bytes: ByteArray): UserId =
+<span class="nc" id="L31">            UserId(Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(bytes))</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

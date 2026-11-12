@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetAssertionUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.usecase</a> &gt; <span class="el_source">GetAssertionUseCase.kt</span></div><h1>GetAssertionUseCase.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.usecase
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.getOrDefault
+import com.chimali.core.common.result.getOrElse
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.domain.model.CredentialProtectionPolicy
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.fido2.data.crypto.ClientDataHashService
+import com.chimali.fido2.data.crypto.Fido2CryptoService
+import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.util.matchesCredentialId
+import com.chimali.fido2.util.performance.PerformanceTrace
+import org.koin.core.annotation.Factory
+
+/**
+ * T080 — Authenticate use case: executes a FIDO2 GetAssertion ceremony.
+ *
+ * ## Credential selection and key derivation (NFR-PERF-030)
+ *
+ * [CredentialSummary] carries the identity, persisted algorithm/profile descriptor, and
+ * registered public-key encoding needed for selection and signing, so candidates are not
+ * hydrated into full credential models. Key derivation happens only after a credential is
+ * selected; this class makes no latency claim.
+ *
+ * ```
+ * Phase 1 — List:    getCredentialSummariesForRp()  →  pure DB read, 0 × HDK
+ * Phase 2 — Select:  selectCredentialUseCase()      →  metadata only, 0 × HDK
+ * Phase 3 — Sign:    cryptoService.sign()           →  selected-key derivation
+ *                                                  ────────────────────────────
+ *                                                   Total: at most 1 selected-key derivation
+ * ```
+ *
+ * Bluetooth HID connection triggers a best-effort asynchronous availability-cache pre-warm;
+ * the active ceremony still handles a cold [UserVerificationService.getUserVerificationAvailability]
+ * result when that warm-up has not completed.
+ */
+<span class="fc" id="L46">@Req(&quot;NFR-PERF-030&quot;, &quot;NFR-SEC-041&quot;)</span>
+@Factory
+<span class="fc" id="L48">class GetAssertionUseCase(</span>
+<span class="fc" id="L49">    private val credentialRepository: CredentialRepository,</span>
+<span class="fc" id="L50">    private val userVerificationService: UserVerificationService,</span>
+<span class="fc" id="L51">    private val selectCredentialUseCase: SelectCredentialUseCase,</span>
+<span class="fc" id="L52">    private val cryptoService: Fido2CryptoService,</span>
+<span class="fc" id="L53">    private val clientDataHashService: ClientDataHashService,</span>
+) {
+    companion object {
+        private const val COUNTER_PERSISTENCE_FAILED = &quot;Unable to persist credential signing counter&quot;
+        private const val COUNTER_OUT_OF_RANGE = &quot;Credential signing counter is outside the supported range&quot;
+        private const val MAX_AUTHENTICATOR_COUNTER = 0xFFFF_FFFFL
+        private const val FLAG_USER_PRESENT = 0x01
+        private const val FLAG_USER_VERIFIED = 0x04
+
+        private const val COUNTER_BYTE_3_SHIFT = 24
+        private const val COUNTER_BYTE_2_SHIFT = 16
+        private const val COUNTER_BYTE_1_SHIFT = 8
+        private const val BYTE_MASK = 0xFF
+    }
+
+    /**
+     * Performs a FIDO2 assertion using the supplied request options.
+     *
+     * [options] and its byte-backed values are borrowed for this call; this use case does not
+     * take ownership of or erase them. On success, ownership of the returned
+     * [AssertionObject] transfers to the caller, which must erase its sensitive buffers after
+     * encoding or otherwise consuming the response. Internally acquired credential summaries
+     * are erased before this call completes. Cancellation is propagated; operational and
+     * validation failures are returned as [Outcome.Error].
+     *
+     * @param options borrowed GetAssertion request data
+     * @param userVerificationPerformed whether the caller already completed required verification
+     * @return the owned assertion response, or a domain error
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L83">    suspend operator fun invoke(</span>
+        options: GetAssertionOptions,
+<span class="fc" id="L85">        userVerificationPerformed: Boolean = false,</span>
+    ): Outcome&lt;AssertionObject, DomainError&gt; =
+<span class="fc" id="L87">        invokeInternal(options, userVerificationPerformed, prefetchedCandidates = null)</span>
+
+    /**
+     * Completes the CTAP headless path using the candidate snapshot already fetched to
+     * decide that exactly one credential matches. This path never performs user verification;
+     * apply credProtect filtering to the supplied snapshot before selecting or signing.
+     * The supplied summary owners are borrowed; the caller remains responsible for erasing them.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    internal suspend fun invokeHeadless(
+        options: GetAssertionOptions,
+        candidates: List&lt;CredentialSummary&gt;,
+    ): Outcome&lt;AssertionObject, DomainError&gt; =
+<span class="fc" id="L100">        invokeInternal(options, userVerificationPerformed = false, prefetchedCandidates = candidates)</span>
+
+    // Each early return is a fail-closed gate before derivation, signing, or releasing an assertion.
+    @Suppress(&quot;ReturnCount&quot;)
+<span class="fc" id="L104">    private suspend fun invokeInternal(</span>
+        options: GetAssertionOptions,
+        userVerificationPerformed: Boolean,
+        prefetchedCandidates: List&lt;CredentialSummary&gt;?,
+    ): Outcome&lt;AssertionObject, DomainError&gt; {
+<span class="fc" id="L109">        Logger.d { &quot;GetAssertion processing started&quot; }</span>
+
+        // 1 — user verification availability check (result is cached in UserVerificationServiceImpl)
+<span class="fc" id="L112">        val verificationResult =</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            PerformanceTrace.section(&quot;Fido2.Assertion.UserVerification&quot;) {</span>
+<span class="fc" id="L114">                performUserVerification(options, userVerificationPerformed)</span>
+            }
+<span class="fc" id="L116">        verificationResult.getOrElse { return Outcome.Error(it) }</span>
+
+        // 2 — Phase 1: list candidate summaries (pure DB read, no HDK derivation)
+<span class="fc" id="L119">        val candidateResult =</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">            prefetchedCandidates?.let { Outcome.Success(it) }</span>
+<span class="fc" id="L121">                ?: PerformanceTrace.section(&quot;Fido2.Assertion.CandidateLookup&quot;) {</span>
+<span class="fc" id="L122">                    getCandidateSummaries(options)</span>
+                }
+<span class="pc" id="L124">        val candidates = candidateResult.getOrElse { return Outcome.Error(it) }</span>
+<span class="fc" id="L125">        try {</span>
+<span class="fc bfc" id="L126" title="All 4 branches covered.">            if (candidates.any { !CredentialProtectionPolicy.isSupported(it.credProtectPolicy) }) {</span>
+<span class="fc" id="L127">                return Outcome.Error(DomainError.ValidationError(&quot;Credential-protection policy is invalid&quot;))</span>
+            }
+<span class="fc" id="L129">            val authorizedCandidates =</span>
+<span class="fc" id="L130">                candidates.filter { summary -&gt;</span>
+<span class="fc bfc" id="L131" title="All 3 branches covered.">                    when (summary.credProtectPolicy) {</span>
+<span class="fc" id="L132">                        CredentialProtectionPolicy.USER_VERIFICATION_REQUIRED -&gt; userVerificationPerformed</span>
+                        CredentialProtectionPolicy.OPTIONAL_WITH_CREDENTIAL_ID_LIST -&gt;
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                            userVerificationPerformed ||</span>
+<span class="pc bpc" id="L135" title="1 of 6 branches missed.">                                options.allowCredentials?.any { it.id.matchesCredentialId(summary.credentialId) } ==</span>
+<span class="fc" id="L136">                                true</span>
+<span class="fc" id="L137">                        else -&gt; true</span>
+<span class="fc" id="L138">                    }</span>
+                }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            if (authorizedCandidates.isEmpty()) {</span>
+<span class="fc" id="L141">                return Outcome.Error(</span>
+<span class="fc" id="L142">                    DomainError.NotFound(</span>
+<span class="fc" id="L143">                        &quot;No credentials found&quot;,</span>
+                    ),
+                )
+            }
+
+            // 3 — Phase 2: select best candidate (MRU or allow-list match) — still no HDK
+<span class="fc" id="L149">            val selectionResult =</span>
+<span class="fc" id="L150">                PerformanceTrace.section(&quot;Fido2.Assertion.Selection&quot;) {</span>
+<span class="fc" id="L151">                    selectCredentialUseCase(authorizedCandidates, options)</span>
+                }
+<span class="fc" id="L153">            val selectedSummary = selectionResult.getOrElse { return Outcome.Error(it) }</span>
+
+            // 4 — Phase 3: derive/sign only the selected key. The summary supplies the persisted
+            // descriptor and registered public-key encoding, so listing and selection do not
+            // hydrate credentials or derive candidate keys.
+<span class="fc" id="L158">            val descriptor =</span>
+<span class="fc" id="L159">                try {</span>
+<span class="fc" id="L160">                    CredentialKeyDescriptor(</span>
+<span class="fc" id="L161">                        credentialId = selectedSummary.credentialId,</span>
+<span class="fc" id="L162">                        coseAlgorithm = selectedSummary.coseAlgorithm,</span>
+<span class="fc" id="L163">                        derivationProfile = selectedSummary.derivationProfile,</span>
+                    )
+<span class="fc" id="L165">                } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L166">                    return Outcome.Error(DomainError.ValidationError(&quot;Selected credential descriptor is invalid&quot;))</span>
+                }
+<span class="fc" id="L168">            val rpIdOwner = options.copyRpIdOwner()</span>
+<span class="fc" id="L169">            val rpIdHash =</span>
+<span class="fc" id="L170">                try {</span>
+<span class="fc" id="L171">                    clientDataHashService.rpIdHash(rpIdOwner)</span>
+                } finally {
+<span class="fc" id="L173">                    rpIdOwner.erase()</span>
+                }
+<span class="fc" id="L175">            val signCountResult =</span>
+<span class="fc" id="L176">                PerformanceTrace.section(&quot;Fido2.Assertion.CounterRead&quot;) {</span>
+<span class="fc" id="L177">                    credentialRepository.getSignCount(selectedSummary.credentialId)</span>
+                }
+<span class="fc" id="L179">            val signCount =</span>
+<span class="fc" id="L180">                signCountResult.getOrElse {</span>
+<span class="fc" id="L181">                    return Outcome.Error(DomainError.CryptoError(&quot;Unable to read credential signing counter&quot;))</span>
+                }
+<span class="fc bfc" id="L183" title="All 6 branches covered.">            if (signCount !in 0L until MAX_AUTHENTICATOR_COUNTER) {</span>
+<span class="fc" id="L184">                return Outcome.Error(DomainError.DatabaseError(COUNTER_OUT_OF_RANGE))</span>
+            }
+<span class="fc" id="L186">            val newSignCount = signCount + 1</span>
+<span class="fc" id="L187">            val authData =</span>
+<span class="fc" id="L188">                buildAuthData(</span>
+<span class="fc" id="L189">                    rpIdHash = rpIdHash,</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">                    userVerified = userVerificationPerformed,</span>
+<span class="fc" id="L191">                    signCount = newSignCount,</span>
+                )
+
+<span class="fc" id="L194">            val signatureResult =</span>
+<span class="fc" id="L195">                PerformanceTrace.section(&quot;Fido2.Assertion.DeriveAndSign&quot;) {</span>
+<span class="fc" id="L196">                    signWithCredential(</span>
+<span class="fc" id="L197">                        descriptor,</span>
+<span class="fc" id="L198">                        selectedSummary,</span>
+<span class="fc" id="L199">                        authData,</span>
+<span class="fc" id="L200">                        options.clientDataHash,</span>
+<span class="fc" id="L201">                    )</span>
+                }
+<span class="fc" id="L203">            val signature = signatureResult.getOrElse { return Outcome.Error(it) }</span>
+
+            // 5 — persist the incremented sign count before releasing the assertion to the caller.
+<span class="fc" id="L206">            var outputReleased = false</span>
+<span class="fc" id="L207">            try {</span>
+<span class="fc" id="L208">                val counterUpdate =</span>
+<span class="fc" id="L209">                    PerformanceTrace.section(&quot;Fido2.Assertion.CounterWrite&quot;) {</span>
+<span class="fc" id="L210">                        credentialRepository.updateSignCount(selectedSummary.credentialId, newSignCount)</span>
+                    }
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                if (counterUpdate is Outcome.Error) {</span>
+<span class="fc" id="L213">                    Logger.w { &quot;Failed to update assertion sign count (${counterUpdate.error::class.simpleName})&quot; }</span>
+<span class="fc" id="L214">                    return Outcome.Error(DomainError.DatabaseError(COUNTER_PERSISTENCE_FAILED))</span>
+                }
+
+                // Use credentialId bytes from the summary — no full object hydration needed.
+<span class="fc" id="L218">                val credDesc = PublicKeyCredentialDescriptor.create(id = selectedSummary.credentialId)</span>
+
+<span class="fc" id="L220">                val assertion =</span>
+<span class="fc" id="L221">                    AssertionObject(</span>
+<span class="fc" id="L222">                        credential = credDesc,</span>
+<span class="fc" id="L223">                        authData = authData,</span>
+<span class="fc" id="L224">                        signature = signature,</span>
+<span class="fc" id="L225">                        user = null,</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">                        numberOfCredentials = if (authorizedCandidates.size &gt; 1) authorizedCandidates.size else null,</span>
+                    )
+<span class="fc" id="L228">                Logger.d { &quot;Assertion completed&quot; }</span>
+<span class="fc" id="L229">                outputReleased = true</span>
+<span class="fc" id="L230">                return Outcome.Success(assertion)</span>
+            } finally {
+<span class="pc bpc" id="L232" title="1 of 2 branches missed.">                if (!outputReleased) {</span>
+<span class="fc" id="L233">                    signature.fill(0)</span>
+<span class="fc" id="L234">                    authData.fill(0)</span>
+                }
+            }
+        } finally {
+<span class="fc bfc" id="L238" title="All 2 branches covered.">            if (prefetchedCandidates == null) candidates.forEach(CredentialSummary::eraseSensitiveText)</span>
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+<span class="fc" id="L244">    private suspend fun performUserVerification(</span>
+        options: GetAssertionOptions,
+        userVerificationPerformed: Boolean,
+    ): Outcome&lt;Unit, DomainError&gt; {
+        // Always call getUserVerificationAvailability() regardless of the UV requirement.
+        // When the result comes from the cache (populated during HID connect), this is a
+        // pure memory read (~0ms). When the cache is cold, this pays the Binder IPC cost
+        // once and caches the result for subsequent calls within the same session.
+<span class="fc" id="L252">        val availability = userVerificationService.getUserVerificationAvailability()</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        if (options.userVerification == UserVerificationRequirement.REQUIRED) {</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">            if (!userVerificationPerformed) {</span>
+<span class="fc" id="L255">                return Outcome.Error(DomainError.OperationDenied(&quot;User verification was not performed&quot;))</span>
+            }
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">            if (availability.getBestAvailableMethod() == com.chimali.fido2.domain.service.VerificationMethod.NONE) {</span>
+<span class="nc" id="L258">                return Outcome.Error(DomainError.OperationDenied(&quot;No verification method available&quot;))</span>
+            }
+        }
+<span class="fc" id="L261">        return Outcome.Success(Unit)</span>
+    }
+
+    /**
+     * Finds credentials matching the RP and allow-list before user verification.
+     * The CTAP handler uses this potential-candidate snapshot to choose its prompt path;
+     * credentials requiring UV must remain visible here so they can trigger verification.
+     * Each returned summary is caller-owned and must be erased after its last use.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun findCandidateSummaries(options: GetAssertionOptions): List&lt;CredentialSummary&gt; =
+<span class="fc" id="L272">        getCandidateSummaries(options).getOrDefault(emptyList())</span>
+
+<span class="fc" id="L274">    private suspend fun getCandidateSummaries(</span>
+        options: GetAssertionOptions,
+    ): Outcome&lt;List&lt;CredentialSummary&gt;, DomainError&gt; {
+<span class="fc" id="L277">        val all =</span>
+<span class="fc" id="L278">            when (val result = credentialRepository.getCredentialSummariesForRpText(options.rpIdText)) {</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">                is Outcome.Success -&gt; result.data</span>
+<span class="nc" id="L280">                is Outcome.Error -&gt; return Outcome.Error(result.error)</span>
+            }
+
+<span class="fc" id="L283">        var transferredCandidates: List&lt;CredentialSummary&gt;? = null</span>
+<span class="fc" id="L284">        try {</span>
+<span class="fc" id="L285">            val candidates =</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">                if (options.isDiscoverableFlow()) {</span>
+                    // Discoverable: any resident credential for this RP
+<span class="fc" id="L288">                    all</span>
+                } else {
+                    // Non-discoverable: match the bounded allow-list with the same byte-based
+                    // primitive used for policy checks. Do not hash or compare credential IDs as
+                    // Strings before an assertion is authorized.
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">                    val allowCredentials = options.allowCredentials.orEmpty()</span>
+<span class="fc" id="L294">                    all.filter { summary -&gt;</span>
+<span class="fc" id="L295">                        allowCredentials.any { it.id.matchesCredentialId(summary.credentialId) }</span>
+                    }
+                }
+
+            // Keep potential candidates intact here. The caller applies policy 3 only after it
+            // knows whether verification completed; the CTAP handler also needs these rows to
+            // prevent a protected single credential from taking the headless path.
+<span class="fc" id="L302">            transferredCandidates = candidates</span>
+<span class="fc" id="L303">            return Outcome.Success(candidates)</span>
+        } finally {
+<span class="pc" id="L305">            all</span>
+<span class="pc bpc" id="L306" title="7 of 12 branches missed.">                .filterNot { summary -&gt; transferredCandidates?.any { it === summary } == true }</span>
+<span class="pc" id="L307">                .forEach(CredentialSummary::eraseSensitiveText)</span>
+        }
+    }
+
+    private fun buildAuthData(
+        rpIdHash: ByteArray,
+        userVerified: Boolean,
+        signCount: Long,
+    ): ByteArray {
+<span class="fc" id="L316">        var flags = 0</span>
+        // User Present (UP) bit is always set for assertions
+<span class="fc" id="L318">        flags = flags or FLAG_USER_PRESENT</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        if (userVerified) flags = flags or FLAG_USER_VERIFIED</span>
+<span class="fc" id="L320">        val counter =</span>
+            byteArrayOf(
+<span class="fc" id="L322">                ((signCount shr COUNTER_BYTE_3_SHIFT) and BYTE_MASK.toLong()).toByte(),</span>
+<span class="fc" id="L323">                ((signCount shr COUNTER_BYTE_2_SHIFT) and BYTE_MASK.toLong()).toByte(),</span>
+<span class="fc" id="L324">                ((signCount shr COUNTER_BYTE_1_SHIFT) and BYTE_MASK.toLong()).toByte(),</span>
+<span class="fc" id="L325">                (signCount and BYTE_MASK.toLong()).toByte(),</span>
+            )
+<span class="fc" id="L327">        return rpIdHash + byteArrayOf(flags.toByte()) + counter // 37 bytes</span>
+    }
+
+    private suspend fun signWithCredential(
+        descriptor: CredentialKeyDescriptor,
+        summary: CredentialSummary,
+        authData: ByteArray,
+        clientDataHash: ByteArray,
+    ): Outcome&lt;ByteArray, DomainError&gt; =
+<span class="fc" id="L336">        cryptoService.sign(descriptor, authData + clientDataHash, summary.storedPublicKeyEncoding)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

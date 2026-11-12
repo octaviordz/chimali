@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GetUserConsentUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.usecase</a> &gt; <span class="el_source">GetUserConsentUseCase.kt</span></div><h1>GetUserConsentUseCase.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.usecase
+
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.getOrThrow
+import com.chimali.core.common.result.isFailure
+import com.chimali.core.domain.model.ConsentMethod
+import com.chimali.core.domain.model.ConsentOperationType
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.UserConsentRecord
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.service.UserVerificationRequirement
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.VerificationContext
+import com.chimali.fido2.domain.service.VerificationMethod
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.toList
+import kotlinx.datetime.Instant
+import org.koin.core.annotation.Factory
+
+/**
+ * Use case for managing user consent in FIDO2 operations.
+ * Handles consent recording, retrieval, and validation.
+ */
+<span class="fc" id="L30">@Factory</span>
+<span class="fc" id="L31">class GetUserConsentUseCase(</span>
+<span class="fc" id="L32">    private val credentialRepository: CredentialRepository,</span>
+<span class="fc" id="L33">    private val userVerificationService: UserVerificationService,</span>
+) {
+    companion object {
+        private const val RECENT_CONSENT_LOOKBACK_LIMIT = 10
+    }
+
+    /**
+     * Records user consent for a specific operation.
+     *
+     * @param rpId The ID of the relying party
+     * @param operationType The type of operation
+     * @param credentialId Optional ID of the credential involved
+     * @param requireVerification Whether user verification is required
+     * @param prompt Custom prompt message for the user
+     * @return Result containing the consent record on success, error on failure
+     */
+<span class="fc" id="L49">    suspend operator fun invoke(</span>
+        rpId: RpId,
+        operationType: ConsentOperationType,
+<span class="nc" id="L52">        credentialId: CredentialId? = null,</span>
+<span class="nc" id="L53">        isVerificationRequired: Boolean = false,</span>
+<span class="fc" id="L54">        prompt: String? = null,</span>
+    ): Result&lt;UserConsentRecord&gt; {
+<span class="fc" id="L56">        return try {</span>
+            // Validate inputs
+<span class="fc" id="L58">            validateConsentRequest(rpId)</span>
+
+            // Check if consent is required for this operation
+<span class="fc" id="L61">            val consentRequired =</span>
+<span class="fc" id="L62">                userVerificationService.isUserVerificationRequired(</span>
+<span class="fc" id="L63">                    rpId = rpId,</span>
+<span class="fc" id="L64">                    operationType = operationType.name,</span>
+                    context =
+<span class="fc bfc" id="L66" title="All 4 branches covered.">                        when (operationType) {</span>
+<span class="fc" id="L67">                            ConsentOperationType.REGISTRATION -&gt; VerificationContext.CREDENTIAL_CREATION</span>
+<span class="fc" id="L68">                            ConsentOperationType.AUTHENTICATION -&gt; VerificationContext.AUTHENTICATION</span>
+<span class="fc" id="L69">                            ConsentOperationType.CREDENTIAL_DELETION -&gt; VerificationContext.CREDENTIAL_DELETION</span>
+<span class="fc" id="L70">                            ConsentOperationType.CREDENTIAL_UPDATE -&gt; VerificationContext.CREDENTIAL_UPDATE</span>
+                        },
+                )
+
+            // If verification is required, perform user verification
+<span class="fc" id="L75">            val verificationResult =</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">                if (isVerificationRequired &amp;&amp;</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                    consentRequired == com.chimali.fido2.domain.service.UserVerificationRequirement.REQUIRED</span>
+                ) {
+<span class="fc" id="L79">                    performUserVerificationForConsent()</span>
+                } else {
+                    // Silent/implicit consent — no explicit verification performed
+<span class="fc" id="L82">                    Result.success(</span>
+<span class="fc" id="L83">                        ConsentVerificationResult(</span>
+<span class="fc" id="L84">                            isBiometricUsed = false,</span>
+<span class="fc" id="L85">                            isPinUsed = false,</span>
+<span class="fc" id="L86">                            verificationMethod = null,</span>
+                        ),
+                    )
+                }
+
+<span class="fc bfc" id="L91" title="All 2 branches covered.">            if (verificationResult.isFailure) {</span>
+<span class="fc" id="L92">                return Result.failure(</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">                    verificationResult.exceptionOrNull()</span>
+<span class="nc" id="L94">                        ?: Fido2Exception.UserVerificationFailed(&quot;User verification failed&quot;),</span>
+                )
+            }
+
+<span class="fc" id="L98">            val verification = verificationResult.getOrThrow()</span>
+
+            // Create consent record
+<span class="fc" id="L101">            val consentRecord =</span>
+<span class="fc" id="L102">                UserConsentRecord.create(</span>
+                    id =
+                        java.util.UUID
+<span class="fc" id="L105">                            .randomUUID()</span>
+<span class="fc" id="L106">                            .toString(),</span>
+<span class="fc" id="L107">                    operationType = operationType,</span>
+<span class="fc" id="L108">                    rpId = rpId,</span>
+<span class="fc" id="L109">                    credentialId = credentialId,</span>
+<span class="fc" id="L110">                    isBiometricUsed = verification.isBiometricUsed,</span>
+<span class="fc" id="L111">                    isPinUsed = verification.isPinUsed,</span>
+                    // Will be populated by actual implementation
+<span class="fc" id="L113">                    ipAddress = null,</span>
+                    // Will be populated by actual implementation
+<span class="fc" id="L115">                    userAgent = null,</span>
+                    // Will be populated by actual implementation
+<span class="fc" id="L117">                    deviceId = null,</span>
+                )
+
+            // Save consent record
+<span class="fc" id="L121">            val saveResult = credentialRepository.saveUserConsent(consentRecord)</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            if (saveResult is Outcome.Error) {</span>
+<span class="fc" id="L123">                return Result.failure(</span>
+<span class="fc" id="L124">                    Fido2Exception.ConsentStorageFailed(&quot;Failed to save consent: ${saveResult.error.message}&quot;),</span>
+                )
+            }
+
+<span class="fc" id="L128">            Result.success(consentRecord)</span>
+<span class="fc" id="L129">        } catch (e: IllegalArgumentException) {</span>
+<span class="fc" id="L130">            Result.failure(e)</span>
+<span class="nc" id="L131">        } catch (e: Fido2Exception) {</span>
+<span class="pc" id="L132">            Result.failure(e)</span>
+        }
+    }
+
+    /**
+     * Retrieves recent user consent records.
+     *
+     * @param rpId Optional filter by relying party ID
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of recent consent records
+     */
+<span class="nc" id="L143">    fun getRecentConsentRecords(</span>
+<span class="nc" id="L144">        rpId: RpId? = null,</span>
+<span class="nc" id="L145">        limit: Int = 50,</span>
+<span class="fc" id="L146">    ): Flow&lt;UserConsentRecord&gt; = credentialRepository.getRecentUserConsent(rpId, limit)</span>
+
+    /**
+     * Retrieves consent records for a specific operation type.
+     *
+     * @param operationType The type of operation to filter by
+     * @param rpId Optional filter by relying party ID
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the operation type
+     */
+<span class="nc" id="L156">    fun getConsentRecordsByOperationType(</span>
+        operationType: ConsentOperationType,
+<span class="nc" id="L158">        rpId: RpId? = null,</span>
+<span class="nc" id="L159">        limit: Int = 50,</span>
+    ): Flow&lt;UserConsentRecord&gt; =
+<span class="fc" id="L161">        getRecentConsentRecords(rpId, limit)</span>
+<span class="fc" id="L162">            .filter { it.operationType == operationType }</span>
+
+    /**
+     * Retrieves consent records for a specific credential.
+     *
+     * @param credentialId The ID of the credential to filter by
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the credential
+     */
+<span class="nc" id="L171">    fun getConsentRecordsByCredential(</span>
+        credentialId: CredentialId,
+<span class="nc" id="L173">        limit: Int = 50,</span>
+    ): Flow&lt;UserConsentRecord&gt; =
+<span class="fc" id="L175">        getRecentConsentRecords(null, limit)</span>
+<span class="fc" id="L176">            .filter { it.isForCredential(credentialId) }</span>
+
+    /**
+     * Retrieves consent records for a specific relying party.
+     *
+     * @param rpId The ID of the relying party to filter by
+     * @param limit Maximum number of records to retrieve
+     * @return Flow of consent records for the RP
+     */
+<span class="nc" id="L185">    fun getConsentRecordsByRpId(</span>
+        rpId: RpId,
+<span class="nc" id="L187">        limit: Int = 50,</span>
+    ): Flow&lt;UserConsentRecord&gt; =
+<span class="fc" id="L189">        getRecentConsentRecords(rpId, limit)</span>
+<span class="fc" id="L190">            .filter { it.isForRelyingParty(rpId) }</span>
+
+    /**
+     * Retrieves recent consent records within a time range.
+     *
+     * @param startTime Start of the time range
+     * @param endTime End of the time range
+     * @param rpId Optional filter by relying party ID
+     * @return Flow of consent records within the time range
+     */
+<span class="nc" id="L200">    fun getConsentRecordsByTimeRange(</span>
+        startTime: Instant,
+        endTime: Instant,
+<span class="nc" id="L203">        rpId: RpId? = null,</span>
+    ): Flow&lt;UserConsentRecord&gt; =
+<span class="fc" id="L205">        getRecentConsentRecords(rpId, Int.MAX_VALUE)</span>
+<span class="fc" id="L206">            .filter {</span>
+<span class="fc" id="L207">                it.timestamp &gt; startTime &amp;&amp; it.timestamp &lt; endTime</span>
+<span class="fc" id="L208">            }</span>
+
+    /**
+     * Checks if consent was recently granted for a specific operation.
+     *
+     * @param rpId The ID of the relying party
+     * @param operationType The type of operation
+     * @param minutes Number of minutes to consider as &quot;recent&quot;
+     * @return True if consent was granted recently, false otherwise
+     */
+<span class="pc" id="L218">    suspend fun isRecentConsentGranted(</span>
+        rpId: RpId,
+        operationType: ConsentOperationType,
+<span class="nc" id="L221">        minutes: Int = 5,</span>
+    ): Boolean =
+<span class="fc" id="L223">        getConsentRecordsByOperationType(operationType, rpId, RECENT_CONSENT_LOOKBACK_LIMIT)</span>
+<span class="fc" id="L224">            .toList()</span>
+<span class="fc" id="L225">            .filter { it.isRecent(minutes) }</span>
+<span class="pc bpc" id="L226" title="3 of 4 branches missed.">            .any { it.isRegistrationConsent() || it.isAuthenticationConsent() }</span>
+
+    /**
+     * Retrieves consent statistics.
+     *
+     * @param rpId Optional filter by relying party ID
+     * @return Consent statistics for the specified RP or all RPs
+     */
+<span class="fc" id="L234">    suspend fun getConsentStatistics(rpId: RpId? = null): ConsentStatistics {</span>
+<span class="fc" id="L235">        val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE).toList()</span>
+
+<span class="fc" id="L237">        val totalConsents = consentRecords.count()</span>
+<span class="fc" id="L238">        val registrationConsents = consentRecords.count { it.isRegistrationConsent() }</span>
+<span class="fc" id="L239">        val authenticationConsents = consentRecords.count { it.isAuthenticationConsent() }</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        val biometricConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC }</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        val pinConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.PIN }</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        val combinedConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC_AND_PIN }</span>
+
+<span class="fc" id="L244">        val consentsByRp =</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">            if (rpId != null) {</span>
+<span class="fc" id="L246">                mapOf(rpId to totalConsents)</span>
+            } else {
+<span class="fc" id="L248">                consentRecords</span>
+<span class="fc" id="L249">                    .groupBy { it.rpId }</span>
+<span class="fc" id="L250">                    .mapValues { it.value.size }</span>
+            }
+
+<span class="fc" id="L253">        val recentConsents = consentRecords.count { it.isRecent(minutes = 60) }</span>
+
+<span class="fc" id="L255">        return ConsentStatistics(</span>
+<span class="fc" id="L256">            totalConsents = totalConsents,</span>
+<span class="fc" id="L257">            registrationConsents = registrationConsents,</span>
+<span class="fc" id="L258">            authenticationConsents = authenticationConsents,</span>
+<span class="fc" id="L259">            biometricConsents = biometricConsents,</span>
+<span class="fc" id="L260">            pinConsents = pinConsents,</span>
+<span class="fc" id="L261">            combinedConsents = combinedConsents,</span>
+<span class="fc" id="L262">            consentsByRp = consentsByRp,</span>
+<span class="fc" id="L263">            recentConsents = recentConsents,</span>
+<span class="fc" id="L264">            averageConsentsPerDay = calculateAverageConsentsPerDay(consentRecords),</span>
+        )
+    }
+
+    /**
+     * Validates consent request parameters.
+     */
+    private fun validateConsentRequest(rpId: RpId) {
+<span class="fc bfc" id="L272" title="All 2 branches covered.">        require(RelyingParty.isValidRpId(rpId.value)) {</span>
+<span class="fc" id="L273">            &quot;RP ID must be a valid domain or HTTPS origin: ${rpId.value}&quot;</span>
+        }
+<span class="fc" id="L275">    }</span>
+
+    /**
+     * Performs user verification for consent operations.
+     */
+<span class="fc" id="L280">    private suspend fun performUserVerificationForConsent(): Result&lt;ConsentVerificationResult&gt; {</span>
+<span class="fc" id="L281">        val availability = userVerificationService.getUserVerificationAvailability()</span>
+<span class="fc" id="L282">        val bestMethod = availability.getBestAvailableMethod()</span>
+
+<span class="fc bfc" id="L284" title="All 2 branches covered.">        if (bestMethod == com.chimali.fido2.domain.service.VerificationMethod.NONE) {</span>
+<span class="fc" id="L285">            return Result.failure(</span>
+<span class="fc" id="L286">                Fido2Exception.NoVerificationMethodAvailable(</span>
+<span class="fc" id="L287">                    &quot;User verification is required but no method is available&quot;,</span>
+                ),
+            )
+        }
+
+<span class="fc" id="L292">        return Result.success(</span>
+<span class="fc" id="L293">            ConsentVerificationResult(</span>
+<span class="fc" id="L294">                isBiometricUsed = availability.isBiometricAvailable,</span>
+<span class="fc" id="L295">                isPinUsed = availability.isPinAvailable,</span>
+                verificationMethod =
+<span class="pc bpc" id="L297" title="2 of 4 branches missed.">                    when (bestMethod) {</span>
+                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC -&gt;
+<span class="fc" id="L299">                            VerificationMethod.BIOMETRIC</span>
+                        com.chimali.fido2.domain.service.VerificationMethod.PIN -&gt;
+<span class="fc" id="L301">                            VerificationMethod.PIN</span>
+                        com.chimali.fido2.domain.service.VerificationMethod.BIOMETRIC_AND_PIN -&gt;
+<span class="nc" id="L303">                            VerificationMethod.BIOMETRIC</span>
+<span class="nc" id="L304">                        else -&gt; null</span>
+                    },
+            ),
+        )
+    }
+
+    /**
+     * Calculates the average number of consents per day.
+     */
+    private fun calculateAverageConsentsPerDay(consentRecords: List&lt;UserConsentRecord&gt;): Double {
+<span class="fc" id="L314">        val consents = consentRecords</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">        if (consents.isEmpty()) return 0.0</span>
+
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        val oldestTimestamp: Instant? = consents.minByOrNull { it.timestamp }?.timestamp</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">        val newestTimestamp: Instant? = consents.maxByOrNull { it.timestamp }?.timestamp</span>
+
+<span class="pc bpc" id="L320" title="2 of 4 branches missed.">        return if (oldestTimestamp != null &amp;&amp; newestTimestamp != null) {</span>
+<span class="fc" id="L321">            val daysBetween = (newestTimestamp - oldestTimestamp).inWholeDays</span>
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">            if (daysBetween &gt; 0) {</span>
+<span class="nc" id="L323">                consents.size.toDouble() / daysBetween</span>
+            } else {
+<span class="fc" id="L325">                0.0</span>
+            }
+        } else {
+<span class="nc" id="L328">            0.0</span>
+        }
+    }
+}
+
+/**
+ * Data class representing consent verification result.
+ */
+<span class="fc" id="L336">data class ConsentVerificationResult(</span>
+<span class="fc" id="L337">    val isBiometricUsed: Boolean,</span>
+<span class="fc" id="L338">    val isPinUsed: Boolean,</span>
+<span class="pc" id="L339">    val verificationMethod: VerificationMethod?,</span>
+)
+
+/**
+ * Data class representing consent statistics.
+ */
+<span class="fc" id="L345">data class ConsentStatistics(</span>
+<span class="fc" id="L346">    val totalConsents: Int,</span>
+<span class="fc" id="L347">    val registrationConsents: Int,</span>
+<span class="fc" id="L348">    val authenticationConsents: Int,</span>
+<span class="fc" id="L349">    val biometricConsents: Int,</span>
+<span class="fc" id="L350">    val pinConsents: Int,</span>
+<span class="fc" id="L351">    val combinedConsents: Int,</span>
+<span class="fc" id="L352">    val consentsByRp: Map&lt;RpId, Int&gt;,</span>
+<span class="fc" id="L353">    val recentConsents: Int,</span>
+<span class="fc" id="L354">    val averageConsentsPerDay: Double,</span>
+) {
+    /**
+     * Returns the most used consent method.
+     */
+    fun getMostUsedMethod(): ConsentMethod =
+<span class="fc" id="L360">        when {</span>
+<span class="pc bpc" id="L361" title="1 of 4 branches missed.">            biometricConsents &gt; pinConsents &amp;&amp; biometricConsents &gt; combinedConsents -&gt; ConsentMethod.BIOMETRIC</span>
+<span class="pc bpc" id="L362" title="3 of 4 branches missed.">            pinConsents &gt; biometricConsents &amp;&amp; pinConsents &gt; combinedConsents -&gt; ConsentMethod.PIN</span>
+<span class="pc bpc" id="L363" title="3 of 4 branches missed.">            combinedConsents &gt; biometricConsents &amp;&amp; combinedConsents &gt; pinConsents -&gt; ConsentMethod.BIOMETRIC_AND_PIN</span>
+<span class="fc" id="L364">            else -&gt; ConsentMethod.NONE</span>
+<span class="fc" id="L365">        }</span>
+
+    /**
+     * Returns the total number of verification methods used.
+     */
+    fun getTotalVerificationMethods(): Int =
+<span class="fc" id="L371">        setOfNotNull(</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">            if (biometricConsents &gt; 0) ConsentMethod.BIOMETRIC else null,</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">            if (pinConsents &gt; 0) ConsentMethod.PIN else null,</span>
+<span class="pc bpc" id="L374" title="1 of 2 branches missed.">            if (combinedConsents &gt; 0) ConsentMethod.BIOMETRIC_AND_PIN else null,</span>
+<span class="fc" id="L375">        ).size</span>
+
+    /**
+     * Returns a summary of the statistics.
+     */
+    fun getSummary(): String {
+<span class="nc" id="L381">        val methods = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        if (biometricConsents &gt; 0) methods.add(&quot;Biometric: $biometricConsents&quot;)</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">        if (pinConsents &gt; 0) methods.add(&quot;PIN: $pinConsents&quot;)</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">        if (combinedConsents &gt; 0) methods.add(&quot;Combined: $combinedConsents&quot;)</span>
+
+<span class="nc bnc" id="L386" title="All 4 branches missed.">        val methodSummary = if (methods.isNotEmpty()) methods.joinToString(&quot;, &quot;) else &quot;None&quot;</span>
+
+<span class="nc" id="L388">        val avgPerDay = &quot;%.2f&quot;.format(averageConsentsPerDay)</span>
+<span class="nc" id="L389">        return &quot;Total: $totalConsents consents (Registration: $registrationConsents, &quot; +</span>
+<span class="nc" id="L390">            &quot;Authentication: $authenticationConsents, Recent: $recentConsents, &quot; +</span>
+<span class="nc" id="L391">            &quot;Avg/day: $avgPerDay) - Methods: $methodSummary&quot;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

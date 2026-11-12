@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeatureSelectionScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">onboarding</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.onboarding.presentation.ui</a> &gt; <span class="el_source">FeatureSelectionScreen.kt</span></div><h1>FeatureSelectionScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.onboarding.presentation.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.chimali.core.ui.theme.LegibilityType
+import com.chimali.feature.onboarding.presentation.model.OnboardingUiState
+
+@Composable
+fun FeatureSelectionScreen(
+    state: OnboardingUiState,
+    onVaultToggle: (Boolean) -&gt; Unit,
+    onPasskeyToggle: (Boolean) -&gt; Unit,
+    onBack: () -&gt; Unit,
+    onFinish: () -&gt; Unit,
+<span class="nc" id="L32">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L34">    Column(</span>
+<span class="nc" id="L35">        modifier = modifier.fillMaxSize().systemBarsPadding().padding(24.dp),</span>
+<span class="nc" id="L36">        verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+    ) {
+<span class="nc" id="L38">        Text(</span>
+<span class="nc" id="L39">            text = &quot;Select your features&quot;,</span>
+<span class="nc" id="L40">            style = MaterialTheme.typography.headlineSmall,</span>
+<span class="nc" id="L41">            fontFamily = LegibilityType.AtkinsonFontFamily,</span>
+<span class="nc" id="L42">            modifier = Modifier.semantics { heading() },</span>
+        )
+
+<span class="nc" id="L45">        FeatureToggleRow(</span>
+<span class="nc" id="L46">            title = &quot;Vault&quot;,</span>
+<span class="nc" id="L47">            description = &quot;Store and manage passwords, cards, and notes.&quot;,</span>
+<span class="nc" id="L48">            checked = state.vaultSelected,</span>
+<span class="nc" id="L49">            onCheckedChange = onVaultToggle,</span>
+        )
+
+<span class="nc" id="L52">        FeatureToggleRow(</span>
+<span class="nc" id="L53">            title = &quot;Passkey Authenticator&quot;,</span>
+<span class="nc" id="L54">            description = &quot;Use Chimali as a FIDO2 / WebAuthn authenticator.&quot;,</span>
+<span class="nc" id="L55">            checked = state.passkeySelected,</span>
+<span class="nc" id="L56">            onCheckedChange = onPasskeyToggle,</span>
+        )
+
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        state.errorMessage?.let { message -&gt;</span>
+<span class="nc" id="L60">            Text(</span>
+<span class="nc" id="L61">                text = message,</span>
+<span class="nc" id="L62">                style = MaterialTheme.typography.bodyMedium,</span>
+<span class="nc" id="L63">                color = MaterialTheme.colorScheme.error,</span>
+            )
+<span class="nc" id="L65">        }</span>
+
+<span class="nc" id="L67">        Row(</span>
+<span class="nc" id="L68">            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),</span>
+<span class="nc" id="L69">            horizontalArrangement = Arrangement.End,</span>
+        ) {
+<span class="nc" id="L71">            OutlinedButton(onClick = onBack) {</span>
+<span class="nc" id="L72">                Text(&quot;Back&quot;)</span>
+<span class="nc" id="L73">            }</span>
+            androidx.compose.foundation.layout
+<span class="nc" id="L75">                .Spacer(Modifier.width(12.dp))</span>
+<span class="nc" id="L76">            Button(</span>
+<span class="nc" id="L77">                onClick = onFinish,</span>
+<span class="nc bnc" id="L78" title="All 4 branches missed.">                enabled = state.canContinue &amp;&amp; !state.isSaving,</span>
+<span class="nc" id="L79">            ) {</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                Text(if (state.isSaving) &quot;Saving…&quot; else &quot;Finish&quot;)</span>
+<span class="nc" id="L81">            }</span>
+<span class="nc" id="L82">        }</span>
+<span class="nc" id="L83">    }</span>
+<span class="nc" id="L84">}</span>
+
+@Composable
+private fun FeatureToggleRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -&gt; Unit,
+<span class="nc" id="L92">) {</span>
+<span class="nc" id="L93">    Row(</span>
+<span class="nc" id="L94">        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L95">        verticalAlignment = Alignment.Top,</span>
+    ) {
+<span class="nc" id="L97">        Checkbox(</span>
+<span class="nc" id="L98">            checked = checked,</span>
+<span class="nc" id="L99">            onCheckedChange = onCheckedChange,</span>
+        )
+<span class="nc" id="L101">        Column(modifier = Modifier.padding(top = 4.dp)) {</span>
+<span class="nc" id="L102">            Text(</span>
+<span class="nc" id="L103">                text = title,</span>
+<span class="nc" id="L104">                style = MaterialTheme.typography.titleMedium,</span>
+            )
+<span class="nc" id="L106">            Text(</span>
+<span class="nc" id="L107">                text = description,</span>
+<span class="nc" id="L108">                style = MaterialTheme.typography.bodyMedium,</span>
+<span class="nc" id="L109">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+<span class="nc" id="L111">        }</span>
+<span class="nc" id="L112">    }</span>
+<span class="nc" id="L113">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

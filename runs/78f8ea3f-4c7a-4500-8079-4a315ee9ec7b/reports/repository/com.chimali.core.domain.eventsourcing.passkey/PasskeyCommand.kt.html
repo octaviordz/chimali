@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PasskeyCommand.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.eventsourcing.passkey</a> &gt; <span class="el_source">PasskeyCommand.kt</span></div><h1>PasskeyCommand.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.eventsourcing.passkey
+
+import com.chimali.core.common.annotation.Req
+
+/**
+ * Commands for the PasskeyCredential aggregate.
+ */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+sealed interface PasskeyCommand {
+    /**
+     * Request to register a new passkey.
+     *
+     * @property id Aggregate identity for this credential.
+     * @property rpId Mutable relying-party identifier retained as supplied and overwritten by [eraseSensitiveMetadata].
+     * @property userId Mutable user identifier retained as supplied and overwritten by [eraseSensitiveMetadata].
+     * @property userName Mutable account name retained as supplied and overwritten by [eraseSensitiveMetadata].
+     * @property userDisplayName Mutable display name retained as supplied and overwritten by [eraseSensitiveMetadata].
+     * @property credentialId Credential identifier bytes retained for event creation.
+     * @property publicKey Encoded registered public key.
+     * @property aaguid Authenticator model identifier recorded with registration.
+     * @property signCount Initial authenticator signature counter.
+     * @property coseAlgorithm Persisted COSE algorithm identifier for credential reconstruction.
+     * @property derivationProfile Exact local derivation profile identifier paired with the algorithm.
+     */
+<span class="fc" id="L25">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L26">    data class Register(</span>
+<span class="fc" id="L27">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L28">        val id: String,</span>
+<span class="fc" id="L29">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L30">        val rpId: CharArray,</span>
+<span class="fc" id="L31">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L32">        val userId: CharArray,</span>
+<span class="fc" id="L33">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L34">        val userName: CharArray,</span>
+<span class="fc" id="L35">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L36">        val userDisplayName: CharArray,</span>
+<span class="fc" id="L37">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L38">        val credentialId: ByteArray,</span>
+<span class="fc" id="L39">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L40">        val publicKey: String,</span>
+<span class="fc" id="L41">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L42">        val aaguid: String,</span>
+<span class="fc" id="L43">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L44">        val signCount: Long,</span>
+<span class="fc" id="L45">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L46">        val coseAlgorithm: Int,</span>
+<span class="fc" id="L47">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L48">        val derivationProfile: String,</span>
+    ) : PasskeyCommand {
+        /** Converts text fields to mutable arrays; the resulting command retains those arrays for cleanup. */
+        constructor(
+            id: String,
+            rpId: String,
+            userId: String,
+            userName: String,
+            userDisplayName: String,
+            credentialId: ByteArray,
+            publicKey: String,
+            aaguid: String,
+            signCount: Long,
+            coseAlgorithm: Int,
+            derivationProfile: String,
+<span class="fc" id="L63">        ) : this(</span>
+<span class="fc" id="L64">            id = id,</span>
+<span class="fc" id="L65">            rpId = rpId.toCharArray(),</span>
+<span class="fc" id="L66">            userId = userId.toCharArray(),</span>
+<span class="fc" id="L67">            userName = userName.toCharArray(),</span>
+<span class="fc" id="L68">            userDisplayName = userDisplayName.toCharArray(),</span>
+<span class="fc" id="L69">            credentialId = credentialId,</span>
+<span class="fc" id="L70">            publicKey = publicKey,</span>
+<span class="fc" id="L71">            aaguid = aaguid,</span>
+<span class="fc" id="L72">            signCount = signCount,</span>
+<span class="fc" id="L73">            coseAlgorithm = coseAlgorithm,</span>
+<span class="fc" id="L74">            derivationProfile = derivationProfile,</span>
+<span class="fc" id="L75">        )</span>
+
+        /** Overwrites the owned mutable account metadata arrays with zero characters. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun eraseSensitiveMetadata() {
+<span class="fc" id="L80">            rpId.fill('\u0000')</span>
+<span class="fc" id="L81">            userId.fill('\u0000')</span>
+<span class="fc" id="L82">            userName.fill('\u0000')</span>
+<span class="fc" id="L83">            userDisplayName.fill('\u0000')</span>
+<span class="fc" id="L84">        }</span>
+
+        /** Compares all command fields by value; mutable arrays use content equality. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L89" title="All 2 branches covered.">            if (this === other) return true</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">            if (other !is Register) return false</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">            if (id != other.id) return false</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (!rpId.contentEquals(other.rpId)) return false</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            if (!userId.contentEquals(other.userId)) return false</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            if (!userName.contentEquals(other.userName)) return false</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">            if (!userDisplayName.contentEquals(other.userDisplayName)) return false</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            if (!credentialId.contentEquals(other.credentialId)) return false</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            if (publicKey != other.publicKey) return false</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">            if (aaguid != other.aaguid) return false</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (signCount != other.signCount) return false</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            if (coseAlgorithm != other.coseAlgorithm) return false</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">            if (derivationProfile != other.derivationProfile) return false</span>
+<span class="fc" id="L102">            return true</span>
+        }
+
+        /** Returns a hash consistent with [equals], including content hashes for arrays. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        override fun hashCode(): Int {
+<span class="fc" id="L108">            var result = id.hashCode()</span>
+<span class="fc" id="L109">            result = 31 * result + rpId.contentHashCode()</span>
+<span class="fc" id="L110">            result = 31 * result + userId.contentHashCode()</span>
+<span class="fc" id="L111">            result = 31 * result + userName.contentHashCode()</span>
+<span class="fc" id="L112">            result = 31 * result + userDisplayName.contentHashCode()</span>
+<span class="fc" id="L113">            result = 31 * result + credentialId.contentHashCode()</span>
+<span class="fc" id="L114">            result = 31 * result + publicKey.hashCode()</span>
+<span class="fc" id="L115">            result = 31 * result + aaguid.hashCode()</span>
+<span class="fc" id="L116">            result = 31 * result + signCount.hashCode()</span>
+<span class="fc" id="L117">            result = 31 * result + coseAlgorithm</span>
+<span class="fc" id="L118">            result = 31 * result + derivationProfile.hashCode()</span>
+<span class="fc" id="L119">            return result</span>
+        }
+
+        /** Returns diagnostic fields while redacting account, credential and key material. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        override fun toString(): String =
+<span class="nc" id="L125">            &quot;Register(id=$id, rpId=[redacted], userId=[redacted], userName=[redacted], &quot; +</span>
+                &quot;userDisplayName=[redacted], credentialId=[redacted], publicKey=[redacted], aaguid=[redacted], &quot; +
+<span class="nc" id="L127">                &quot;signCount=$signCount, coseAlgorithm=$coseAlgorithm, derivationProfile=$derivationProfile)&quot;</span>
+    }
+
+    /**
+     * Request to record a successful authentication.
+     *
+     * @property id Aggregate identity for the authenticated credential.
+     * @property newSignCount Counter value produced by the successful assertion.
+     */
+<span class="fc" id="L136">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L137">    data class Authenticate(</span>
+<span class="fc" id="L138">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L139">        val id: String,</span>
+<span class="fc" id="L140">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L141">        val newSignCount: Long,</span>
+    ) : PasskeyCommand
+
+    /**
+     * Request to delete a passkey.
+     *
+     * @property id Aggregate identity of the credential to delete.
+     */
+<span class="fc" id="L149">    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L150">    data class Delete(</span>
+<span class="fc" id="L151">        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L152">        val id: String,</span>
+    ) : PasskeyCommand
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

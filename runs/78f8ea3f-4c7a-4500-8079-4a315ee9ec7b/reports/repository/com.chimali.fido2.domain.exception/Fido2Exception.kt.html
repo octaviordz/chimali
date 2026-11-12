@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2Exception.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.exception</a> &gt; <span class="el_source">Fido2Exception.kt</span></div><h1>Fido2Exception.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.exception
+
+/**
+ * Sealed hierarchy of all FIDO2 authenticator exceptions.
+ *
+ * Naming convention: every leaf class is a direct companion to the operation that fails.
+ * The [errorCode] is a stable machine-readable identifier used for logging and CTAP2 error mapping.
+ */
+<span class="pc" id="L9">sealed class Fido2Exception(</span>
+    message: String,
+<span class="nc" id="L11">    cause: Throwable? = null,</span>
+<span class="pc" id="L12">    val errorCode: String? = null,</span>
+<span class="pc" id="L13">) : Exception(message, cause) {</span>
+    // ── Cryptographic ─────────────────────────────────────────────────────────
+
+<span class="nc" id="L16">    class CryptographicException(</span>
+        message: String,
+<span class="nc" id="L18">        cause: Throwable? = null,</span>
+<span class="nc" id="L19">    ) : Fido2Exception(message, cause, &quot;CRYPTO_ERROR&quot;)</span>
+
+<span class="nc" id="L21">    class KeyGenerationException(</span>
+        message: String,
+<span class="nc" id="L23">        cause: Throwable? = null,</span>
+<span class="nc" id="L24">    ) : Fido2Exception(message, cause, &quot;KEY_GEN_ERROR&quot;)</span>
+
+    /** Alias used by CredentialStorageService / RegisterCredentialUseCase. */
+<span class="fc" id="L27">    class KeyGenerationFailed(</span>
+        message: String,
+<span class="fc" id="L29">        cause: Throwable? = null,</span>
+<span class="fc" id="L30">    ) : Fido2Exception(message, cause, &quot;KEY_GEN_FAILED&quot;)</span>
+
+<span class="nc" id="L32">    class SignatureException(</span>
+        message: String,
+<span class="nc" id="L34">        cause: Throwable? = null,</span>
+<span class="nc" id="L35">    ) : Fido2Exception(message, cause, &quot;SIGNATURE_ERROR&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L38">    class SignatureFailed(</span>
+        message: String,
+<span class="nc" id="L40">        cause: Throwable? = null,</span>
+<span class="nc" id="L41">    ) : Fido2Exception(message, cause, &quot;SIGNATURE_FAILED&quot;)</span>
+
+    /** Used by Fido2CryptoService / GetAssertionUseCase for HDK-based signing failures. */
+<span class="fc" id="L44">    class SigningFailed(</span>
+        message: String,
+<span class="fc" id="L46">        cause: Throwable? = null,</span>
+<span class="fc" id="L47">    ) : Fido2Exception(message, cause, &quot;SIGNING_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L50">    class SignatureVerificationFailed(</span>
+        message: String,
+<span class="nc" id="L52">        cause: Throwable? = null,</span>
+<span class="nc" id="L53">    ) : Fido2Exception(message, cause, &quot;SIGNATURE_VERIFY_FAILED&quot;)</span>
+
+<span class="fc" id="L55">    class UnsupportedAlgorithmException(</span>
+        message: String,
+<span class="fc" id="L57">        cause: Throwable? = null,</span>
+<span class="fc" id="L58">    ) : Fido2Exception(message, cause, &quot;UNSUPPORTED_ALGORITHM&quot;)</span>
+
+    /** Alias used by CredentialStorageService / RegisterCredentialUseCase. */
+<span class="nc" id="L61">    class UnsupportedAlgorithm(</span>
+        algorithm: String,
+<span class="nc" id="L63">        cause: Throwable? = null,</span>
+<span class="nc" id="L64">    ) : Fido2Exception(&quot;Unsupported algorithm: $algorithm&quot;, cause, &quot;UNSUPPORTED_ALGORITHM&quot;)</span>
+
+    /** Used by RegisterCredentialUseCase. */
+<span class="nc" id="L67">    class UnsupportedCurve(</span>
+        curve: String,
+<span class="nc" id="L69">        cause: Throwable? = null,</span>
+<span class="nc" id="L70">    ) : Fido2Exception(&quot;Unsupported elliptic curve: $curve&quot;, cause, &quot;UNSUPPORTED_CURVE&quot;)</span>
+
+    // ── Key Storage ───────────────────────────────────────────────────────────
+
+<span class="nc" id="L74">    class KeyStoreException(</span>
+        message: String,
+<span class="nc" id="L76">        cause: Throwable? = null,</span>
+<span class="nc" id="L77">    ) : Fido2Exception(message, cause, &quot;KEYSTORE_ERROR&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L80">    class KeyStorageFailed(</span>
+        message: String,
+<span class="nc" id="L82">        cause: Throwable? = null,</span>
+<span class="nc" id="L83">    ) : Fido2Exception(message, cause, &quot;KEY_STORAGE_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+<span class="nc" id="L86">    class KeyNotFound(</span>
+        alias: String,
+<span class="nc" id="L88">        cause: Throwable? = null,</span>
+<span class="nc" id="L89">    ) : Fido2Exception(&quot;Key not found: $alias&quot;, cause, &quot;KEY_NOT_FOUND&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L92">    class KeyDeletionFailed(</span>
+        message: String,
+<span class="nc" id="L94">        cause: Throwable? = null,</span>
+<span class="nc" id="L95">    ) : Fido2Exception(message, cause, &quot;KEY_DELETION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L98">    class KeyRotationFailed(</span>
+        message: String,
+<span class="nc" id="L100">        cause: Throwable? = null,</span>
+<span class="nc" id="L101">    ) : Fido2Exception(message, cause, &quot;KEY_ROTATION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialEncryptionService. */
+<span class="nc" id="L104">    class KeyDerivationFailed(</span>
+        message: String,
+<span class="nc" id="L106">        cause: Throwable? = null,</span>
+<span class="nc" id="L107">    ) : Fido2Exception(message, cause, &quot;KEY_DERIVATION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialEncryptionService. */
+<span class="nc" id="L110">    class KeyCleanupFailed(</span>
+        message: String,
+<span class="nc" id="L112">        cause: Throwable? = null,</span>
+<span class="nc" id="L113">    ) : Fido2Exception(message, cause, &quot;KEY_CLEANUP_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L116">    class KeyExportFailed(</span>
+        message: String,
+<span class="nc" id="L118">        cause: Throwable? = null,</span>
+<span class="nc" id="L119">    ) : Fido2Exception(message, cause, &quot;KEY_EXPORT_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService. */
+<span class="nc" id="L122">    class KeyImportFailed(</span>
+        message: String,
+<span class="nc" id="L124">        cause: Throwable? = null,</span>
+<span class="nc" id="L125">    ) : Fido2Exception(message, cause, &quot;KEY_IMPORT_FAILED&quot;)</span>
+
+    // ── Encryption / Decryption ───────────────────────────────────────────────
+
+    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+<span class="nc" id="L130">    class EncryptionFailed(</span>
+        message: String,
+<span class="nc" id="L132">        cause: Throwable? = null,</span>
+<span class="nc" id="L133">    ) : Fido2Exception(message, cause, &quot;ENCRYPTION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+<span class="nc" id="L136">    class DecryptionFailed(</span>
+        message: String,
+<span class="nc" id="L138">        cause: Throwable? = null,</span>
+<span class="nc" id="L139">    ) : Fido2Exception(message, cause, &quot;DECRYPTION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialEncryptionService. */
+<span class="nc" id="L142">    class InvalidEncryptedData(</span>
+        message: String,
+<span class="nc" id="L144">        cause: Throwable? = null,</span>
+<span class="nc" id="L145">    ) : Fido2Exception(message, cause, &quot;INVALID_ENCRYPTED_DATA&quot;)</span>
+
+    /** Alias used by CredentialEncryptionService. */
+<span class="nc" id="L148">    class RpIdMismatch(</span>
+        expected: String,
+        actual: String,
+<span class="nc" id="L151">        cause: Throwable? = null,</span>
+<span class="nc" id="L152">    ) : Fido2Exception(&quot;RP-ID mismatch: expected=$expected actual=$actual&quot;, cause, &quot;RP_ID_MISMATCH&quot;)</span>
+
+    // ── Database / Storage ────────────────────────────────────────────────────
+
+<span class="nc" id="L156">    class StorageException(</span>
+        message: String,
+<span class="nc" id="L158">        cause: Throwable? = null,</span>
+<span class="nc" id="L159">    ) : Fido2Exception(message, cause, &quot;STORAGE_ERROR&quot;)</span>
+
+<span class="nc" id="L161">    class DatabaseException(</span>
+        message: String,
+<span class="nc" id="L163">        cause: Throwable? = null,</span>
+<span class="nc" id="L164">    ) : Fido2Exception(message, cause, &quot;DATABASE_ERROR&quot;)</span>
+
+    // ── Credential lifecycle ──────────────────────────────────────────────────
+
+<span class="fc" id="L168">    class CredentialException(</span>
+        message: String,
+<span class="fc" id="L170">        cause: Throwable? = null,</span>
+<span class="fc" id="L171">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_ERROR&quot;)</span>
+
+<span class="nc" id="L173">    class CredentialNotFoundException(</span>
+        credentialId: String,
+<span class="nc" id="L175">        cause: Throwable? = null,</span>
+<span class="nc" id="L176">    ) : Fido2Exception(&quot;Credential not found: $credentialId&quot;, cause, &quot;CREDENTIAL_NOT_FOUND&quot;)</span>
+
+<span class="fc" id="L178">    class DuplicateCredentialException(</span>
+        rpId: String,
+<span class="fc" id="L180">        cause: Throwable? = null,</span>
+<span class="fc" id="L181">    ) : Fido2Exception(&quot;Duplicate credential for RP: $rpId&quot;, cause, &quot;DUPLICATE_CREDENTIAL&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl / RegisterCredentialUseCase. */
+<span class="fc" id="L184">    class CredentialStorageFailed(</span>
+        message: String,
+<span class="fc" id="L186">        cause: Throwable? = null,</span>
+<span class="fc" id="L187">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_STORAGE_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L190">    class CredentialNotFound(</span>
+        credentialId: String,
+<span class="nc" id="L192">        cause: Throwable? = null,</span>
+<span class="nc" id="L193">    ) : Fido2Exception(&quot;Credential not found: $credentialId&quot;, cause, &quot;CREDENTIAL_NOT_FOUND&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L196">    class CredentialUpdateFailed(</span>
+        message: String,
+<span class="nc" id="L198">        cause: Throwable? = null,</span>
+<span class="nc" id="L199">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_UPDATE_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L202">    class CredentialDeletionFailed(</span>
+        message: String,
+<span class="nc" id="L204">        cause: Throwable? = null,</span>
+<span class="nc" id="L205">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_DELETION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L208">    class CredentialCleanupFailed(</span>
+        message: String,
+<span class="nc" id="L210">        cause: Throwable? = null,</span>
+<span class="nc" id="L211">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_CLEANUP_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl / RegisterCredentialUseCase. */
+<span class="fc" id="L214">    class CredentialCreationNotAllowed(</span>
+        message: String,
+<span class="fc" id="L216">        cause: Throwable? = null,</span>
+<span class="fc" id="L217">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_CREATION_NOT_ALLOWED&quot;)</span>
+
+    /** Alias used by RegisterCredentialUseCase. */
+<span class="nc" id="L220">    class CredentialGenerationFailed(</span>
+        message: String,
+<span class="nc" id="L222">        cause: Throwable? = null,</span>
+<span class="nc" id="L223">    ) : Fido2Exception(message, cause, &quot;CREDENTIAL_GENERATION_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="fc" id="L226">    class TooManyCredentials(</span>
+<span class="fc" id="L227">        val limit: Int,</span>
+<span class="fc" id="L228">        cause: Throwable? = null,</span>
+<span class="fc" id="L229">    ) : Fido2Exception(&quot;Credential limit exceeded: max=$limit&quot;, cause, &quot;TOO_MANY_CREDENTIALS&quot;)</span>
+
+    // ── Relying Party ─────────────────────────────────────────────────────────
+
+<span class="nc" id="L233">    class RelyingPartyException(</span>
+        message: String,
+<span class="nc" id="L235">        cause: Throwable? = null,</span>
+<span class="nc" id="L236">    ) : Fido2Exception(message, cause, &quot;RP_ERROR&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L239">    class RelyingPartyBlocked(</span>
+        rpId: String,
+<span class="nc" id="L241">        cause: Throwable? = null,</span>
+<span class="nc" id="L242">    ) : Fido2Exception(&quot;Relying party is blocked: $rpId&quot;, cause, &quot;RP_BLOCKED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="fc" id="L245">    class RelyingPartyUpdateFailed(</span>
+        message: String,
+<span class="fc" id="L247">        cause: Throwable? = null,</span>
+<span class="fc" id="L248">    ) : Fido2Exception(message, cause, &quot;RP_UPDATE_FAILED&quot;)</span>
+
+    // ── User Consent ──────────────────────────────────────────────────────────
+
+    /** Alias used by GetUserConsentUseCase / RegisterCredentialUseCase. */
+<span class="fc" id="L253">    class ConsentStorageFailed(</span>
+        message: String,
+<span class="fc" id="L255">        cause: Throwable? = null,</span>
+<span class="fc" id="L256">    ) : Fido2Exception(message, cause, &quot;CONSENT_STORAGE_FAILED&quot;)</span>
+
+    /** Alias used by CredentialRepositoryImpl. */
+<span class="nc" id="L259">    class ConsentDeletionFailed(</span>
+        message: String,
+<span class="nc" id="L261">        cause: Throwable? = null,</span>
+<span class="nc" id="L262">    ) : Fido2Exception(message, cause, &quot;CONSENT_DELETION_FAILED&quot;)</span>
+
+    /** Alias used by GetUserConsentUseCase. */
+<span class="nc" id="L265">    class ConsentOperationFailed(</span>
+        message: String,
+<span class="nc" id="L267">        cause: Throwable? = null,</span>
+<span class="nc" id="L268">    ) : Fido2Exception(message, cause, &quot;CONSENT_OPERATION_FAILED&quot;)</span>
+
+    /** Alias used by RegisterCredentialUseCase. */
+<span class="fc" id="L271">    class ConsentDenied(</span>
+        message: String,
+<span class="fc" id="L273">        cause: Throwable? = null,</span>
+<span class="fc" id="L274">    ) : Fido2Exception(message, cause, &quot;CONSENT_DENIED&quot;)</span>
+
+    // ── User Verification ─────────────────────────────────────────────────────
+
+<span class="fc" id="L278">    class UserVerificationException(</span>
+        message: String,
+<span class="fc" id="L280">        cause: Throwable? = null,</span>
+<span class="fc" id="L281">    ) : Fido2Exception(message, cause, &quot;USER_VERIFICATION_ERROR&quot;)</span>
+
+    /** Alias used by GetUserConsentUseCase / RegisterCredentialUseCase. */
+<span class="fc" id="L284">    class UserVerificationFailed(</span>
+        message: String,
+<span class="fc" id="L286">        cause: Throwable? = null,</span>
+<span class="fc" id="L287">    ) : Fido2Exception(message, cause, &quot;USER_VERIFICATION_FAILED&quot;)</span>
+
+    /** Alias used by GetUserConsentUseCase / RegisterCredentialUseCase. */
+<span class="fc" id="L290">    class NoVerificationMethodAvailable(</span>
+<span class="pc" id="L291">        override val message: String = &quot;No applicable user verification method&quot;,</span>
+<span class="fc" id="L292">    ) : Fido2Exception(message, null, &quot;NO_VERIFICATION_METHOD&quot;)</span>
+
+<span class="fc" id="L294">    class InvalidParameter(</span>
+        message: String,
+<span class="fc" id="L296">        cause: Throwable? = null,</span>
+<span class="fc" id="L297">    ) : Fido2Exception(message, cause, &quot;INVALID_PARAMETER&quot;)</span>
+
+<span class="fc" id="L299">    class MissingParameterException(</span>
+        message: String,
+<span class="fc" id="L301">        cause: Throwable? = null,</span>
+<span class="fc" id="L302">    ) : Fido2Exception(message, cause, &quot;MISSING_PARAMETER&quot;)</span>
+
+<span class="fc" id="L304">    class InvalidFormatException(</span>
+        message: String,
+<span class="fc" id="L306">        cause: Throwable? = null,</span>
+<span class="fc" id="L307">    ) : Fido2Exception(message, cause, &quot;INVALID_FORMAT&quot;)</span>
+
+<span class="nc" id="L309">    class BiometricException(</span>
+        message: String,
+<span class="nc" id="L311">        cause: Throwable? = null,</span>
+<span class="nc" id="L312">    ) : Fido2Exception(message, cause, &quot;BIOMETRIC_ERROR&quot;)</span>
+
+<span class="nc" id="L314">    class DeviceLockException(</span>
+        message: String,
+<span class="nc" id="L316">        cause: Throwable? = null,</span>
+<span class="nc" id="L317">    ) : Fido2Exception(message, cause, &quot;DEVICE_LOCK_ERROR&quot;)</span>
+
+    // ── Registration / Authentication ─────────────────────────────────────────
+
+    /** Alias used by RegisterCredentialUseCase. */
+<span class="fc" id="L322">    class RegistrationFailed(</span>
+        message: String,
+<span class="fc" id="L324">        cause: Throwable? = null,</span>
+<span class="fc" id="L325">    ) : Fido2Exception(message, cause, &quot;REGISTRATION_FAILED&quot;)</span>
+
+    /** Alias used by GetAssertionUseCase. */
+<span class="nc" id="L328">    class AuthenticationFailed(</span>
+        message: String,
+<span class="nc" id="L330">        cause: Throwable? = null,</span>
+<span class="nc" id="L331">    ) : Fido2Exception(message, cause, &quot;AUTHENTICATION_FAILED&quot;)</span>
+
+<span class="nc" id="L333">    class AuthenticationException(</span>
+        message: String,
+<span class="nc" id="L335">        cause: Throwable? = null,</span>
+<span class="nc" id="L336">    ) : Fido2Exception(message, cause, &quot;AUTH_ERROR&quot;)</span>
+
+    // ── Transport / Bluetooth ─────────────────────────────────────────────────
+
+<span class="fc" id="L340">    class TransportException(</span>
+        message: String,
+<span class="fc" id="L342">        cause: Throwable? = null,</span>
+<span class="fc" id="L343">    ) : Fido2Exception(message, cause, &quot;TRANSPORT_ERROR&quot;)</span>
+
+<span class="fc" id="L345">    open class BluetoothException(</span>
+        message: String,
+<span class="fc" id="L347">        cause: Throwable? = null,</span>
+<span class="fc" id="L348">    ) : Fido2Exception(message, cause, &quot;BLUETOOTH_ERROR&quot;)</span>
+
+<span class="nc" id="L350">    class BluetoothPermissionDenied(</span>
+        message: String,
+<span class="nc" id="L352">        cause: Throwable? = null,</span>
+<span class="nc" id="L353">    ) : BluetoothException(message, cause)</span>
+
+<span class="fc" id="L355">    class ConnectionException(</span>
+        message: String,
+<span class="fc" id="L357">        cause: Throwable? = null,</span>
+<span class="fc" id="L358">    ) : Fido2Exception(message, cause, &quot;CONNECTION_ERROR&quot;)</span>
+
+    // ── Security ──────────────────────────────────────────────────────────────
+
+<span class="nc" id="L362">    class SecurityException(</span>
+        message: String,
+<span class="nc" id="L364">        cause: Throwable? = null,</span>
+<span class="nc" id="L365">    ) : Fido2Exception(message, cause, &quot;SECURITY_ERROR&quot;)</span>
+
+<span class="nc" id="L367">    class TamperException(</span>
+        message: String,
+<span class="nc" id="L369">        cause: Throwable? = null,</span>
+<span class="nc" id="L370">    ) : Fido2Exception(message, cause, &quot;TAMPER_ERROR&quot;)</span>
+
+    // ── Repository Stats ──────────────────────────────────────────────────────
+
+    /** Used by CredentialRepositoryImpl. */
+<span class="nc" id="L375">    class RepositoryStatistics(</span>
+        message: String,
+<span class="nc" id="L377">        cause: Throwable? = null,</span>
+<span class="nc" id="L378">    ) : Fido2Exception(message, cause, &quot;REPO_STATS_ERROR&quot;)</span>
+
+    // ── Protocol ──────────────────────────────────────────────────────────────
+
+    /** Used by HidReportParser for framing/protocol-level errors. */
+<span class="fc" id="L383">    class ProtocolException(</span>
+        message: String,
+<span class="fc" id="L385">        cause: Throwable? = null,</span>
+<span class="fc" id="L386">    ) : Fido2Exception(message, cause, &quot;PROTOCOL_ERROR&quot;)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

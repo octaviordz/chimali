@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HmacMetadataLookupTokenService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">security</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.impl</a> &gt; <span class="el_source">HmacMetadataLookupTokenService.kt</span></div><h1>HmacMetadataLookupTokenService.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.impl
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.MetadataLookupKeyUnavailableException
+import com.chimali.core.security.api.MetadataLookupTokenService
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import org.koin.core.annotation.Single
+
+/**
+ * Provides keyed, deterministic tokens for exact-match searchable metadata.
+ *
+ * The service erases its mutable key snapshot and owned input buffers after each operation.
+ * [SecretKeySpec] and the JCA [Mac] provider may retain internal key copies beyond that lifetime;
+ * this service cannot erase provider-managed storage and makes no physical-erasure claim.
+ */
+<span class="fc" id="L21">@Single</span>
+class HmacMetadataLookupTokenService : MetadataLookupTokenService {
+    companion object {
+        private const val ALGORITHM = &quot;HmacSHA256&quot;
+        private const val MAX_UTF8_BYTES_PER_CHARACTER = 4
+    }
+
+<span class="fc" id="L28">    private val keyLock = Any()</span>
+    private var indexKey: ByteArray? = null
+
+    /** Replaces the owned index key copy and erases the previous copy while key ownership is locked.
+     * In-flight operations use separate owned snapshots, so the borrowed input remains untouched.
+     *
+     * @param key borrowed key bytes copied into service ownership
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun provisionKey(key: ByteArray) {
+<span class="fc" id="L38">        val replacement = key.copyOf()</span>
+<span class="fc" id="L39">        synchronized(keyLock) {</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            indexKey?.fill(0)</span>
+<span class="fc" id="L41">            indexKey = replacement</span>
+<span class="fc" id="L42">        }</span>
+<span class="fc" id="L43">    }</span>
+
+    /** Erases and removes the provisioned key; later calls fail until another key is provisioned. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun clearKey() {
+<span class="fc" id="L48">        synchronized(keyLock) {</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            indexKey?.fill(0)</span>
+<span class="fc" id="L50">            indexKey = null</span>
+<span class="fc" id="L51">        }</span>
+<span class="fc" id="L52">    }</span>
+
+    /** Generates a deterministic lookup token using an owned key snapshot that is erased on return.
+     *
+     * @param domain borrowed domain-separation text
+     * @param value borrowed metadata text encoded strictly as UTF-8
+     * @return caller-owned token bytes; the caller must erase them when no longer needed
+     * @throws MetadataLookupKeyUnavailableException when the service has no provisioned key
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun generateToken(
+        domain: String,
+        value: CharSequence,
+    ): ByteArray =
+<span class="fc" id="L66">        generateTokenWithMacFactory(</span>
+<span class="fc" id="L67">            domain,</span>
+<span class="fc" id="L68">            value,</span>
+            macFactory = { operationKey -&gt;
+<span class="fc" id="L70">                Mac.getInstance(ALGORITHM).apply { init(SecretKeySpec(operationKey, ALGORITHM)) }</span>
+            },
+<span class="fc" id="L72">        )</span>
+
+    /** Executes the token operation through an instance-local seam for lifecycle verification.
+     *
+     * The factory must initialize a MAC synchronously from the supplied borrowed snapshot and must
+     * not retain it. The optional cleanup observer exists only for host tests; it receives owned
+     * buffers after they have been erased.
+     *
+     * @param domain borrowed domain-separation text
+     * @param value borrowed metadata text encoded strictly as UTF-8
+     * @param macFactory creates and initializes a MAC using the operation snapshot
+     * @param onOwnedBuffersErased optional host-test observer for erased operation buffers
+     * @param onEncodedScratchErased optional host-test observer for the erased encoder scratch
+     * @return caller-owned token bytes
+     * @throws MetadataLookupKeyUnavailableException when the service has no provisioned key
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L89">    internal fun generateTokenWithMacFactory(</span>
+        domain: String,
+        value: CharSequence,
+        macFactory: (ByteArray) -&gt; Mac,
+<span class="fc" id="L93">        onOwnedBuffersErased: ((List&lt;ByteArray&gt;) -&gt; Unit)? = null,</span>
+<span class="fc" id="L94">        onEncodedScratchErased: ((ByteArray) -&gt; Unit)? = null,</span>
+    ): ByteArray {
+<span class="fc" id="L96">        val operationKey =</span>
+<span class="fc" id="L97">            synchronized(keyLock) {</span>
+<span class="fc bfc" id="L98" title="All 4 branches covered.">                indexKey?.copyOf() ?: throw MetadataLookupKeyUnavailableException()</span>
+            }
+<span class="fc" id="L100">        var domainBytes: ByteArray? = null</span>
+<span class="fc" id="L101">        var valueBytes: ByteArray? = null</span>
+<span class="fc" id="L102">        return try {</span>
+<span class="fc" id="L103">            val mac = macFactory(operationKey)</span>
+<span class="fc" id="L104">            domainBytes = domain.toByteArray(StandardCharsets.UTF_8)</span>
+<span class="fc" id="L105">            valueBytes = encodeUtf8(value, onEncodedScratchErased)</span>
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">            mac.update(requireNotNull(domainBytes))</span>
+<span class="fc" id="L107">            mac.update(MetadataLookupTokenService.VERSION_1.toByte())</span>
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">            mac.doFinal(requireNotNull(valueBytes))</span>
+        } finally {
+<span class="fc" id="L110">            operationKey.fill(0)</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">            domainBytes?.fill(0)</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">            valueBytes?.fill(0)</span>
+<span class="pc bpc" id="L113" title="1 of 4 branches missed.">            onOwnedBuffersErased?.invoke(listOfNotNull(operationKey, domainBytes, valueBytes))</span>
+<span class="fc" id="L114">        }</span>
+    }
+
+    private fun encodeUtf8(
+        value: CharSequence,
+        onScratchErased: ((ByteArray) -&gt; Unit)?,
+    ): ByteArray {
+<span class="fc" id="L121">        val output = ByteBuffer.allocate(Math.multiplyExact(value.length, MAX_UTF8_BYTES_PER_CHARACTER))</span>
+<span class="fc" id="L122">        try {</span>
+<span class="fc" id="L123">            val encoder =</span>
+<span class="fc" id="L124">                StandardCharsets.UTF_8</span>
+<span class="fc" id="L125">                    .newEncoder()</span>
+<span class="fc" id="L126">                    .onMalformedInput(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L127">                    .onUnmappableCharacter(CodingErrorAction.REPORT)</span>
+<span class="fc" id="L128">            val encoded = encoder.encode(CharBuffer.wrap(value), output, true)</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">            if (encoded.isError) encoded.throwException()</span>
+<span class="fc" id="L130">            val flushed = encoder.flush(output)</span>
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">            if (flushed.isError) flushed.throwException()</span>
+<span class="fc" id="L132">            output.flip()</span>
+<span class="fc" id="L133">            return ByteArray(output.remaining()).also(output::get)</span>
+        } finally {
+<span class="fc" id="L135">            output.array().fill(0)</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            onScratchErased?.invoke(output.array())</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

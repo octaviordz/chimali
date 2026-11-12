@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "review_type": "AcceptedTargetRefresh",
+  "run_id": "78f8ea3f-4c7a-4500-8079-4a315ee9ec7b",
+  "prior_run_id": "c1b392a9-f830-4283-83f2-44e36ac5d731",
+  "accepted_at": "2026-11-12T16:34:05Z",
+  "repository": "octaviordz/chimali",
+  "authenticated_owner": "octaviordz",
+  "reviewer_permission": "admin",
+  "target_commit": "f1fd56baf8641cea99edc7fafa8725fdda21044c",
+  "target_tree": "3a41f6da4b81d7d16e3d90afad6f1b0c9d881487",
+  "measurement_fingerprint": "d242e5d6221b90aa5c5fe4e14e27cdcf40c06c4d1502ae15ecc3e78af36105c0",
+  "prior_index_digest": "584a43fd3834945e835a78a840fe6b6723b90807182fdf5e5b126201ac4bc3c4",
+  "review_record_path": "assessments/78f8ea3f-4c7a-4500-8079-4a315ee9ec7b/target-refresh-review.json",
+  "review_record_digest": "d20e176a42b824a7cf3bef78c890c71a1319837126f0fb72cc04b7a8b3539bae",
+  "review_verifier_decision_path": "assessments/78f8ea3f-4c7a-4500-8079-4a315ee9ec7b/target-refresh-verification/decision.json",
+  "review_verifier_decision_digest": "2473c8155d661fd1b6c5d907b1de03301c1481efb473bfa2ce0cca280ff612dc",
+  "publisher_verifier_decision_path": "assessments/78f8ea3f-4c7a-4500-8079-4a315ee9ec7b/publisher-verification-decision.json",
+  "publisher_verifier_decision_digest": "161dd87e0668ed1e91ef3feac310b85afbd42996c0267e6229ffab7af4837068",
+  "publisher_verification_harness": "b1a546134c6409593ec725908587875e75f55c58",
+  "hosted_check": "Unverified",
+  "reason": "Owner-authorized same-tree baseline profile refresh for current protected main after review of the exact API35 run, complete tests and floors, and incompatible indexed profile. User explicitly authorized the archive update in this Codex thread on 2026-11-12; hosted integration remains waived."
+}

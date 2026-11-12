@@ -1,0 +1,859 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BluetoothHidDeviceWrapper.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.bluetooth</a> &gt; <span class="el_source">BluetoothHidDeviceWrapper.kt</span></div><h1>BluetoothHidDeviceWrapper.kt</h1><pre class="source lang-java linenums">@file:Suppress(&quot;MissingPermission&quot;)
+
+package com.chimali.fido2.bluetooth
+
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppSdpSettings
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.content.Context
+import android.content.IntentFilter
+import android.os.Build
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isSuccess
+import com.chimali.core.common.result.onFailure
+import com.chimali.fido2.domain.exception.Fido2Exception
+import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+
+// ── FIDO2 HID report constants ────────────────────────────────────────────────
+
+/*
+ * Report descriptor for a FIDO2 HID authenticator interface.
+ */
+
+// Note: The report count is 0x3E (62 bytes) instead of 64.
+// Bluetooth Classic L2CAP MTU for HID interrupt is capped at 64 bytes.
+// With 1 byte HID header + 1 byte Report ID, the payload must be 62.
+// Windows 11 bthid.sys strictly enforces this and returns ERROR_NOT_SUPPORTED (0x32)
+// if it is asked to fragment an Output Report over L2CAP.
+
+private val FIDO_HID_REPORT_DESCRIPTOR =
+<span class="nc" id="L49">    byteArrayOf(</span>
+        // Usage Page (FIDO Alliance)
+<span class="nc" id="L51">        0x06.toByte(),</span>
+<span class="nc" id="L52">        0xD0.toByte(),</span>
+<span class="nc" id="L53">        0xF1.toByte(),</span>
+        // Usage (FIDO Usage Data In)
+<span class="nc" id="L55">        0x09.toByte(),</span>
+<span class="nc" id="L56">        0x01.toByte(),</span>
+        // Collection (Application)
+<span class="nc" id="L58">        0xA1.toByte(),</span>
+<span class="nc" id="L59">        0x01.toByte(),</span>
+        // ── Input Report ──
+        // Usage (Input Report Data)
+<span class="nc" id="L62">        0x09.toByte(),</span>
+<span class="nc" id="L63">        0x20.toByte(),</span>
+        // Logical Minimum (0)
+<span class="nc" id="L65">        0x15.toByte(),</span>
+<span class="nc" id="L66">        0x00.toByte(),</span>
+        // Logical Maximum (255)
+<span class="nc" id="L68">        0x26.toByte(),</span>
+<span class="nc" id="L69">        0xFF.toByte(),</span>
+<span class="nc" id="L70">        0x00.toByte(),</span>
+        // Report Size (8 bits)
+<span class="nc" id="L72">        0x75.toByte(),</span>
+<span class="nc" id="L73">        0x08.toByte(),</span>
+        // Report Count (62)
+<span class="nc" id="L75">        0x95.toByte(),</span>
+<span class="nc" id="L76">        0x3E.toByte(),</span>
+        // Input (Data, Variable, Absolute)
+<span class="nc" id="L78">        0x81.toByte(),</span>
+<span class="nc" id="L79">        0x02.toByte(),</span>
+        // ── Output Report ──
+        // Usage (Output Report Data)
+<span class="nc" id="L82">        0x09.toByte(),</span>
+<span class="nc" id="L83">        0x21.toByte(),</span>
+        // Logical Minimum (0)
+<span class="nc" id="L85">        0x15.toByte(),</span>
+<span class="nc" id="L86">        0x00.toByte(),</span>
+        // Logical Maximum (255)
+<span class="nc" id="L88">        0x26.toByte(),</span>
+<span class="nc" id="L89">        0xFF.toByte(),</span>
+<span class="nc" id="L90">        0x00.toByte(),</span>
+        // Report Size (8 bits)
+<span class="nc" id="L92">        0x75.toByte(),</span>
+<span class="nc" id="L93">        0x08.toByte(),</span>
+        // Report Count (62)
+<span class="nc" id="L95">        0x95.toByte(),</span>
+<span class="nc" id="L96">        0x3E.toByte(),</span>
+        // Output (Data, Variable, Absolute)
+<span class="nc" id="L98">        0x91.toByte(),</span>
+<span class="nc" id="L99">        0x02.toByte(),</span>
+        // End Collection
+<span class="nc" id="L101">        0xC0.toByte(),</span>
+    )
+
+/**
+ * Payload bytes in each FIDO HID report, matching both report-count fields in the HID descriptor
+ * and [HID_PACKET_SIZE] used by the CTAPHID parser. The HID framing and Bluetooth MTU require this wire size.
+ */
+@Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+internal const val FIDO_HID_REPORT_SIZE = 62
+
+/**
+ * Wraps [BluetoothHidDevice] profile proxy and manages the HID peripheral lifecycle
+ * for the FIDO2 authenticator.
+ *
+ * ## Architecture (Clean Standard Lifecycle)
+ *
+ * This wrapper follows the standard Android BluetoothHidDevice lifecycle:
+ *
+ * 1. **initialize()** — acquire the HID_DEVICE profile proxy via getProfileProxy()
+ * 2. **registerApp()** — call unregisterApp() first (clears stale state), then registerApp()
+ * 3. **onAppStatusChanged(registered=true)** — app is now registered, set Advertising
+ * 4. **onConnectionStateChanged(CONNECTED)** — host connected, verify bond, accept
+ * 5. **unregisterApp() / close()** — cleanup
+ *
+ * ## Diagnostic Logging
+ *
+ * Every lifecycle transition logs:
+ * - getConnectedDevices() snapshot
+ * - getConnectionState() for relevant devices
+ * - Bond state of involved devices
+ * - Current _connectionState value
+ *
+ * This enables diagnosis of connectivity issues without speculative workarounds.
+ */
+<span class="fc" id="L135">@org.koin.core.annotation.Single</span>
+<span class="fc" id="L136">class BluetoothHidDeviceWrapper(</span>
+<span class="fc" id="L137">    private val context: Context,</span>
+) {
+    // ── Bluetooth infrastructure ──────────────────────────────────────────────
+
+<span class="fc" id="L141">    private val bluetoothAdapter: BluetoothAdapter? by lazy {</span>
+<span class="pc bpc" id="L142" title="2 of 4 branches missed.">        (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter</span>
+    }
+
+<span class="pc" id="L145">    private val bluetoothStateWaiter = BluetoothAdapterStateWaiter { bluetoothAdapter }</span>
+<span class="fc" id="L146">    private val reportSender = BluetoothHidReportSender()</span>
+
+    /** The HID Device profile proxy, obtained asynchronously from the system. */
+    private var hidDevice: BluetoothHidDevice? = null
+
+    /** Currently connected host device (null if not connected). */
+    @Volatile private var connectedDevice: BluetoothDevice? = null
+
+    @Volatile private var hidSessionGeneration: Long = 0L
+<span class="fc" id="L155">    private val sessionLock = Any()</span>
+
+<span class="fc" id="L157">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+
+    // ── State ─────────────────────────────────────────────────────────────────
+
+<span class="fc" id="L161">    private val _connectionState = MutableStateFlow&lt;HidConnectionState&gt;(HidConnectionState.Idle)</span>
+
+    /** Read-only connection lifecycle published after each synchronized host-session transition. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="fc" id="L165">    val connectionState: StateFlow&lt;HidConnectionState&gt; = _connectionState.asStateFlow()</span>
+
+    /** Synchronous owner notification before the wrapper admits reports from a new host. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="pc" id="L169">    internal var onSessionTransition: ((Long, HidConnectionState) -&gt; Unit)? = null</span>
+
+    private fun publishSessionState(state: HidConnectionState) {
+<span class="fc" id="L172">        _connectionState.value = state</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        onSessionTransition?.invoke(hidSessionGeneration, state)</span>
+<span class="fc" id="L174">    }</span>
+
+    private var proactiveConnectJob: Job? = null
+
+    /**
+     * A device whose L2CAP HID channels have opened but whose link-key exchange is still
+     * in progress ([BluetoothDevice.BOND_BONDING]). We defer emitting [HidConnectionState.Connected]
+     * until [BluetoothDevice.ACTION_BOND_STATE_CHANGED] confirms [BluetoothDevice.BOND_BONDED].
+     *
+     * Without this, FIDO2 operations can start on an unencrypted L2CAP channel, which causes
+     * Windows to intermittently fail with 0x8007000d (ERROR_INVALID_DATA).
+     */
+    @Volatile private var pendingBondDevice: BluetoothDevice? = null
+
+    /**
+     * Bounded queue of owned 62-byte report copies. Platform callback arrays are borrowed and
+     * never enqueued directly. Buffered reports are erased if delivery is abandoned or closed.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="fc" id="L193">    val incomingReports: Channel&lt;IncomingHidReport&gt; =</span>
+<span class="fc" id="L194">        Channel(capacity = 64, onUndeliveredElement = { report -&gt; report.bytes.fill(0) })</span>
+
+    /** Host-test observer for report bytes after queue ownership is established. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="pc" id="L198">    internal var onIncomingReportOwnedForTest: ((ByteArray) -&gt; Unit)? = null</span>
+
+    /** Erases reports left from a disconnected HID session before another can consume them. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    internal fun discardQueuedIncomingReports() {
+<span class="fc" id="L203">        while (true) {</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">            val report = incomingReports.tryReceive().getOrNull() ?: return</span>
+<span class="fc" id="L205">            report.bytes.fill(0)</span>
+        }
+    }
+
+    /** Changes synchronously at host-session boundaries, before StateFlow observers run. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="fc" id="L211">    internal fun sessionGeneration(): Long = hidSessionGeneration</span>
+
+    /** Reads a consistent state/generation pair for listener-attachment reconciliation. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    internal fun sessionSnapshot(): Pair&lt;Long, HidConnectionState&gt; =
+<span class="fc" id="L216">        synchronized(sessionLock) { hidSessionGeneration to _connectionState.value }</span>
+
+    private fun advanceSessionGeneration() {
+<span class="fc" id="L219">        synchronized(sessionLock) { hidSessionGeneration += 1L }</span>
+<span class="fc" id="L220">    }</span>
+
+    /** Advances the wrapper generation through the production session lock for lifecycle regressions. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="fc" id="L224">    internal fun advanceSessionGenerationForTest() = advanceSessionGeneration()</span>
+
+    // ── Diagnostic helpers ────────────────────────────────────────────────────
+
+    /**
+     * Logs a diagnostic snapshot of the HID profile state.
+     * Called at every significant lifecycle point for visibility.
+     */
+<span class="fc" id="L232">    private fun logDiagnosticSnapshot(tag: String) = callbackCoordinator.logDiagnosticSnapshot(tag)</span>
+
+    private val callbackCoordinator =
+<span class="fc" id="L235">        BluetoothHidCallbackCoordinator(</span>
+            owner =
+<span class="fc" id="L237">                object : BluetoothHidCallbackOwner {</span>
+                    override var hidDevice: BluetoothHidDevice?
+<span class="fc" id="L239">                        get() = this@BluetoothHidDeviceWrapper.hidDevice</span>
+                        set(value) {
+<span class="fc" id="L241">                            this@BluetoothHidDeviceWrapper.hidDevice = value</span>
+<span class="fc" id="L242">                        }</span>
+                    override var connectedDevice: BluetoothDevice?
+<span class="fc" id="L244">                        get() = this@BluetoothHidDeviceWrapper.connectedDevice</span>
+                        set(value) {
+<span class="fc" id="L246">                            this@BluetoothHidDeviceWrapper.connectedDevice = value</span>
+<span class="fc" id="L247">                        }</span>
+                    override var pendingBondDevice: BluetoothDevice?
+<span class="fc" id="L249">                        get() = this@BluetoothHidDeviceWrapper.pendingBondDevice</span>
+                        set(value) {
+<span class="fc" id="L251">                            this@BluetoothHidDeviceWrapper.pendingBondDevice = value</span>
+<span class="fc" id="L252">                        }</span>
+                    override var proactiveConnectJob: Job?
+<span class="fc" id="L254">                        get() = this@BluetoothHidDeviceWrapper.proactiveConnectJob</span>
+                        set(value) {
+<span class="fc" id="L256">                            this@BluetoothHidDeviceWrapper.proactiveConnectJob = value</span>
+<span class="fc" id="L257">                        }</span>
+                    override val bluetoothAdapter: BluetoothAdapter?
+<span class="fc" id="L259">                        get() = this@BluetoothHidDeviceWrapper.bluetoothAdapter</span>
+                    override val scope: CoroutineScope
+<span class="nc" id="L261">                        get() = this@BluetoothHidDeviceWrapper.scope</span>
+                    override val sessionLock: Any
+<span class="fc" id="L263">                        get() = this@BluetoothHidDeviceWrapper.sessionLock</span>
+                    override val connectionState: MutableStateFlow&lt;HidConnectionState&gt;
+<span class="fc" id="L265">                        get() = this@BluetoothHidDeviceWrapper._connectionState</span>
+
+<span class="fc" id="L267">                    override fun advanceSessionGeneration() = this@BluetoothHidDeviceWrapper.advanceSessionGeneration()</span>
+
+                    override fun discardQueuedIncomingReports() =
+<span class="fc" id="L270">                        this@BluetoothHidDeviceWrapper.discardQueuedIncomingReports()</span>
+
+                    override fun publishSessionState(state: HidConnectionState) =
+<span class="fc" id="L273">                        this@BluetoothHidDeviceWrapper.publishSessionState(state)</span>
+
+                    override fun acceptConnectedDevice(device: BluetoothDevice) =
+<span class="fc" id="L276">                        this@BluetoothHidDeviceWrapper.acceptConnectedDevice(device)</span>
+
+<span class="nc" id="L278">                    override fun connect(device: BluetoothDevice) = this@BluetoothHidDeviceWrapper.connect(device)</span>
+
+                    override fun enqueueIncomingReportFromDevice(
+                        device: BluetoothDevice,
+                        data: ByteArray,
+<span class="fc" id="L283">                    ) = this@BluetoothHidDeviceWrapper.enqueueIncomingReportFromDevice(device, data)</span>
+                },
+        )
+
+    /** Platform callback retained on the wrapper for lifecycle testing and callback registration. */
+<span class="fc" id="L288">    private val hidCallback = callbackCoordinator.hidCallback</span>
+
+    private var isReceiverRegistered = false
+
+    // ── Callbacks ─────────────────────────────────────────────────────────────
+
+    /**
+     * Completes a device connection: sets [connectedDevice], emits [HidConnectionState.Connected],
+     * and notifies the transport layer.
+     */
+    private fun acceptConnectedDevice(device: BluetoothDevice) {
+<span class="fc" id="L299">        Logger.i { &quot;Accepting connection from ${device.address}&quot; }</span>
+<span class="fc" id="L300">        synchronized(sessionLock) {</span>
+<span class="fc" id="L301">            advanceSessionGeneration()</span>
+<span class="fc" id="L302">            discardQueuedIncomingReports()</span>
+<span class="fc" id="L303">            connectedDevice = device</span>
+<span class="fc" id="L304">            publishSessionState(HidConnectionState.Connected(device))</span>
+<span class="fc" id="L305">        }</span>
+<span class="fc" id="L306">        logDiagnosticSnapshot(&quot;DEVICE_ACCEPTED&quot;)</span>
+
+        // &quot;?&quot;? WORKAROUND: Prevent Windows 11 5-second HID timeout &quot;?&quot;?
+        // Windows 11 will aggressively disconnect Bluetooth HID peripherals exactly 5 seconds
+        // after channel open if the peripheral has not transmitted any reports. We fire a 64-byte
+        // report of all zeros (Channel ID 0x00000000). The FIDO spec mandates that packets with
+        // Channel ID 0 MUST be ignored by the host. This effectively acts as a transport-level
+        // keep-alive, proving to the Windows hidclass.sys driver that the device is alive.
+        //
+        // CRITICAL DELAY: We MUST delay this transmission by ~3 seconds. Sending an L2CAP DATA
+        // packet immediately upon channel creation causes the Motorola baseband to violently
+        // crash with hci_status=36 (LMP PDU Not Allowed). 3000ms ensures the link is fully
+        // stabilized (sniff/QoS parameters negotiated) while safely beating the 5000ms timeout.
+        // Delayed readiness packet removed. It causes the Motorola baseband to crash with hci_status=36
+        // because sending un-numbered L2CAP DATA on the Interrupt IN channel while Windows is aborting
+        // the connection is physically rejected by the Link Manager.
+<span class="fc" id="L322">    }</span>
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /**
+     * Must be called once to acquire the [BluetoothHidDevice] profile proxy from the system.
+     *
+     * On some OEM devices (e.g. Asus Zenfone 10), [BluetoothProfile.ServiceListener.onServiceConnected]
+     * is silently never delivered even when [BluetoothAdapter.getProfileProxy] returns true. This can
+     * happen when the Bluetooth daemon is still initializing. We apply the same timeout+retry pattern
+     * used in [registerApp] to handle this gracefully.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="nc" id="L335">    suspend fun initialize(): Result&lt;Unit&gt; {</span>
+<span class="nc" id="L336">        Logger.d { &quot;initialize() called. Current hidDevice: $hidDevice&quot; }</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        if (hidDevice != null) return Result.success(Unit)</span>
+
+        // Register adapter-state receiver for BT hardware toggle and bond-state changes.
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        if (!isReceiverRegistered) {</span>
+<span class="nc" id="L341">            val filter =</span>
+<span class="nc" id="L342">                IntentFilter().apply {</span>
+<span class="nc" id="L343">                    addAction(BluetoothAdapter.ACTION_STATE_CHANGED)</span>
+<span class="nc" id="L344">                    addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)</span>
+<span class="nc" id="L345">                    addAction(BluetoothDevice.ACTION_ACL_CONNECTED)</span>
+<span class="nc" id="L346">                }</span>
+            // CRITICAL: On Android 13+ (API 33), system broadcasts like
+            // ACTION_BOND_STATE_CHANGED are silently dropped unless we
+            // register with RECEIVER_EXPORTED. Without this flag, our
+            // proactive connect() on BOND_BONDED never fires.
+<span class="nc bnc" id="L351" title="All 2 branches missed.">            if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.TIRAMISU) {</span>
+<span class="nc" id="L352">                context.registerReceiver(callbackCoordinator.bluetoothStateReceiver, filter, Context.RECEIVER_EXPORTED)</span>
+            } else {
+<span class="nc" id="L354">                context.registerReceiver(callbackCoordinator.bluetoothStateReceiver, filter)</span>
+            }
+<span class="nc" id="L356">            isReceiverRegistered = true</span>
+<span class="nc" id="L357">            Logger.d {</span>
+                &quot;BluetoothAdapter state + bond-state receiver registered (exported=&quot; +
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                    &quot;${android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.TIRAMISU})&quot;</span>
+            }
+        }
+
+<span class="nc" id="L363">        var lastException: Exception? = null</span>
+<span class="nc" id="L364">        val cfg = BluetoothHidConfigProvider.config</span>
+<span class="nc" id="L365">        val maxRetries = cfg.initMaxRetries</span>
+<span class="nc" id="L366">        var retryDelay = cfg.initRetryDelay</span>
+
+<span class="nc bnc" id="L368" title="All 4 branches missed.">        for (attempt in 1..maxRetries) {</span>
+<span class="nc" id="L369">            Logger.d { &quot;initialize attempt $attempt/$maxRetries&quot; }</span>
+
+<span class="nc" id="L371">            val result =</span>
+<span class="nc" id="L372">                withTimeoutOrNull(cfg.initTimeout) {</span>
+<span class="nc" id="L373">                    suspendCancellableCoroutine { cont -&gt;</span>
+<span class="nc" id="L374">                        callbackCoordinator.initContinuation = cont</span>
+<span class="nc" id="L375">                        try {</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">                            val adapterState = bluetoothAdapter?.state</span>
+<span class="nc" id="L377">                            Logger.d { &quot;Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)&quot; }</span>
+<span class="nc" id="L378">                            Logger.d { &quot;Calling getProfileProxy for HID_DEVICE...&quot; }</span>
+<span class="nc" id="L379">                            val isSuccess =</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">                                bluetoothAdapter?.getProfileProxy(</span>
+<span class="nc" id="L381">                                    context,</span>
+<span class="nc" id="L382">                                    callbackCoordinator.serviceListener,</span>
+<span class="nc" id="L383">                                    BluetoothProfile.HID_DEVICE,</span>
+                                )
+<span class="nc" id="L385">                                    ?: false</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                            Logger.d { &quot;getProfileProxy returned: $isSuccess&quot; }</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">                            if (!isSuccess) {</span>
+<span class="nc" id="L388">                                Logger.e {</span>
+<span class="nc" id="L389">                                    &quot;getProfileProxy returned false - &quot; +</span>
+<span class="nc" id="L390">                                        &quot;Bluetooth may be off or profile unsupported&quot;</span>
+                                }
+<span class="nc" id="L392">                                cont.resumeWithException(</span>
+<span class="nc" id="L393">                                    Fido2Exception.BluetoothException(&quot;Failed to request HID proxy. Is Bluetooth on?&quot;),</span>
+                                )
+<span class="nc" id="L395">                                callbackCoordinator.initContinuation = null</span>
+                            } else {
+<span class="nc" id="L397">                                Logger.d {</span>
+<span class="nc" id="L398">                                    &quot;getProfileProxy returned true - waiting for onServiceConnected callback...&quot;</span>
+                                }
+                            }
+<span class="nc" id="L401">                        } catch (e: SecurityException) {</span>
+<span class="nc" id="L402">                            Logger.e(</span>
+<span class="nc" id="L403">                                e,</span>
+<span class="nc" id="L404">                            ) { &quot;SecurityException in getProfileProxy - missing BLUETOOTH_CONNECT permission?&quot; }</span>
+<span class="nc" id="L405">                            cont.resumeWithException(</span>
+<span class="nc" id="L406">                                Fido2Exception.BluetoothPermissionDenied(</span>
+<span class="nc" id="L407">                                    &quot;Bluetooth permission denied&quot;,</span>
+<span class="nc" id="L408">                                    e,</span>
+                                ),
+                            )
+<span class="nc" id="L411">                            callbackCoordinator.initContinuation = null</span>
+                        }
+<span class="nc" id="L413">                    }</span>
+                }
+
+<span class="nc" id="L416">            when {</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                result == null -&gt; {</span>
+<span class="nc" id="L418">                    Logger.e {</span>
+<span class="nc" id="L419">                        &quot;initialize() timed out after ${cfg.initTimeout} - &quot; +</span>
+<span class="nc" id="L420">                            &quot;onServiceConnected never received.&quot;</span>
+                    }
+<span class="nc" id="L422">                    lastException =</span>
+<span class="nc" id="L423">                        Fido2Exception.BluetoothException(</span>
+<span class="nc" id="L424">                            &quot;HID proxy acquisition timed out (onServiceConnected never fired)&quot;,</span>
+                        )
+                }
+
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                result.isSuccess -&gt; {</span>
+<span class="nc" id="L429">                    Logger.i { &quot;initialize() succeeded on attempt $attempt&quot; }</span>
+<span class="nc" id="L430">                    return Result.success(Unit)</span>
+                }
+
+                else -&gt; {
+<span class="nc bnc" id="L434" title="All 2 branches missed.">                    lastException = result.exceptionOrNull() as? Exception</span>
+<span class="nc bnc" id="L435" title="All 2 branches missed.">                    Logger.w { &quot;initialize() failed on attempt $attempt: ${lastException?.message}&quot; }</span>
+                    // If it's a permission error, don't retry — user action needed
+<span class="nc bnc" id="L437" title="All 2 branches missed.">                    if (lastException is Fido2Exception.BluetoothPermissionDenied) {</span>
+<span class="nc" id="L438">                        return Result.failure(lastException)</span>
+                    }
+                }
+            }
+
+<span class="nc bnc" id="L443" title="All 2 branches missed.">            if (attempt &lt; maxRetries) {</span>
+<span class="nc" id="L444">                Logger.d { &quot;Retrying initialize() in $retryDelay...&quot; }</span>
+<span class="nc" id="L445">                delay(retryDelay)</span>
+<span class="nc" id="L446">                retryDelay *= 2</span>
+            }
+        }
+
+<span class="nc" id="L450">        Logger.e { &quot;initialize() failed after $maxRetries attempts&quot; }</span>
+<span class="nc" id="L451">        return Result.failure(</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">            lastException ?: Fido2Exception.BluetoothException(&quot;HID proxy acquisition failed after retries&quot;),</span>
+        )
+    }
+
+    /**
+     * Registers the FIDO2 HID application and begins advertising so that a
+     * Bluetooth host can discover and connect to this authenticator.
+     *
+     * ## Standard Lifecycle
+     *
+     * Per Android best practices and AOSP documentation:
+     * 1. Call `unregisterApp()` first to clear any stale registration
+     * 2. Wait briefly for the unregister to propagate
+     * 3. Call `registerApp()` with a fresh callback
+     * 4. Trust `onAppStatusChanged` as the source of truth for registration status
+     *
+     * The `registerApp()` return value only indicates whether the request was
+     * successfully *sent* to the system service, NOT whether registration succeeded.
+     * The actual registration outcome is delivered via `onAppStatusChanged`.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="nc" id="L473">    suspend fun registerApp(): Result&lt;Unit&gt; {</span>
+<span class="nc" id="L474">        val cfg = BluetoothHidConfigProvider.config</span>
+<span class="nc" id="L475">        val maxRetries = cfg.registerMaxRetries</span>
+<span class="nc" id="L476">        var retryDelay = cfg.registerRetryDelay</span>
+<span class="nc" id="L477">        var lastException: Exception? = null</span>
+
+<span class="nc bnc" id="L479" title="All 4 branches missed.">        for (attempt in 1..maxRetries) {</span>
+<span class="nc" id="L480">            Logger.d { &quot;registerApp attempt $attempt/$maxRetries&quot; }</span>
+<span class="nc" id="L481">            logDiagnosticSnapshot(&quot;PRE_REGISTER_$attempt&quot;)</span>
+
+            // ── Step 0: Ensure Bluetooth is ON ──
+            // If the user just clicked &quot;Allow&quot; on the system prompt, the state might
+            // be STATE_TURNING_ON. We wait up to 5 seconds for it to reach STATE_ON.
+<span class="nc" id="L486">            val bluetoothState = bluetoothStateWaiter.waitForBluetoothToTurnOn()</span>
+
+<span class="nc" id="L488">            val result =</span>
+<span class="nc" id="L489">                withTimeoutOrNull(cfg.registerTimeout) {</span>
+<span class="nc" id="L490">                    suspendCancellableCoroutine&lt;Result&lt;Unit&gt;&gt; { cont -&gt;</span>
+<span class="nc" id="L491">                        val hid = hidDevice</span>
+<span class="nc bnc" id="L492" title="All 2 branches missed.">                        if (hid == null) {</span>
+<span class="nc" id="L493">                            cont.resume(</span>
+<span class="nc" id="L494">                                Result.failure(</span>
+<span class="nc" id="L495">                                    Fido2Exception.BluetoothException(&quot;HID_DEVICE profile not yet acquired&quot;),</span>
+                                ),
+                            )
+<span class="nc" id="L498">                            return@suspendCancellableCoroutine</span>
+                        }
+
+<span class="nc bnc" id="L501" title="All 2 branches missed.">                        if (bluetoothState != BluetoothAdapter.STATE_ON) {</span>
+<span class="nc" id="L502">                            Logger.w { &quot;Bluetooth is not ON (current state: $bluetoothState), cannot register HID app&quot; }</span>
+<span class="nc" id="L503">                            cont.resume(</span>
+<span class="nc" id="L504">                                Result.failure(</span>
+<span class="nc" id="L505">                                    Fido2Exception.BluetoothException(</span>
+<span class="nc" id="L506">                                        &quot;Bluetooth must be enabled to start the authenticator&quot;,</span>
+                                    ),
+                                ),
+                            )
+<span class="nc" id="L510">                            return@suspendCancellableCoroutine</span>
+                        }
+
+                        // ── Step 1: Clear any stale registration ──
+                        // Best practice: call unregisterApp() before registerApp() to ensure
+                        // no previous app instance (same or different process) holds the
+                        // exclusive HID_DEVICE registration slot.
+<span class="nc" id="L517">                        Logger.d { &quot;Step 1: Calling unregisterApp() to clear any stale registration...&quot; }</span>
+<span class="nc" id="L518">                        try {</span>
+<span class="nc" id="L519">                            val isUnregistrationSuccessful = hid.unregisterApp()</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">                            Logger.d { &quot;unregisterApp() result: $isUnregistrationSuccessful&quot; }</span>
+<span class="nc" id="L521">                        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L522">                            Logger.w(e) { &quot;unregisterApp() threw (non-fatal, proceeding with registerApp)&quot; }</span>
+                        }
+
+<span class="nc" id="L525">                        logDiagnosticSnapshot(&quot;POST_UNREGISTER_$attempt&quot;)</span>
+
+                        // ── Step 2: Register with fresh callback ──
+<span class="nc" id="L528">                        val sdpSubclass = BluetoothHidDevice.SUBCLASS1_COMBO</span>
+<span class="nc" id="L529">                        Logger.d { &quot;Step 2: Using SUBCLASS1_COMBO...&quot; }</span>
+
+<span class="nc" id="L531">                        val sdp =</span>
+<span class="nc" id="L532">                            BluetoothHidDeviceAppSdpSettings(</span>
+<span class="nc" id="L533">                                &quot;Chimali Authenticator&quot;,</span>
+<span class="nc" id="L534">                                &quot;FIDO2 Virtual Security Key&quot;,</span>
+<span class="nc" id="L535">                                &quot;Chimali&quot;,</span>
+<span class="nc" id="L536">                                sdpSubclass,</span>
+<span class="nc" id="L537">                                FIDO_HID_REPORT_DESCRIPTOR,</span>
+                            )
+// Wrapper callback that resolves the continuation on app status change
+<span class="nc" id="L540">                        val registrationCallback = callbackCoordinator.createRegistrationCallback(cont)</span>
+
+<span class="nc" id="L542">                        val registerResult =</span>
+<span class="nc" id="L543">                            try {</span>
+<span class="nc" id="L544">                                Logger.d(&quot;Step 3: Calling registerApp with SDP subclass COMBO and null QoS...&quot;)</span>
+<span class="nc" id="L545">                                val isCallSuccessful =</span>
+<span class="nc" id="L546">                                    hid.registerApp(</span>
+<span class="nc" id="L547">                                        sdp,</span>
+<span class="nc" id="L548">                                        null,</span>
+<span class="nc" id="L549">                                        null,</span>
+<span class="nc" id="L550">                                        Executors.newSingleThreadExecutor(),</span>
+<span class="nc" id="L551">                                        registrationCallback,</span>
+                                    )
+<span class="nc bnc" id="L553" title="All 2 branches missed.">                                Logger.i { &quot;registerApp() framework return value: $isCallSuccessful&quot; }</span>
+<span class="nc" id="L554">                                isCallSuccessful</span>
+<span class="nc" id="L555">                            } catch (e: SecurityException) {</span>
+<span class="nc" id="L556">                                Logger.e(e) { &quot;SecurityException in registerApp&quot; }</span>
+<span class="nc" id="L557">                                cont.resume(</span>
+<span class="nc" id="L558">                                    Result.failure(</span>
+<span class="nc" id="L559">                                        Fido2Exception.BluetoothPermissionDenied(</span>
+<span class="nc" id="L560">                                            &quot;BLUETOOTH_ADVERTISE permission denied&quot;,</span>
+<span class="nc" id="L561">                                            e,</span>
+                                        ),
+                                    ),
+                                )
+<span class="nc" id="L565">                                return@suspendCancellableCoroutine</span>
+<span class="nc" id="L566">                            } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L567">                                Logger.e(e) { &quot;Unexpected IllegalStateException in registerApp&quot; }</span>
+<span class="nc" id="L568">                                cont.resume(</span>
+<span class="nc" id="L569">                                    Result.failure(</span>
+<span class="nc" id="L570">                                        Fido2Exception.BluetoothException(</span>
+<span class="nc" id="L571">                                            &quot;Unexpected error during app registration: ${e.message}&quot;,</span>
+                                        ),
+                                    ),
+                                )
+<span class="nc" id="L575">                                return@suspendCancellableCoroutine</span>
+                            }
+
+<span class="nc" id="L578">                        logDiagnosticSnapshot(&quot;POST_REGISTER_CALL_$attempt&quot;)</span>
+
+<span class="nc bnc" id="L580" title="All 2 branches missed.">                        if (!registerResult) {</span>
+                            // registerApp() returned false — the request was not accepted by the
+                            // system service. This typically means another app or stale process
+                            // already holds the exclusive HID_DEVICE registration.
+<span class="nc" id="L584">                            Logger.w(</span>
+<span class="nc" id="L585">                                &quot;registerApp() returned false — system did not accept registration request. &quot; +</span>
+                                    &quot;Another app or stale process may hold the HID_DEVICE slot.&quot;,
+                            )
+                            // The callback may still fire (some OEMs send a courtesy callback).
+                            // We wait for the timeout to expire rather than immediately failing,
+                            // since the callback might still arrive with registered=true.
+                        }
+<span class="nc" id="L592">                    }</span>
+                }
+
+<span class="nc" id="L595">            when {</span>
+<span class="nc bnc" id="L596" title="All 6 branches missed.">                result?.isSuccess == true -&gt; {</span>
+<span class="nc" id="L597">                    Logger.i { &quot;registerApp() succeeded on attempt $attempt&quot; }</span>
+<span class="nc" id="L598">                    logDiagnosticSnapshot(&quot;REGISTER_SUCCESS&quot;)</span>
+<span class="nc" id="L599">                    callbackCoordinator.checkExistingConnectionsWhileAdvertising()</span>
+<span class="nc" id="L600">                    return Result.success(Unit)</span>
+                }
+<span class="nc bnc" id="L602" title="All 2 branches missed.">                result == null -&gt; {</span>
+<span class="nc" id="L603">                    Logger.e { &quot;registerApp timed out after ${cfg.registerTimeout} on attempt $attempt&quot; }</span>
+<span class="nc" id="L604">                    lastException = Fido2Exception.BluetoothException(&quot;HID registration timed out&quot;)</span>
+<span class="nc" id="L605">                    logDiagnosticSnapshot(&quot;REGISTER_TIMEOUT_$attempt&quot;)</span>
+                }
+                else -&gt; {
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                    lastException = result.exceptionOrNull() as? Exception</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">                    Logger.w { &quot;registerApp failure on attempt $attempt: ${lastException?.message}&quot; }</span>
+<span class="nc" id="L610">                    logDiagnosticSnapshot(&quot;REGISTER_FAILURE_$attempt&quot;)</span>
+                }
+            }
+
+<span class="nc bnc" id="L614" title="All 2 branches missed.">            if (attempt &lt; maxRetries) {</span>
+<span class="nc" id="L615">                Logger.d { &quot;Retrying registerApp() in $retryDelay...&quot; }</span>
+<span class="nc" id="L616">                delay(retryDelay)</span>
+<span class="nc" id="L617">                retryDelay *= 2</span>
+<span class="nc bnc" id="L618" title="All 2 branches missed.">                if (retryDelay &gt; cfg.registerRetryMaxDelay) {</span>
+<span class="nc" id="L619">                    retryDelay = cfg.registerRetryMaxDelay</span>
+                }
+            }
+        }
+
+<span class="nc" id="L624">        return Result.failure(</span>
+<span class="nc bnc" id="L625" title="All 2 branches missed.">            lastException ?: Fido2Exception.BluetoothException(&quot;HID registration failed after $maxRetries attempts&quot;),</span>
+        )
+    }
+
+    /**
+     * Connects to the given paired host device over Bluetooth HID.
+     *
+     * Returns `true` if the connection attempt was successfully initiated, `false` otherwise.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun connect(device: BluetoothDevice): Boolean {
+<span class="nc" id="L636">        val hid = hidDevice</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">        if (hid == null) {</span>
+<span class="nc" id="L638">            Logger.w { &quot;connect: HID device proxy not available&quot; }</span>
+<span class="nc" id="L639">            return false</span>
+        }
+<span class="nc bnc" id="L641" title="All 2 branches missed.">        if (device.bondState != BluetoothDevice.BOND_BONDED) {</span>
+<span class="nc" id="L642">            Logger.w { &quot;connect: device ${device.address} is not bonded (bondState=${device.bondState})&quot; }</span>
+<span class="nc" id="L643">            return false</span>
+        }
+<span class="nc" id="L645">        return try {</span>
+<span class="nc" id="L646">            val initiated = hid.connect(device)</span>
+<span class="nc" id="L647">            Logger.i { &quot;connect(${device.address}) initiated: $initiated&quot; }</span>
+<span class="nc" id="L648">            initiated</span>
+<span class="nc" id="L649">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L650">            Logger.e(e) { &quot;connect: Bluetooth permission denied for ${device.address}&quot; }</span>
+<span class="nc" id="L651">            false</span>
+<span class="nc" id="L652">        } catch (e: IllegalStateException) {</span>
+<span class="nc" id="L653">            Logger.e(e) { &quot;connect: Bluetooth not available for ${device.address} — ${e.message}&quot; }</span>
+<span class="nc" id="L654">            false</span>
+        }
+    }
+
+    /**
+     * Connects to a paired host device specified by its MAC address.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun connect(macAddress: String): Boolean {
+<span class="nc" id="L663">        val adapter = bluetoothAdapter</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">        if (adapter == null) {</span>
+<span class="nc" id="L665">            Logger.w { &quot;connect: BluetoothAdapter not available&quot; }</span>
+<span class="nc" id="L666">            return false</span>
+        }
+<span class="nc" id="L668">        val device =</span>
+<span class="nc bnc" id="L669" title="All 2 branches missed.">            try {</span>
+<span class="nc" id="L670">                adapter.getRemoteDevice(macAddress)</span>
+<span class="nc" id="L671">            } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L672">                Logger.e(e) { &quot;connect: invalid Bluetooth MAC address: $macAddress&quot; }</span>
+<span class="nc" id="L673">                null</span>
+<span class="nc" id="L674">            } ?: return false</span>
+
+<span class="nc" id="L676">        return connect(device)</span>
+    }
+
+    /**
+     * Sends a raw 62-byte FIDO2 HID report to the connected Bluetooth host.
+     *
+     * @param data Raw report bytes. Must be &lt;= 62 bytes.
+     * The wrapper borrows the array for the synchronous platform send and does not retain or erase it.
+     * @return `true` if the report was dispatched to the BluetoothHidDevice profile,
+     *         `false` if the profile proxy or connected device is unavailable.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+<span class="fc" id="L688">    fun sendReport(data: ByteArray): Boolean = sendReport(data, sessionGeneration())</span>
+
+    /** Sends a borrowed report only while its expected host generation is current. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun sendReport(
+        data: ByteArray,
+        expectedSessionGeneration: Long,
+    ): Boolean =
+<span class="fc" id="L696">        synchronized(sessionLock) {</span>
+<span class="fc bfc" id="L697" title="All 2 branches covered.">            if (expectedSessionGeneration != hidSessionGeneration) {</span>
+<span class="fc" id="L698">                return@synchronized false</span>
+            }
+<span class="fc" id="L700">            sendReportToCurrentHost(data)</span>
+<span class="fc" id="L701">        }</span>
+
+<span class="fc" id="L703">    private fun sendReportToCurrentHost(data: ByteArray): Boolean = reportSender.send(hidDevice, connectedDevice, data)</span>
+
+    /** Unregisters the HID app (stops advertising / disconnects host). */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun unregisterApp() {
+<span class="fc" id="L708">        Logger.d(&quot;unregisterApp() called&quot;)</span>
+<span class="fc" id="L709">        logDiagnosticSnapshot(&quot;PRE_UNREGISTER&quot;)</span>
+<span class="pc bpc" id="L710" title="1 of 2 branches missed.">        proactiveConnectJob?.cancel()</span>
+<span class="fc" id="L711">        proactiveConnectJob = null</span>
+<span class="fc" id="L712">        try {</span>
+<span class="fc bfc" id="L713" title="All 2 branches covered.">            hidDevice?.unregisterApp()</span>
+<span class="nc" id="L714">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L715">            Logger.e(e) { &quot;unregisterApp: Bluetooth permission denied&quot; }</span>
+        }
+<span class="fc" id="L717">        synchronized(sessionLock) {</span>
+<span class="fc" id="L718">            advanceSessionGeneration()</span>
+<span class="fc" id="L719">            connectedDevice = null</span>
+<span class="fc" id="L720">            pendingBondDevice = null</span>
+<span class="fc" id="L721">            discardQueuedIncomingReports()</span>
+<span class="fc" id="L722">            publishSessionState(HidConnectionState.Idle)</span>
+<span class="fc" id="L723">        }</span>
+<span class="fc" id="L724">        logDiagnosticSnapshot(&quot;POST_UNREGISTER&quot;)</span>
+<span class="fc" id="L725">    }</span>
+
+    /** Releases the profile proxy. Should be called from Application.onTerminate. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun close() {
+<span class="fc" id="L730">        Logger.d(&quot;close() called&quot;)</span>
+<span class="pc bpc" id="L731" title="1 of 2 branches missed.">        proactiveConnectJob?.cancel()</span>
+<span class="fc" id="L732">        proactiveConnectJob = null</span>
+<span class="fc" id="L733">        scope.coroutineContext.cancelChildren()</span>
+<span class="fc" id="L734">        unregisterApp()</span>
+<span class="pc bpc" id="L735" title="1 of 2 branches missed.">        if (isReceiverRegistered) {</span>
+<span class="nc" id="L736">            runCatching { context.unregisterReceiver(callbackCoordinator.bluetoothStateReceiver) }</span>
+<span class="nc bnc" id="L737" title="All 2 branches missed.">                .onFailure { Logger.w { &quot;close: failed to unregister BT state receiver: ${it.message}&quot; } }</span>
+<span class="nc" id="L738">            isReceiverRegistered = false</span>
+        }
+<span class="fc" id="L740">        try {</span>
+<span class="pc bpc" id="L741" title="3 of 4 branches missed.">            hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }</span>
+<span class="nc" id="L742">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L743">            Logger.e(e) { &quot;close: Bluetooth permission denied&quot; }</span>
+        }
+<span class="fc" id="L745">        hidDevice = null</span>
+<span class="fc" id="L746">        discardQueuedIncomingReports()</span>
+        // Cancellation drops any concurrently enqueued buffered reports through the erasing
+        // onUndeliveredElement callback; this wrapper is terminal after close().
+<span class="fc" id="L749">        incomingReports.cancel()</span>
+<span class="fc" id="L750">    }</span>
+
+    /**
+     * Transitions the HID state to [HidConnectionState.Error].
+     * Used to propagate external transport or registration failures to the UI.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    fun reportError(message: String) {
+<span class="fc" id="L758">        synchronized(sessionLock) {</span>
+<span class="fc" id="L759">            advanceSessionGeneration()</span>
+<span class="fc" id="L760">            connectedDevice = null</span>
+<span class="fc" id="L761">            pendingBondDevice = null</span>
+<span class="fc" id="L762">            discardQueuedIncomingReports()</span>
+<span class="fc" id="L763">            publishSessionState(HidConnectionState.Error(message))</span>
+<span class="fc" id="L764">        }</span>
+<span class="fc" id="L765">    }</span>
+
+    // ── Internal helpers ──────────────────────────────────────────────────────
+
+    /** Copies borrowed platform data into the bounded queue and erases it if admission fails. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    internal fun enqueueIncomingReport(data: ByteArray) {
+<span class="fc" id="L772">        enqueueIncomingReport(data, hidSessionGeneration)</span>
+<span class="fc" id="L773">    }</span>
+
+    /**
+     * Borrows platform callback bytes, copies them only for the active [device] and a correctly sized report, and
+     * enqueues the owned copy. The caller retains its original array; a rejected queued copy is erased immediately.
+     */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+    internal fun enqueueIncomingReportFromDevice(
+        device: BluetoothDevice,
+        data: ByteArray,
+    ) {
+<span class="fc" id="L784">        synchronized(sessionLock) {</span>
+<span class="fc" id="L785">            val activeDevice = connectedDevice</span>
+            if (
+<span class="fc bfc" id="L787" title="All 2 branches covered.">                activeDevice == null ||</span>
+<span class="fc bfc" id="L788" title="All 2 branches covered.">                activeDevice.address != device.address ||</span>
+<span class="pc bpc" id="L789" title="1 of 2 branches missed.">                _connectionState.value !is HidConnectionState.Connected</span>
+            ) {
+<span class="fc" id="L791">                Logger.w { &quot;Discarding HID report from a host outside the active session&quot; }</span>
+<span class="fc" id="L792">                return</span>
+            }
+<span class="fc" id="L794">            enqueueIncomingReport(data, hidSessionGeneration)</span>
+<span class="fc" id="L795">        }</span>
+<span class="fc" id="L796">    }</span>
+
+    private fun enqueueIncomingReport(
+        data: ByteArray,
+        generation: Long,
+    ) {
+<span class="fc" id="L802">        synchronized(sessionLock) {</span>
+<span class="fc bfc" id="L803" title="All 2 branches covered.">            if (data.size != FIDO_HID_REPORT_SIZE) {</span>
+<span class="fc" id="L804">                Logger.w { &quot;Discarding malformed HID report with ${data.size} bytes&quot; }</span>
+<span class="fc" id="L805">                return</span>
+            }
+<span class="fc" id="L807">            val ownedReport = data.copyOf()</span>
+<span class="fc bfc" id="L808" title="All 2 branches covered.">            onIncomingReportOwnedForTest?.invoke(ownedReport)</span>
+<span class="fc bfc" id="L809" title="All 2 branches covered.">            if (incomingReports.trySend(IncomingHidReport(ownedReport, generation)).isFailure) ownedReport.fill(0)</span>
+<span class="fc" id="L810">        }</span>
+<span class="fc" id="L811">    }</span>
+}
+
+// ── State sealed class ────────────────────────────────────────────────────────
+
+/** Queue-owned callback bytes tagged with the host-session generation that admitted them. */
+<span class="fc" id="L817">@Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L818">data class IncomingHidReport(</span>
+    /** Owned fixed-size report bytes; the queue erases them after consumption or abandonment. */
+<span class="fc" id="L820">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L821">    val bytes: ByteArray,</span>
+    /** Wrapper generation that admitted the report; stale generations are discarded. */
+<span class="fc" id="L823">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L824">    val sessionGeneration: Long,</span>
+)
+
+/** Represents the HID peripheral connection lifecycle. */
+@Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)
+sealed class HidConnectionState {
+    /** Profile proxy acquired but app not yet registered. */
+<span class="fc" id="L831">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+    object Idle : HidConnectionState()
+
+    /** App registered; advertising to Bluetooth hosts. */
+<span class="fc" id="L835">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+    object Advertising : HidConnectionState()
+
+    /** A host is in the process of connecting. */
+<span class="fc" id="L839">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L840">    data class Connecting(</span>
+<span class="fc" id="L841">        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="nc" id="L842">        val device: BluetoothDevice,</span>
+    ) : HidConnectionState()
+
+    /** A host is connected and can exchange HID reports. */
+<span class="fc" id="L846">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L847">    data class Connected(</span>
+<span class="fc" id="L848">        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L849">        val device: BluetoothDevice,</span>
+    ) : HidConnectionState()
+
+    /** An unrecoverable error occurred. */
+<span class="fc" id="L853">    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L854">    data class Error(</span>
+<span class="fc" id="L855">        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-020&quot;)</span>
+<span class="fc" id="L856">        val message: String,</span>
+    ) : HidConnectionState()
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

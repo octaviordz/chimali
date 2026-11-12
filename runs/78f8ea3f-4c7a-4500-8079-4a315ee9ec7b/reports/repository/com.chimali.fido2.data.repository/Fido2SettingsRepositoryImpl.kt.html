@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2SettingsRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.repository</a> &gt; <span class="el_source">Fido2SettingsRepositoryImpl.kt</span></div><h1>Fido2SettingsRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.repository
+
+import android.content.Context
+import androidx.core.content.edit
+import androidx.datastore.core.DataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
+import kotlinx.coroutines.flow.first
+import org.koin.core.annotation.Single
+
+private const val PREFS_FILE_NAME = &quot;fido2_settings&quot;
+
+/**
+ * Persisted implementation of [Fido2SettingsRepository] backed by Proto DataStore.
+ *
+ * This ensures that critical authenticator limits are stored securely and persist
+ * across application restarts.
+ *
+ * Migration: On first launch after upgrade, max credential count stored in legacy
+ * EncryptedSharedPreferences is automatically migrated to Proto DataStore.
+ */
+<span class="nc" id="L24">@Single</span>
+<span class="nc" id="L25">class Fido2SettingsRepositoryImpl(</span>
+<span class="nc" id="L26">    private val context: Context,</span>
+<span class="nc" id="L27">    private val dataStore: DataStore&lt;UserPreferences&gt;,</span>
+) : Fido2SettingsRepository {
+    companion object {
+        private const val KEY_MAX_CREDENTIALS = &quot;max_credential_count&quot;
+        private const val DEFAULT_STORAGE_LIMIT = 1000
+    }
+
+<span class="nc" id="L34">    override suspend fun getMaxCredentialCount(): Int {</span>
+<span class="nc" id="L35">        val prefs = dataStore.data.first()</span>
+
+        // 1. If already migrated or max_credential_count has been set, return it
+        // We use maxCredentialCount &gt; 0 as a sign it's set, or if migration is completed.
+        // But since maxCredentialCount defaults to 0 in protobuf, we need to check if it's not 0 or migration is done.
+        // Actually, if it's 0 and migration is done, it could legitimately be 0 (though default is 1000).
+        // Let's check if migration has completed (even if from another repository like WalletMasterSeedProvider).
+        // Wait, UserPreferences is shared. If WalletMasterSeedProvider ran first, migration_completed is true!
+        // This is a subtle bug: if Wallet runs first, migrationCompleted=true, but Fido2Settings hasn't migrated!
+        // To fix this, we should check if FIDO2 settings were migrated.
+        // We can check if legacy preferences exist instead.
+
+<span class="nc" id="L47">        try {</span>
+<span class="nc" id="L48">            val legacyPrefs = openEncryptedPrefs()</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            if (legacyPrefs.contains(KEY_MAX_CREDENTIALS)) {</span>
+<span class="nc" id="L50">                val legacyCount = legacyPrefs.getInt(KEY_MAX_CREDENTIALS, DEFAULT_STORAGE_LIMIT)</span>
+<span class="nc" id="L51">                Logger.i { &quot;Migrating max_credential_count from legacy EncryptedSharedPreferences to Proto DataStore&quot; }</span>
+
+<span class="nc" id="L53">                dataStore.updateData { currentPrefs -&gt;</span>
+<span class="nc" id="L54">                    currentPrefs.copy(maxCredentialCount = legacyCount)</span>
+                }
+
+<span class="nc" id="L57">                legacyPrefs.edit(commit = true) {</span>
+<span class="nc" id="L58">                    remove(KEY_MAX_CREDENTIALS)</span>
+<span class="nc" id="L59">                }</span>
+<span class="nc" id="L60">                Logger.i { &quot;Migration of max_credential_count completed successfully, legacy key cleared&quot; }</span>
+
+<span class="nc" id="L62">                return legacyCount</span>
+            }
+<span class="nc" id="L64">        } catch (e: java.security.GeneralSecurityException) {</span>
+<span class="nc" id="L65">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+<span class="nc" id="L66">        } catch (e: java.io.IOException) {</span>
+<span class="nc" id="L67">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+<span class="nc" id="L68">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L69">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+        }
+
+        // If not in legacy or already migrated, check DataStore
+        // The default in Proto is 0, but our application default is 1000
+<span class="nc" id="L74">        val count = prefs.maxCredentialCount</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        return if (count &lt;= 0) {</span>
+            // Write default to DataStore if it's 0 so it's consistent
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            if (prefs.maxCredentialCount == 0) {</span>
+<span class="nc" id="L78">                dataStore.updateData { it.copy(maxCredentialCount = DEFAULT_STORAGE_LIMIT) }</span>
+            }
+<span class="nc" id="L80">            DEFAULT_STORAGE_LIMIT</span>
+        } else {
+<span class="nc" id="L82">            count</span>
+        }
+    }
+
+    override suspend fun setMaxCredentialCount(count: Int) {
+<span class="nc" id="L87">        dataStore.updateData { prefs -&gt;</span>
+<span class="nc" id="L88">            prefs.copy(maxCredentialCount = count)</span>
+        }
+<span class="nc" id="L90">    }</span>
+
+    private fun openEncryptedPrefs(): android.content.SharedPreferences {
+<span class="nc" id="L93">        val masterKeyAlias =</span>
+<span class="nc" id="L94">            androidx.security.crypto.MasterKeys.getOrCreate(</span>
+<span class="nc" id="L95">                androidx.security.crypto.MasterKeys.AES256_GCM_SPEC,</span>
+            )
+<span class="nc" id="L97">        return EncryptedSharedPreferences.create(</span>
+<span class="nc" id="L98">            PREFS_FILE_NAME,</span>
+<span class="nc" id="L99">            masterKeyAlias,</span>
+<span class="nc" id="L100">            context,</span>
+<span class="nc" id="L101">            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</span>
+<span class="nc" id="L102">            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,</span>
+        )
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

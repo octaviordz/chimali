@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BaselineMeasurements.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">BaselineMeasurements.kt</span></div><h1>BaselineMeasurements.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import android.os.Build
+import android.os.Trace
+import android.util.Log
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * T003 measurement-branch instrumentation. Emits operation names, durations and API acceptance only.
+ *
+ * Starts after CTAPHID message reassembly and ends when the final response report's sendReport
+ * returns. This measures local API handoff; it cannot establish remote receipt. Existing transport
+ * scheduling, packet bytes, report pacing, crypto and verification behavior are preserved.
+ */
+object BaselineMeasurements {
+    private const val TAG = &quot;ChimaliT003&quot;
+<span class="fc" id="L21">    private val sequence = AtomicInteger()</span>
+<span class="fc" id="L22">    private val operations = ConcurrentHashMap&lt;String, Operation&gt;()</span>
+<span class="fc" id="L23">    private val reports = ConcurrentHashMap&lt;ByteArray, Response&gt;()</span>
+
+<span class="fc" id="L25">    private class Operation(</span>
+<span class="pc" id="L26">        val name: String,</span>
+    ) {
+<span class="fc" id="L28">        val startedNs = System.nanoTime()</span>
+<span class="pc" id="L29">        val cookie = sequence.incrementAndGet()</span>
+<span class="fc" id="L30">        val userStartedNs = AtomicLong()</span>
+<span class="fc" id="L31">        val userNs = AtomicLong()</span>
+<span class="pc" id="L32">        var processingNs = 0L</span>
+<span class="fc" id="L33">        private val traceClosed = AtomicBoolean()</span>
+<span class="pc bpc" id="L34" title="1 of 4 branches missed.">        val traced = Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q &amp;&amp; Trace.isEnabled()</span>
+
+<span class="fc" id="L36">        init {</span>
+<span class="pc bpc" id="L37" title="1 of 4 branches missed.">            if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q &amp;&amp; traced) {</span>
+<span class="nc" id="L38">                Trace.beginAsyncSection(&quot;T003.$name&quot;, cookie)</span>
+            }
+<span class="fc" id="L40">        }</span>
+
+        fun closeTrace() {
+<span class="pc bpc" id="L43" title="3 of 6 branches missed.">            if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q &amp;&amp; traced &amp;&amp; traceClosed.compareAndSet(false, true)) {</span>
+<span class="nc" id="L44">                Trace.endAsyncSection(&quot;T003.$name&quot;, cookie)</span>
+            }
+<span class="fc" id="L46">        }</span>
+    }
+
+<span class="fc" id="L49">    private class Response(</span>
+<span class="fc" id="L50">        val operation: Operation,</span>
+        count: Int,
+    ) {
+<span class="pc" id="L53">        val remaining = AtomicInteger(count)</span>
+<span class="pc" id="L54">        val accepted = AtomicBoolean(true)</span>
+    }
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun start(name: String) {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        operations.put(name, Operation(name))?.closeTrace()</span>
+<span class="fc" id="L60">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun startUserInteraction(name: String) {
+<span class="fc bfc" id="L64" title="All 4 branches covered.">        operations[name]?.userStartedNs?.set(System.nanoTime())</span>
+<span class="fc" id="L65">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun endUserInteraction(name: String) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        val operation = operations[name] ?: return</span>
+<span class="fc" id="L70">        val startedNs = operation.userStartedNs.getAndSet(0L)</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (startedNs != 0L) operation.userNs.addAndGet(System.nanoTime() - startedNs)</span>
+<span class="fc" id="L72">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun processingComplete(name: String) {
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        operations[name]?.let { it.processingNs = System.nanoTime() - it.startedNs }</span>
+<span class="fc" id="L77">    }</span>
+
+    /** Associate responses by array identity without changing the existing FIFO queue. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun trackResponse(
+        name: String,
+        packets: List&lt;ByteArray&gt;,
+    ) {
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">        val operation = operations.remove(name) ?: return</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (packets.isEmpty()) {</span>
+<span class="nc" id="L87">            operation.closeTrace()</span>
+<span class="nc" id="L88">            return</span>
+        }
+<span class="fc" id="L90">        val response = Response(operation, packets.size)</span>
+<span class="fc" id="L91">        packets.forEach { reports[it] = response }</span>
+<span class="fc" id="L92">    }</span>
+
+    /** Call immediately after sendReport returns, or with false when enqueueing fails. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun reportAccepted(
+        packet: ByteArray,
+        accepted: Boolean,
+    ) {
+<span class="fc" id="L100">        val completedNs = System.nanoTime()</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        val response = reports.remove(packet) ?: return</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (!accepted) response.accepted.set(false)</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (response.remaining.decrementAndGet() != 0) return</span>
+<span class="nc" id="L104">        val operation = response.operation</span>
+<span class="nc" id="L105">        val totalNs = completedNs - operation.startedNs</span>
+<span class="nc" id="L106">        val userNs = operation.userNs.get()</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        val userWindowOpen = operation.userStartedNs.get() != 0L</span>
+<span class="nc" id="L108">        val internalNs =</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            if (userWindowOpen) {</span>
+<span class="nc" id="L110">                null</span>
+            } else {
+<span class="nc" id="L112">                adjustedInternalProcessingNanos(operation.processingNs, userNs)</span>
+            }
+<span class="nc" id="L114">        val internalBudget =</span>
+<span class="nc" id="L115">            when {</span>
+<span class="nc bnc" id="L116" title="All 4 branches missed.">                !response.accepted.get() || internalNs == null -&gt; &quot;NOT_EVALUATED&quot;</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                isBelowInternalProcessingBudget(internalNs) -&gt; &quot;PASS&quot;</span>
+<span class="nc" id="L118">                else -&gt; &quot;OVER_BUDGET&quot;</span>
+            }
+<span class="nc" id="L120">        operation.closeTrace()</span>
+        // println is deliberately distinct from the stripped v/d/i/w/e logging methods.
+<span class="nc" id="L122">        Log.println(</span>
+<span class="nc" id="L123">            Log.INFO,</span>
+<span class="nc" id="L124">            TAG,</span>
+<span class="nc" id="L125">            &quot;operation=${operation.name} operation_id=${operation.cookie} total_ns=$totalNs user_ns=$userNs &quot; +</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                &quot;processing_ns=${operation.processingNs} internal_ns=${internalNs ?: &quot;unavailable&quot;} &quot; +</span>
+<span class="nc" id="L127">                &quot;internal_budget=$internalBudget system_ns=${maxOf(0L, totalNs - userNs)} &quot; +</span>
+<span class="nc" id="L128">                &quot;reports_accepted=${response.accepted.get()} user_window_open=$userWindowOpen&quot;,</span>
+        )
+<span class="nc" id="L130">    }</span>
+
+    /** Mark interrupted measurements incomplete and release references on disconnect. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+    fun disconnect() {
+<span class="fc" id="L135">        val incomplete = operations.values.toList() + reports.values.map { it.operation }</span>
+<span class="fc" id="L136">        operations.clear()</span>
+<span class="fc" id="L137">        reports.clear()</span>
+<span class="fc" id="L138">        incomplete.distinct().forEach { it.closeTrace() }</span>
+<span class="fc bfc" id="L139" title="All 4 branches covered.">        if (incomplete.isNotEmpty()) Log.println(Log.INFO, TAG, &quot;incomplete=true reason=disconnect&quot;)</span>
+<span class="fc" id="L140">    }</span>
+}
+
+private const val INTERNAL_PROCESSING_BUDGET_NS = 200_000_000L
+
+/**
+ * Returns internal processing time after measured user wait.
+ * @param processingNs Duration through response construction, including measured user wait.
+ * @param userNs Accumulated measured user wait in nanoseconds.
+ * @return Adjusted nanoseconds, or null for negative or inconsistent intervals.
+ */
+@Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+internal fun adjustedInternalProcessingNanos(
+    processingNs: Long,
+    userNs: Long,
+): Long? =
+<span class="fc bfc" id="L156" title="All 6 branches covered.">    if (processingNs &lt; 0L || userNs &lt; 0L || userNs &gt; processingNs) {</span>
+<span class="fc" id="L157">        null</span>
+    } else {
+<span class="fc" id="L159">        processingNs - userNs</span>
+<span class="fc" id="L160">    }</span>
+
+/**
+ * Checks the strict internal FIDO operation limit; exactly 200ms is over budget.
+ * @param durationNs A validated, nonnegative internal processing duration.
+ * @return Whether the duration is below the internal processing budget.
+ */
+@Req(&quot;NFR-PERF-030&quot;, &quot;FR-VAL-030&quot;)
+<span class="fc bfc" id="L168" title="All 2 branches covered.">internal fun isBelowInternalProcessingBudget(durationNs: Long): Boolean = durationNs &lt; INTERNAL_PROCESSING_BUDGET_NS</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

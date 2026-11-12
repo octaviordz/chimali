@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HidChannelRegistry.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">HidChannelRegistry.kt</span></div><h1>HidChannelRegistry.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import com.chimali.core.common.annotation.Req
+
+/** Owns bounded CTAPHID channel IDs and binds each allocation to one host generation. */
+<span class="fc" id="L6">internal class HidChannelRegistry {</span>
+<span class="fc" id="L7">    private data class ChannelOwner(</span>
+<span class="fc" id="L8">        val sessionGeneration: Long,</span>
+<span class="fc" id="L9">        val cid: ByteArray,</span>
+    )
+
+<span class="fc" id="L12">    private val lock = Any()</span>
+<span class="fc" id="L13">    private val channels = mutableMapOf&lt;String, ChannelOwner&gt;()</span>
+
+    /** Allocates one unique channel while the caller holds the transport session lock. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun allocate(
+        sessionGeneration: Long,
+        maxAttempts: Int,
+        maximumChannels: Int,
+        isSessionCurrent: () -&gt; Boolean,
+        nextCidBytes: (ByteArray) -&gt; Unit,
+    ): ByteArray? {
+<span class="fc" id="L24">        val cid = ByteArray(CID_SIZE)</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">        repeat(maxAttempts) {</span>
+<span class="fc" id="L26">            nextCidBytes(cid)</span>
+<span class="fc" id="L27">            val assigned =</span>
+<span class="fc" id="L28">                synchronized(lock) {</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">                    if (!isSessionCurrent()) return@synchronized false</span>
+<span class="fc" id="L30">                    val key = cid.toHex()</span>
+<span class="fc" id="L31">                    val available =</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">                        channels.size &lt; maximumChannels &amp;&amp;</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">                            !cid.contentEquals(BROADCAST_CID) &amp;&amp;</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">                            !channels.containsKey(key)</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">                    if (available) channels[key] = ChannelOwner(sessionGeneration, cid)</span>
+<span class="fc" id="L36">                    available</span>
+                }
+<span class="fc bfc" id="L38" title="All 2 branches covered.">            if (assigned) return cid</span>
+<span class="fc" id="L39">        }</span>
+<span class="fc" id="L40">        cid.fill(0)</span>
+<span class="fc" id="L41">        return null</span>
+    }
+
+    /** Erases every owned CID before dropping its generation registry. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun clear() {
+<span class="fc" id="L47">        synchronized(lock) {</span>
+<span class="fc" id="L48">            channels.values.forEach { it.cid.fill(0) }</span>
+<span class="fc" id="L49">            channels.clear()</span>
+<span class="fc" id="L50">        }</span>
+<span class="fc" id="L51">    }</span>
+
+    /** Registers a copied CID for direct host-dispatch regressions. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun registerForTest(
+        cid: ByteArray,
+        generation: Long,
+        maximumChannels: Int,
+    ) {
+<span class="pc bpc" id="L60" title="2 of 4 branches missed.">        require(cid.size == CID_SIZE)</span>
+<span class="fc" id="L61">        synchronized(lock) {</span>
+<span class="fc" id="L62">            val key = cid.toHex()</span>
+<span class="pc bpc" id="L63" title="3 of 6 branches missed.">            require(key in channels || channels.size &lt; maximumChannels)</span>
+<span class="fc" id="L64">            channels[key] = ChannelOwner(generation, cid.copyOf())</span>
+<span class="fc" id="L65">        }</span>
+<span class="fc" id="L66">    }</span>
+
+    /** Checks both the generation and the full CID bytes before admitting a command. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun isRegistered(
+        cid: ByteArray,
+        generation: Long,
+    ): Boolean =
+<span class="fc" id="L74">        synchronized(lock) {</span>
+<span class="pc bpc" id="L75" title="3 of 8 branches missed.">            channels[cid.toHex()]?.let { it.sessionGeneration == generation &amp;&amp; it.cid.contentEquals(cid) } == true</span>
+<span class="fc" id="L76">        }</span>
+
+<span class="fc" id="L78">    private fun ByteArray.toHex(): String = joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }</span>
+
+    private companion object {
+        const val CID_SIZE = 4
+<span class="pc" id="L82">        val BROADCAST_CID = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

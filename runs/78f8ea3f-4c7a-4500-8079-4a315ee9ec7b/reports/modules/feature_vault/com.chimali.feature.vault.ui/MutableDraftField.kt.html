@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutableDraftField.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui</a> &gt; <span class="el_source">MutableDraftField.kt</span></div><h1>MutableDraftField.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import java.nio.CharBuffer
+
+/** One editor owns this field. Snapshot versions share only arrays which replacement/disposal wipe. */
+<span class="fc" id="L9">internal class MutableDraftField(</span>
+    initial: CharArray?,
+) : CharSequence {
+<span class="fc bfc" id="L12" title="All 4 branches covered.">    private var chars by mutableStateOf(initial?.copyOf() ?: charArrayOf())</span>
+<span class="fc" id="L13">    var isClosed = false</span>
+        private set
+
+<span class="fc" id="L16">    override val length: Int get() = chars.size</span>
+
+<span class="fc" id="L18">    override fun get(index: Int): Char = chars[index]</span>
+
+    override fun subSequence(
+        startIndex: Int,
+        endIndex: Int,
+<span class="fc" id="L23">    ): CharSequence = CharBuffer.wrap(chars, startIndex, endIndex - startIndex)</span>
+
+    fun replace(value: CharSequence) {
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        if (isClosed) return</span>
+<span class="fc" id="L27">        val next = CharArray(value.length)</span>
+        // Copying CharSequence may fail after allocation, and every failure must erase `next`.
+<span class="fc" id="L29">        try {</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">            for (index in next.indices) next[index] = value[index]</span>
+<span class="fc" id="L31">            val retired = chars</span>
+<span class="fc" id="L32">            chars = next</span>
+<span class="fc" id="L33">            retired.fill('\u0000')</span>
+<span class="fc" id="L34">        } catch (</span>
+            @Suppress(&quot;TooGenericExceptionCaught&quot;)
+            failure: Throwable,
+        ) {
+<span class="fc" id="L38">            next.fill('\u0000')</span>
+<span class="fc" id="L39">            throw failure</span>
+        }
+<span class="fc" id="L41">    }</span>
+
+<span class="fc" id="L43">    fun copyChars(): CharArray = chars.copyOf()</span>
+
+    /** Borrowed until the next replacement or cleanup; callers must not retain as an independent owner. */
+<span class="fc" id="L46">    internal fun borrowChars(): CharArray = chars</span>
+
+    // T055/T059 unresolved: current framework text widgets retain their own immutable display copies.
+<span class="fc" id="L49">    fun displayText(): String = String(chars)</span>
+
+    fun clear() {
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (isClosed) return</span>
+<span class="fc" id="L53">        isClosed = true</span>
+<span class="fc" id="L54">        chars.fill('\u0000')</span>
+<span class="fc" id="L55">        chars = charArrayOf()</span>
+<span class="fc" id="L56">    }</span>
+
+<span class="fc" id="L58">    override fun toString(): String = &quot;MutableDraftField([redacted])&quot;</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

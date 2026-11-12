@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreditCardEntryScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.ui</a> &gt; <span class="el_source">CreditCardEntryScreen.kt</span></div><h1>CreditCardEntryScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.chimali.feature.vault.internal.payload.CreditCardPayload
+import com.chimali.feature.vault.internal.payload.CustomField
+import com.chimali.feature.vault.ui.model.LabelUiModel
+import java.util.UUID
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreditCardEntryScreen(
+    onSave: (CreditCardPayload) -&gt; Unit,
+    onCancel: () -&gt; Unit,
+<span class="nc bnc" id="L44" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">    initialPayload: CreditCardPayload? = null,</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">    isSaving: Boolean = false,</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">    saveSucceeded: Boolean = false,</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">    errorMessage: String? = null,</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">    labels: List&lt;LabelUiModel&gt; = emptyList(),</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">    initialLabelIds: Set&lt;UUID&gt; = emptySet(),</span>
+<span class="nc" id="L51">    onSaveWithLabels: ((CreditCardPayload, List&lt;UUID&gt;) -&gt; Unit)? = null,</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L53">    DisposableEffect(initialPayload) {</span>
+<span class="nc" id="L54">        onDispose { initialPayload?.clearMemory() }</span>
+    }
+
+<span class="nc bnc" id="L57" title="All 4 branches missed.">    val editable = !isSaving &amp;&amp; !saveSucceeded</span>
+<span class="nc" id="L58">    val draft = remember(initialPayload) { CreditCardDraft(initialPayload) }</span>
+<span class="nc" id="L59">    val title = draft.title</span>
+<span class="nc" id="L60">    val cardholderName = draft.cardholderName</span>
+<span class="nc" id="L61">    val cardNumber = draft.cardNumber</span>
+<span class="nc" id="L62">    val expirationDate = draft.expirationDate</span>
+<span class="nc" id="L63">    val cvv = draft.cvv</span>
+<span class="nc" id="L64">    val notes = draft.notes</span>
+<span class="nc" id="L65">    DisposableEffect(draft) {</span>
+<span class="nc" id="L66">        onDispose { draft.clear() }</span>
+    }
+
+<span class="nc" id="L69">    val customFields =</span>
+<span class="nc" id="L70">        remember {</span>
+<span class="nc" id="L71">            mutableStateListOf&lt;CustomField&gt;().apply {</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                addAll(copyDraftFields(initialPayload?.customFields))</span>
+<span class="nc" id="L73">            }</span>
+        }
+
+<span class="nc" id="L76">    DisposableEffect(customFields) {</span>
+<span class="nc" id="L77">        onDispose { customFields.forEach { it.clearMemory() } }</span>
+    }
+
+<span class="nc bnc" id="L80" title="All 2 branches missed.">    SideEffect {</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if (saveSucceeded) {</span>
+<span class="nc" id="L82">            draft.clear()</span>
+<span class="nc" id="L83">            customFields.forEach { it.clearMemory() }</span>
+<span class="nc" id="L84">            customFields.clear()</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            initialPayload?.clearMemory()</span>
+        }
+<span class="nc" id="L87">    }</span>
+
+<span class="nc" id="L89">    var showDiscardConfirmDialog by remember { mutableStateOf(false) }</span>
+<span class="nc" id="L90">    var selectedLabelIds by remember { mutableStateOf(initialLabelIds) }</span>
+
+<span class="nc" id="L92">    val hasUnsavedChanges =</span>
+<span class="nc bnc" id="L93" title="All 8 branches missed.">        draft.hasTextChanges(initialPayload) || customFields != initialPayload?.customFields.orEmpty()</span>
+
+    fun attemptCancel() {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (draft.isClosed) return</span>
+<span class="nc bnc" id="L97" title="All 4 branches missed.">        if (hasUnsavedChanges || selectedLabelIds != initialLabelIds) {</span>
+<span class="nc" id="L98">            showDiscardConfirmDialog = true</span>
+        } else {
+<span class="nc" id="L100">            draft.clear()</span>
+<span class="nc" id="L101">            customFields.forEach { it.clearMemory() }</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            initialPayload?.clearMemory()</span>
+<span class="nc" id="L103">            onCancel()</span>
+        }
+<span class="nc" id="L105">    }</span>
+
+<span class="nc bnc" id="L107" title="All 2 branches missed.">    BackHandler {</span>
+<span class="nc" id="L108">        attemptCancel()</span>
+<span class="nc" id="L109">    }</span>
+
+<span class="nc" id="L111">    VaultInputPolicy {</span>
+<span class="nc" id="L112">        Scaffold(</span>
+<span class="nc" id="L113">            modifier = modifier,</span>
+<span class="nc" id="L114">            topBar = {</span>
+<span class="nc" id="L115">                TopAppBar(</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                    title = { Text(if (initialPayload != null) &quot;Edit Credit Card&quot; else &quot;New Credit Card&quot;) },</span>
+                )
+<span class="nc" id="L118">            },</span>
+<span class="nc" id="L119">        ) { padding -&gt;</span>
+<span class="nc" id="L120">            LazyColumn(</span>
+                modifier =
+<span class="nc" id="L122">                    Modifier</span>
+<span class="nc" id="L123">                        .padding(padding)</span>
+<span class="nc" id="L124">                        .fillMaxSize()</span>
+<span class="nc" id="L125">                        .padding(16.dp),</span>
+<span class="nc" id="L126">                verticalArrangement = Arrangement.spacedBy(8.dp),</span>
+<span class="nc" id="L127">            ) {</span>
+<span class="nc" id="L128">                item {</span>
+<span class="nc" id="L129">                    EntrySaveError(errorMessage)</span>
+<span class="nc" id="L130">                    LabelSelection(labels, selectedLabelIds, { id -&gt;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                        selectedLabelIds = if (id in selectedLabelIds) selectedLabelIds - id else selectedLabelIds + id</span>
+<span class="nc" id="L132">                    }, enabled = editable)</span>
+<span class="nc" id="L133">                }</span>
+
+<span class="nc" id="L135">                item {</span>
+<span class="nc" id="L136">                    OutlinedTextField(</span>
+<span class="nc" id="L137">                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L138">                        enabled = editable,</span>
+<span class="nc" id="L139">                        value = title.displayText(),</span>
+<span class="nc" id="L140">                        onValueChange = { title.replace(it) },</span>
+<span class="nc" id="L141">                        label = { Text(&quot;Title *&quot;) },</span>
+<span class="nc" id="L142">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L143">                        singleLine = true,</span>
+                    )
+<span class="nc" id="L145">                }</span>
+
+<span class="nc" id="L147">                item {</span>
+<span class="nc" id="L148">                    OutlinedTextField(</span>
+<span class="nc" id="L149">                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L150">                        enabled = editable,</span>
+<span class="nc" id="L151">                        value = cardholderName.displayText(),</span>
+<span class="nc" id="L152">                        onValueChange = { cardholderName.replace(it) },</span>
+<span class="nc" id="L153">                        label = { Text(&quot;Cardholder Name&quot;) },</span>
+<span class="nc" id="L154">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L155">                        singleLine = true,</span>
+                    )
+<span class="nc" id="L157">                }</span>
+
+<span class="nc" id="L159">                item {</span>
+<span class="nc" id="L160">                    OutlinedTextField(</span>
+<span class="nc" id="L161">                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L162">                        enabled = editable,</span>
+<span class="nc" id="L163">                        value = cardNumber.displayText(),</span>
+<span class="nc" id="L164">                        onValueChange = { cardNumber.replace(it) },</span>
+<span class="nc" id="L165">                        label = { Text(&quot;Card Number *&quot;) },</span>
+<span class="nc" id="L166">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L167">                        singleLine = true,</span>
+                    )
+<span class="nc" id="L169">                }</span>
+
+<span class="nc" id="L171">                item {</span>
+<span class="nc" id="L172">                    Row(</span>
+<span class="nc" id="L173">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L174">                        horizontalArrangement = Arrangement.spacedBy(8.dp),</span>
+                    ) {
+<span class="nc" id="L176">                        OutlinedTextField(</span>
+<span class="nc" id="L177">                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L178">                            enabled = editable,</span>
+<span class="nc" id="L179">                            value = expirationDate.displayText(),</span>
+<span class="nc" id="L180">                            onValueChange = { expirationDate.replace(it) },</span>
+<span class="nc" id="L181">                            label = { Text(&quot;Expiration Date (MM/YY)&quot;) },</span>
+<span class="nc" id="L182">                            modifier = Modifier.weight(1f),</span>
+<span class="nc" id="L183">                            singleLine = true,</span>
+                        )
+<span class="nc" id="L185">                        OutlinedTextField(</span>
+<span class="nc" id="L186">                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L187">                            enabled = editable,</span>
+<span class="nc" id="L188">                            value = cvv.displayText(),</span>
+<span class="nc" id="L189">                            onValueChange = { cvv.replace(it) },</span>
+<span class="nc" id="L190">                            label = { Text(&quot;CVV&quot;) },</span>
+<span class="nc" id="L191">                            modifier = Modifier.weight(1f),</span>
+<span class="nc" id="L192">                            singleLine = true,</span>
+                        )
+<span class="nc" id="L194">                    }</span>
+<span class="nc" id="L195">                }</span>
+
+<span class="nc" id="L197">                item {</span>
+<span class="nc" id="L198">                    OutlinedTextField(</span>
+<span class="nc" id="L199">                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L200">                        enabled = editable,</span>
+<span class="nc" id="L201">                        value = notes.displayText(),</span>
+<span class="nc" id="L202">                        onValueChange = { notes.replace(it) },</span>
+<span class="nc" id="L203">                        label = { Text(&quot;Notes&quot;) },</span>
+<span class="nc" id="L204">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L205">                        minLines = 3,</span>
+                    )
+<span class="nc" id="L207">                }</span>
+
+<span class="nc" id="L209">                itemsIndexed(customFields) { index, field -&gt;</span>
+<span class="nc" id="L210">                    Row(</span>
+<span class="nc" id="L211">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L212">                        horizontalArrangement = Arrangement.spacedBy(8.dp),</span>
+                    ) {
+<span class="nc" id="L214">                        OutlinedTextField(</span>
+<span class="nc" id="L215">                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L216">                            enabled = editable,</span>
+<span class="nc" id="L217">                            value = String(field.name),</span>
+<span class="nc" id="L218">                            onValueChange = { newName -&gt;</span>
+<span class="nc bnc" id="L219" title="All 8 branches missed.">                                if (!draft.isClosed &amp;&amp; index in customFields.indices) {</span>
+<span class="nc" id="L220">                                    val current = customFields[index]</span>
+<span class="nc" id="L221">                                    current.name.fill('\u0000')</span>
+<span class="nc" id="L222">                                    customFields[index] = current.copy(name = newName.toCharArray())</span>
+                                }
+<span class="nc" id="L224">                            },</span>
+<span class="nc" id="L225">                            label = { Text(&quot;Field Name&quot;) },</span>
+<span class="nc" id="L226">                            modifier = Modifier.weight(1f),</span>
+                        )
+<span class="nc" id="L228">                        OutlinedTextField(</span>
+<span class="nc" id="L229">                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),</span>
+<span class="nc" id="L230">                            enabled = editable,</span>
+<span class="nc" id="L231">                            value = String(field.value),</span>
+<span class="nc" id="L232">                            onValueChange = { newValue -&gt;</span>
+<span class="nc bnc" id="L233" title="All 8 branches missed.">                                if (!draft.isClosed &amp;&amp; index in customFields.indices) {</span>
+<span class="nc" id="L234">                                    val current = customFields[index]</span>
+<span class="nc" id="L235">                                    current.value.fill('\u0000')</span>
+<span class="nc" id="L236">                                    customFields[index] = current.copy(value = newValue.toCharArray())</span>
+                                }
+<span class="nc" id="L238">                            },</span>
+<span class="nc" id="L239">                            label = { Text(&quot;Value&quot;) },</span>
+<span class="nc" id="L240">                            modifier = Modifier.weight(1f),</span>
+                        )
+<span class="nc" id="L242">                    }</span>
+<span class="nc" id="L243">                }</span>
+
+<span class="nc" id="L245">                item {</span>
+<span class="nc" id="L246">                    TextButton(enabled = editable, onClick = {</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                        if (!draft.isClosed) customFields.add(CustomField(&quot;New Field&quot;, charArrayOf(), false))</span>
+<span class="nc" id="L248">                    }) {</span>
+<span class="nc" id="L249">                        Text(&quot;Add Custom Field&quot;)</span>
+<span class="nc" id="L250">                    }</span>
+<span class="nc" id="L251">                }</span>
+
+<span class="nc" id="L253">                item {</span>
+<span class="nc bnc" id="L254" title="All 4 branches missed.">                    if (title.isBlank() || cardNumber.isBlank()) {</span>
+<span class="nc" id="L255">                        Text(</span>
+<span class="nc" id="L256">                            text = &quot;Title and card number are required.&quot;,</span>
+<span class="nc" id="L257">                            color = MaterialTheme.colorScheme.error,</span>
+                        )
+<span class="nc" id="L259">                    }</span>
+<span class="nc" id="L260">                    Spacer(modifier = Modifier.height(16.dp))</span>
+<span class="nc" id="L261">                    Row(</span>
+<span class="nc" id="L262">                        modifier = Modifier.fillMaxWidth(),</span>
+<span class="nc" id="L263">                        horizontalArrangement = Arrangement.SpaceBetween,</span>
+                    ) {
+<span class="nc" id="L265">                        TextButton(onClick = { attemptCancel() }) {</span>
+<span class="nc" id="L266">                            Text(&quot;Cancel&quot;)</span>
+<span class="nc" id="L267">                        }</span>
+<span class="nc" id="L268">                        Button(</span>
+<span class="nc" id="L269">                            onClick = save@{</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                                if (draft.isClosed) return@save</span>
+<span class="nc" id="L271">                                val payload =</span>
+<span class="nc" id="L272">                                    CreditCardPayload(</span>
+<span class="nc" id="L273">                                        title = title.copyChars(),</span>
+<span class="nc" id="L274">                                        cardholderName = cardholderName.copyChars(),</span>
+<span class="nc" id="L275">                                        cardNumber = cardNumber.copyChars(),</span>
+<span class="nc" id="L276">                                        expirationDate = expirationDate.copyChars(),</span>
+<span class="nc" id="L277">                                        cvv = cvv.copyChars(),</span>
+<span class="nc bnc" id="L278" title="All 4 branches missed.">                                        notes = if (notes.isNotBlank()) notes.copyChars() else null,</span>
+<span class="nc" id="L279">                                        customFields = customFields.map { it.copyForEditing() },</span>
+                                    )
+<span class="nc" id="L281">                                submitOwned(payload) { submission -&gt;</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                                    onSaveWithLabels?.invoke(submission, selectedLabelIds.toList())</span>
+<span class="nc" id="L283">                                        ?: onSave(submission)</span>
+<span class="nc" id="L284">                                }</span>
+<span class="nc" id="L285">                            },</span>
+<span class="nc bnc" id="L286" title="All 10 branches missed.">                            enabled = title.isNotBlank() &amp;&amp; cardNumber.isNotBlank() &amp;&amp; !isSaving,</span>
+<span class="nc" id="L287">                        ) {</span>
+<span class="nc" id="L288">                            Text(&quot;Save&quot;)</span>
+<span class="nc" id="L289">                        }</span>
+<span class="nc" id="L290">                    }</span>
+<span class="nc" id="L291">                }</span>
+<span class="nc" id="L292">            }</span>
+<span class="nc" id="L293">        }</span>
+<span class="nc" id="L294">    }</span>
+
+<span class="nc bnc" id="L296" title="All 2 branches missed.">    if (showDiscardConfirmDialog) {</span>
+<span class="nc" id="L297">        AlertDialog(</span>
+<span class="nc" id="L298">            onDismissRequest = { showDiscardConfirmDialog = false },</span>
+<span class="nc" id="L299">            title = { Text(&quot;Discard Changes?&quot;) },</span>
+<span class="nc" id="L300">            text = { Text(&quot;You have unsaved changes. Are you sure you want to discard them?&quot;) },</span>
+<span class="nc" id="L301">            confirmButton = {</span>
+<span class="nc" id="L302">                TextButton(</span>
+<span class="nc" id="L303">                    onClick = discard@{</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                        if (draft.isClosed) return@discard</span>
+<span class="nc" id="L305">                        showDiscardConfirmDialog = false</span>
+<span class="nc" id="L306">                        draft.clear()</span>
+<span class="nc" id="L307">                        customFields.forEach { it.clearMemory() }</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                        initialPayload?.clearMemory()</span>
+<span class="nc" id="L309">                        onCancel()</span>
+<span class="nc" id="L310">                    },</span>
+<span class="nc" id="L311">                ) {</span>
+<span class="nc" id="L312">                    Text(&quot;Discard&quot;, color = MaterialTheme.colorScheme.error)</span>
+<span class="nc" id="L313">                }</span>
+<span class="nc" id="L314">            },</span>
+<span class="nc" id="L315">            dismissButton = {</span>
+<span class="nc" id="L316">                TextButton(onClick = { showDiscardConfirmDialog = false }) {</span>
+<span class="nc" id="L317">                    Text(&quot;Keep Editing&quot;)</span>
+<span class="nc" id="L318">                }</span>
+<span class="nc" id="L319">            },</span>
+        )
+<span class="nc" id="L321">    }</span>
+<span class="nc" id="L322">}</span>
+
+@Preview(showBackground = true)
+@Composable
+<span class="nc" id="L326">private fun CreditCardEntryScreenPreview() {</span>
+<span class="nc" id="L327">    CreditCardEntryScreen(</span>
+<span class="nc" id="L328">        onSave = {},</span>
+<span class="nc" id="L329">        onCancel = {},</span>
+    )
+<span class="nc" id="L331">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-12T15:55:27.225Z" hostname="LOQ15IRX10-3" time="0.082">
+  <properties/>
+  <testcase name="failureConsumesEachAttemptAndRetryKeepsIdentityAndEveryDraftField" classname="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" time="0.024"/>
+  <testcase name="neverStartedJobAndRejectedDuplicateAreErasedWithoutErasingDraft" classname="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" time="0.01"/>
+  <testcase name="abandonedRefreshCannotOverwriteNewSessionItems" classname="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" time="0.021"/>
+  <testcase name="lateSaveCompletionCannotPublishSuccessIntoAnotherSession" classname="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" time="0.018"/>
+  <testcase name="cancelledProviderLeavesEditorReadyToRetry" classname="com.chimali.feature.vault.internal.VaultSubmissionOwnershipTest" time="0.009"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

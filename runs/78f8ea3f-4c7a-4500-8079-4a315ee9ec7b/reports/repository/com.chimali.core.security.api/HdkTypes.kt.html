@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HdkTypes.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.api</a> &gt; <span class="el_source">HdkTypes.kt</span></div><h1>HdkTypes.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.api
+
+import com.chimali.core.common.annotation.Req
+
+/**
+ * An owned P-256 parent key-pair copy.
+ *
+ * [privateKey] is a mutable 32-byte unsigned big-endian scalar; [publicKey] is its canonical
+ * 65-byte uncompressed SEC1 point. The receiving operation owns both arrays and must erase the
+ * private scalar in `finally`. Provider caches must return new arrays rather than this instance.
+ */
+<span class="fc" id="L12">@Req(&quot;NFR-SEC-041&quot;)</span>
+<span class="fc" id="L13">class HdkKeyPair(</span>
+<span class="fc" id="L14">    val privateKey: ByteArray,</span>
+<span class="fc" id="L15">    val publicKey: ByteArray,</span>
+) {
+<span class="fc" id="L17">    init {</span>
+<span class="pc bpc" id="L18" title="2 of 4 branches missed.">        require(privateKey.size == PRIVATE_KEY_BYTES) { &quot;P-256 private scalar must be 32 bytes&quot; }</span>
+<span class="pc bpc" id="L19" title="2 of 4 branches missed.">        require(publicKey.size == PUBLIC_KEY_BYTES) { &quot;P-256 public point must be 65 bytes&quot; }</span>
+<span class="fc" id="L20">    }</span>
+
+    /** Erases the operation-owned private scalar. The public point is not secret. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun erasePrivateKey() {
+<span class="fc" id="L25">        privateKey.fill(0)</span>
+<span class="fc" id="L26">    }</span>
+
+    /** Compares both key arrays by content; this ordinary equality check is not constant-time. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean =
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        this === other ||</span>
+            (
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                other is HdkKeyPair &amp;&amp;</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">                    privateKey.contentEquals(other.privateKey) &amp;&amp;</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">                    publicKey.contentEquals(other.publicKey)</span>
+<span class="nc" id="L36">            )</span>
+
+    /** Returns a content-derived collection hash; it is not a cryptographic digest. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L40">    override fun hashCode(): Int = 31 * privateKey.contentHashCode() + publicKey.contentHashCode()</span>
+
+    private companion object {
+        const val PRIVATE_KEY_BYTES = 32
+        const val PUBLIC_KEY_BYTES = 65
+    }
+}
+
+/**
+ * Result of one P-256 child derivation. The public point is non-secret; [factor] is an
+ * operation-owned 32-byte scalar factor and must be erased by its current operation owner.
+ */
+<span class="fc" id="L52">@Req(&quot;NFR-SEC-041&quot;)</span>
+<span class="fc" id="L53">class HdkChild(</span>
+<span class="fc" id="L54">    val publicKey: ByteArray,</span>
+<span class="fc" id="L55">    val factor: ByteArray,</span>
+) {
+<span class="fc" id="L57">    init {</span>
+<span class="pc bpc" id="L58" title="2 of 4 branches missed.">        require(publicKey.size == PUBLIC_KEY_BYTES) { &quot;P-256 public point must be 65 bytes&quot; }</span>
+<span class="pc bpc" id="L59" title="2 of 4 branches missed.">        require(factor.size == FACTOR_BYTES) { &quot;P-256 child factor must be 32 bytes&quot; }</span>
+<span class="fc" id="L60">    }</span>
+
+    /** Erases the operation-owned child scalar factor. The public point remains unchanged. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun eraseFactor() {
+<span class="fc" id="L65">        factor.fill(0)</span>
+<span class="fc" id="L66">    }</span>
+
+    /** Compares the public point and factor by content; this ordinary equality check is not constant-time. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun equals(other: Any?): Boolean =
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        this === other ||</span>
+<span class="nc bnc" id="L72" title="All 6 branches missed.">            (other is HdkChild &amp;&amp; publicKey.contentEquals(other.publicKey) &amp;&amp; factor.contentEquals(other.factor))</span>
+
+    /** Returns a content-derived collection hash; it is not a cryptographic digest. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L76">    override fun hashCode(): Int = 31 * publicKey.contentHashCode() + factor.contentHashCode()</span>
+
+    private companion object {
+        const val PUBLIC_KEY_BYTES = 65
+        const val FACTOR_BYTES = 32
+    }
+}
+
+/** Public-only generation result; it carries no parent scalar, seed, or child factor. */
+<span class="fc" id="L85">@Req(&quot;NFR-SEC-041&quot;)</span>
+<span class="fc" id="L86">data class GeneratedCredentialPublicKey(</span>
+<span class="fc" id="L87">    val publicKey: ByteArray,</span>
+)
+
+/** Result of replacing or initially importing the wallet recovery mnemonic. */
+sealed interface ImportMnemonicResult {
+    /** Indicates that the wallet had no recovery mnemonic and the import created one. */
+    data object Created : ImportMnemonicResult
+
+    /** Indicates that the import replaced the wallet's existing recovery mnemonic. */
+    data object Replaced : ImportMnemonicResult
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

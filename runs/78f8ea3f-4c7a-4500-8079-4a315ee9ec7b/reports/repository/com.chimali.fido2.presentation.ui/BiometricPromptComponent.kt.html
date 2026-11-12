@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BiometricPromptComponent.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">BiometricPromptComponent.kt</span></div><h1>BiometricPromptComponent.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+
+/**
+ * T064 — Biometric Prompt Compose component.
+ *
+ * Wraps Android's [BiometricPrompt] (from `androidx.biometric`) and exposes it as
+ * a Compose-friendly composable. Shows a system biometric dialog (fingerprint/face/iris)
+ * and surfaces the result via callbacks.
+ *
+ * @param title         Title shown in the biometric dialog (e.g. &quot;Sign in with passkey&quot;).
+ * @param subtitle      Subtitle, typically the RP name.
+ * @param description   Optional longer description.
+ * @param negativeButtonText Text of the &quot;use password&quot; fallback button.
+ * @param onSuccess     Called when biometric authentication succeeds.
+ * @param onError       Called on permanent failure (too many attempts, locked out, etc.).
+ * @param onFallback    Called when the user taps the negative/fallback button.
+ */
+@Composable
+fun BiometricPromptComponent(
+    title: String,
+    subtitle: String,
+    onSuccess: () -&gt; Unit,
+    onError: (errorCode: Int, message: String) -&gt; Unit,
+    onFallback: () -&gt; Unit,
+<span class="nc bnc" id="L58" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">    description: String? = null,</span>
+<span class="nc" id="L60">    negativeButtonText: String = &quot;Use PIN instead&quot;,</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L62">    val context = LocalContext.current</span>
+
+<span class="nc" id="L64">    val updatedOnSuccess by rememberUpdatedState(onSuccess)</span>
+<span class="nc" id="L65">    val updatedOnError by rememberUpdatedState(onError)</span>
+<span class="nc" id="L66">    val updatedOnFallback by rememberUpdatedState(onFallback)</span>
+
+    // Display the Android system biometric dialog when this composable enters composition
+<span class="nc bnc" id="L69" title="All 8 branches missed.">    DisposableEffect(title, subtitle) {</span>
+<span class="nc" id="L70">        val executor = ContextCompat.getMainExecutor(context)</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        val activity = context as? FragmentActivity</span>
+
+<span class="nc" id="L73">        val promptInfo =</span>
+            BiometricPrompt.PromptInfo
+<span class="nc" id="L75">                .Builder()</span>
+<span class="nc" id="L76">                .setTitle(title)</span>
+<span class="nc" id="L77">                .setSubtitle(subtitle)</span>
+<span class="nc" id="L78">                .apply {</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                    description?.let { setDescription(it) }</span>
+<span class="nc" id="L80">                    setNegativeButtonText(negativeButtonText)</span>
+<span class="nc" id="L81">                    val authenticators =</span>
+<span class="nc" id="L82">                        BiometricManager.Authenticators.BIOMETRIC_STRONG or</span>
+                            BiometricManager.Authenticators.BIOMETRIC_WEAK
+<span class="nc" id="L84">                    setAllowedAuthenticators(authenticators)</span>
+<span class="nc" id="L85">                }.build()</span>
+
+<span class="nc" id="L87">        val biometricPrompt =</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            activity?.let {</span>
+<span class="nc" id="L89">                BiometricPrompt(</span>
+<span class="nc" id="L90">                    it,</span>
+<span class="nc" id="L91">                    executor,</span>
+<span class="nc" id="L92">                    object : BiometricPrompt.AuthenticationCallback() {</span>
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+<span class="nc" id="L94">                            updatedOnSuccess()</span>
+<span class="nc" id="L95">                        }</span>
+
+                        override fun onAuthenticationError(
+                            errorCode: Int,
+                            errString: CharSequence,
+                        ) {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                            if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||</span>
+                                errorCode == BiometricPrompt.ERROR_USER_CANCELED
+                            ) {
+<span class="nc" id="L104">                                updatedOnFallback()</span>
+                            } else {
+<span class="nc" id="L106">                                updatedOnError(errorCode, errString.toString())</span>
+                            }
+<span class="nc" id="L108">                        }</span>
+
+                        override fun onAuthenticationFailed() {
+                            // Partial attempt — dialog remains open, no action needed
+<span class="nc" id="L112">                        }</span>
+                    },
+<span class="nc" id="L114">                )</span>
+            }
+
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        biometricPrompt?.authenticate(promptInfo)</span>
+
+<span class="nc" id="L119">        onDispose {</span>
+<span class="nc" id="L120">            biometricPrompt?.cancelAuthentication()</span>
+<span class="nc" id="L121">        }</span>
+    }
+
+    // Visual affordance while system dialog is being shown
+<span class="nc" id="L125">    Box(</span>
+        modifier =
+<span class="nc" id="L127">            modifier</span>
+<span class="nc" id="L128">                .fillMaxSize()</span>
+<span class="nc" id="L129">                .semantics { contentDescription = &quot;Biometric authentication prompt&quot; },</span>
+<span class="nc" id="L130">        contentAlignment = Alignment.Center,</span>
+    ) {
+<span class="nc" id="L132">        Column(</span>
+<span class="nc" id="L133">            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L134">            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+<span class="nc" id="L135">            modifier = Modifier.padding(32.dp),</span>
+        ) {
+<span class="nc" id="L137">            Surface(</span>
+<span class="nc" id="L138">                shape = CircleShape,</span>
+<span class="nc" id="L139">                color = MaterialTheme.colorScheme.primaryContainer,</span>
+<span class="nc" id="L140">                modifier = Modifier.size(96.dp),</span>
+<span class="nc" id="L141">            ) {</span>
+<span class="nc" id="L142">                Box(contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L143">                    Icon(</span>
+<span class="nc" id="L144">                        imageVector = Icons.Filled.Face,</span>
+<span class="nc" id="L145">                        contentDescription = &quot;Fingerprint icon&quot;,</span>
+<span class="nc" id="L146">                        modifier = Modifier.size(56.dp),</span>
+<span class="nc" id="L147">                        tint = MaterialTheme.colorScheme.onPrimaryContainer,</span>
+                    )
+<span class="nc" id="L149">                }</span>
+<span class="nc" id="L150">            }</span>
+
+<span class="nc" id="L152">            Text(</span>
+<span class="nc" id="L153">                text = title,</span>
+<span class="nc" id="L154">                style = MaterialTheme.typography.titleLarge,</span>
+<span class="nc" id="L155">                fontWeight = FontWeight.Bold,</span>
+<span class="nc" id="L156">                textAlign = TextAlign.Center,</span>
+            )
+
+<span class="nc" id="L159">            Text(</span>
+<span class="nc" id="L160">                text = subtitle,</span>
+<span class="nc" id="L161">                style = MaterialTheme.typography.bodyMedium,</span>
+<span class="nc" id="L162">                textAlign = TextAlign.Center,</span>
+<span class="nc" id="L163">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            description?.let {</span>
+<span class="nc" id="L167">                Text(</span>
+<span class="nc" id="L168">                    text = it,</span>
+<span class="nc" id="L169">                    style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L170">                    textAlign = TextAlign.Center,</span>
+<span class="nc" id="L171">                    color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                )
+<span class="nc" id="L173">            }</span>
+
+<span class="nc" id="L175">            Spacer(Modifier.height(8.dp))</span>
+
+<span class="nc" id="L177">            TextButton(onClick = onFallback) {</span>
+<span class="nc" id="L178">                Text(negativeButtonText)</span>
+<span class="nc" id="L179">            }</span>
+<span class="nc" id="L180">        }</span>
+<span class="nc" id="L181">    }</span>
+<span class="nc" id="L182">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

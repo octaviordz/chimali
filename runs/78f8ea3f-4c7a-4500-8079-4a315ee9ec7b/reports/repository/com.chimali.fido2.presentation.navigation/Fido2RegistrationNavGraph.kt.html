@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2RegistrationNavGraph.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.navigation</a> &gt; <span class="el_source">Fido2RegistrationNavGraph.kt</span></div><h1>Fido2RegistrationNavGraph.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.navigation
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.chimali.fido2.presentation.ui.AuthenticationPromptScreen
+import com.chimali.fido2.presentation.ui.DevelopmentToolsScreen
+import com.chimali.fido2.presentation.ui.RegistrationPromptScreen
+import org.koin.compose.viewmodel.koinViewModel
+
+// Routes defined in Fido2Destinations.kt
+
+@Suppress(
+    // Past-tense lambda names match the existing public API contract
+    &quot;ParameterNaming&quot;,
+    // Modifier placement is intentional for this nav graph signature
+    &quot;ComposableParamOrder&quot;,
+    // Modifier is intentionally applied to the inner Box wrapping NavHost
+    &quot;ModifierNotUsedAtRoot&quot;,
+    &quot;FunctionNaming&quot;,
+)
+@Composable
+<span class="nc bnc" id="L30" title="All 2 branches missed.">fun Fido2RegistrationNavGraph(</span>
+    onRegistrationComplete: (credentialId: String) -&gt; Unit,
+    onRegistrationCancelled: () -&gt; Unit,
+<span class="nc bnc" id="L33" title="All 2 branches missed.">    onAuthenticationComplete: (credentialId: String) -&gt; Unit = {},</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">    onAuthenticationCancelled: () -&gt; Unit = {},</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">    onOpenSettings: () -&gt; Unit = {},</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">    navController: NavHostController = rememberNavController(),</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">    startDestination: String = Fido2Destinations.HOME_ROUTE,</span>
+<span class="nc" id="L38">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L39" title="All 6 branches missed.">) {</span>
+<span class="nc" id="L40">    Scaffold { innerPadding -&gt;</span>
+<span class="nc" id="L41">        Box(modifier = modifier.padding(innerPadding)) {</span>
+<span class="nc" id="L42">            NavHost(</span>
+<span class="nc" id="L43">                navController = navController,</span>
+<span class="nc" id="L44">                startDestination = startDestination,</span>
+<span class="nc" id="L45">            ) {</span>
+<span class="nc" id="L46">                composable(Fido2Destinations.HOME_ROUTE) { entry -&gt;</span>
+<span class="nc" id="L47">                    val pairedViewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel =</span>
+<span class="nc" id="L48">                        koinViewModel(viewModelStoreOwner = entry)</span>
+
+<span class="nc" id="L50">                    com.chimali.fido2.presentation.ui.Fido2HomeScreen(</span>
+<span class="nc" id="L51">                        onManageCredentials = {</span>
+<span class="nc" id="L52">                            navController.navigate(Fido2Destinations.MANAGEMENT_ROUTE)</span>
+<span class="nc" id="L53">                        },</span>
+<span class="nc" id="L54">                        onRegisterRequest = {</span>
+<span class="nc" id="L55">                            navController.navigate(Fido2Destinations.REGISTRATION_ROUTE)</span>
+<span class="nc" id="L56">                        },</span>
+<span class="nc" id="L57">                        onAuthenticateRequest = {</span>
+<span class="nc" id="L58">                            navController.navigate(Fido2Destinations.AUTHENTICATION_ROUTE)</span>
+<span class="nc" id="L59">                        },</span>
+<span class="nc" id="L60">                        onEditDevice = { macAddress -&gt;</span>
+<span class="nc" id="L61">                            navController.navigate(&quot;${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress&quot;)</span>
+<span class="nc" id="L62">                        },</span>
+<span class="nc" id="L63">                        onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L64">                        pairedDevicesViewModel = pairedViewModel,</span>
+                    )
+<span class="nc" id="L66">                }</span>
+
+<span class="nc" id="L68">                composable(Fido2Destinations.DEVELOPMENT_ROUTE) {</span>
+<span class="nc" id="L69">                    DevelopmentToolsScreen()</span>
+<span class="nc" id="L70">                }</span>
+
+<span class="nc" id="L72">                composable(Fido2Destinations.REGISTRATION_ROUTE) {</span>
+<span class="nc" id="L73">                    RegistrationPromptScreen(</span>
+<span class="nc" id="L74">                        onSuccess = { credentialId -&gt;</span>
+<span class="nc" id="L75">                            navController.popBackStack()</span>
+<span class="nc" id="L76">                            onRegistrationComplete(credentialId)</span>
+<span class="nc" id="L77">                        },</span>
+<span class="nc" id="L78">                        onCancel = {</span>
+<span class="nc" id="L79">                            navController.popBackStack()</span>
+<span class="nc" id="L80">                            onRegistrationCancelled()</span>
+<span class="nc" id="L81">                        },</span>
+                    )
+<span class="nc" id="L83">                }</span>
+
+<span class="nc" id="L85">                composable(Fido2Destinations.AUTHENTICATION_ROUTE) {</span>
+<span class="nc" id="L86">                    AuthenticationPromptScreen(</span>
+<span class="nc" id="L87">                        onSuccess = { credentialId -&gt;</span>
+<span class="nc" id="L88">                            navController.popBackStack()</span>
+<span class="nc" id="L89">                            onAuthenticationComplete(credentialId)</span>
+<span class="nc" id="L90">                        },</span>
+<span class="nc" id="L91">                        onCancel = {</span>
+<span class="nc" id="L92">                            navController.popBackStack()</span>
+<span class="nc" id="L93">                            onAuthenticationCancelled()</span>
+<span class="nc" id="L94">                        },</span>
+                    )
+<span class="nc" id="L96">                }</span>
+
+<span class="nc" id="L98">                composable(Fido2Destinations.MANAGEMENT_ROUTE) {</span>
+<span class="nc" id="L99">                    com.chimali.fido2.presentation.management.CredentialListScreen(</span>
+<span class="nc" id="L100">                        onNavigateUp = {</span>
+<span class="nc" id="L101">                            navController.popBackStack()</span>
+<span class="nc" id="L102">                        },</span>
+                    )
+<span class="nc" id="L104">                }</span>
+
+<span class="nc" id="L106">                composable(</span>
+<span class="nc" id="L107">                    route = &quot;${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/{macAddress}&quot;,</span>
+<span class="nc" id="L108">                ) { backStackEntry -&gt;</span>
+<span class="nc bnc" id="L109" title="All 4 branches missed.">                    val macAddress = backStackEntry.arguments?.getString(&quot;macAddress&quot;) ?: &quot;&quot;</span>
+
+                    // Scope the ViewModel to the HOME_ROUTE so it's shared with PairedDevicesSection
+                    // This ensures that onDeleteTriggered calls pendingRemove on the same instance
+                    // that the list is observing, so the snackbar shows up when we pop back.
+<span class="nc" id="L114">                    val parentBackStackEntry =</span>
+<span class="nc" id="L115">                        remember(backStackEntry) {</span>
+<span class="nc" id="L116">                            navController.getBackStackEntry(Fido2Destinations.HOME_ROUTE)</span>
+                        }
+<span class="nc" id="L118">                    val viewModel: com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel =</span>
+<span class="nc" id="L119">                        koinViewModel(viewModelStoreOwner = parentBackStackEntry)</span>
+
+<span class="nc" id="L121">                    com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(</span>
+<span class="nc" id="L122">                        macAddress = macAddress,</span>
+<span class="nc" id="L123">                        onNavigateUp = { navController.popBackStack() },</span>
+<span class="nc" id="L124">                        viewModel = viewModel,</span>
+                    )
+<span class="nc" id="L126">                }</span>
+<span class="nc" id="L127">            }</span>
+<span class="nc" id="L128">        }</span>
+<span class="nc" id="L129">    }</span>
+<span class="nc" id="L130">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

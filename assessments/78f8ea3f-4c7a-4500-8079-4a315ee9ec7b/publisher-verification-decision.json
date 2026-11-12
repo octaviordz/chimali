@@ -1,0 +1,263 @@
+{
+  "decision_type": "TargetBaselineRefresh",
+  "run_id": "78f8ea3f-4c7a-4500-8079-4a315ee9ec7b",
+  "policy_id": "chimali-coverage-v1",
+  "manifest_digest": "42dfe2681109bde6c44b8af9bc3aa897ad5a4e3bb5cd90b15f2aa75e8db04a99",
+  "evaluated_at": "2026-11-12T16:33:48Z",
+  "decisions": {
+    "collection": "Complete",
+    "tests": "Passed",
+    "floors": "Passed",
+    "comparison_compatibility": "NotApplicable",
+    "regression": "NotApplicable",
+    "baseline_refresh": "Eligible",
+    "publication": "Pending",
+    "integration": "Unverified"
+  },
+  "baseline_refresh_ready": true,
+  "overall_passed": false,
+  "unmet_reasons": [],
+  "modules": [
+    {
+      "Module": ":core:security",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "81.402",
+        "Passed": true,
+        "Covered": 3624,
+        "Missed": 828
+      },
+      "Branch": {
+        "Percent": "66.839",
+        "Passed": true,
+        "Covered": 258,
+        "Missed": 128,
+        "Applicable": true
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:domain",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "71.325",
+        "Passed": true,
+        "Covered": 5124,
+        "Missed": 2060
+      },
+      "Branch": {
+        "Percent": "71.28",
+        "Passed": true,
+        "Covered": 412,
+        "Missed": 166,
+        "Applicable": true
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:data",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "87.948",
+        "Passed": true,
+        "Covered": 1277,
+        "Missed": 175
+      },
+      "Branch": {
+        "Percent": "77.027",
+        "Passed": true,
+        "Covered": 57,
+        "Missed": 17,
+        "Applicable": true
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:fido2",
+      "Tier": 1,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "63.475",
+        "Passed": true,
+        "Covered": 54633,
+        "Missed": 31437
+      },
+      "Branch": {
+        "Percent": "61.107",
+        "Passed": true,
+        "Covered": 3367,
+        "Missed": 2143,
+        "Applicable": true
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:authenticator",
+      "Tier": 1,
+      "Disposition": "NotApplicable",
+      "Status": "Passed",
+      "Reason": "Verified no executable production instructions (AnalyzedZeroProofV1)"
+    },
+    {
+      "Module": ":app",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "36.974",
+        "Passed": true,
+        "Covered": 738,
+        "Missed": 1258
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 28,
+        "Missed": 67
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:bluetooth",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "83.288",
+        "Passed": true,
+        "Covered": 304,
+        "Missed": 61
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 12,
+        "Missed": 9
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:common",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "29.801",
+        "Passed": true,
+        "Covered": 523,
+        "Missed": 1232
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 10,
+        "Missed": 48
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:database",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "65.65",
+        "Passed": true,
+        "Covered": 409,
+        "Missed": 214
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 19,
+        "Missed": 17
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":core:ui",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "100",
+        "Passed": true,
+        "Covered": 46,
+        "Missed": 0
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 0,
+        "Missed": 0
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:editor",
+      "Tier": 2,
+      "Disposition": "NotApplicable",
+      "Instruction": {
+        "Percent": "N/A",
+        "Passed": true,
+        "Covered": 0,
+        "Missed": 0
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 0,
+        "Missed": 0
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:onboarding",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "20.662",
+        "Passed": true,
+        "Covered": 331,
+        "Missed": 1271
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 16,
+        "Missed": 34
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:settings",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "97.796",
+        "Passed": true,
+        "Covered": 488,
+        "Missed": 11
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 5,
+        "Missed": 1
+      },
+      "Status": "Passed"
+    },
+    {
+      "Module": ":feature:vault",
+      "Tier": 2,
+      "Disposition": "Applicable",
+      "Instruction": {
+        "Percent": "24.307",
+        "Passed": true,
+        "Covered": 6587,
+        "Missed": 20512
+      },
+      "Branch": {
+        "Percent": "Reported",
+        "Covered": 425,
+        "Missed": 795
+      },
+      "Status": "Passed"
+    }
+  ],
+  "repository": {
+    "InstructionPercent": "56.654",
+    "Passed": true,
+    "Reason": "Meets floor 50%"
+  }
+}

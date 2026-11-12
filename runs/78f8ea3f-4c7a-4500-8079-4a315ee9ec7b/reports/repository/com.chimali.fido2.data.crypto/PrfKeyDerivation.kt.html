@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrfKeyDerivation.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">PrfKeyDerivation.kt</span></div><h1>PrfKeyDerivation.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.PrfExtensionInput
+import com.chimali.fido2.domain.model.PrfExtensionOutput
+import org.koin.core.annotation.Single
+
+/**
+ * T043 — PRF key derivation service.
+ *
+ * Wraps [HmacSecretProcessor]'s low-level HMAC-SHA-256 machinery to expose a
+ * typed, domain-level API for the WebAuthn PRF / CTAP2 `hmac-secret` extension.
+ *
+ * ## Derivation contract
+ * For each salt:
+ * ```
+ * output = HMAC-SHA-256(credSecret, salt)
+ * where credSecret = HMAC-SHA-256(masterSeed, &quot;hmac-secret&quot; || credentialId)
+ * ```
+ * Both `credSecret` and intermediate values are zeroised after use inside
+ * [HmacSecretProcessor].
+ *
+ * @see HmacSecretProcessor for the low-level implementation.
+ * @see PrfExtensionInput  for salt validation rules (1–2 salts, 32 bytes each).
+ * @see PrfExtensionOutput for the typed output model.
+ */
+<span class="fc" id="L28">@Single</span>
+<span class="fc" id="L29">class PrfKeyDerivation(</span>
+<span class="fc" id="L30">    private val hmacSecretProcessor: HmacSecretProcessor,</span>
+) {
+    companion object {
+        private const val TAG = &quot;PrfKeyDerivation&quot;
+    }
+
+    /**
+     * Derives a single 32-byte PRF output for the given [salt] and [credentialId].
+     *
+     * Borrows [salt] for this call and does not erase or retain it. A non-null output is an
+     * independently owned secret buffer; the caller must erase it after use. A null result
+     * means the master seed is unavailable. Cancellation and other failures propagate; internal
+     * HMAC working buffers are erased by [HmacSecretProcessor].
+     *
+     * @param salt Exactly 32-byte salt borrowed from the RP.
+     * @param credentialId The credential ID used for per-credential derivation.
+     * @return Caller-owned 32-byte HMAC-SHA-256 output, or `null` if unavailable.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L49">    suspend fun derive(</span>
+        salt: ByteArray,
+        credentialId: String,
+    ): ByteArray? {
+<span class="pc bpc" id="L53" title="2 of 4 branches missed.">        require(salt.size == PrfExtensionInput.SALT_SIZE_BYTES) {</span>
+<span class="nc" id="L54">            &quot;PRF derive: salt must be exactly ${PrfExtensionInput.SALT_SIZE_BYTES} bytes; got ${salt.size}&quot;</span>
+        }
+<span class="fc" id="L56">        return hmacSecretProcessor</span>
+<span class="fc" id="L57">            .process(</span>
+<span class="fc" id="L58">                credentialId = credentialId,</span>
+<span class="fc" id="L59">                extensionData = salt,</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">            )?.also { output -&gt;</span>
+<span class="fc" id="L61">                Logger.d(TAG) { &quot;PRF derive: ${output.size} bytes for credentialId=$credentialId&quot; }</span>
+<span class="fc" id="L62">            }</span>
+    }
+
+    /**
+     * Derives PRF outputs for all salts in [input] and returns a typed [PrfExtensionOutput].
+     *
+     * Borrows the input salts and leaves them under the caller's ownership. Returned output
+     * arrays are owned by the caller and must be erased after response construction. If the
+     * first derivation is unavailable, returns `null` so the optional extension can be omitted;
+     * an unavailable second derivation omits only output2. If construction fails or cancellation
+     * occurs before ownership transfers to the result, every output already created is erased.
+     * Cancellation and other unexpected failures propagate.
+     *
+     * @param input        Validated PRF extension input with 1–2 salts.
+     * @param credentialId The credential's string ID.
+     * @return Caller-owned [PrfExtensionOutput] with one or two 32-byte outputs, or `null` when
+     * the first derivation is unavailable.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L81">    suspend fun deriveAll(</span>
+        input: PrfExtensionInput,
+        credentialId: String,
+    ): PrfExtensionOutput? {
+<span class="fc" id="L85">        val output1 = derive(input.salt1, credentialId)</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (output1 == null) {</span>
+            // T049: Missing hmac-secret capability — omit PRF without failing the ceremony.
+<span class="fc" id="L88">            Logger.w(TAG) { &quot;PRF: salt1 derivation failed for credentialId=$credentialId; omitting PRF from response&quot; }</span>
+<span class="fc" id="L89">            return null</span>
+        }
+
+<span class="fc" id="L92">        var output2: ByteArray? = null</span>
+<span class="fc" id="L93">        var transferred = false</span>
+<span class="fc" id="L94">        try {</span>
+<span class="fc" id="L95">            output2 =</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">                input.salt2?.let { salt2 -&gt;</span>
+<span class="fc" id="L97">                    val out = derive(salt2, credentialId)</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">                    if (out == null) {</span>
+<span class="nc" id="L99">                        Logger.w(</span>
+<span class="nc" id="L100">                            TAG,</span>
+<span class="nc" id="L101">                        ) { &quot;PRF: salt2 derivation failed for credentialId=$credentialId; omitting output2&quot; }</span>
+                    }
+<span class="fc" id="L103">                    out</span>
+                }
+
+<span class="fc" id="L106">            val result = PrfExtensionOutput(output1 = output1, output2 = output2)</span>
+<span class="fc" id="L107">            transferred = true</span>
+<span class="fc" id="L108">            return result</span>
+        } finally {
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">            if (!transferred) {</span>
+<span class="fc" id="L111">                output1.fill(0)</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                output2?.fill(0)</span>
+            }
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

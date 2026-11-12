@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.performance.SimulatedWorkloadIntegrationTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-12T15:55:19.177Z" hostname="LOQ15IRX10-3" time="0.045">
+  <properties/>
+  <testcase name="synthetic RP verifies registration and authentication through production use cases()" classname="com.chimali.fido2.performance.SimulatedWorkloadIntegrationTest" time="0.045"/>
+  <system-out><![CDATA[Debug: GetAssertion processing started
+Debug: Selecting single credential candidate
+Debug: Assertion completed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

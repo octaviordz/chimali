@@ -1,0 +1,605 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2HomeScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">Fido2HomeScreen.kt</span></div><h1>Fido2HomeScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import android.Manifest
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothAudio
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import co.touchlab.kermit.Logger
+import com.chimali.fido2.bluetooth.HidConnectionState
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
+
+private const val DISCOVERABLE_DURATION_SECONDS = 120
+private const val PULSE_ANIMATION_DURATION_MS = 1500
+private const val PULSE_START_ALPHA = 0.5f
+private const val PULSE_TARGET_SCALE = 2.5f
+
+private const val COLOR_ADVERTISING_VAL = 0xFF6200EE
+<span class="fc" id="L94">private val COLOR_ADVERTISING = Color(COLOR_ADVERTISING_VAL)</span>
+
+private const val COLOR_CONNECTING_VAL = 0xFFFF9800
+<span class="fc" id="L97">private val COLOR_CONNECTING = Color(COLOR_CONNECTING_VAL)</span>
+
+private const val COLOR_CONNECTED_VAL = 0xFF4CAF50
+<span class="fc" id="L100">private val COLOR_CONNECTED = Color(COLOR_CONNECTED_VAL)</span>
+
+/**
+ * T156a — Authenticator Dashboard (Home Screen).
+ * Provides status monitoring and transport control for the FIDO2 module.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+<span class="nc bnc" id="L108" title="All 4 branches missed.">fun Fido2HomeScreen(</span>
+    onManageCredentials: () -&gt; Unit,
+    onRegisterRequest: () -&gt; Unit,
+    onAuthenticateRequest: () -&gt; Unit,
+    onEditDevice: (String) -&gt; Unit,
+<span class="nc bnc" id="L113" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">    onOpenSettings: (() -&gt; Unit)? = null,</span>
+<span class="nc" id="L115">    viewModel: Fido2HomeViewModel = koinViewModel(),</span>
+<span class="nc" id="L116">    pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),</span>
+<span class="nc bnc" id="L117" title="All 6 branches missed.">) {</span>
+<span class="nc" id="L118">    val context = LocalContext.current</span>
+<span class="nc" id="L119">    val connectionState by viewModel.connectionState.collectAsState()</span>
+<span class="nc" id="L120">    val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()</span>
+
+<span class="nc" id="L122">    Fido2EventObserver(</span>
+<span class="nc" id="L123">        uiEvents = viewModel.uiEvents,</span>
+<span class="nc" id="L124">        getPendingRegistration = { viewModel.getPendingRegistration() },</span>
+<span class="nc" id="L125">        getPendingAuthentication = { viewModel.getPendingAuthentication() },</span>
+<span class="nc" id="L126">        onRegisterRequest = onRegisterRequest,</span>
+<span class="nc" id="L127">        onAuthenticateRequest = onAuthenticateRequest,</span>
+    )
+
+<span class="nc" id="L130">    val showBluetoothError = remember { mutableStateOf(false) }</span>
+
+<span class="nc" id="L132">    val bluetoothDiscoverableLauncher =</span>
+<span class="nc" id="L133">        rememberLauncherForActivityResult(</span>
+<span class="nc" id="L134">            contract = ActivityResultContracts.StartActivityForResult(),</span>
+<span class="nc" id="L135">        ) { result -&gt;</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (result.resultCode != Activity.RESULT_CANCELED) {</span>
+<span class="nc" id="L137">                viewModel.toggleTransport()</span>
+            } else {
+                // User denied or failed to enable Bluetooth/Discoverable
+<span class="nc" id="L140">                showBluetoothError.value = true</span>
+            }
+<span class="nc" id="L142">        }</span>
+
+<span class="nc" id="L144">    val bluetoothPermissionLauncher =</span>
+<span class="nc" id="L145">        rememberLauncherForActivityResult(</span>
+<span class="nc" id="L146">            contract = ActivityResultContracts.RequestMultiplePermissions(),</span>
+<span class="nc" id="L147">        ) { permissions -&gt;</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            if (permissions.values.all { it }) {</span>
+<span class="nc" id="L149">                launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }</span>
+            } else {
+<span class="nc" id="L151">                showBluetoothError.value = true</span>
+            }
+<span class="nc" id="L153">        }</span>
+
+<span class="nc" id="L155">    val handleToggle = {</span>
+<span class="nc" id="L156">        val isRunning =</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">            connectionState !is HidConnectionState.Idle &amp;&amp;</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                connectionState !is HidConnectionState.Error</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (isRunning) {</span>
+<span class="nc" id="L160">            viewModel.toggleTransport()</span>
+        } else {
+<span class="nc" id="L162">            val required = getRequiredPermissions()</span>
+<span class="nc bnc" id="L163" title="All 8 branches missed.">            if (required.isNotEmpty() &amp;&amp; !hasPermissions(context, required)) {</span>
+<span class="nc" id="L164">                bluetoothPermissionLauncher.launch(required)</span>
+            } else {
+<span class="nc" id="L166">                launchDiscoverability(bluetoothDiscoverableLauncher) { showBluetoothError.value = true }</span>
+            }
+        }
+<span class="nc" id="L169">    }</span>
+
+<span class="nc bnc" id="L171" title="All 2 branches missed.">    if (showBluetoothError.value) {</span>
+<span class="nc" id="L172">        BluetoothErrorDialog(</span>
+<span class="nc" id="L173">            onDismiss = { showBluetoothError.value = false },</span>
+<span class="nc" id="L174">            onRetry = handleToggle,</span>
+        )
+<span class="nc" id="L176">    }</span>
+
+<span class="nc" id="L178">    Scaffold(</span>
+<span class="nc" id="L179">        modifier = modifier,</span>
+<span class="nc" id="L180">        topBar = {</span>
+<span class="nc" id="L181">            TopAppBar(</span>
+<span class="fc" id="L182">                title = {</span>
+<span class="nc" id="L183">                    Text(</span>
+<span class="nc" id="L184">                        &quot;Chimali Authenticator&quot;,</span>
+<span class="nc" id="L185">                        style = MaterialTheme.typography.titleMedium,</span>
+<span class="nc" id="L186">                        fontWeight = FontWeight.Bold,</span>
+                    )
+<span class="nc" id="L188">                },</span>
+                colors =
+<span class="nc" id="L190">                    TopAppBarDefaults.topAppBarColors(</span>
+<span class="nc" id="L191">                        containerColor = MaterialTheme.colorScheme.surface,</span>
+<span class="nc" id="L192">                        titleContentColor = MaterialTheme.colorScheme.onSurface,</span>
+                    ),
+<span class="nc" id="L194">                actions = {</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">                    if (onOpenSettings != null) {</span>
+<span class="pc" id="L196">                        IconButton(onClick = onOpenSettings) {</span>
+<span class="nc" id="L197">                            Icon(Icons.Default.Settings, contentDescription = &quot;Settings&quot;)</span>
+<span class="nc" id="L198">                        }</span>
+<span class="nc" id="L199">                    }</span>
+<span class="nc" id="L200">                },</span>
+            )
+<span class="nc" id="L202">        },</span>
+<span class="nc" id="L203">    ) { padding -&gt;</span>
+<span class="nc" id="L204">        Column(</span>
+            modifier =
+<span class="nc" id="L206">                Modifier</span>
+<span class="nc" id="L207">                    .fillMaxSize()</span>
+<span class="nc" id="L208">                    .padding(padding)</span>
+<span class="nc" id="L209">                    .padding(horizontal = 20.dp, vertical = 12.dp),</span>
+<span class="nc" id="L210">            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L211">            verticalArrangement = Arrangement.spacedBy(12.dp),</span>
+        ) {
+<span class="nc" id="L213">            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()</span>
+<span class="nc" id="L214">            StatusIndicator(</span>
+<span class="nc" id="L215">                state = connectionState,</span>
+<span class="nc" id="L216">                displayName = connectedDisplayName,</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                hasPairedDevices = pairedDevices.isNotEmpty(),</span>
+            )
+
+<span class="nc" id="L220">            PairedDevicesSection(</span>
+<span class="nc" id="L221">                modifier = Modifier.weight(1f),</span>
+<span class="nc" id="L222">                onEditDevice = onEditDevice,</span>
+<span class="nc" id="L223">                devices = pairedDevices,</span>
+<span class="nc" id="L224">                onPendingRemove = { device -&gt; pairedDevicesViewModel.pendingRemove(device) },</span>
+<span class="nc" id="L225">                onUndoRemove = { macAddress -&gt; pairedDevicesViewModel.undoRemove(macAddress) },</span>
+<span class="nc" id="L226">                onCommitRemove = { macAddress -&gt; pairedDevicesViewModel.commitRemove(macAddress) },</span>
+<span class="nc" id="L227">                removalEvents = pairedDevicesViewModel.removalEvents,</span>
+<span class="nc" id="L228">                onDeviceClick = { device -&gt; viewModel.connectDevice(device.macAddress) },</span>
+            )
+
+<span class="nc" id="L231">            TransportToggleButton(</span>
+<span class="nc" id="L232">                connectionState = connectionState,</span>
+<span class="nc" id="L233">                onToggle = handleToggle,</span>
+            )
+
+<span class="nc" id="L236">            ChimaliOutlinedButton(</span>
+<span class="nc" id="L237">                onClick = onManageCredentials,</span>
+<span class="nc" id="L238">                modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L239">            ) {</span>
+<span class="nc" id="L240">                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)</span>
+<span class="nc" id="L241">                Spacer(Modifier.width(8.dp))</span>
+<span class="nc" id="L242">                Text(&quot;Manage Saved Passkeys&quot;)</span>
+<span class="nc" id="L243">            }</span>
+
+<span class="nc" id="L245">            Text(</span>
+<span class="nc" id="L246">                text = &quot;FIDO2 / WebAuthn over Bluetooth HID&quot;,</span>
+<span class="nc" id="L247">                style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L248">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+<span class="nc" id="L250">        }</span>
+<span class="nc" id="L251">    }</span>
+<span class="nc" id="L252">}</span>
+
+/**
+ * Displays the current Bluetooth HID connection status and any error messages.
+ */
+@Composable
+fun StatusIndicator(
+    state: HidConnectionState,
+    displayName: String?,
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="pc" id="L262">    hasPairedDevices: Boolean = false,</span>
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L264">    val title: String</span>
+<span class="fc" id="L265">    val subtitle: String</span>
+<span class="fc" id="L266">    val color: androidx.compose.ui.graphics.Color</span>
+<span class="fc" id="L267">    val icon: androidx.compose.ui.graphics.vector.ImageVector</span>
+
+<span class="pc" id="L269">    when (state) {</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">        is HidConnectionState.Idle -&gt; {</span>
+<span class="fc" id="L271">            title = &quot;Ready to Start&quot;</span>
+<span class="fc" id="L272">            subtitle = &quot;Tap 'Start Authenticator' to begin&quot;</span>
+<span class="fc" id="L273">            color = MaterialTheme.colorScheme.outline</span>
+<span class="fc" id="L274">            icon = Icons.Default.Bluetooth</span>
+        }
+
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        is HidConnectionState.Advertising -&gt; {</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            if (hasPairedDevices) {</span>
+<span class="fc" id="L279">                title = &quot;Ready for Authentication&quot;</span>
+<span class="fc" id="L280">                subtitle = &quot;Waiting for request from PC&quot;</span>
+            } else {
+<span class="fc" id="L282">                title = &quot;Advertising...&quot;</span>
+<span class="fc" id="L283">                subtitle = &quot;Ready to pair with a new host PC&quot;</span>
+            }
+<span class="fc" id="L285">            color = COLOR_ADVERTISING</span>
+<span class="fc" id="L286">            icon = Icons.AutoMirrored.Filled.BluetoothSearching</span>
+<span class="fc" id="L287">        }</span>
+
+<span class="fc bfc" id="L289" title="All 2 branches covered.">        is HidConnectionState.Connecting -&gt; {</span>
+<span class="fc" id="L290">            title = &quot;Connecting...&quot;</span>
+<span class="fc" id="L291">            subtitle = &quot;Establishing Bluetooth HID connection&quot;</span>
+<span class="fc" id="L292">            color = COLOR_CONNECTING</span>
+<span class="fc" id="L293">            icon = Icons.Default.BluetoothAudio</span>
+<span class="fc" id="L294">        }</span>
+
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        is HidConnectionState.Connected -&gt; {</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">            title = displayName ?: &quot;Connected&quot;</span>
+<span class="fc" id="L298">            subtitle = &quot;Connected to PC&quot;</span>
+<span class="fc" id="L299">            color = COLOR_CONNECTED</span>
+<span class="fc" id="L300">            icon = Icons.Default.Devices</span>
+<span class="fc" id="L301">        }</span>
+
+<span class="pc bpc" id="L303" title="1 of 2 branches missed.">        is HidConnectionState.Error -&gt; {</span>
+<span class="fc" id="L304">            title = &quot;Error Occurred&quot;</span>
+<span class="fc" id="L305">            subtitle = state.message</span>
+<span class="fc" id="L306">            color = MaterialTheme.colorScheme.error</span>
+<span class="fc" id="L307">            icon = Icons.Default.Error</span>
+        }
+<span class="nc" id="L309">    }</span>
+
+<span class="fc" id="L311">    Card(</span>
+<span class="fc" id="L312">        modifier = modifier.fillMaxWidth(),</span>
+<span class="fc" id="L313">        shape = MaterialTheme.shapes.large,</span>
+<span class="fc" id="L314">        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),</span>
+<span class="fc" id="L315">    ) {</span>
+<span class="fc" id="L316">        Row(</span>
+<span class="fc" id="L317">            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),</span>
+<span class="fc" id="L318">            verticalAlignment = Alignment.CenterVertically,</span>
+<span class="fc" id="L319">            horizontalArrangement = Arrangement.spacedBy(12.dp),</span>
+        ) {
+<span class="fc" id="L321">            Box(</span>
+                modifier =
+<span class="fc" id="L323">                    Modifier</span>
+<span class="fc" id="L324">                        .size(48.dp)</span>
+<span class="fc" id="L325">                        .clip(CircleShape)</span>
+<span class="fc" id="L326">                        .background(color.copy(alpha = 0.2f)),</span>
+<span class="fc" id="L327">                contentAlignment = Alignment.Center,</span>
+            ) {
+<span class="fc bfc" id="L329" title="All 4 branches covered.">                if (state is HidConnectionState.Advertising || state is HidConnectionState.Connecting) {</span>
+<span class="fc" id="L330">                    PulseAnimation(color = color)</span>
+<span class="fc" id="L331">                }</span>
+<span class="fc" id="L332">                Icon(</span>
+<span class="fc" id="L333">                    imageVector = icon,</span>
+<span class="fc" id="L334">                    contentDescription = null,</span>
+<span class="fc" id="L335">                    modifier = Modifier.size(24.dp),</span>
+<span class="fc" id="L336">                    tint = color,</span>
+                )
+<span class="fc" id="L338">            }</span>
+<span class="fc" id="L339">            Column {</span>
+<span class="fc" id="L340">                Text(</span>
+<span class="fc" id="L341">                    text = title,</span>
+<span class="fc" id="L342">                    style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L343">                    fontWeight = FontWeight.Bold,</span>
+<span class="fc" id="L344">                    color = color,</span>
+                )
+<span class="fc" id="L346">                Text(</span>
+<span class="fc" id="L347">                    text = subtitle,</span>
+<span class="fc" id="L348">                    style = MaterialTheme.typography.bodySmall,</span>
+                    color =
+<span class="fc bfc" id="L350" title="All 2 branches covered.">                        if (state is HidConnectionState.Error) {</span>
+<span class="fc" id="L351">                            MaterialTheme.colorScheme.error</span>
+<span class="fc" id="L352">                        } else {</span>
+<span class="fc" id="L353">                            color.copy(alpha = 0.8f)</span>
+<span class="fc" id="L354">                        },</span>
+                )
+<span class="fc" id="L356">            }</span>
+<span class="fc" id="L357">        }</span>
+<span class="fc" id="L358">    }</span>
+<span class="fc" id="L359">}</span>
+
+/**
+ * Observes FIDO2 UI events from the ViewModel and triggers navigation requests.
+ *
+ * This component consolidates event observation into a single collector to prevent
+ * race conditions (Fix D) that occurred when multiple LaunchedEffects were used.
+ */
+@Composable
+private fun Fido2EventObserver(
+    uiEvents: kotlinx.coroutines.flow.Flow&lt;Fido2UiEvent&gt;,
+    getPendingRegistration: () -&gt; Fido2UiEvent.RegistrationRequested?,
+    getPendingAuthentication: () -&gt; Fido2UiEvent.AuthenticationRequested?,
+    onRegisterRequest: () -&gt; Unit,
+    onAuthenticateRequest: () -&gt; Unit,
+<span class="nc" id="L374">) {</span>
+<span class="nc" id="L375">    val updatedOnRegisterRequest by rememberUpdatedState(onRegisterRequest)</span>
+<span class="nc" id="L376">    val updatedOnAuthenticateRequest by rememberUpdatedState(onAuthenticateRequest)</span>
+<span class="nc" id="L377">    val updatedGetPendingRegistration by rememberUpdatedState(getPendingRegistration)</span>
+<span class="nc" id="L378">    val updatedGetPendingAuthentication by rememberUpdatedState(getPendingAuthentication)</span>
+
+    // Observe incoming FIDO2 events (e.g. from PC via Bluetooth).
+    // Single LaunchedEffect so both live collectors share the same composable lifecycle.
+<span class="nc" id="L382">    LaunchedEffect(uiEvents) {</span>
+        // Initial check for any pending operations upon entering the screen
+        // One-time startup check: events that arrived before this screen entered composition.
+<span class="nc bnc" id="L385" title="All 2 branches missed.">        if (updatedGetPendingRegistration() != null) {</span>
+<span class="nc" id="L386">            updatedOnRegisterRequest()</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        } else if (updatedGetPendingAuthentication() != null) {</span>
+            // Only check auth if there is no pending registration (registration takes priority
+            // when both arrive simultaneously, which shouldn't happen in practice).
+<span class="nc" id="L390">            updatedOnAuthenticateRequest()</span>
+        }
+
+<span class="nc" id="L393">        coroutineScope {</span>
+            // Launch both live collectors in parallel inside this scope so they are both
+            // cancelled together when the composable leaves composition.
+<span class="nc" id="L396">            launch {</span>
+<span class="nc" id="L397">                uiEvents</span>
+<span class="nc" id="L398">                    .filterIsInstance&lt;Fido2UiEvent.RegistrationRequested&gt;()</span>
+<span class="nc" id="L399">                    .collect { updatedOnRegisterRequest() }</span>
+<span class="nc" id="L400">            }</span>
+<span class="nc" id="L401">            launch {</span>
+<span class="nc" id="L402">                uiEvents</span>
+<span class="nc" id="L403">                    .filterIsInstance&lt;Fido2UiEvent.AuthenticationRequested&gt;()</span>
+<span class="nc" id="L404">                    .collect {</span>
+                        // Guard against concurrent registration/authentication requests.
+                        // If registration is currently active, we ignore inbound auth requests
+                        // to prevent the &quot;Sign in&quot; prompt from interrupting the registration flow.
+                        // Fix D — Guard against navigating to auth while registration is active.
+                        // webauthn.io and some other RPs send a concurrent GetAssertion on a
+                        // second CTAP2 channel while MakeCredential is still in progress.
+                        // Registration takes priority: if a registration is already pending,
+                        // skip the auth navigation entirely (the CTAP2 handler will time out
+                        // or return CHANNEL_BUSY via the Mutex guard in Fix A).
+<span class="nc bnc" id="L414" title="All 2 branches missed.">                        if (updatedGetPendingRegistration() == null) {</span>
+<span class="nc" id="L415">                            updatedOnAuthenticateRequest()</span>
+                        } else {
+<span class="nc" id="L417">                            Logger.w { &quot;Fido2HomeScreen: Ignoring AuthenticationRequested — registration is active&quot; }</span>
+                        }
+<span class="nc" id="L419">                    }</span>
+<span class="nc" id="L420">            }</span>
+<span class="nc" id="L421">        }</span>
+<span class="nc" id="L422">    }</span>
+<span class="nc" id="L423">}</span>
+
+/**
+ * A dialog that explains why Bluetooth and Nearby Devices permissions are required.
+ */
+@Composable
+private fun BluetoothErrorDialog(
+    onDismiss: () -&gt; Unit,
+    onRetry: () -&gt; Unit,
+<span class="nc" id="L432">) {</span>
+<span class="nc" id="L433">    val context = LocalContext.current</span>
+<span class="nc" id="L434">    AlertDialog(</span>
+<span class="nc" id="L435">        onDismissRequest = onDismiss,</span>
+<span class="pc" id="L436">        title = { Text(&quot;Bluetooth Required&quot;) },</span>
+<span class="fc" id="L437">        text = {</span>
+<span class="nc" id="L438">            Text(</span>
+<span class="nc" id="L439">                &quot;Chimali Authenticator requires Bluetooth and \&quot;Nearby Devices\&quot; permissions &quot; +</span>
+                    &quot;to act as a security key. Please allow discoverability and permissions to continue.&quot;,
+            )
+<span class="nc" id="L442">        },</span>
+<span class="nc" id="L443">        dismissButton = {</span>
+<span class="nc" id="L444">            TextButton(onClick = {</span>
+<span class="nc" id="L445">                val intent =</span>
+<span class="nc" id="L446">                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {</span>
+<span class="nc" id="L447">                        data = Uri.fromParts(&quot;package&quot;, context.packageName, null)</span>
+<span class="nc" id="L448">                    }</span>
+<span class="nc" id="L449">                context.startActivity(intent)</span>
+<span class="nc" id="L450">                onDismiss()</span>
+<span class="pc" id="L451">            }) {</span>
+<span class="nc" id="L452">                Text(&quot;Settings&quot;)</span>
+<span class="nc" id="L453">            }</span>
+<span class="nc" id="L454">        },</span>
+<span class="nc" id="L455">        confirmButton = {</span>
+<span class="nc" id="L456">            TextButton(onClick = {</span>
+<span class="nc" id="L457">                onDismiss()</span>
+<span class="nc" id="L458">                onRetry()</span>
+<span class="pc" id="L459">            }) {</span>
+<span class="nc" id="L460">                Text(&quot;Retry&quot;)</span>
+<span class="nc" id="L461">            }</span>
+<span class="nc" id="L462">        },</span>
+    )
+<span class="nc" id="L464">}</span>
+
+private fun getRequiredPermissions(): Array&lt;String&gt; =
+<span class="nc" id="L467">    when {</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">        Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.TIRAMISU -&gt; {</span>
+            arrayOf(
+<span class="nc" id="L470">                Manifest.permission.BLUETOOTH_CONNECT,</span>
+<span class="nc" id="L471">                Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+<span class="nc" id="L472">                Manifest.permission.BLUETOOTH_SCAN,</span>
+<span class="nc" id="L473">                Manifest.permission.POST_NOTIFICATIONS,</span>
+            )
+        }
+
+<span class="nc bnc" id="L477" title="All 2 branches missed.">        Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.S -&gt; {</span>
+            arrayOf(
+<span class="nc" id="L479">                Manifest.permission.BLUETOOTH_CONNECT,</span>
+<span class="nc" id="L480">                Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+<span class="nc" id="L481">                Manifest.permission.BLUETOOTH_SCAN,</span>
+            )
+        }
+
+        else -&gt; {
+<span class="nc" id="L486">            emptyArray()</span>
+        }
+<span class="nc" id="L488">    }</span>
+
+private fun hasPermissions(
+    context: Context,
+    permissions: Array&lt;String&gt;,
+): Boolean =
+<span class="nc" id="L494">    permissions.all {</span>
+<span class="nc bnc" id="L495" title="All 2 branches missed.">        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED</span>
+<span class="nc" id="L496">    }</span>
+
+private fun launchDiscoverability(
+    launcher: ActivityResultLauncher&lt;Intent&gt;,
+    onError: () -&gt; Unit,
+) {
+<span class="nc" id="L502">    try {</span>
+<span class="nc" id="L503">        val intent =</span>
+<span class="nc" id="L504">            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {</span>
+<span class="nc" id="L505">                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)</span>
+<span class="nc" id="L506">            }</span>
+<span class="nc" id="L507">        launcher.launch(intent)</span>
+<span class="nc" id="L508">    } catch (e: SecurityException) {</span>
+<span class="nc" id="L509">        Logger.e(e) { &quot;Fido2HomeScreen: SecurityException launching discoverability&quot; }</span>
+<span class="nc" id="L510">        onError()</span>
+    }
+<span class="nc" id="L512">}</span>
+
+/**
+ * A button that starts or stops the Bluetooth HID transport service.
+ */
+@Composable
+fun TransportToggleButton(
+    connectionState: HidConnectionState,
+    onToggle: () -&gt; Unit,
+<span class="fc" id="L521">    modifier: Modifier = Modifier,</span>
+<span class="pc bpc" id="L522" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L523">    val isRunning =</span>
+<span class="fc bfc" id="L524" title="All 2 branches covered.">        connectionState !is HidConnectionState.Idle &amp;&amp;</span>
+<span class="fc bfc" id="L525" title="All 2 branches covered.">            connectionState !is HidConnectionState.Error</span>
+
+<span class="fc" id="L527">    ChimaliButton(</span>
+<span class="fc" id="L528">        onClick = onToggle,</span>
+<span class="fc" id="L529">        modifier = modifier.fillMaxWidth(),</span>
+        colors =
+<span class="fc" id="L531">            ButtonDefaults.buttonColors(</span>
+                containerColor =
+<span class="fc bfc" id="L533" title="All 2 branches covered.">                    if (isRunning) {</span>
+<span class="fc" id="L534">                        MaterialTheme.colorScheme.errorContainer</span>
+<span class="fc" id="L535">                    } else {</span>
+<span class="fc" id="L536">                        MaterialTheme.colorScheme.primary</span>
+                    },
+                contentColor =
+<span class="fc bfc" id="L539" title="All 2 branches covered.">                    if (isRunning) {</span>
+<span class="fc" id="L540">                        MaterialTheme.colorScheme.error</span>
+<span class="fc" id="L541">                    } else {</span>
+<span class="fc" id="L542">                        MaterialTheme.colorScheme.onPrimary</span>
+                    },
+            ),
+<span class="fc" id="L545">    ) {</span>
+<span class="fc" id="L546">        AnimatedContent(</span>
+<span class="fc" id="L547">            targetState = isRunning,</span>
+<span class="fc" id="L548">            transitionSpec = { fadeIn() togetherWith fadeOut() },</span>
+<span class="fc" id="L549">            label = &quot;TransportToggle&quot;,</span>
+<span class="fc" id="L550">        ) { running -&gt;</span>
+<span class="fc" id="L551">            Row(verticalAlignment = Alignment.CenterVertically) {</span>
+<span class="fc bfc" id="L552" title="All 2 branches covered.">                Icon(if (running) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = null)</span>
+<span class="fc" id="L553">                Spacer(Modifier.width(8.dp))</span>
+<span class="fc" id="L554">                Text(</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">                    if (running) &quot;Stop Authenticator&quot; else &quot;Start Authenticator&quot;,</span>
+<span class="fc" id="L556">                    style = MaterialTheme.typography.labelLarge,</span>
+                )
+<span class="fc" id="L558">            }</span>
+<span class="fc" id="L559">        }</span>
+<span class="fc" id="L560">    }</span>
+<span class="fc" id="L561">}</span>
+
+/**
+ * An animated pulse effect shown when the authenticator is advertising or connecting.
+ */
+@Composable
+fun PulseAnimation(
+    color: Color,
+<span class="fc" id="L569">    modifier: Modifier = Modifier,</span>
+<span class="pc bpc" id="L570" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L571">    val infiniteTransition = rememberInfiniteTransition(label = &quot;pulse&quot;)</span>
+<span class="fc" id="L572">    val scale by infiniteTransition.animateFloat(</span>
+<span class="fc" id="L573">        initialValue = 1f,</span>
+<span class="fc" id="L574">        targetValue = PULSE_TARGET_SCALE,</span>
+        animationSpec =
+<span class="fc" id="L576">            infiniteRepeatable(</span>
+<span class="fc" id="L577">                animation = tween(PULSE_ANIMATION_DURATION_MS, easing = LinearOutSlowInEasing),</span>
+<span class="fc" id="L578">                repeatMode = RepeatMode.Restart,</span>
+            ),
+<span class="fc" id="L580">        label = &quot;scale&quot;,</span>
+    )
+<span class="fc" id="L582">    val alpha by infiniteTransition.animateFloat(</span>
+<span class="fc" id="L583">        initialValue = PULSE_START_ALPHA,</span>
+<span class="fc" id="L584">        targetValue = 0f,</span>
+        animationSpec =
+<span class="fc" id="L586">            infiniteRepeatable(</span>
+<span class="fc" id="L587">                animation = tween(PULSE_ANIMATION_DURATION_MS, easing = LinearOutSlowInEasing),</span>
+<span class="fc" id="L588">                repeatMode = RepeatMode.Restart,</span>
+            ),
+<span class="fc" id="L590">        label = &quot;alpha&quot;,</span>
+    )
+
+<span class="fc" id="L593">    Box(</span>
+        modifier =
+<span class="fc" id="L595">            modifier</span>
+<span class="fc" id="L596">                .size(80.dp)</span>
+<span class="fc" id="L597">                .clip(CircleShape)</span>
+<span class="fc" id="L598">                .graphicsLayer {</span>
+<span class="fc" id="L599">                    scaleX = scale</span>
+<span class="fc" id="L600">                    scaleY = scale</span>
+<span class="fc" id="L601">                    this.alpha = alpha</span>
+<span class="fc" id="L602">                }.background(color),</span>
+    )
+<span class="fc" id="L604">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
