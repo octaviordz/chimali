@@ -390,6 +390,7 @@ if (-not $SkipExecution) {
         $fidoNotTestFileRemote = "/data/data/$testPackageId/files/chimali-coverage-not-tests.txt"
         $fidoNotTestFileStageRemote = "/data/local/tmp/chimali-coverage-not-tests-$runId.txt"
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileStageRemote) -TimeoutSeconds 20
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'mkdir', '-p', "/data/data/$testPackageId/files") -TimeoutSeconds 10
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cp', $fidoNotTestFileStageRemote, $fidoNotTestFileRemote) -TimeoutSeconds 10
         $remoteFilterStatus = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cat', $fidoNotTestFileRemote) -TimeoutSeconds 10)
         if (($remoteFilterStatus -join "`n").Trim() -cne ($classExclusions -join "`n").Trim()) {
