@@ -340,15 +340,13 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                     }
                 var clientReady = false
                 try {
-                    assertTrue(
-                        "ASUS-to-Mi GATT connection timed out",
-                        connected.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                    )
-                    assertTrue(
-                        "ASUS-to-Mi FIDO service discovery timed out: ${callbackFailure.get()}",
-                        servicesDiscovered.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                    )
-                    assertEquals("ASUS-to-Mi GATT connect failed", null, callbackFailure.get())
+                    check(connected.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        "ASUS-to-Mi GATT connection timed out"
+                    }
+                    check(servicesDiscovered.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        "ASUS-to-Mi FIDO service discovery timed out: ${callbackFailure.get()}"
+                    }
+                    check(callbackFailure.get() == null) { "ASUS-to-Mi GATT connect failed: ${callbackFailure.get()}" }
 
                     val service =
                         requireNotNull(
@@ -364,53 +362,48 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                     val revision =
                         requireNotNull(service.getCharacteristic(FidoBleFraming.REVISION_BITFIELD_CHARACTERISTIC_UUID))
 
-                    assertTrue(
-                        "Could not subscribe ASUS to Mi status notifications",
-                        gatt.setCharacteristicNotification(status, true),
-                    )
+                    check(gatt.setCharacteristicNotification(status, true)) {
+                        "Could not subscribe ASUS to Mi status notifications"
+                    }
                     val cccd = requireNotNull(status.getDescriptor(FidoBleFraming.CCCD_UUID))
                     @Suppress("DEPRECATION")
                     run {
                         cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        assertTrue("ASUS CCCD write was rejected", gatt.writeDescriptor(cccd))
+                        check(gatt.writeDescriptor(cccd)) { "ASUS CCCD write was rejected" }
                     }
-                    assertEquals(
-                        "ASUS CCCD write failed",
-                        BluetoothGatt.GATT_SUCCESS,
-                        descriptorStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                    )
+                    check(
+                        descriptorStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS) ==
+                            BluetoothGatt.GATT_SUCCESS,
+                    ) {
+                        "ASUS CCCD write failed"
+                    }
 
                     @Suppress("DEPRECATION")
                     run {
                         revision.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                         revision.value = byteArrayOf(FidoBleFraming.REVISION_FIDO2)
-                        assertTrue("FIDO2 revision selection was rejected", gatt.writeCharacteristic(revision))
+                        check(gatt.writeCharacteristic(revision)) { "FIDO2 revision selection was rejected" }
                     }
-                    assertEquals(
-                        "FIDO2 revision selection failed",
-                        BluetoothGatt.GATT_SUCCESS,
-                        writeStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                    )
+                    check(
+                        writeStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS) ==
+                            BluetoothGatt.GATT_SUCCESS,
+                    ) {
+                        "FIDO2 revision selection failed"
+                    }
 
                     @Suppress("DEPRECATION")
-                    assertTrue(
-                        "FIDO control-point-length read was rejected",
-                        gatt.readCharacteristic(controlPointLength),
-                    )
+                    check(gatt.readCharacteristic(controlPointLength)) {
+                        "FIDO control-point-length read was rejected"
+                    }
                     val lengthResult = readResults.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    assertEquals(
-                        "ASUS control-point-length read failed",
-                        BluetoothGatt.GATT_SUCCESS,
-                        lengthResult?.first,
-                    )
+                    check(lengthResult?.first == BluetoothGatt.GATT_SUCCESS) { "ASUS control-point-length read failed" }
                     val length = requireNotNull(lengthResult?.second) { "Mi control-point length was missing" }
                     val writeCapacity =
                         ((length[0].toInt() and BYTE_MASK) shl BYTE_SHIFT) or
                             (length[1].toInt() and BYTE_MASK)
-                    assertTrue(
-                        "Invalid FIDO control-point capacity $writeCapacity",
-                        writeCapacity >= BleSessionOwner.MIN_CAPACITY,
-                    )
+                    check(writeCapacity >= BleSessionOwner.MIN_CAPACITY) {
+                        "Invalid FIDO control-point capacity $writeCapacity"
+                    }
                     clientReady = true
                     return AuthenticatedFidoGattClient(
                         gatt,
@@ -477,7 +470,11 @@ class FidoBlePhysicalCorpusClientDeviceTest {
         val packages = setOf(context.packageName, instrumentation.context.packageName)
         val permissions =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                setOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+                setOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                )
             } else {
                 setOf(Manifest.permission.ACCESS_FINE_LOCATION)
             }
