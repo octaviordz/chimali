@@ -66,8 +66,8 @@ class NordicBleAdvertiserController(
                     advertiseData =
                         BleAdvertisingData(
                             serviceUuid = ParcelUuid(serviceUuid),
-                            includeDeviceName = true,
                         ),
+                    scanResponseData = BleAdvertisingData(includeDeviceName = true),
                 )
             val startup = CompletableDeferred<Result<Unit>>()
             val job =
