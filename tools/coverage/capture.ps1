@@ -320,6 +320,8 @@ $deviceAppDataReset = [PSCustomObject]@{
 }
 $fidoNotTestFile = $null
 $fidoNotTestFileRemote = $null
+$fidoNotTestFileStageRemote = $null
+$fidoNotTestPackageId = $null
 if (-not $SkipExecution) {
     Push-Location $RepositoryRoot
     $instrumentationFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notPackage'
@@ -373,6 +375,7 @@ if (-not $SkipExecution) {
         $packageLine = $badging | Where-Object { $_ -match "^package: name='([^']+)'" } | Select-Object -First 1
         if (-not $packageLine -or $packageLine -notmatch "^package: name='([^']+)'") { throw 'Could not determine the FIDO2 test APK package ID.' }
         $testPackageId = $Matches[1]
+        $fidoNotTestPackageId = $testPackageId
         $testInstallOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'install', '-r', '-t', $testApkPath) -TimeoutSeconds 120)
         if (($testInstallOutput -join "`n") -notmatch '(?m)^Success$') {
             throw "Android did not confirm installing the FIDO2 device-test package before staging its filter file: $($testInstallOutput -join "`n")"
@@ -381,14 +384,18 @@ if (-not $SkipExecution) {
         $classExclusions = @($coveragePolicy.required_workload.routine_device_test_class_exclusions.PSObject.Properties[':feature:fido2'].Value | ForEach-Object { $_.class_name })
         $fidoNotTestFile = Join-Path $runDir 'fido2-not-tests.txt'
         Set-Content -LiteralPath $fidoNotTestFile -Value $classExclusions -Encoding Ascii
-        $fidoNotTestFileRemote = "/sdcard/Android/data/$testPackageId/files/chimali-coverage-not-tests.txt"
-        $remoteDirectory = "/sdcard/Android/data/$testPackageId/files"
-        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'mkdir', '-p', $remoteDirectory) -TimeoutSeconds 10
-        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileRemote) -TimeoutSeconds 20
-        $remoteFilterStatus = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'ls', '-l', $fidoNotTestFileRemote) -TimeoutSeconds 10)
-        if (($remoteFilterStatus -join "`n") -notmatch [regex]::Escape([System.IO.Path]::GetFileName($fidoNotTestFileRemote))) {
-            throw "The FIDO2 notTestFile is missing from the test package's app-specific storage: $($remoteFilterStatus -join "`n")"
+        # Stage through /data/local/tmp, then copy as the debuggable test package
+        # into private app storage. API 35 scoped-storage policy denies an app
+        # process access to files adb push creates under /sdcard/Android/data.
+        $fidoNotTestFileRemote = "/data/data/$testPackageId/files/chimali-coverage-not-tests.txt"
+        $fidoNotTestFileStageRemote = "/data/local/tmp/chimali-coverage-not-tests-$runId.txt"
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileStageRemote) -TimeoutSeconds 20
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cp', $fidoNotTestFileStageRemote, $fidoNotTestFileRemote) -TimeoutSeconds 10
+        $remoteFilterStatus = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cat', $fidoNotTestFileRemote) -TimeoutSeconds 10)
+        if (($remoteFilterStatus -join "`n").Trim() -cne ($classExclusions -join "`n").Trim()) {
+            throw "The FIDO2 notTestFile could not be verified in private test-package storage: $($remoteFilterStatus -join "`n")"
         }
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'rm', '-f', $fidoNotTestFileStageRemote) -TimeoutSeconds 10
     } catch {
         Write-CoverageError "Could not install and reset only the shrunkDebug test package before capture: $_"
         exit 2
@@ -441,8 +448,12 @@ if (-not $SkipExecution) {
         }
     } finally {
         if ($fidoNotTestFileRemote) {
-            try { $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'rm', '-f', $fidoNotTestFileRemote) -TimeoutSeconds 10 }
+            try { $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $fidoNotTestPackageId, 'rm', '-f', $fidoNotTestFileRemote) -TimeoutSeconds 10 }
             catch { Write-Warning "Could not remove the temporary Android test-filter file: $_" }
+        }
+        if ($fidoNotTestFileStageRemote) {
+            try { $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'rm', '-f', $fidoNotTestFileStageRemote) -TimeoutSeconds 10 }
+            catch { Write-Warning "Could not remove the staged Android test-filter file: $_" }
         }
         Pop-Location
     }
