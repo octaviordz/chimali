@@ -1015,9 +1015,13 @@ $expectedHarnessFiles = @('tools/coverage/capture.ps1', 'tools/coverage/coverage
         if ([string]::IsNullOrWhiteSpace([string]$exclusion.reason)) { $reasons += "Routine device-test exclusion '$($exclusion.class_name)' must have a reason" }
     }
     $reasons += @(& $checkKeys $Policy.required_workload.routine_device_test_class_exclusions @(':feature:fido2') 'required_workload.routine_device_test_class_exclusions')
-    $expectedRoutineClassExclusions = @('com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest')
+    $expectedRoutineClassExclusions = @(
+        'com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest',
+        'com.chimali.fido2.data.transport.FidoBleAdvertiserDiscoveryDeviceTest',
+        'com.chimali.fido2.data.transport.FidoBlePhysicalCorpusClientDeviceTest'
+    )
     $actualRoutineClassExclusions = @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2' | ForEach-Object { [string]$_.class_name })
-    if (($actualRoutineClassExclusions -join "`n") -cne ($expectedRoutineClassExclusions -join "`n")) { $reasons += 'The routine FIDO2 class exclusions must be exactly the reviewed opt-in two-device stress test in canonical order' }
+    if (($actualRoutineClassExclusions -join "`n") -cne ($expectedRoutineClassExclusions -join "`n")) { $reasons += 'The routine FIDO2 class exclusions must be exactly the reviewed opt-in two-device BLE procedures in canonical order' }
     foreach ($exclusion in @($Policy.required_workload.routine_device_test_class_exclusions.':feature:fido2')) {
         if ([string]::IsNullOrWhiteSpace([string]$exclusion.reason)) { $reasons += "Routine device-test class exclusion '$($exclusion.class_name)' must have a reason" }
     }

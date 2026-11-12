@@ -449,3 +449,7 @@ The owner waiver of T046-T049/T089 and hosted demonstrations remains in force. T
 ## Phase 15: Strict JUnit structural validation
 
 On 2026-10-28, T146's shared parser repair passed 21/21 JUnit parser fixtures, including valid Gradle metadata/output and exact total reconciliation. The production candidate and accepted-baseline entry points each rejected nine malformed retained reports (orphaned, wrapped, and namespaced failure/error/skip outcomes). All coverage PowerShell files parsed and `git diff --check` passed. See implementation evidence §§11.143–11.144. T146 is complete locally after fresh comparable target/candidate captures and production verification under the committed harness; hosted publication/integration remain unverified under the owner waiver.
+
+## Phase 16: Two-device FIDO BLE routine coverage routing
+
+- [X] T147 **HIGH / F067** - Keep dedicated two-device BLE discovery and physical-corpus procedures out of the one-device routine coverage suite while retaining their exact class identities and reasons in the reviewed policy and applied-exclusion evidence. Update the canonical policy validator and fixture policy in lockstep; preserve the existing reconnect-stress exclusion. Verify that the filtered workload records these exclusions and still requires all ordinary FIDO2 device tests. The dedicated BLE procedures remain separately runnable and their Feature 064 evidence is not replaced by routine coverage. per FR-007/016/017/020; plan D.2/D.3; T038/T039/T048/T049 (coordination only).

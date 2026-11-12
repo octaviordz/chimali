@@ -146,6 +146,14 @@
         {
           "class_name": "com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest",
           "reason": "Opt-in two-device stress test; requires a separate active FIDO BLE advertiser and its dedicated reconnect-stress procedure."
+        },
+        {
+          "class_name": "com.chimali.fido2.data.transport.FidoBleAdvertiserDiscoveryDeviceTest",
+          "reason": "Opt-in two-device discovery test; requires a separate active FIDO BLE advertiser and its dedicated discovery procedure."
+        },
+        {
+          "class_name": "com.chimali.fido2.data.transport.FidoBlePhysicalCorpusClientDeviceTest",
+          "reason": "Opt-in two-device authenticated corpus test; requires the ASUS endpoint, a separate GATT central, and its dedicated corpus procedure."
         }
       ]
     },

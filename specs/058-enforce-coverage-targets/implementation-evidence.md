@@ -2602,3 +2602,17 @@ Historical startup verification; the runner was subsequently disabled at the own
 | `limitations` | `integration-ci.ps1` has not run end-to-end because local GitHub CLI authentication is invalid and `git ls-remote` fails; the GitHub connector independently confirmed the live main SHA. No baseline index was changed. Current-harness target capture and a reviewed baseline-comparison/refresh path remain unresolved. |
 | `status` | Candidate capture/floors complete; accepted-target comparison Unverified due incompatible measurement policy. |
 | `artifact_link` | Candidate bundle and decision `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-main-final-2026-11-08\3026b76a-4a15-44fa-ac56-03b523cde305`; accepted index/bundle under sibling `trusted-baseline`; parent Record 247; BLE Record 221. |
+
+### 11.159 Route two-device FIDO BLE procedures out of routine coverage (2026-11-11)
+
+| Field | Evidence |
+|---|---|
+| `requirement` | Routine Feature 058 coverage runs on one API 35+ device. BLE discovery and the authenticated physical corpus require two devices and have dedicated Feature 064 procedures. Routine capture must apply exact, policy-bound class exclusions without weakening the rest of the required FIDO2 suite. |
+| `scope` | `tools/coverage/policy.json`, its validator, the policy fixture, and test workload inventory. Added exact exclusions for `FidoBleAdvertiserDiscoveryDeviceTest` and `FidoBlePhysicalCorpusClientDeviceTest`; retained `FidoBleReconnectStressDeviceTest` and all five controlled Perfetto exclusions. |
+| `revision` | Working changes based on candidate `e7a7a3bd7eac9fdf1c37f23dfe60d086cee6276f`; policy change is not yet committed. |
+| `named_procedure` | `tools/coverage/test-policy.ps1` passed 523/523 fixtures. The canonical policy validator passed when invoked with the absolute reviewed policy path. `git diff --check` passed. A diagnostic direct ASUS connected-suite run outside the trusted coverage wrapper showed the discovery fixture cannot find a remote FIDO advertiser; it also invoked the two-device corpus/stress and Perfetto classes without their required opt-in setup. These exact external-device classes are now excluded from routine capture by policy and remain subject to their separate Feature 064 procedures. |
+| `environment` | Windows 11; ASUS AI2302 Android 15/API35 (`R7AIB7002901AZ3`), Mi Android 10/API29 (`2ac6876`); 2026-11-11. |
+| `expected_observed_result` | Exact filter declarations are policy-validated, included in candidate workload inventories and propagated as AndroidJUnitRunner class exclusions when source exists. Ordinary FIDO2 device coverage remains required. |
+| `limitations` | The full exact-candidate integration capture stopped on the locked ASUS device, with UI tests reporting no Compose hierarchy; the dedicated BLE advertiser was not active for discovery. The device must be awake/unlocked and the two-device test setup must be available before full capture can pass. The accepted baseline index was not changed; hosted publication/integration remains owner-waived. |
+| `status` | Coverage policy routing implemented and offline validation passed. Full exact-candidate capture/comparison remains unverified pending an awake ASUS and the connected workload. |
+| `artifact_link` | Offline policy run: 523/523; current candidate `e7a7a3bd7eac9fdf1c37f23dfe60d086cee6276f`; direct connected-suite JUnit report in the candidate worktree was diagnostic only and was not retained as accepted coverage evidence. |
