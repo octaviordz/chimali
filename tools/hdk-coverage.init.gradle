@@ -36,10 +36,13 @@ gradle.beforeProject { project ->
                     // pairs, so a comma-separated notClass value is truncated to its first
                     // class. AndroidJUnitRunner supports newline-delimited notTestFile instead.
                     def notTestFile = gradle.startParameter.projectProperties.get('coverageFidoNotTestFile')
-                    if (!excludedTestClasses.isEmpty() && !notTestFile) {
+                    def coverageWorkloadRequested = gradle.startParameter.taskNames.any { taskName ->
+                        taskName.endsWith('hdkHostCoverage') || taskName.endsWith('hdkCoverageAnalyze')
+                    }
+                    if (!excludedTestClasses.isEmpty() && coverageWorkloadRequested && !notTestFile) {
                         throw new GradleException('coverageFidoNotTestFile is required for policy-derived FIDO2 class exclusions')
                     }
-                    if (!excludedTestClasses.isEmpty()) runnerArguments.put('notTestFile', notTestFile.toString())
+                    if (!excludedTestClasses.isEmpty() && notTestFile) runnerArguments.put('notTestFile', notTestFile.toString())
                 }
             } as org.gradle.api.Action)
         }
