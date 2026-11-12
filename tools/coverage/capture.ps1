@@ -318,6 +318,8 @@ $deviceAppDataReset = [PSCustomObject]@{
     install_output = $null
     clear_output = $null
 }
+$fidoNotTestFile = $null
+$fidoNotTestFileRemote = $null
 if (-not $SkipExecution) {
     Push-Location $RepositoryRoot
     $instrumentationFilterProperty = 'ORG_GRADLE_PROJECT_android.testInstrumentationRunnerArguments.notPackage'
@@ -332,8 +334,8 @@ if (-not $SkipExecution) {
         $prepareArgs = @('--no-configuration-cache', '-I', $initScript)
         $prepareArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
         $prepareArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
-        $prepareArgs += @(':app:assembleShrunkDebug')
-        Write-Host 'Building the exact shrunkDebug APK before clearing its device data...' -ForegroundColor Cyan
+        $prepareArgs += @(':app:assembleShrunkDebug', ':feature:fido2:assembleAndroidDeviceTest')
+        Write-Host 'Building the exact shrunkDebug APK and FIDO2 device-test APK before device preparation...' -ForegroundColor Cyan
         & .\gradlew.bat @prepareArgs
         if ($LASTEXITCODE -ne 0) {
             throw "Could not build the shrunkDebug APK before the device reset (Gradle exit $LASTEXITCODE)."
@@ -357,6 +359,33 @@ if (-not $SkipExecution) {
         }
         $deviceAppDataReset.clear_output = $clearResult
         $deviceAppDataReset.outcome = 'InstalledAndCleared'
+
+        # AGP's worker argument transport truncates comma-containing values. Put the
+        # policy-derived opt-in class exclusions in AndroidJUnitRunner's newline-based
+        # notTestFile under the test APK's app-specific external-files directory.
+        $testApkPath = Join-Path $RepositoryRoot 'feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk'
+        if (-not (Test-Path -LiteralPath $testApkPath -PathType Leaf)) { throw "FIDO2 Android device-test APK is missing: $testApkPath" }
+        $buildToolsRoot = Join-Path $env:ANDROID_HOME 'build-tools'
+        $aapt = Get-ChildItem -LiteralPath $buildToolsRoot -Directory | Sort-Object { [version]$_.Name } -Descending | ForEach-Object { Join-Path $_.FullName 'aapt.exe' } | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+        if (-not $aapt) { throw "Android build-tools aapt.exe was not found under $buildToolsRoot" }
+        $badging = @(& $aapt dump badging $testApkPath 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "Could not read the FIDO2 test APK package ID: $($badging -join "`n")" }
+        $packageLine = $badging | Where-Object { $_ -match "^package: name='([^']+)'" } | Select-Object -First 1
+        if (-not $packageLine -or $packageLine -notmatch "^package: name='([^']+)'") { throw 'Could not determine the FIDO2 test APK package ID.' }
+        $testPackageId = $Matches[1]
+        $testInstallOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'install', '-r', '-t', $testApkPath) -TimeoutSeconds 120)
+        if (($testInstallOutput -join "`n") -notmatch '(?m)^Success$') {
+            throw "Android did not confirm installing the FIDO2 device-test package before staging its filter file: $($testInstallOutput -join "`n")"
+        }
+        $coveragePolicy = Get-Content -LiteralPath (Join-Path $HarnessRoot 'tools/coverage/policy.json') -Raw | ConvertFrom-Json
+        $classExclusions = @($coveragePolicy.required_workload.routine_device_test_class_exclusions.PSObject.Properties[':feature:fido2'].Value | ForEach-Object { $_.class_name })
+        $fidoNotTestFile = Join-Path $runDir 'fido2-not-tests.txt'
+        Set-Content -LiteralPath $fidoNotTestFile -Value $classExclusions -Encoding Ascii
+        $fidoNotTestFileRemote = "/sdcard/Android/data/$testPackageId/files/chimali-coverage-not-tests.txt"
+        $remoteDirectory = "/sdcard/Android/data/$testPackageId/files"
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'mkdir', '-p', $remoteDirectory) -TimeoutSeconds 10
+        $pushOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileRemote) -TimeoutSeconds 20)
+        if (($pushOutput -join "`n") -notmatch '\bbytes in\b') { throw "Could not push the FIDO2 notTestFile to the test package's app-specific storage: $($pushOutput -join "`n")" }
     } catch {
         Write-CoverageError "Could not install and reset only the shrunkDebug test package before capture: $_"
         exit 2
@@ -393,6 +422,7 @@ if (-not $SkipExecution) {
         $initScript = Join-Path $HarnessRoot "tools/hdk-coverage.init.gradle"
         $gradleArgs = @('--no-configuration-cache', '-I', $initScript)
         $gradleArgs += @('--project-prop', "coverageHarnessRoot=$HarnessRoot")
+        if ($fidoNotTestFileRemote) { $gradleArgs += @('--project-prop', "coverageFidoNotTestFile=$fidoNotTestFileRemote") }
         $gradleArgs += @('--project-prop', 'kotlin.compiler.execution.strategy=in-process')
         if ($changedPathsFile) {
             $gradleArgs += @('--project-prop', "coverageChangedPathsFile=$changedPathsFile")
@@ -407,6 +437,10 @@ if (-not $SkipExecution) {
             Write-Warning "Gradle coverage collection exited with code $LASTEXITCODE"
         }
     } finally {
+        if ($fidoNotTestFileRemote) {
+            try { $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'rm', '-f', $fidoNotTestFileRemote) -TimeoutSeconds 10 }
+            catch { Write-Warning "Could not remove the temporary Android test-filter file: $_" }
+        }
         Pop-Location
     }
 }

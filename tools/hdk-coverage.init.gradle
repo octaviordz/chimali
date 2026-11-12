@@ -32,7 +32,14 @@ gradle.beforeProject { project ->
                 if (variant.name == 'androidMain' && variant.androidTest != null) {
                     def runnerArguments = variant.androidTest.instrumentationRunnerArguments
                     if (!packages.isEmpty()) runnerArguments.put('notPackage', packages.join(','))
-                    if (!excludedTestClasses.isEmpty()) runnerArguments.put('notClass', excludedTestClasses.join(','))
+                    // AGP serializes instrumentation arguments as comma-delimited key/value
+                    // pairs, so a comma-separated notClass value is truncated to its first
+                    // class. AndroidJUnitRunner supports newline-delimited notTestFile instead.
+                    def notTestFile = gradle.startParameter.projectProperties.get('coverageFidoNotTestFile')
+                    if (!excludedTestClasses.isEmpty() && !notTestFile) {
+                        throw new GradleException('coverageFidoNotTestFile is required for policy-derived FIDO2 class exclusions')
+                    }
+                    if (!excludedTestClasses.isEmpty()) runnerArguments.put('notTestFile', notTestFile.toString())
                 }
             } as org.gradle.api.Action)
         }
