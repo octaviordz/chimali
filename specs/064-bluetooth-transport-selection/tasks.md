@@ -268,4 +268,4 @@ The latest full manual ASUS/API35 `hdkCoverageVerify` passed with clean JUnit ou
 
 ## Phase 14: Convergence
 
-- [ ] T051 Run the final connected-device coverage, configured floors and accepted-target raw-count nonregression assessment for the candidate containing T050's Tier 1 changes; record candidate identity, outcomes and limitations in both Feature 064 implementation-evidence files and preserve the hosted waiver per T045, T047 and Constitution V (partial).
+- [X] T051 Run the final connected-device coverage, configured floors and accepted-target raw-count nonregression assessment for the candidate containing T050's Tier 1 changes; record candidate identity, outcomes and limitations in both Feature 064 implementation-evidence files and preserve the hosted waiver per T045, T047 and Constitution V (partial).

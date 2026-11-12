@@ -2959,3 +2959,13 @@
 - **limitations**: The three two-device BLE tests remain separately verified by Records 236/245 and were not part of routine one-device coverage. Candidate publication is Pending and hosted integration Unverified under the current waiver; the hosted runner remains disabled.
 - **status**: BLE T038 complete for local coverage and accepted-target comparison; hosted status remains waived/unverified.
 - **artifact_link**: Candidate run and decision under `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-trusted-index-baseline-2026-11-12\1f7862ac-51f0-464c-8b78-9ea641963ff2`; accepted index and baseline bundle `baselines/current.json` and `runs/78f8ea3f-4c7a-4500-8079-4a315ee9ec7b`; parent Record 279.
+### Record 249: Post-T050 Exact-Candidate BLE Coverage and Accepted-Index Comparison (T038 — Candidate Floors Pass; Comparison Fails)
+
+- **requirement**: BLE T038 / parent T051; capture the candidate containing T050 Tier 1 changes, execute configured coverage workloads, assess floors and accepted-target nonregression, and preserve the hosted waiver.
+- **scope**: Candidate `25fa4b02ed13ed35d617e49c64fedbdab82541bd`, tree `7b2e1175fb164a4157013847cbf70659a966bf28`; declared target `e7918b6e256319b1305536c7815a92f6132ece99`; ASUS_API35; run `bcda61d3-420d-4d55-8bce-c893aa197f36`.
+- **named_procedure**: Trusted coverage capture completed host and required connected-device workloads; verification against the accepted index recorded floors Passed, comparison compatibility Incompatible and regression Failed.
+- **environment**: Windows 11; ASUS_AI2302 / Android 15 / API35 / arm64-v8a; 2026-11-12.
+- **expected_observed_result**: Complete collection and passing suites; FIDO2 instruction coverage 68.26%, branch coverage 62.16%; all configured floors passed.
+- **limitations**: Indexed baseline is bound to target `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not the capture target, lacks trusted same-tree binding to the declared target, and has a different measurement fingerprint. The production verifier also requires the index to be the evidence root's `baselines/current.json`. Therefore no accepted-target nonregression pass is established. Hosted publication/check remains waived and unverified.
+- **status**: Candidate coverage/floors Passed; accepted-target comparison Failed/Incompatible. Parent T051/T047 and BLE T038 remain incomplete for accepted-target nonregression.
+- **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t051-2026-11-12\bcda61d3-420d-4d55-8bce-c893aa197f36`; decision `assessments\bcda61d3-420d-4d55-8bce-c893aa197f36\decision.json`.
