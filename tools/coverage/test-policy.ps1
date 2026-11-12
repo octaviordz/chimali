@@ -695,6 +695,14 @@ foreach ($file in $fixtureFiles) {
                         $fixtureExit = $LASTEXITCODE
                         if ($fixtureExit -eq 0) { $casePassed = $true }
                         else { $errorMsg = "Production promotion lifecycle ($mode) failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                    } elseif ($case.id -in @('PUBLISH_013_OWNER_REVIEWED_SAME_TREE_REFRESH', 'PUBLISH_014_CONCURRENT_REFRESH_INDEX_ADVANCE_REJECTED')) {
+                        $fixtureScript = Join-Path $FixturesDir 'run-publisher-target-refresh-fixture.ps1'
+                        $mode = if ($case.id -eq 'PUBLISH_013_OWNER_REVIEWED_SAME_TREE_REFRESH') { 'success' } else { 'stale-archive-index' }
+                        $fixtureOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $fixtureScript `
+                            -RepositoryRoot ([System.IO.Path]::GetFullPath((Join-Path $ScriptDir '../..'))) -Mode $mode 2>&1)
+                        $fixtureExit = $LASTEXITCODE
+                        if ($fixtureExit -eq 0) { $casePassed = $true }
+                        else { $errorMsg = "Production same-tree target refresh lifecycle ($mode) failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
                     } elseif ($case.id -eq 'PUBLISH_003_INCOMPLETE_PROMOTION_INPUTS_REJECTED') {
                         $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-publisher-promotion-inputs-' + [guid]::NewGuid().ToString('N'))
                         $bundle = Join-Path $tempRoot 'run'
@@ -1861,6 +1869,59 @@ exit 0
                     $fixtureExit = $LASTEXITCODE
                     if ($fixtureExit -eq 0) { $casePassed = $true }
                     else { $errorMsg = "Protected target recapture fixture failed with exit $fixtureExit`: $($fixtureOutput -join ' ')" }
+                }
+                "accepted-target-refresh.json" {
+                    $targetCommit = 'a' * 40
+                    $targetTree = 'b' * 40
+                    $runId = '00000000-0000-4000-8000-000000000701'
+                    $oldRunId = '00000000-0000-4000-8000-000000000702'
+                    $oldIndexDigest = 'c' * 64
+                    $manifest = [PSCustomObject]@{
+                        purpose = 'Comparison'
+                        run_id = $runId
+                        measurement_fingerprint = 'd' * 64
+                        git = [PSCustomObject]@{ source_commit = $targetCommit; target_commit = $targetCommit; source_tree = $targetTree; clean_preflight = $true; clean_postflight = $true }
+                        decisions = [PSCustomObject]@{ collection = 'Complete'; tests = 'Passed'; floors = 'Passed' }
+                        harness = [PSCustomObject]@{ revision = 'e' * 40; clean = $true }
+                    }
+                    $decision = [PSCustomObject]@{
+                        run_id = $runId; manifest_digest = 'f' * 64; baseline_refresh_ready = $true
+                        decisions = [PSCustomObject]@{ collection = 'Complete'; tests = 'Passed'; floors = 'Passed'; baseline_refresh = 'Eligible' }
+                    }
+                    $oldIndex = [PSCustomObject]@{
+                        run_id = $oldRunId; target_commit = $targetCommit; target_tree = $targetTree; tested_tree = $targetTree
+                        bundle_digest = '1' * 64; provenance = 'ArchivedAcceptedRun'
+                    }
+                    $oldBaselineManifest = [PSCustomObject]@{
+                        run_id = $oldRunId; git = [PSCustomObject]@{ source_commit = $targetCommit; source_tree = $targetTree }
+                    }
+                    $review = [PSCustomObject]@{
+                        decision = 'ACCEPT'; review_type = 'AcceptedTargetRefresh'; repository = 'octaviordz/chimali'; authenticated_user = 'octaviordz'; permission = 'admin'
+                        run_id = $runId; manifest_digest = 'f' * 64; bundle_digest = '2' * 64; target_commit = $targetCommit; target_tree = $targetTree
+                        measurement_fingerprint = 'd' * 64; prior_index_digest = $oldIndexDigest; reason = 'Reviewed exact main target profile refresh'
+                    }
+                    switch ([string]$case.id) {
+                        'reject_target_commit_mismatch' { $manifest.git.target_commit = '3' * 40 }
+                        'reject_tree_mismatch' { $manifest.git.source_tree = '4' * 40 }
+                        'reject_incomplete_collection' { $decision.decisions.collection = 'Incomplete' }
+                        'reject_failed_tests' { $decision.decisions.tests = 'Failed' }
+                        'reject_failed_floors' { $decision.decisions.floors = 'Failed' }
+                        'reject_dirty_harness' { $manifest.harness.clean = $false }
+                        'reject_candidate_as_harness' { $manifest.harness.revision = $targetCommit }
+                        'reject_stale_index_digest' { $review.prior_index_digest = '5' * 64 }
+                        'reject_review_manifest_digest' { $review.manifest_digest = '6' * 64 }
+                        'reject_review_bundle_digest' { $review.bundle_digest = '7' * 64 }
+                        'reject_review_target_identity' { $review.target_tree = '8' * 40 }
+                        'reject_unauthorized_actor' { $review.permission = 'read' }
+                        'reject_unaccepted_old_index' { $oldIndex.provenance = 'Candidate' }
+                        'reject_wrong_run_purpose' { $manifest.purpose = 'Candidate' }
+                    }
+                    $refresh = Test-AcceptedTargetRefreshReadiness -Manifest $manifest -Decision $decision -ExistingIndex $oldIndex `
+                        -ExistingBaselineManifest $oldBaselineManifest -ReviewRecord $review -ExpectedRepository 'octaviordz/chimali' `
+                        -AuthenticatedUser 'octaviordz' -ExpectedTargetCommit $targetCommit -ExpectedTargetTree $targetTree `
+                        -ExpectedOldIndexDigest $oldIndexDigest -ActualOldIndexDigest $oldIndexDigest -ActualBundleDigest ('2' * 64)
+                    if ($refresh.IsValid -eq [bool]$case.expected) { $casePassed = $true }
+                    else { $errorMsg = "Expected refresh ready=$($case.expected), got ready=$($refresh.IsValid). Errors: $($refresh.Errors -join '; ')" }
                 }
                 "dispatched-candidate.json" {
                     $fixtureScript = Join-Path $FixturesDir 'run-dispatched-candidate-fixture.ps1'

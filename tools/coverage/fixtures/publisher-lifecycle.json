@@ -61,6 +61,16 @@
       "id": "PUBLISH_012_HISTORICAL_ARCHIVE_BYTES_AND_REF_PRESERVED",
       "description": "Publishing on swe/coverage-evidence preserves exact historical run blobs, receipts, and the original codex archive ref",
       "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_013_OWNER_REVIEWED_SAME_TREE_REFRESH",
+      "description": "A separately verified owner-reviewed target measurement advances the accepted index only for the exact unchanged current tree and preserves the prior run",
+      "expected_valid": true
+    },
+    {
+      "id": "PUBLISH_014_CONCURRENT_REFRESH_INDEX_ADVANCE_REJECTED",
+      "description": "A remote accepted-index advance after review is detected before publication and left untouched",
+      "expected_valid": true
     }
   ]
 }

@@ -54,7 +54,10 @@ param(
     [switch]$RequireInitialBaseline,
 
     [Parameter(Mandatory = $false)]
-    [string]$InitialMainCommit
+    [string]$InitialMainCommit,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$TargetBaselineRefresh
 )
 
 $ErrorActionPreference = "Stop"
@@ -827,12 +830,23 @@ $regressionStatus = "NotApplicable"
 $comparisonCompatibility = "Missing"
 
 if ($manifest.purpose -eq "Comparison" -or $manifest.purpose -eq "Candidate") {
-    if (-not $ComparisonBundle) {
+    if (-not $ComparisonBundle -and -not $TargetBaselineRefresh) {
         $regressionPassed = $false
         $regressionStatus = "Failed"
         $comparisonCompatibility = "Missing"
         $reasons += "Baseline comparison bundle is required for purpose '$($manifest.purpose)' but was not provided"
     }
+}
+
+if ($TargetBaselineRefresh -and ($manifest.purpose -cne 'Comparison' -or $ComparisonBundle)) {
+    $reasons += 'Target baseline refresh verification requires a Comparison run without a comparison bundle'
+    $regressionPassed = $false
+    $regressionStatus = 'Failed'
+    $comparisonCompatibility = 'Incompatible'
+}
+if ($TargetBaselineRefresh -and $comparisonCompatibility -eq 'Missing') {
+    $comparisonCompatibility = 'NotApplicable'
+    $regressionStatus = 'NotApplicable'
 }
 
 if ($ComparisonBundle) {
@@ -967,13 +981,31 @@ $finalFloorsStatus = if ($floorPassed) { "Passed" } else { "Failed" }
 $isCollectionComplete = ($finalCollectionStatus -eq "Complete")
 $isTestsPassed = ($finalTestsStatus -eq "Passed")
 $isRegressionPassed = ($regressionStatus -eq "Passed" -or $regressionStatus -eq "NotApplicable")
+$baselineRefreshReady = $false
+if ($TargetBaselineRefresh) {
+    $refreshErrors = [System.Collections.Generic.List[string]]::new()
+    if ($manifest.purpose -cne 'Comparison' -or [string]$manifest.git.source_commit -cne [string]$manifest.git.target_commit) {
+        $refreshErrors.Add('Refresh run must measure the exact target commit as its source')
+    }
+    if (-not $manifest.git.clean_preflight -or -not $manifest.git.clean_postflight -or -not $manifest.harness.clean -or
+        [string]$manifest.harness.revision -ceq [string]$manifest.git.source_commit) {
+        $refreshErrors.Add('Refresh run requires a clean checkout and an independently pinned trusted harness')
+    }
+    if ($finalCollectionStatus -ne 'Complete' -or -not $isTestsPassed -or -not $floorPassed) {
+        $refreshErrors.Add('Refresh run requires complete collection, passing required tests, and passing policy floors')
+    }
+    if ($reasons.Count -gt 0) { $refreshErrors.AddRange([string[]]$reasons) }
+    $baselineRefreshReady = ($refreshErrors.Count -eq 0)
+    if (-not $baselineRefreshReady) { $reasons += @($refreshErrors) }
+}
 
 # Reject incomplete run even if counters exceed floors
-$overallSuccess = ($finalFloorsStatus -eq "Passed" -and $isCollectionComplete -and $isTestsPassed -and $isRegressionPassed)
+$overallSuccess = (-not $TargetBaselineRefresh -and $finalFloorsStatus -eq "Passed" -and $isCollectionComplete -and $isTestsPassed -and $isRegressionPassed)
 
 $manifestDigest = Get-FileSha256 -Path $manifestPath
 
 $decisionObject = [PSCustomObject]@{
+    decision_type = if ($TargetBaselineRefresh) { 'TargetBaselineRefresh' } else { 'CandidateIntegration' }
     run_id = $manifest.run_id
     policy_id = $policy.policy_id
     manifest_digest = $manifestDigest
@@ -984,9 +1016,11 @@ $decisionObject = [PSCustomObject]@{
         floors = $finalFloorsStatus
         comparison_compatibility = $comparisonCompatibility
         regression = $regressionStatus
+        baseline_refresh = if ($TargetBaselineRefresh -and $baselineRefreshReady) { 'Eligible' } elseif ($TargetBaselineRefresh) { 'Failed' } else { 'NotApplicable' }
         publication = if ($manifest.decisions -and $manifest.decisions.publication) { $manifest.decisions.publication } else { "Pending" }
-        integration = if ($overallSuccess) { "Unverified" } else { "Failed" }
+        integration = if ($TargetBaselineRefresh -or $overallSuccess) { "Unverified" } else { "Failed" }
     }
+    baseline_refresh_ready = $baselineRefreshReady
     overall_passed = $overallSuccess
     unmet_reasons = $reasons
     modules = $moduleDecisions
@@ -1028,6 +1062,8 @@ $mdContent = @"
 - **Policy**: $($policy.policy_id)
 - **Evaluated**: $($decisionObject.evaluated_at)
 - **Overall Result**: $(if ($overallSuccess) { "✓ PASS" } else { "✗ FAIL" })
+- **Decision Type**: $($decisionObject.decision_type)
+- **Target Refresh Eligibility**: $($decisionObject.decisions.baseline_refresh)
 
 ## Decisions
 | Dimension | Status |
@@ -1049,6 +1085,10 @@ Set-Content -Path $decisionMdPath -Value $mdContent -Encoding utf8
 
 Write-Host "Verification complete. Decision written to $decisionJsonPath and $decisionMdPath" -ForegroundColor $(if ($overallSuccess) { "Green" } else { "Yellow" })
 
+if ($TargetBaselineRefresh) {
+    if (-not $baselineRefreshReady) { exit 1 }
+    exit 0
+}
 if (-not $overallSuccess) {
     exit 1
 }

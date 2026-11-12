@@ -1,0 +1,21 @@
+{
+  "fixture_id": "ACCEPTED_TARGET_REFRESH_001",
+  "description": "An owner-reviewed target measurement may replace an incompatible accepted profile only for the exact unchanged live target and only with complete passing evidence.",
+  "cases": [
+    { "id": "same_tree_refresh_eligible", "expected": true },
+    { "id": "reject_target_commit_mismatch", "expected": false },
+    { "id": "reject_tree_mismatch", "expected": false },
+    { "id": "reject_incomplete_collection", "expected": false },
+    { "id": "reject_failed_tests", "expected": false },
+    { "id": "reject_failed_floors", "expected": false },
+    { "id": "reject_dirty_harness", "expected": false },
+    { "id": "reject_candidate_as_harness", "expected": false },
+    { "id": "reject_stale_index_digest", "expected": false },
+    { "id": "reject_review_manifest_digest", "expected": false },
+    { "id": "reject_review_bundle_digest", "expected": false },
+    { "id": "reject_review_target_identity", "expected": false },
+    { "id": "reject_unauthorized_actor", "expected": false },
+    { "id": "reject_unaccepted_old_index", "expected": false },
+    { "id": "reject_wrong_run_purpose", "expected": false }
+  ]
+}

@@ -24,6 +24,9 @@
 .PARAMETER PromoteManualBaseline
     Validate authenticated review and actual merge identities, rerun the sealed
     assessment, then compare-and-swap the accepted index without hosted-event data.
+.PARAMETER RefreshAcceptedTarget
+    Refresh an accepted target measurement only for the unchanged current main tree,
+    after independent complete verification and an authenticated owner review.
 .PARAMETER IntegratedCommit
     Commit SHA of the integrated candidate.
 .PARAMETER IntegratedTree
@@ -51,11 +54,20 @@ param(
 
     [switch]$PromoteManualBaseline,
 
+    [switch]$RefreshAcceptedTarget,
+
+    [Parameter(Mandatory = $false)]
+    [string]$TargetRefreshReviewRecordPath,
+
     [Parameter(Mandatory = $false)]
     [string]$ManualPromotionRecordPath,
 
     [Parameter(Mandatory = $false)]
     [string]$EvidenceRoot,
+
+    [Parameter(Mandatory = $false)]
+    [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
+    [string]$Repository,
 
     [Parameter(Mandatory = $false)]
     [string]$VerificationHarnessRoot,
@@ -171,15 +183,24 @@ if (-not $runId) {
     Write-CoverageError "manifest.json is missing run_id"
     exit 2
 }
-$promotionModes = @($PromoteAsAcceptedTarget, $AcceptInitialBaseline, $PromoteManualBaseline)
+$promotionModes = @($PromoteAsAcceptedTarget, $AcceptInitialBaseline, $PromoteManualBaseline, $RefreshAcceptedTarget)
 if (@($promotionModes | Where-Object { $_ }).Count -gt 1) {
-    Write-CoverageError 'Hosted-event, initial-baseline, and manual baseline promotion modes are mutually exclusive.'
+    Write-CoverageError 'Hosted-event, initial-baseline, manual promotion, and accepted-target refresh modes are mutually exclusive.'
     exit 3
 }
 if ($PromoteManualBaseline -and ($manifest.purpose -cne 'Candidate' -or
     -not $ManualPromotionRecordPath -or -not (Test-Path -LiteralPath $ManualPromotionRecordPath -PathType Leaf) -or
     -not $EvidenceRoot -or -not (Test-Path -LiteralPath $EvidenceRoot -PathType Container))) {
     Write-CoverageError 'Manual baseline promotion requires a Candidate run, immutable manual-promotion record, and existing external EvidenceRoot.'
+    exit 3
+}
+if ($RefreshAcceptedTarget -and ($manifest.purpose -cne 'Comparison' -or
+    -not $TargetRefreshReviewRecordPath -or -not (Test-Path -LiteralPath $TargetRefreshReviewRecordPath -PathType Leaf) -or
+    -not $EvidenceRoot -or -not (Test-Path -LiteralPath $EvidenceRoot -PathType Container) -or
+    -not $AcceptedBaselineIndexPath -or -not (Test-Path -LiteralPath $AcceptedBaselineIndexPath -PathType Leaf) -or
+    -not $Repository -or
+    -not $VerificationHarnessRoot -or -not (Test-Path -LiteralPath $VerificationHarnessRoot -PathType Container))) {
+    Write-CoverageError 'Accepted-target refresh requires a Comparison run, external evidence root, current index, immutable owner review, and explicit trusted harness.'
     exit 3
 }
 if ($AcceptInitialBaseline -and ($manifest.purpose -cne 'Initial' -or
@@ -446,6 +467,121 @@ try {
 $manualPromotion = $null
 $manualAssessmentRecord = $null
 $manualPromotionReview = $null
+$targetRefresh = $null
+if ($RefreshAcceptedTarget) {
+    try {
+        $EvidenceRoot = [System.IO.Path]::GetFullPath($EvidenceRoot)
+        $AcceptedBaselineIndexPath = [System.IO.Path]::GetFullPath($AcceptedBaselineIndexPath)
+        $TargetRefreshReviewRecordPath = [System.IO.Path]::GetFullPath($TargetRefreshReviewRecordPath)
+        $VerificationHarnessRoot = [System.IO.Path]::GetFullPath($VerificationHarnessRoot)
+        $expectedIndexPath = [System.IO.Path]::GetFullPath((Join-Path (Join-Path $EvidenceRoot 'baselines') 'current.json'))
+        if ($AcceptedBaselineIndexPath -cne $expectedIndexPath) { throw 'AcceptedBaselineIndexPath must be EvidenceRoot/baselines/current.json.' }
+        if (Test-CoveragePathWithinRoot -Path $TargetRefreshReviewRecordPath -Root $canonicalBundle) { throw 'Target refresh review record must be outside the sealed run bundle.' }
+        if ($archiveRepository -ine $Repository) {
+            throw "Authenticated repository identity '$Repository' must match configured archive remote '$archiveRepository'."
+        }
+
+        $reviewRecord = Read-SafeJson -Path $TargetRefreshReviewRecordPath
+        $reviewRecordDigest = Get-FileSha256 -Path $TargetRefreshReviewRecordPath
+        if (-not (Test-CoveragePathWithinRoot -Path $TargetRefreshReviewRecordPath -Root (Join-Path (Join-Path $EvidenceRoot 'reviews') 'baseline-refresh')) -or
+            (Split-Path -Leaf (Split-Path -Parent $TargetRefreshReviewRecordPath)) -cne $runId) {
+            throw 'Owner review must be retained under this run ID in the evidence root baseline-refresh review store.'
+        }
+        $currentIndex = Read-SafeJson -Path $AcceptedBaselineIndexPath
+        $currentIndexDigest = Get-FileSha256 -Path $AcceptedBaselineIndexPath
+        $oldBundlePath = [System.IO.Path]::GetFullPath((Join-Path $EvidenceRoot ([string]$currentIndex.bundle_path)))
+        $evidencePrefix = $EvidenceRoot.TrimEnd('\','/') + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $oldBundlePath.StartsWith($evidencePrefix,[System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath $oldBundlePath -PathType Container) -or
+            (Get-CoverageBundleDigest -BundlePath $oldBundlePath) -cne [string]$currentIndex.bundle_digest) {
+            throw 'Accepted historical bundle is absent or does not match its immutable index digest.'
+        }
+        $oldManifest = Read-SafeJson -Path (Join-Path $oldBundlePath 'manifest.json')
+
+        $ghAuth = @(& gh auth status 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Authenticated GitHub CLI access is required to publish an accepted target refresh.' }
+        $userOutput = @(& gh api user 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw "Unable to resolve authenticated GitHub user: $($userOutput -join ' ')" }
+        $authenticatedUser = [string](($userOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).login
+        $repoOutput = @(& gh api "repos/$Repository" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve repository owner for the target refresh.' }
+        $repositoryInfo = ($repoOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30
+        $permissionOutput = @(& gh api "repos/$Repository/collaborators/$authenticatedUser/permission" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to revalidate the target refresh reviewer permission.' }
+        $permission = [string](($permissionOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).permission
+        if ($authenticatedUser -cne [string]$repositoryInfo.owner.login -or $permission -cne 'admin') {
+            throw 'Publishing a refreshed accepted target requires the authenticated repository owner with admin access.'
+        }
+        if ([string]$reviewRecord.authenticated_user -cne $authenticatedUser -or [string]$reviewRecord.permission -cne 'admin' -or
+            [string]$reviewRecord.actor.authenticated_user -cne $authenticatedUser -or
+            [string]$reviewRecord.actor.permission -cne 'admin') {
+            throw 'The authenticated publisher must match the owner who accepted this target refresh.'
+        }
+        $mainOutput = @(& gh api "repos/$Repository/branches/main" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve live main for target refresh publication.' }
+        $mainCommit = [string](($mainOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).commit.sha
+        $mainCommitOutput = @(& gh api "repos/$Repository/git/commits/$mainCommit" 2>&1)
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to resolve live main tree for target refresh publication.' }
+        $mainTree = [string](($mainCommitOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).tree.sha
+
+        $harnessCommitOutput = @(& git -C $VerificationHarnessRoot rev-parse --verify 'HEAD^{commit}' 2>$null)
+        $harnessCommit = if ($harnessCommitOutput.Count -eq 1) { ([string]$harnessCommitOutput[0]).Trim() } else { '' }
+        $harnessCheck = Test-ManualVerificationHarness -Root $VerificationHarnessRoot -ExpectedCommit ([string]$manifest.harness.revision) -CandidateCommit $testedCommit
+        if (-not $harnessCheck.IsValid -or $harnessCommit -ceq $testedCommit) { throw "Trusted verification harness is invalid: $($harnessCheck.Errors -join '; ')" }
+        $trustedVerifier = Join-Path $VerificationHarnessRoot 'tools/coverage/verify.ps1'
+        $trustedPolicy = Join-Path $VerificationHarnessRoot 'tools/coverage/policy.json'
+        if (-not (Test-Path -LiteralPath $trustedVerifier -PathType Leaf) -or -not (Test-Path -LiteralPath $trustedPolicy -PathType Leaf)) {
+            throw 'Trusted harness is missing its verifier or policy.'
+        }
+        $verifyRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('coverage-target-refresh-publish-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $verifyRoot -Force | Out-Null
+        try {
+            $verifyOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $trustedVerifier -RunBundle $RunBundle `
+                -PolicyPath $trustedPolicy -OutputDirectory $verifyRoot -TargetBaselineRefresh 2>&1)
+            $verifyExit = $LASTEXITCODE
+            $decisionPath = Join-Path $verifyRoot 'decision.json'
+            if ($verifyExit -ne 0 -or -not (Test-Path -LiteralPath $decisionPath -PathType Leaf)) {
+                throw "Independent trusted target-refresh verification failed: $($verifyOutput -join ' ')"
+            }
+            $refreshDecision = Read-SafeJson -Path $decisionPath
+            $refreshDecisionDigest = Get-FileSha256 -Path $decisionPath
+        } finally {
+            $canonicalVerifyRoot = [System.IO.Path]::GetFullPath($verifyRoot)
+            $canonicalTempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\','/')
+            if ([System.IO.Path]::GetDirectoryName($canonicalVerifyRoot) -ne $canonicalTempRoot -or [System.IO.Path]::GetFileName($canonicalVerifyRoot) -notlike 'coverage-target-refresh-publish-*') {
+                throw "Refusing to remove unexpected target refresh verification directory: $canonicalVerifyRoot"
+            }
+            if (Test-Path -LiteralPath $canonicalVerifyRoot) { [System.IO.Directory]::Delete($canonicalVerifyRoot,$true) }
+        }
+        $refreshCheck = Test-AcceptedTargetRefreshReadiness -Manifest $manifest -Decision $refreshDecision `
+            -ExistingIndex $currentIndex -ExistingBaselineManifest $oldManifest -ReviewRecord $reviewRecord `
+            -ExpectedRepository $Repository -AuthenticatedUser $authenticatedUser -ExpectedTargetCommit $mainCommit -ExpectedTargetTree $mainTree `
+            -ExpectedOldIndexDigest ([string]$reviewRecord.prior_index_digest) -ActualOldIndexDigest $currentIndexDigest -ActualBundleDigest (Get-CoverageBundleDigest -BundlePath $RunBundle)
+        if (-not $refreshCheck.IsValid) { throw "Target refresh readiness failed: $($refreshCheck.Errors -join '; ')" }
+        if ([string]$reviewRecord.verifier_decision_digest -notmatch '^[0-9a-fA-F]{64}$' -or
+            [string]$reviewRecord.verifier_decision_path -notmatch "^assessments/$([regex]::Escape($runId))/target-refresh-verification/decision\.json$") {
+            throw 'Owner review is missing its retained trusted verifier decision binding.'
+        }
+        $reviewedDecisionPath = Join-Path $EvidenceRoot ([string]$reviewRecord.verifier_decision_path)
+        if (-not (Test-CoveragePathWithinRoot -Path $reviewedDecisionPath -Root $EvidenceRoot) -or
+            -not (Test-Path -LiteralPath $reviewedDecisionPath -PathType Leaf) -or
+            (Get-FileSha256 -Path $reviewedDecisionPath) -cne [string]$reviewRecord.verifier_decision_digest) {
+            throw 'The owner-reviewed verifier decision is missing or has changed.'
+        }
+        $reviewedDecision = Read-SafeJson -Path $reviewedDecisionPath
+        if ($reviewedDecision.baseline_refresh_ready -ne $true -or $reviewedDecision.run_id -cne $runId -or
+            $reviewedDecision.manifest_digest -cne $manifestDigest) { throw 'Retained owner-reviewed verifier decision does not bind this eligible run.' }
+        $targetRefresh = [PSCustomObject]@{
+            index = $currentIndex; index_digest = $currentIndexDigest; prior_run_id = [string]$currentIndex.run_id
+            target_commit = $mainCommit; target_tree = $mainTree; review = $reviewRecord; review_digest = $reviewRecordDigest
+            decision = $refreshDecision; decision_digest = $refreshDecisionDigest; decision_path = $decisionPath
+            decision_relative_path = [System.IO.Path]::GetRelativePath($EvidenceRoot,$reviewedDecisionPath).Replace('\\','/')
+        }
+    } catch {
+        Write-CoverageError "Accepted target refresh validation failed: $_"
+        exit 1
+    }
+}
 if ($PromoteManualBaseline) {
     $ManualPromotionRecordPath = [System.IO.Path]::GetFullPath($ManualPromotionRecordPath)
     $EvidenceRoot = [System.IO.Path]::GetFullPath($EvidenceRoot)
@@ -702,6 +838,29 @@ try {
         exit 1
     }
 
+    $refreshAcceptanceRecordPath = $null
+    $refreshAcceptanceRecordDigest = $null
+    if ($RefreshAcceptedTarget) {
+        $archiveIndexPath = Join-Path (Join-Path $tempWorktree 'baselines') 'current.json'
+        if (-not (Test-Path -LiteralPath $archiveIndexPath -PathType Leaf) -or
+            (Get-FileSha256 -Path $archiveIndexPath) -cne [string]$targetRefresh.index_digest) {
+            Write-CoverageError 'Archived accepted index changed since owner review; refusing a lost update.'
+            exit 1
+        }
+        $archiveIndex = Read-SafeJson -Path $archiveIndexPath
+        if ([string]$archiveIndex.run_id -cne [string]$targetRefresh.prior_run_id -or
+            [string]$archiveIndex.bundle_path -cne [string]$targetRefresh.index.bundle_path) {
+            Write-CoverageError 'Archived accepted index identity differs from the index reviewed for refresh.'
+            exit 1
+        }
+        $archiveOldBundle = Join-Path $tempWorktree ([string]$archiveIndex.bundle_path)
+        if (-not (Test-Path -LiteralPath $archiveOldBundle -PathType Container) -or
+            (Get-CoverageBundleDigest -BundlePath $archiveOldBundle) -cne [string]$archiveIndex.bundle_digest) {
+            Write-CoverageError 'Archived accepted baseline bundle is missing or fails its recorded digest.'
+            exit 1
+        }
+    }
+
     # New assessments append their bundle. Manual promotion reuses the exact
     # previously archived bundle and only appends review/promotion metadata.
     if (-not $PromoteManualBaseline) {
@@ -743,6 +902,48 @@ try {
         $initialAcceptanceRecordPath = Join-Path $archiveAssessmentDir 'initial-baseline-acceptance.json'
         $initialAcceptanceRecord | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $initialAcceptanceRecordPath -Encoding utf8
         $initialAcceptanceRecordDigest = Get-FileSha256 -Path $initialAcceptanceRecordPath
+    }
+    if ($RefreshAcceptedTarget) {
+        $reviewArchivePath = Join-Path $archiveAssessmentDir 'target-refresh-review.json'
+        if (Test-Path -LiteralPath $reviewArchivePath) { Write-CoverageError 'Target refresh review archive path is immutable and already exists.'; exit 1 }
+        Copy-Item -LiteralPath $TargetRefreshReviewRecordPath -Destination $reviewArchivePath
+        $reviewedDecisionArchiveDirectory = Join-Path $archiveAssessmentDir 'target-refresh-verification'
+        New-Item -ItemType Directory -Path $reviewedDecisionArchiveDirectory -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $EvidenceRoot ([string]$targetRefresh.review.verifier_decision_path)) `
+            -Destination (Join-Path $reviewedDecisionArchiveDirectory 'decision.json')
+        if ((Get-FileSha256 -Path $reviewArchivePath) -cne [string]$targetRefresh.review_digest -or
+            (Get-FileSha256 -Path (Join-Path $reviewedDecisionArchiveDirectory 'decision.json')) -cne [string]$targetRefresh.review.verifier_decision_digest) {
+            Write-CoverageError 'Owner review or its verifier decision changed during publication staging.'
+            exit 1
+        }
+        $publisherDecisionArchivePath = Join-Path $archiveAssessmentDir 'publisher-verification-decision.json'
+        $targetRefresh.decision | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $publisherDecisionArchivePath -Encoding utf8
+        $refreshAcceptanceRecord = [PSCustomObject]@{
+            schema_version = '1.0'
+            review_type = 'AcceptedTargetRefresh'
+            run_id = $runId
+            prior_run_id = [string]$targetRefresh.prior_run_id
+            accepted_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            repository = $Repository
+            authenticated_owner = [string]$targetRefresh.review.authenticated_user
+            reviewer_permission = [string]$targetRefresh.review.permission
+            target_commit = [string]$targetRefresh.target_commit
+            target_tree = [string]$targetRefresh.target_tree
+            measurement_fingerprint = [string]$manifest.measurement_fingerprint
+            prior_index_digest = [string]$targetRefresh.index_digest
+            review_record_path = "assessments/$runId/target-refresh-review.json"
+            review_record_digest = Get-FileSha256 -Path $reviewArchivePath
+            review_verifier_decision_path = "assessments/$runId/target-refresh-verification/decision.json"
+            review_verifier_decision_digest = Get-FileSha256 -Path (Join-Path $reviewedDecisionArchiveDirectory 'decision.json')
+            publisher_verifier_decision_path = "assessments/$runId/publisher-verification-decision.json"
+            publisher_verifier_decision_digest = Get-FileSha256 -Path $publisherDecisionArchivePath
+            publisher_verification_harness = [string]$manifest.harness.revision
+            hosted_check = 'Unverified'
+            reason = [string]$targetRefresh.review.reason
+        }
+        $refreshAcceptanceRecordPath = Join-Path $archiveAssessmentDir 'target-refresh-acceptance.json'
+        $refreshAcceptanceRecord | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $refreshAcceptanceRecordPath -Encoding utf8
+        $refreshAcceptanceRecordDigest = Get-FileSha256 -Path $refreshAcceptanceRecordPath
     }
     $archiveRepository = $remoteUri.AbsolutePath.Trim('/') -replace '\.git$',''
     $reportUrl = "https://github.com/$archiveRepository/blob/$EvidenceBranch/runs/$runId/summary.md"
@@ -825,6 +1026,32 @@ try {
         }
         $acceptedIndex | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $acceptedIndexPath -Encoding utf8
     }
+    if ($RefreshAcceptedTarget) {
+        $acceptedIndexPath = Join-Path (Join-Path $tempWorktree 'baselines') 'current.json'
+        if ((Get-FileSha256 -Path $acceptedIndexPath) -cne [string]$targetRefresh.index_digest) {
+            Write-CoverageError 'Accepted baseline index changed before refresh update; refusing a lost update.'
+            exit 1
+        }
+        $acceptedIndex = [PSCustomObject]@{
+            tested_commit = [string]$manifest.git.source_commit
+            integrated_commit = [string]$targetRefresh.target_commit
+            target_tree = [string]$targetRefresh.target_tree
+            tested_tree = [string]$manifest.git.source_tree
+            target_commit = [string]$targetRefresh.target_commit
+            run_id = $runId
+            archive_branch = $EvidenceBranch
+            bundle_path = "runs/$runId"
+            bundle_digest = $bundleDigest
+            prior_run_id = [string]$targetRefresh.prior_run_id
+            prior_index_digest = [string]$targetRefresh.index_digest
+            refresh_record_path = "assessments/$runId/target-refresh-acceptance.json"
+            refresh_record_digest = $refreshAcceptanceRecordDigest
+            refresh_method = 'OwnerReviewedSameTreeMeasurementRefresh'
+            promoted_at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            provenance = 'MeasuredAcceptedTarget'
+        }
+        $acceptedIndex | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $acceptedIndexPath -Encoding utf8
+    }
     if ($PromoteAsAcceptedTarget) {
         if (-not $IntegratedTree) {
             Write-CoverageError "IntegratedTree is required when promoting as accepted target"
@@ -857,6 +1084,24 @@ try {
             provenance = "ArchivedAcceptedRun"
         }
         $acceptedIndex | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $baselinesDir "current.json") -Encoding utf8
+    }
+
+    if ($RefreshAcceptedTarget) {
+        $latestMainOutput = @(& gh api "repos/$Repository/branches/main" 2>&1)
+        if ($LASTEXITCODE -ne 0) { Write-CoverageError 'Unable to revalidate live main immediately before archive commit.'; exit 1 }
+        $latestMainCommit = [string](($latestMainOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).commit.sha
+        $latestMainCommitOutput = @(& gh api "repos/$Repository/git/commits/$latestMainCommit" 2>&1)
+        if ($LASTEXITCODE -ne 0) { Write-CoverageError 'Unable to revalidate live main tree immediately before archive commit.'; exit 1 }
+        $latestMainTree = [string](($latestMainCommitOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).tree.sha
+        if ($latestMainCommit -cne [string]$targetRefresh.target_commit -or $latestMainTree -cne [string]$targetRefresh.target_tree) {
+            Write-CoverageError 'Protected main advanced or changed tree during target refresh; refusing to publish a stale accepted index.'
+            exit 1
+        }
+        $latestPermissionOutput = @(& gh api "repos/$Repository/collaborators/$authenticatedUser/permission" 2>&1)
+        if ($LASTEXITCODE -ne 0 -or [string](($latestPermissionOutput -join [Environment]::NewLine) | ConvertFrom-Json -Depth 30).permission -cne 'admin') {
+            Write-CoverageError 'Owner admin permission changed before target refresh archive commit.'
+            exit 1
+        }
     }
 
     # Commit to evidence branch (bypass product build pre-commit hook since evidence branch contains only archive runs)
@@ -1061,6 +1306,17 @@ try {
         $receipt | Add-Member -MemberType NoteProperty -Name 'integrated_commit' -Value ([string]$IntegratedCommit)
         $receipt | Add-Member -MemberType NoteProperty -Name 'integrated_tree' -Value ([string]$IntegratedTree)
         $receipt | Add-Member -MemberType NoteProperty -Name 'github_review_id' -Value ([string]$manualPromotion.github_review_id)
+        $receipt | Add-Member -MemberType NoteProperty -Name 'hosted_check' -Value 'Unverified'
+    }
+    if ($RefreshAcceptedTarget) {
+        $receipt | Add-Member -MemberType NoteProperty -Name 'promoted_as_accepted_target' -Value $true
+        $receipt | Add-Member -MemberType NoteProperty -Name 'refresh_method' -Value 'OwnerReviewedSameTreeMeasurementRefresh'
+        $receipt | Add-Member -MemberType NoteProperty -Name 'prior_run_id' -Value ([string]$targetRefresh.prior_run_id)
+        $receipt | Add-Member -MemberType NoteProperty -Name 'prior_index_digest' -Value ([string]$targetRefresh.index_digest)
+        $receipt | Add-Member -MemberType NoteProperty -Name 'refresh_record_path' -Value "assessments/$runId/target-refresh-acceptance.json"
+        $receipt | Add-Member -MemberType NoteProperty -Name 'refresh_record_digest' -Value $refreshAcceptanceRecordDigest
+        $receipt | Add-Member -MemberType NoteProperty -Name 'integrated_commit' -Value ([string]$targetRefresh.target_commit)
+        $receipt | Add-Member -MemberType NoteProperty -Name 'integrated_tree' -Value ([string]$targetRefresh.target_tree)
         $receipt | Add-Member -MemberType NoteProperty -Name 'hosted_check' -Value 'Unverified'
     }
     $receipt | ConvertTo-Json -Depth 5 | Set-Content -Path $receiptTarget -Encoding utf8

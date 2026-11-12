@@ -2785,6 +2785,75 @@ function Test-AcceptedBaselineIndex {
     return @{ IsValid = ($errors.Count -eq 0); Errors = $errors }
 }
 
+function Test-AcceptedTargetRefreshReadiness {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)]$Decision,
+        [Parameter(Mandatory = $true)]$ExistingIndex,
+        [Parameter(Mandatory = $true)]$ExistingBaselineManifest,
+        [Parameter(Mandatory = $true)]$ReviewRecord,
+        [Parameter(Mandatory = $true)][string]$ExpectedRepository,
+        [Parameter(Mandatory = $true)][string]$AuthenticatedUser,
+        [Parameter(Mandatory = $true)][string]$ExpectedTargetCommit,
+        [Parameter(Mandatory = $true)][string]$ExpectedTargetTree,
+        [Parameter(Mandatory = $true)][string]$ExpectedOldIndexDigest,
+        [Parameter(Mandatory = $true)][string]$ActualOldIndexDigest,
+        [Parameter(Mandatory = $true)][string]$ActualBundleDigest
+    )
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $runId = [string]$Manifest.run_id
+    $sourceCommit = [string]$Manifest.git.source_commit
+    $sourceTree = [string]$Manifest.git.source_tree
+    $fingerprint = [string]$Manifest.measurement_fingerprint
+    if ($Manifest.purpose -cne 'Comparison') { $errors.Add('Accepted-target refresh requires a target Comparison run') }
+    if ($ExpectedTargetCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or
+        $ExpectedTargetTree -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or
+        $sourceCommit -cne $ExpectedTargetCommit -or [string]$Manifest.git.target_commit -cne $ExpectedTargetCommit -or $sourceTree -cne $ExpectedTargetTree) {
+        $errors.Add('Refresh measurement must bind source and target to the exact live main commit and tree')
+    }
+    if ([string]$ExistingIndex.target_commit -cne $ExpectedTargetCommit -or
+        [string]$ExistingIndex.target_tree -cne $ExpectedTargetTree -or
+        [string]$ExistingIndex.tested_tree -cne $ExpectedTargetTree -or
+        [string]$ExistingIndex.provenance -notin @('ArchivedAcceptedRun','MeasuredAcceptedTarget')) {
+        $errors.Add('Refresh can replace only a baseline for the same accepted main commit and tree')
+    }
+    if (-not $ExistingIndex.run_id -or [string]$ExistingBaselineManifest.run_id -cne [string]$ExistingIndex.run_id -or
+        [string]$ExistingBaselineManifest.git.source_tree -cne $ExpectedTargetTree) {
+        $errors.Add('Current accepted index must bind an existing immutable baseline measured on the same tree')
+    }
+    if ($fingerprint -notmatch '^[0-9a-fA-F]{64}$' -or
+        -not $Manifest.git.clean_preflight -or -not $Manifest.git.clean_postflight -or
+        -not $Manifest.harness.clean -or [string]$Manifest.harness.revision -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$' -or
+        [string]$Manifest.harness.revision -ceq $sourceCommit) {
+        $errors.Add('Refresh measurement requires a complete profile from a clean trusted harness independent of the measured main commit')
+    }
+    if ($Decision.run_id -cne $runId -or $Decision.manifest_digest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $Decision.baseline_refresh_ready -ne $true -or
+        $Decision.decisions.collection -cne 'Complete' -or $Decision.decisions.tests -cne 'Passed' -or
+        $Decision.decisions.floors -cne 'Passed' -or $Decision.decisions.baseline_refresh -cne 'Eligible') {
+        $errors.Add('Trusted target-refresh verification must confirm complete collection, passing tests and floors')
+    }
+    if ($ExpectedOldIndexDigest -notmatch '^[0-9a-fA-F]{64}$' -or
+        $ActualOldIndexDigest -cne $ExpectedOldIndexDigest -or
+        [string]$ReviewRecord.prior_index_digest -cne $ExpectedOldIndexDigest) {
+        $errors.Add('Accepted baseline index changed after the target-refresh review recorded its expected digest')
+    }
+    if ($ReviewRecord.decision -cne 'ACCEPT' -or [string]$ReviewRecord.review_type -cne 'AcceptedTargetRefresh' -or
+        [string]$ReviewRecord.repository -cne $ExpectedRepository -or
+        [string]$ReviewRecord.authenticated_user -cne $AuthenticatedUser -or
+        [string]$ReviewRecord.permission -notin @('write','maintain','admin') -or
+        [string]$ReviewRecord.run_id -cne $runId -or
+        [string]$ReviewRecord.manifest_digest -cne [string]$Decision.manifest_digest -or
+        [string]$ReviewRecord.bundle_digest -cne $ActualBundleDigest -or
+        [string]$ReviewRecord.target_commit -cne $ExpectedTargetCommit -or
+        [string]$ReviewRecord.target_tree -cne $ExpectedTargetTree -or
+        [string]$ReviewRecord.measurement_fingerprint -cne $fingerprint -or
+        [string]::IsNullOrWhiteSpace([string]$ReviewRecord.reason)) {
+        $errors.Add('Authenticated owner review must accept this exact target run, evidence digest, profile and unchanged tree')
+    }
+    return @{ IsValid = ($errors.Count -eq 0); Errors = @($errors) }
+}
+
 function Test-InitialBaselineReadiness {
     param(
         [Parameter(Mandatory = $true)]$Manifest,
