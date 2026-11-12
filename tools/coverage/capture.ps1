@@ -393,7 +393,12 @@ if (-not $SkipExecution) {
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'mkdir', '-p', "/data/data/$testPackageId/files") -TimeoutSeconds 10
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cp', $fidoNotTestFileStageRemote, $fidoNotTestFileRemote) -TimeoutSeconds 10
         $remoteFilterStatus = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'run-as', $testPackageId, 'cat', $fidoNotTestFileRemote) -TimeoutSeconds 10)
-        if (($remoteFilterStatus -join "`n").Trim() -cne ($classExclusions -join "`n").Trim()) {
+        $remoteFilterLines = @($remoteFilterStatus | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ -ne '' })
+        $filtersMatch = $remoteFilterLines.Count -eq $classExclusions.Count
+        for ($filterIndex = 0; $filtersMatch -and $filterIndex -lt $classExclusions.Count; $filterIndex++) {
+            if ($remoteFilterLines[$filterIndex] -cne $classExclusions[$filterIndex]) { $filtersMatch = $false }
+        }
+        if (-not $filtersMatch) {
             throw "The FIDO2 notTestFile could not be verified in private test-package storage: $($remoteFilterStatus -join "`n")"
         }
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'rm', '-f', $fidoNotTestFileStageRemote) -TimeoutSeconds 10
