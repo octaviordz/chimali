@@ -2969,3 +2969,14 @@
 - **limitations**: Indexed baseline is bound to target `f1fd56baf8641cea99edc7fafa8725fdda21044c`, not the capture target, lacks trusted same-tree binding to the declared target, and has a different measurement fingerprint. The production verifier also requires the index to be the evidence root's `baselines/current.json`. Therefore no accepted-target nonregression pass is established. Hosted publication/check remains waived and unverified.
 - **status**: Candidate coverage/floors Passed; accepted-target comparison Failed/Incompatible. Parent T051/T047 and BLE T038 remain incomplete for accepted-target nonregression.
 - **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t051-2026-11-12\bcda61d3-420d-4d55-8bce-c893aa197f36`; decision `assessments\bcda61d3-420d-4d55-8bce-c893aa197f36\decision.json`.
+
+### Record 250: Same-Harness Accepted-Main Raw-Ratio Follow-Up (T038 — Direct Nonregression Pass; Indexed Gate Still Fails)
+
+- **requirement**: BLE T038 / parent T051; compare candidate Tier 1 raw coverage ratios to exact accepted main using identical trusted measurement rules.
+- **scope**: Candidate `25fa4b02ed13ed35d617e49c64fedbdab82541bd`; accepted main `f1fd56baf8641cea99edc7fafa8725fdda21044c`; target run `47ede9e2-7551-44b9-b359-1e9579a49e7b`; candidate run `bcda61d3-420d-4d55-8bce-c893aa197f36`; matching fingerprint `3a987366c6011ee6f15e504654b257fb9228dd488772a731561ac26b08c7544f`.
+- **named_procedure**: Fresh API35 target capture used the candidate as trusted harness. Canonical counter ratios were compared using exact integer cross-products. Target and candidate required suites passed, and each capture met configured floors.
+- **environment**: Windows 11; ASUS_AI2302 / Android 15 / API35 / arm64-v8a; 2026-11-12.
+- **expected_observed_result**: All Tier 1 instruction and applicable branch ratios were nondecreasing. FIDO2 improved from 54,633/86,070 and 3,366/5,510 to 68,406/100,214 and 4,116/6,622. Data, domain, and security were unchanged; authenticator remained nonapplicable.
+- **limitations**: The original production verifier decision remains Incompatible/Failed because the candidate bundle's declared target was `e7918b6e256319b1305536c7815a92f6132ece99`, not indexed main `f1fd56baf8641cea99edc7fafa8725fdda21044c`; it also received a nested index path rather than evidence-root `baselines/current.json`. The manual direct same-profile comparison does not modify the immutable decision or accepted index and is not a hosted result. Hosted waiver remains active.
+- **status**: Direct matching-profile accepted-main raw-ratio nonregression Passed; production indexed decision remains Failed/Incompatible pending a correctly bound candidate capture and canonical evidence-root index.
+- **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t051-2026-11-12` target and candidate runs above; parent Record 281.
