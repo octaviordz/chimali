@@ -384,8 +384,11 @@ if (-not $SkipExecution) {
         $fidoNotTestFileRemote = "/sdcard/Android/data/$testPackageId/files/chimali-coverage-not-tests.txt"
         $remoteDirectory = "/sdcard/Android/data/$testPackageId/files"
         $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'mkdir', '-p', $remoteDirectory) -TimeoutSeconds 10
-        $pushOutput = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileRemote) -TimeoutSeconds 20)
-        if (($pushOutput -join "`n") -notmatch '\bbytes in\b') { throw "Could not push the FIDO2 notTestFile to the test package's app-specific storage: $($pushOutput -join "`n")" }
+        $null = Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'push', $fidoNotTestFile, $fidoNotTestFileRemote) -TimeoutSeconds 20
+        $remoteFilterStatus = @(Invoke-BoundedAdb -Arguments @('-s', $DeviceSerial, 'shell', 'ls', '-l', $fidoNotTestFileRemote) -TimeoutSeconds 10)
+        if (($remoteFilterStatus -join "`n") -notmatch [regex]::Escape([System.IO.Path]::GetFileName($fidoNotTestFileRemote))) {
+            throw "The FIDO2 notTestFile is missing from the test package's app-specific storage: $($remoteFilterStatus -join "`n")"
+        }
     } catch {
         Write-CoverageError "Could not install and reset only the shrunkDebug test package before capture: $_"
         exit 2
