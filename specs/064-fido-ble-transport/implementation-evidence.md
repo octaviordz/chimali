@@ -2980,3 +2980,25 @@
 - **limitations**: The original production verifier decision remains Incompatible/Failed because the candidate bundle's declared target was `e7918b6e256319b1305536c7815a92f6132ece99`, not indexed main `f1fd56baf8641cea99edc7fafa8725fdda21044c`; it also received a nested index path rather than evidence-root `baselines/current.json`. The manual direct same-profile comparison does not modify the immutable decision or accepted index and is not a hosted result. Hosted waiver remains active.
 - **status**: Direct matching-profile accepted-main raw-ratio nonregression Passed; production indexed decision remains Failed/Incompatible pending a correctly bound candidate capture and canonical evidence-root index.
 - **artifact_link**: `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-t051-2026-11-12` target and candidate runs above; parent Record 281.
+
+### Record 251: Correctly Bound Candidate and Main Coverage Captures (Indexed Comparison Incompatible)
+
+- **requirement**: BLE T038 / parent coverage gate; compare current candidate with accepted main using trusted indexed evidence and preserve the hosted waiver.
+- **scope**: Candidate `06a34634b098bb0bf39cddda81cb8c4f682371af`; accepted main `f1fd56baf8641cea99edc7fafa8725fdda21044c`; captures `723618c0-5781-4f91-bf66-ac2ba747cf5b` and `4ce8b18b-61f3-4c20-9552-6d2ee610c890`.
+- **named_procedure**: Executed the integration wrapper against live `origin/main`; local checks and candidate capture passed. Indexed comparison failed compatibility. Captured accepted main on the same device with the same harness; target refresh verification found it eligible with collection, tests and floors passed.
+- **environment**: Windows 11; ASUS_AI2302 / Android 15 / API35 / arm64-v8a; 2026-11-13.
+- **expected_observed_result**: Both captures were Complete with tests Passed. Their measurement fingerprints differ: candidate `e469a3eb9fc7e5da563de0c0a4c6afd219f348a18e36934133e5afb49a0fa0db`, target `3a987366c6011ee6f15e504654b257fb9228dd488772a731561ac26b08c7544f`. Candidate Android Gradle Plugin is 9.5.1 and target is 9.4.1.
+- **limitations**: A baseline refresh from this target capture cannot make the candidate fingerprint compatible; indexed nonregression and hosted integration remain unverified. No accepted index or archive was changed; hosted waiver remains active.
+- **status**: Candidate and target workloads Passed; indexed comparison Incompatible.
+- **artifact_link**: Parent Record 282 and external evidence root `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-trusted-index-baseline-2026-11-12` with the run IDs above.
+
+### Record 252: Owner Toolchain Waiver and Candidate Evidence Publication
+
+- **requirement**: Record the owner waiver and publication for the candidate capture in BLE Record 251.
+- **scope**: Candidate `06a34634b098bb0bf39cddda81cb8c4f682371af`; run `723618c0-5781-4f91-bf66-ac2ba747cf5b`.
+- **named_procedure**: Owner waived the toolchain mismatch and authorized promotion of the results. Published the immutable candidate evidence bundle to `swe/coverage-evidence` without accepted-target promotion.
+- **environment**: Windows 11; 2026-11-13.
+- **expected_observed_result**: Archive publication succeeded at `eda24502c1efa8570191f368daa6019ea699e234` with a retained receipt.
+- **limitations**: The verifier's mismatch remains Incompatible, and candidate integration on main was not established. The accepted index was not changed; hosted enforcement remains waived/unverified.
+- **status**: Waiver recorded; evidence Published; indexed gate and baseline promotion not passed.
+- **artifact_link**: Parent Record 283 and `D:\octav\source\repos\.worktrees\chimali\coverage-evidence\064-trusted-index-baseline-2026-11-12\receipts\723618c0-5781-4f91-bf66-ac2ba747cf5b-owner-waiver-publication.json`.
