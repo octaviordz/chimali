@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CoroutineTraceLifecycle.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">CoroutineTraceLifecycle.kt</span></div><h1>CoroutineTraceLifecycle.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import android.os.Process
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.ThreadContextElement
+
+/** Injectable event boundary so lifecycle pairing and dispatcher propagation can be tested on host. */
+internal interface CoroutineTraceEventSink {
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun resumed(
+        context: Fido2OperationTraceContext,
+        traceCookie: Int,
+        threadId: Long,
+        paired: Boolean,
+    )
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun suspended(
+        context: Fido2OperationTraceContext,
+        traceCookie: Int,
+        threadId: Long,
+        paired: Boolean,
+    )
+}
+
+/** Marks each execution segment of the lookup coroutine, including dispatcher-thread changes. */
+<span class="pc" id="L30">internal class CoroutineTraceLifecycle(</span>
+<span class="fc" id="L31">    private val operationContext: Fido2OperationTraceContext,</span>
+<span class="fc" id="L32">    private val nextTraceCookie: AtomicInteger,</span>
+<span class="fc" id="L33">    private val eventSink: CoroutineTraceEventSink,</span>
+<span class="pc" id="L34">    private val threadIdProvider: () -&gt; Long = { Process.myTid().toLong() },</span>
+<span class="pc" id="L35">) : AbstractCoroutineContextElement(Key),</span>
+    ThreadContextElement&lt;CoroutineTraceLifecycle.SegmentState&gt; {
+<span class="fc" id="L37">    internal data class SegmentState(</span>
+<span class="fc" id="L38">        val traceCookie: Int,</span>
+<span class="pc" id="L39">        val threadId: Long,</span>
+<span class="fc" id="L40">        val paired: Boolean,</span>
+    )
+
+    companion object Key : CoroutineContext.Key&lt;CoroutineTraceLifecycle&gt;
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    override fun updateThreadContext(context: CoroutineContext): SegmentState {
+<span class="fc" id="L47">        val traceCookie = nextTraceCookie.getAndIncrement()</span>
+<span class="fc" id="L48">        val threadId = threadIdProvider()</span>
+<span class="fc" id="L49">        val paired = operationContext.correlation.startSegment(traceCookie)</span>
+<span class="fc" id="L50">        eventSink.resumed(operationContext, traceCookie, threadId, paired)</span>
+<span class="fc" id="L51">        return SegmentState(traceCookie, threadId, paired)</span>
+    }
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    override fun restoreThreadContext(
+        context: CoroutineContext,
+        oldState: SegmentState,
+    ) {
+<span class="fc" id="L59">        val closing = operationContext.correlation.beginSegmentRestore(oldState.traceCookie)</span>
+<span class="pc bpc" id="L60" title="2 of 4 branches missed.">        val paired = closing &amp;&amp; oldState.paired</span>
+<span class="fc" id="L61">        try {</span>
+<span class="fc" id="L62">            eventSink.suspended(operationContext, oldState.traceCookie, threadIdProvider(), paired)</span>
+        } finally {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">            if (closing) operationContext.correlation.finishSegmentRestore(oldState.traceCookie)</span>
+        }
+<span class="fc" id="L66">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

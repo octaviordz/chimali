@@ -1,0 +1,572 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BleGattTransport.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">BleGattTransport.kt</span></div><h1>BleGattTransport.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothProfile
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/**
+ * Controller abstraction for starting and stopping BLE advertising.
+ */
+@Req(&quot;FR-BLE-010&quot;, &quot;TR-BLE-010&quot;)
+interface BleAdvertiserController {
+<span class="pc" id="L32">    suspend fun startAdvertising(</span>
+        serviceUuid: UUID,
+<span class="pc" id="L34">        onUnexpectedFailure: (Throwable) -&gt; Unit = {},</span>
+<span class="nc" id="L35">    ): Result&lt;Unit&gt;</span>
+
+    fun stopAdvertising()
+
+    /** Stops Bluetooth state observation after the transport is disconnected. */
+<span class="fc" id="L40">    fun stopObservingAdapterState() = Unit</span>
+}
+
+/**
+ * Concrete FIDO BLE GATT Transport implementing [Fido2Transport].
+ */
+<span class="fc" id="L46">@Req(&quot;FR-BLE-010&quot;, &quot;FR-BLE-050&quot;, &quot;FR-BLE-060&quot;, &quot;FR-BLE-080&quot;, &quot;TR-BLE-010&quot;, &quot;TR-BLE-020&quot;, &quot;TR-BLE-030&quot;)</span>
+<span class="fc" id="L47">class BleGattTransport(</span>
+<span class="fc" id="L48">    private val rawCtapOperation: RawCtapOperation,</span>
+<span class="pc" id="L49">    val sessionOwner: BleSessionOwner = BleSessionOwner(),</span>
+<span class="fc" id="L50">    private val advertiserController: BleAdvertiserController,</span>
+<span class="fc" id="L51">    private val responseSender: GattResponseSender,</span>
+<span class="fc" id="L52">    private val coroutineScope: CoroutineScope,</span>
+<span class="fc" id="L53">    private val gattServerHost: BleGattServerHost? = null,</span>
+<span class="fc" id="L54">    private val deviceLookup: (String) -&gt; BluetoothDevice? = { address -&gt;</span>
+<span class="nc" id="L55">        try {</span>
+<span class="nc" id="L56">            android.bluetooth.BluetoothAdapter</span>
+<span class="nc" id="L57">                .getDefaultAdapter()</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                ?.getRemoteDevice(address)</span>
+<span class="nc" id="L59">        } catch (_: Throwable) {</span>
+<span class="nc" id="L60">            null</span>
+<span class="nc" id="L61">        }</span>
+    },
+<span class="fc" id="L63">    private val statusCharacteristic: BluetoothGattCharacteristic =</span>
+<span class="fc" id="L64">        BluetoothGattCharacteristic(</span>
+<span class="fc" id="L65">            FidoBleGattServer.UUID_FIDO_STATUS,</span>
+<span class="fc" id="L66">            BluetoothGattCharacteristic.PROPERTY_NOTIFY,</span>
+<span class="fc" id="L67">            0,</span>
+        ),
+<span class="fc" id="L69">) : Fido2Transport {</span>
+    companion object {
+        const val CMD_PING: Byte = 0x81.toByte()
+        const val CMD_KEEPALIVE: Byte = 0x82.toByte()
+        const val CMD_MSG: Byte = 0x83.toByte()
+        const val CMD_CANCEL: Byte = 0xBE.toByte()
+        const val CMD_ERROR: Byte = 0xBF.toByte()
+
+        const val ERR_INVALID_CMD: Byte = 0x01
+
+        private const val CTAP2_CMD_MAKE_CREDENTIAL = 0x01
+        private const val CTAP2_CMD_GET_ASSERTION = 0x02
+        private const val CTAP2_CMD_GET_INFO = 0x04
+        private const val CTAP2_CMD_RESET = 0x07
+        private const val BYTE_MASK = 0xFF
+        private const val NANOS_PER_MILLISECOND = 1_000_000L
+        private const val RECEIVE_TIMEOUT_MILLIS = BleSessionOwner.RECEIVE_TIMEOUT_NANOS / NANOS_PER_MILLISECOND
+        private const val KEEPALIVE_INITIAL_DELAY_MILLIS = 100L
+        private const val KEEPALIVE_PERIOD_MILLIS = 250L
+        private const val KEEPALIVE_STATUS_PROCESSING = 0x01
+    }
+
+<span class="fc" id="L91">    private val _connectionState = MutableStateFlow&lt;Fido2ConnectionState&gt;(Fido2ConnectionState.Idle)</span>
+<span class="fc" id="L92">    override val connectionState: StateFlow&lt;Fido2ConnectionState&gt; = _connectionState.asStateFlow()</span>
+
+<span class="fc" id="L94">    private val lifecycleMutex = Mutex()</span>
+    private var isStarted = false
+    private var currentMsgJob: Job? = null
+    private var receiveTimeoutJob: Job? = null
+    private var activeHostAddress: String? = null
+
+    private val notificationWriter: BleNotificationWriter =
+<span class="fc" id="L101">        BleNotificationWriter(</span>
+<span class="fc" id="L102">            scope = coroutineScope,</span>
+<span class="fc" id="L103">            sendGattNotification = { generation, packet -&gt;</span>
+<span class="fc" id="L104">                var initiated = false</span>
+<span class="fc" id="L105">                sessionOwner.runForCurrentSession(generation) { deviceAddress -&gt;</span>
+<span class="fc" id="L106">                    val device = deviceLookup(deviceAddress)</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">                    if (device != null) {</span>
+<span class="fc" id="L108">                        initiated =</span>
+<span class="fc" id="L109">                            responseSender.notifyCharacteristicChanged(</span>
+<span class="fc" id="L110">                                device,</span>
+<span class="fc" id="L111">                                statusCharacteristic,</span>
+<span class="fc" id="L112">                                false,</span>
+<span class="fc" id="L113">                                packet,</span>
+                            )
+                    }
+<span class="fc" id="L116">                }</span>
+<span class="fc" id="L117">                initiated</span>
+            },
+<span class="fc" id="L119">            isSessionCurrent = sessionOwner::isSessionCurrent,</span>
+<span class="fc" id="L120">            onSessionStalled = { generation -&gt;</span>
+<span class="nc" id="L121">                Logger.w { &quot;BleGattTransport: Notification stalled for 5 seconds; aborting session&quot; }</span>
+<span class="nc" id="L122">                sessionOwner.runForCurrentSession(generation) { activeDevice -&gt;</span>
+<span class="nc" id="L123">                    isStarted = false</span>
+<span class="nc" id="L124">                    advertiserController.stopAdvertising()</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                    gattServerHost?.stop()</span>
+<span class="nc" id="L126">                    sessionOwner.disconnectHost(activeDevice)</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                    if (activeHostAddress == activeDevice) activeHostAddress = null</span>
+<span class="nc" id="L128">                    _connectionState.value = Fido2ConnectionState.Error(&quot;Notification stall timeout&quot;)</span>
+<span class="nc" id="L129">                }</span>
+<span class="nc" id="L130">            },</span>
+        )
+
+    @Req(&quot;FR-BLE-010&quot;, &quot;TR-BLE-010&quot;)
+    override suspend fun connect(): Result&lt;Unit&gt; =
+<span class="fc" id="L135">        lifecycleMutex.withLock {</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            if (isStarted) return Result.success(Unit)</span>
+
+<span class="fc" id="L138">            val gattResult =</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">                gattServerHost?.start(</span>
+<span class="fc" id="L140">                    onPacketReceived = ::onPacketReceived,</span>
+<span class="fc" id="L141">                    onNotificationSent = ::onHostNotificationSent,</span>
+<span class="fc" id="L142">                    onConnectionStateChanged = ::onHostConnectionStateChanged,</span>
+<span class="fc" id="L143">                    onAuthenticationFailure = { onHostAuthenticationFailure() },</span>
+<span class="fc" id="L144">                ) ?: Result.success(Unit)</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            if (gattResult.isFailure) {</span>
+<span class="nc" id="L146">                _connectionState.value = Fido2ConnectionState.Error(&quot;Failed to register FIDO GATT service&quot;)</span>
+<span class="nc" id="L147">                return gattResult</span>
+            }
+
+<span class="fc" id="L150">            val result =</span>
+<span class="fc" id="L151">                advertiserController.startAdvertising(FidoBleGattServer.UUID_FIDO_SERVICE) { failure -&gt;</span>
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">                    if (isStarted) {</span>
+<span class="fc" id="L153">                        onBluetoothUnavailable(failure)</span>
+                    }
+<span class="fc" id="L155">                }</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">            if (result.isSuccess) {</span>
+<span class="fc" id="L157">                isStarted = true</span>
+<span class="fc" id="L158">                _connectionState.value = Fido2ConnectionState.Advertising</span>
+            } else {
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">                gattServerHost?.stop()</span>
+<span class="fc" id="L161">                _connectionState.value = Fido2ConnectionState.Error(&quot;Failed to start advertising&quot;)</span>
+            }
+<span class="fc" id="L163">            result</span>
+<span class="fc" id="L164">        }</span>
+
+    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)
+    override suspend fun connectDevice(macAddress: String): Result&lt;Unit&gt; =
+<span class="fc" id="L168">        Result.failure(UnsupportedOutboundConnectionException())</span>
+
+    @Req(&quot;FR-BLE-010&quot;, &quot;TR-BLE-010&quot;)
+    override suspend fun disconnect(): Result&lt;Unit&gt; =
+<span class="fc" id="L172">        lifecycleMutex.withLock {</span>
+<span class="fc" id="L173">            isStarted = false</span>
+<span class="fc" id="L174">            cancelReceiveTimeout()</span>
+<span class="fc" id="L175">            advertiserController.stopAdvertising()</span>
+<span class="fc" id="L176">            advertiserController.stopObservingAdapterState()</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            gattServerHost?.stop()</span>
+<span class="fc" id="L178">            cancelCurrentMessage()</span>
+<span class="fc" id="L179">            notificationWriter.clear()</span>
+<span class="fc" id="L180">            val activeDevice = sessionOwner.activeDeviceAddress</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">            if (activeDevice != null) {</span>
+<span class="fc" id="L182">                sessionOwner.disconnectHost(activeDevice)</span>
+            }
+<span class="fc" id="L184">            activeHostAddress = null</span>
+<span class="fc" id="L185">            isStarted = false</span>
+<span class="fc" id="L186">            _connectionState.value = Fido2ConnectionState.Idle</span>
+<span class="fc" id="L187">            Result.success(Unit)</span>
+<span class="fc" id="L188">        }</span>
+
+    /**
+     * Called when a GATT Control Point packet is written by the connected host.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;, &quot;TR-BLE-030&quot;)
+    fun onPacketReceived(packet: ByteArray) {
+<span class="fc" id="L195">        when (val result = sessionOwner.processIncomingWrite(packet)) {</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">            is BleIncomingWriteResult.Complete -&gt; {</span>
+<span class="fc" id="L197">                cancelReceiveTimeout()</span>
+<span class="fc" id="L198">                val message = result.message</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">                if (sessionOwner.isSessionCurrent(message.sessionGeneration)) dispatchMessage(message)</span>
+            }
+<span class="fc bfc" id="L201" title="All 2 branches covered.">            is BleIncomingWriteResult.Error -&gt; {</span>
+<span class="fc" id="L202">                cancelReceiveTimeout()</span>
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">                if (sessionOwner.isSessionCurrent(result.sessionGeneration)) {</span>
+<span class="fc" id="L204">                    enqueueErrorResponse(result.sessionGeneration, result.errorCode)</span>
+                }
+            }
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">            is BleIncomingWriteResult.InProgress -&gt; scheduleReceiveTimeout(result)</span>
+<span class="nc" id="L208">            BleIncomingWriteResult.NotReady -&gt; cancelReceiveTimeout()</span>
+        }
+<span class="fc" id="L210">    }</span>
+
+    private fun scheduleReceiveTimeout(result: BleIncomingWriteResult.InProgress) {
+<span class="fc" id="L213">        cancelReceiveTimeout()</span>
+<span class="fc" id="L214">        receiveTimeoutJob =</span>
+<span class="fc" id="L215">            coroutineScope.launch {</span>
+<span class="fc" id="L216">                delay(RECEIVE_TIMEOUT_MILLIS)</span>
+<span class="fc" id="L217">                val timeout = sessionOwner.expireIncompleteRequest(result.sessionGeneration, result.timeoutToken)</span>
+<span class="pc bpc" id="L218" title="2 of 4 branches missed.">                if (timeout != null &amp;&amp; sessionOwner.isSessionCurrent(timeout.sessionGeneration)) {</span>
+<span class="fc" id="L219">                    enqueueErrorResponse(timeout.sessionGeneration, timeout.errorCode)</span>
+                }
+<span class="fc" id="L221">                receiveTimeoutJob = null</span>
+<span class="fc" id="L222">            }</span>
+<span class="fc" id="L223">    }</span>
+
+    private fun cancelReceiveTimeout() {
+<span class="fc bfc" id="L226" title="All 2 branches covered.">        receiveTimeoutJob?.cancel()</span>
+<span class="fc" id="L227">        receiveTimeoutJob = null</span>
+<span class="fc" id="L228">    }</span>
+
+    private fun dispatchMessage(message: FidoBleMessage) {
+<span class="fc" id="L231">        when (message.command) {</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">            CMD_PING -&gt; {</span>
+<span class="fc" id="L233">                val fragments = FidoBleFraming.fragmentResponse(CMD_PING, message.data, sessionOwner.notifyCapacity)</span>
+<span class="fc bfc" id="L234" title="All 2 branches covered.">                for (frag in fragments) {</span>
+<span class="fc" id="L235">                    notificationWriter.enqueue(frag, isKeepalive = false, sessionGeneration = message.sessionGeneration)</span>
+                }
+            }
+<span class="fc bfc" id="L238" title="All 2 branches covered.">            CMD_CANCEL -&gt; {</span>
+<span class="fc bfc" id="L239" title="All 6 branches covered.">                if (message.data.isNotEmpty()) {</span>
+<span class="fc" id="L240">                    Logger.w { &quot;BleGattTransport: Malformed CMD_CANCEL with non-empty payload&quot; }</span>
+<span class="fc" id="L241">                    val errFragments =</span>
+<span class="fc" id="L242">                        FidoBleFraming.fragmentResponse(</span>
+<span class="fc" id="L243">                            CMD_ERROR,</span>
+<span class="fc" id="L244">                            byteArrayOf(FidoBleFraming.ERR_INVALID_LEN),</span>
+<span class="fc" id="L245">                            sessionOwner.notifyCapacity,</span>
+                        )
+<span class="fc bfc" id="L247" title="All 2 branches covered.">                    for (frag in errFragments) {</span>
+<span class="fc" id="L248">                        notificationWriter.enqueue(</span>
+<span class="fc" id="L249">                            frag,</span>
+<span class="fc" id="L250">                            isKeepalive = false,</span>
+<span class="fc" id="L251">                            sessionGeneration = message.sessionGeneration,</span>
+                        )
+                    }
+<span class="fc" id="L254">                    return</span>
+                }
+<span class="fc" id="L256">                Logger.i { &quot;BleGattTransport: CMD_CANCEL received; cancelling current operation&quot; }</span>
+<span class="fc" id="L257">                cancelCurrentMessage()</span>
+                // CANCEL itself receives no response per CTAP 2.2 spec
+            }
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">            CMD_MSG -&gt; dispatchCtapMessage(message)</span>
+            else -&gt; {
+<span class="nc" id="L262">                val errFragments =</span>
+<span class="nc" id="L263">                    FidoBleFraming.fragmentResponse(</span>
+<span class="nc" id="L264">                        CMD_ERROR,</span>
+<span class="nc" id="L265">                        byteArrayOf(ERR_INVALID_CMD),</span>
+<span class="nc" id="L266">                        sessionOwner.notifyCapacity,</span>
+                    )
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                for (frag in errFragments) {</span>
+<span class="nc" id="L269">                    notificationWriter.enqueue(frag, isKeepalive = false, sessionGeneration = message.sessionGeneration)</span>
+                }
+            }
+        }
+<span class="fc" id="L273">    }</span>
+
+    private fun dispatchCtapMessage(message: FidoBleMessage) {
+<span class="pc bpc" id="L276" title="1 of 6 branches missed.">        if (currentMsgJob?.isActive == true) {</span>
+<span class="fc" id="L277">            Logger.w { &quot;BleGattTransport: Busy; rejecting overlapping CMD_MSG&quot; }</span>
+<span class="fc" id="L278">            enqueueErrorResponse(message.sessionGeneration, FidoBleFraming.ERR_BUSY)</span>
+<span class="fc" id="L279">            return</span>
+        }
+
+<span class="fc" id="L282">        val messageJob =</span>
+<span class="fc" id="L283">            coroutineScope.launch(start = CoroutineStart.LAZY) {</span>
+<span class="fc" id="L284">                try {</span>
+<span class="fc" id="L285">                    processCtapMessage(message)</span>
+                } finally {
+<span class="fc bfc" id="L287" title="All 2 branches covered.">                    if (currentMsgJob === coroutineContext[Job]) currentMsgJob = null</span>
+                }
+<span class="fc" id="L289">            }</span>
+<span class="fc" id="L290">        currentMsgJob = messageJob</span>
+<span class="fc" id="L291">        messageJob.start()</span>
+<span class="fc" id="L292">    }</span>
+
+    @Req(&quot;FR-BLE-060&quot;, &quot;TR-BLE-020&quot;)
+<span class="fc" id="L295">    private suspend fun processCtapMessage(message: FidoBleMessage) {</span>
+<span class="fc" id="L296">        val startedAtNanos = System.nanoTime()</span>
+<span class="fc" id="L297">        val operation = diagnosticOperationName(message.data)</span>
+<span class="fc" id="L298">        Logger.d { &quot;FIDO BLE diagnostic started operation=$operation&quot; }</span>
+<span class="fc" id="L299">        val keepaliveStatus = AtomicInteger(KEEPALIVE_STATUS_PROCESSING)</span>
+        // Begin after a short grace period for fast CTAP commands, then keep the host informed at &lt;500ms intervals.
+<span class="fc" id="L301">        val keepaliveJob =</span>
+<span class="fc" id="L302">            coroutineScope.launch {</span>
+<span class="fc" id="L303">                delay(KEEPALIVE_INITIAL_DELAY_MILLIS)</span>
+<span class="pc bpc" id="L304" title="2 of 4 branches missed.">                while (isActive &amp;&amp; sessionOwner.isSessionCurrent(message.sessionGeneration)) {</span>
+<span class="fc" id="L305">                    enqueueKeepalive(message, keepaliveStatus.get().toByte())</span>
+<span class="fc" id="L306">                    delay(KEEPALIVE_PERIOD_MILLIS)</span>
+                }
+<span class="nc" id="L308">            }</span>
+
+<span class="fc" id="L310">        val result =</span>
+<span class="fc" id="L311">            try {</span>
+<span class="fc" id="L312">                executeCtapOperation(message.data) { status -&gt;</span>
+<span class="fc" id="L313">                    keepaliveStatus.set(status.toInt() and BYTE_MASK)</span>
+<span class="fc" id="L314">                    enqueueKeepalive(message, status)</span>
+<span class="fc" id="L315">                }</span>
+            } finally {
+<span class="fc" id="L317">                withContext(NonCancellable) {</span>
+<span class="fc" id="L318">                    keepaliveJob.cancelAndJoin()</span>
+<span class="fc" id="L319">                }</span>
+<span class="fc" id="L320">            }</span>
+
+<span class="fc" id="L322">        queueCtapResponse(message, result, startedAtNanos, operation)</span>
+<span class="fc" id="L323">    }</span>
+
+    @Req(&quot;FR-BLE-060&quot;, &quot;TR-BLE-020&quot;)
+    private fun enqueueKeepalive(
+        message: FidoBleMessage,
+        status: Byte,
+    ) {
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">        if (!sessionOwner.isSessionCurrent(message.sessionGeneration)) return</span>
+<span class="fc" id="L331">        val keepaliveFragments =</span>
+<span class="fc" id="L332">            FidoBleFraming.fragmentResponse(</span>
+<span class="fc" id="L333">                CMD_KEEPALIVE,</span>
+<span class="fc" id="L334">                byteArrayOf(status),</span>
+<span class="fc" id="L335">                sessionOwner.notifyCapacity,</span>
+            )
+<span class="fc" id="L337">        notificationWriter.enqueue(</span>
+<span class="fc" id="L338">            keepaliveFragments[0],</span>
+<span class="fc" id="L339">            isKeepalive = true,</span>
+<span class="fc" id="L340">            sessionGeneration = message.sessionGeneration,</span>
+        )
+<span class="fc" id="L342">    }</span>
+
+    private fun queueCtapResponse(
+        message: FidoBleMessage,
+        result: RawCtapResult,
+        startedAtNanos: Long,
+        operation: String,
+    ) {
+<span class="fc" id="L350">        notificationWriter.markResponseTransmissionStarted(message.sessionGeneration)</span>
+<span class="fc" id="L351">        val fragments =</span>
+<span class="fc" id="L352">            FidoBleFraming.fragmentResponse(</span>
+<span class="fc" id="L353">                CMD_MSG,</span>
+<span class="fc" id="L354">                result.responseBytes,</span>
+<span class="fc" id="L355">                sessionOwner.notifyCapacity,</span>
+            )
+<span class="fc" id="L357">        var index = 0</span>
+<span class="fc" id="L358">        var accepted = true</span>
+<span class="fc" id="L359">        var sessionCurrent = true</span>
+<span class="fc" id="L360">        var terminalNotificationQueued = false</span>
+<span class="pc bpc" id="L361" title="2 of 6 branches missed.">        while (index &lt; fragments.size &amp;&amp; accepted &amp;&amp; sessionCurrent) {</span>
+<span class="fc bfc" id="L362" title="All 2 branches covered.">            val isTerminalFragment = index == fragments.lastIndex</span>
+<span class="fc" id="L363">            accepted =</span>
+<span class="fc" id="L364">                notificationWriter.enqueue(</span>
+<span class="fc" id="L365">                    fragments[index],</span>
+<span class="fc" id="L366">                    isKeepalive = false,</span>
+<span class="fc" id="L367">                    sessionGeneration = message.sessionGeneration,</span>
+                    onDeliveryResult =
+<span class="fc bfc" id="L369" title="All 2 branches covered.">                        if (isTerminalFragment) {</span>
+                            { delivered -&gt;
+<span class="fc" id="L371">                                try {</span>
+<span class="fc" id="L372">                                    logDiagnosticCompletion(operation, startedAtNanos, delivered)</span>
+                                } finally {
+<span class="fc" id="L374">                                    notificationWriter.resetResponseTransmission(message.sessionGeneration)</span>
+                                }
+<span class="fc" id="L376">                            }</span>
+                        } else {
+<span class="fc" id="L378">                            null</span>
+                        },
+                )
+<span class="pc bpc" id="L381" title="1 of 4 branches missed.">            if (isTerminalFragment &amp;&amp; accepted) terminalNotificationQueued = true</span>
+<span class="fc" id="L382">            index++</span>
+<span class="fc" id="L383">            sessionCurrent = sessionOwner.isSessionCurrent(message.sessionGeneration)</span>
+        }
+<span class="pc bpc" id="L385" title="1 of 2 branches missed.">        if (!terminalNotificationQueued) logDiagnosticNotQueued(operation, startedAtNanos)</span>
+<span class="fc" id="L386">    }</span>
+
+    private fun logDiagnosticCompletion(
+        operation: String,
+        startedAtNanos: Long,
+        delivered: Boolean,
+    ) {
+<span class="fc" id="L393">        val elapsedMs = (System.nanoTime() - startedAtNanos) / NANOS_PER_MILLISECOND</span>
+<span class="fc" id="L394">        Logger.i {</span>
+<span class="fc" id="L395">            &quot;FIDO BLE diagnostic completed operation=$operation elapsedMs=$elapsedMs &quot; +</span>
+<span class="fc" id="L396">                &quot;terminalNotificationAcknowledged=$delivered&quot;</span>
+        }
+<span class="fc" id="L398">    }</span>
+
+    private fun logDiagnosticNotQueued(
+        operation: String,
+        startedAtNanos: Long,
+    ) {
+<span class="nc" id="L404">        val elapsedMs = (System.nanoTime() - startedAtNanos) / NANOS_PER_MILLISECOND</span>
+<span class="nc" id="L405">        Logger.w {</span>
+<span class="nc" id="L406">            &quot;FIDO BLE diagnostic ended operation=$operation elapsedMs=$elapsedMs &quot; +</span>
+<span class="nc" id="L407">                &quot;terminalNotificationAcknowledged=false reason=terminal_response_not_queued&quot;</span>
+        }
+<span class="nc" id="L409">    }</span>
+
+    private fun enqueueErrorResponse(
+        sessionGeneration: Long,
+        errorCode: Byte,
+    ) {
+<span class="fc" id="L415">        val fragments =</span>
+<span class="fc" id="L416">            FidoBleFraming.fragmentResponse(</span>
+<span class="fc" id="L417">                CMD_ERROR,</span>
+<span class="fc" id="L418">                byteArrayOf(errorCode),</span>
+<span class="fc" id="L419">                sessionOwner.notifyCapacity,</span>
+            )
+<span class="fc bfc" id="L421" title="All 2 branches covered.">        for (fragment in fragments) {</span>
+<span class="fc" id="L422">            notificationWriter.enqueue(</span>
+<span class="fc" id="L423">                fragment,</span>
+<span class="fc" id="L424">                isKeepalive = false,</span>
+<span class="fc" id="L425">                sessionGeneration = sessionGeneration,</span>
+            )
+        }
+<span class="fc" id="L428">    }</span>
+
+    private fun diagnosticOperationName(request: ByteArray): String =
+<span class="pc bpc" id="L431" title="1 of 2 branches missed.">        when (request.firstOrNull()?.toInt()?.and(BYTE_MASK)) {</span>
+<span class="pc bpc" id="L432" title="1 of 4 branches missed.">            CTAP2_CMD_MAKE_CREDENTIAL -&gt; &quot;MakeCredential&quot;</span>
+<span class="pc bpc" id="L433" title="1 of 4 branches missed.">            CTAP2_CMD_GET_ASSERTION -&gt; &quot;GetAssertion&quot;</span>
+<span class="pc bpc" id="L434" title="2 of 4 branches missed.">            CTAP2_CMD_GET_INFO -&gt; &quot;GetInfo&quot;</span>
+<span class="nc bnc" id="L435" title="All 4 branches missed.">            CTAP2_CMD_RESET -&gt; &quot;ResetAuthenticator&quot;</span>
+<span class="nc" id="L436">            else -&gt; &quot;Other&quot;</span>
+<span class="fc" id="L437">        }</span>
+
+    /** Converts unexpected handler failures into a CTAP error so the BLE host is not left waiting. */
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+    private suspend fun executeCtapOperation(
+        request: ByteArray,
+        onKeepalive: (Byte) -&gt; Unit,
+    ): RawCtapResult =
+<span class="fc" id="L445">        try {</span>
+<span class="fc" id="L446">            rawCtapOperation.handle(request, onKeepalive)</span>
+<span class="fc" id="L447">        } catch (failure: CancellationException) {</span>
+<span class="fc" id="L448">            Logger.i { &quot;BleGattTransport: In-flight CTAP command was cancelled&quot; }</span>
+<span class="fc" id="L449">            throw failure</span>
+<span class="fc" id="L450">        } catch (failure: Exception) {</span>
+<span class="fc" id="L451">            Logger.e(failure) { &quot;BleGattTransport: CTAP operation failed; returning CTAP2_ERR_OTHER&quot; }</span>
+<span class="fc" id="L452">            RawCtapResult(byteArrayOf(RawCtapOperationImpl.CTAP2_ERR_OTHER))</span>
+<span class="fc" id="L453">        }</span>
+
+    /**
+     * Called when Android GATT callback acknowledges notification delivery.
+     */
+<span class="nc" id="L458">    fun onNotificationSent(status: Int = android.bluetooth.BluetoothGatt.GATT_SUCCESS) {</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">        notificationWriter.onNotificationSent(status == android.bluetooth.BluetoothGatt.GATT_SUCCESS)</span>
+<span class="nc" id="L460">    }</span>
+
+    /**
+     * Convenience overload accepting a delivery success boolean.
+     */
+    fun onNotificationSent(success: Boolean) {
+<span class="fc" id="L466">        notificationWriter.onNotificationSent(success)</span>
+<span class="fc" id="L467">    }</span>
+
+    private fun onHostNotificationSent(
+        device: BluetoothDevice,
+        status: Int,
+    ) {
+<span class="fc bfc" id="L473" title="All 2 branches covered.">        if (activeHostAddress != device.address) {</span>
+<span class="fc" id="L474">            Logger.d { &quot;BleGattTransport: Ignoring notification callback from inactive peer ${device.address}&quot; }</span>
+<span class="fc" id="L475">            return</span>
+        }
+<span class="pc bpc" id="L477" title="1 of 2 branches missed.">        notificationWriter.onNotificationSent(status == BluetoothGatt.GATT_SUCCESS)</span>
+<span class="fc" id="L478">    }</span>
+
+    @Req(&quot;FR-BLE-070&quot;, &quot;TR-BLE-040&quot;)
+    private fun onHostConnectionStateChanged(
+        device: BluetoothDevice,
+        status: Int,
+        newState: Int,
+    ) {
+<span class="pc bpc" id="L486" title="2 of 4 branches missed.">        when (newState) {</span>
+            BluetoothProfile.STATE_CONNECTING -&gt; {
+<span class="nc" id="L488">                advertiserController.stopAdvertising()</span>
+<span class="nc" id="L489">                _connectionState.value = Fido2ConnectionState.Connecting(device)</span>
+            }
+            BluetoothProfile.STATE_CONNECTED -&gt; {
+<span class="fc" id="L492">                advertiserController.stopAdvertising()</span>
+<span class="fc" id="L493">                activeHostAddress = device.address</span>
+<span class="fc" id="L494">                _connectionState.value = Fido2ConnectionState.Connected(device)</span>
+            }
+            BluetoothProfile.STATE_DISCONNECTED -&gt; {
+<span class="pc bpc" id="L497" title="1 of 4 branches missed.">                if (activeHostAddress != null &amp;&amp; activeHostAddress != device.address) {</span>
+<span class="fc" id="L498">                    Logger.d { &quot;BleGattTransport: Ignoring stale disconnect callback from ${device.address}&quot; }</span>
+<span class="fc" id="L499">                    return</span>
+                }
+<span class="pc bpc" id="L501" title="1 of 2 branches missed.">                if (activeHostAddress == device.address) {</span>
+<span class="fc" id="L502">                    activeHostAddress = null</span>
+<span class="fc" id="L503">                    cancelReceiveTimeout()</span>
+<span class="fc" id="L504">                    cancelCurrentMessage()</span>
+                    // A keepalive or response notification can still be in flight when the peer drops.
+                    // Release its queue before advertising a successor session so old packets and callbacks
+                    // cannot hold the writer's single-flight slot across reconnects.
+<span class="fc" id="L508">                    notificationWriter.clear()</span>
+                }
+<span class="fc bfc" id="L510" title="All 2 branches covered.">                if (status != BluetoothGatt.GATT_SUCCESS) {</span>
+<span class="fc" id="L511">                    _connectionState.value = Fido2ConnectionState.Error(&quot;Bluetooth connection or pairing failed&quot;)</span>
+<span class="pc bpc" id="L512" title="1 of 2 branches missed.">                } else if (_connectionState.value is Fido2ConnectionState.Error) {</span>
+                    // Keep pairing guidance visible until the user explicitly retries after recovery.
+<span class="pc bpc" id="L514" title="1 of 2 branches missed.">                } else if (isStarted) {</span>
+<span class="fc" id="L515">                    coroutineScope.launch {</span>
+<span class="fc" id="L516">                        val result =</span>
+<span class="fc" id="L517">                            advertiserController.startAdvertising(FidoBleGattServer.UUID_FIDO_SERVICE) { failure -&gt;</span>
+<span class="nc bnc" id="L518" title="All 2 branches missed.">                                if (isStarted) {</span>
+<span class="nc" id="L519">                                    onBluetoothUnavailable(failure)</span>
+                                }
+<span class="nc" id="L521">                            }</span>
+<span class="pc bpc" id="L522" title="1 of 2 branches missed.">                        if (isStarted) {</span>
+<span class="pc bpc" id="L523" title="1 of 2 branches missed.">                            if (result.isSuccess) {</span>
+<span class="fc" id="L524">                                _connectionState.value = Fido2ConnectionState.Advertising</span>
+                            } else {
+<span class="nc" id="L526">                                onBluetoothUnavailable(</span>
+<span class="nc bnc" id="L527" title="All 2 branches missed.">                                    result.exceptionOrNull()</span>
+<span class="nc" id="L528">                                        ?: IllegalStateException(&quot;Failed to resume BLE advertising&quot;),</span>
+                                )
+                            }
+                        }
+<span class="fc" id="L532">                    }</span>
+                } else {
+<span class="nc" id="L534">                    _connectionState.value = Fido2ConnectionState.Idle</span>
+                }
+            }
+        }
+<span class="fc" id="L538">    }</span>
+
+    @Req(&quot;FR-BLE-070&quot;, &quot;TR-BLE-040&quot;)
+    private fun onHostAuthenticationFailure() {
+<span class="fc" id="L542">        activeHostAddress = null</span>
+<span class="fc" id="L543">        cancelReceiveTimeout()</span>
+<span class="fc" id="L544">        cancelCurrentMessage()</span>
+<span class="fc" id="L545">        notificationWriter.clear()</span>
+<span class="fc" id="L546">        advertiserController.stopAdvertising()</span>
+<span class="fc" id="L547">        _connectionState.value = Fido2ConnectionState.Error(&quot;Bluetooth pairing authentication failed&quot;)</span>
+<span class="fc" id="L548">    }</span>
+
+    internal fun onBluetoothUnavailable(failure: Throwable) {
+<span class="fc" id="L551">        Logger.e(failure) { &quot;BleGattTransport: Bluetooth became unavailable during an active BLE session&quot; }</span>
+<span class="fc" id="L552">        isStarted = false</span>
+<span class="fc" id="L553">        cancelReceiveTimeout()</span>
+<span class="fc" id="L554">        cancelCurrentMessage()</span>
+<span class="pc bpc" id="L555" title="1 of 2 branches missed.">        val activeDevice = activeHostAddress ?: sessionOwner.activeDeviceAddress</span>
+<span class="fc" id="L556">        activeHostAddress = null</span>
+<span class="fc" id="L557">        notificationWriter.clear()</span>
+<span class="pc bpc" id="L558" title="1 of 2 branches missed.">        if (activeDevice != null) sessionOwner.disconnectHost(activeDevice)</span>
+<span class="fc" id="L559">        advertiserController.stopAdvertising()</span>
+<span class="fc" id="L560">        advertiserController.stopObservingAdapterState()</span>
+<span class="fc" id="L561">        _connectionState.value = Fido2ConnectionState.Error(&quot;Bluetooth is off; restore Bluetooth and retry&quot;)</span>
+<span class="pc bpc" id="L562" title="1 of 2 branches missed.">        gattServerHost?.stop()</span>
+<span class="fc" id="L563">    }</span>
+
+    private fun cancelCurrentMessage() {
+<span class="fc" id="L566">        val messageJob = currentMsgJob</span>
+<span class="fc" id="L567">        currentMsgJob = null</span>
+<span class="fc bfc" id="L568" title="All 2 branches covered.">        messageJob?.cancel()</span>
+<span class="fc" id="L569">        notificationWriter.clear()</span>
+<span class="fc" id="L570">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

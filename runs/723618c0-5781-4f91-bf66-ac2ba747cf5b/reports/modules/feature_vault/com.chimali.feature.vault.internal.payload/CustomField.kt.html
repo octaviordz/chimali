@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomField.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">vault</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.vault.internal.payload</a> &gt; <span class="el_source">CustomField.kt</span></div><h1>CustomField.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.vault.internal.payload
+
+/** FR-VAULT-026: owns its arrays; copies transfer independent ownership. */
+<span class="fc" id="L4">data class CustomField(</span>
+<span class="fc" id="L5">    val name: CharArray,</span>
+<span class="fc" id="L6">    val value: CharArray,</span>
+<span class="fc" id="L7">    val isConcealed: Boolean,</span>
+) : SensitivePayload {
+    // Legacy UI boundary; callers must not treat String adapters as erasure guarantees.
+    constructor(
+        name: String,
+        value: CharArray,
+        isConcealed: Boolean,
+<span class="fc" id="L14">    ) : this(name.toCharArray(), value, isConcealed)</span>
+
+    override fun clearMemory() {
+<span class="fc" id="L17">        name.fill('\u0000')</span>
+<span class="fc" id="L18">        value.fill('\u0000')</span>
+<span class="fc" id="L19">    }</span>
+
+    fun copyForEditing(): CustomField =
+<span class="fc" id="L22">        copy(</span>
+<span class="fc" id="L23">            name = name.copyOf(),</span>
+<span class="fc" id="L24">            value = value.copyOf(),</span>
+<span class="fc" id="L25">        )</span>
+
+<span class="nc" id="L27">    override fun toString(): String = &quot;CustomField([redacted])&quot;</span>
+
+    override fun equals(other: Any?): Boolean {
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        if (this === other) return true</span>
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">        if (other !is CustomField) return false</span>
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">        if (!name.contentEquals(other.name)) return false</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (!value.contentEquals(other.value)) return false</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">        if (isConcealed != other.isConcealed) return false</span>
+<span class="fc" id="L35">        return true</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="nc" id="L39">        var result = 1</span>
+<span class="nc" id="L40">        result = 31 * result + name.contentHashCode()</span>
+<span class="nc" id="L41">        result = 31 * result + value.contentHashCode()</span>
+<span class="nc" id="L42">        result = 31 * result + isConcealed.hashCode()</span>
+<span class="nc" id="L43">        return result</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

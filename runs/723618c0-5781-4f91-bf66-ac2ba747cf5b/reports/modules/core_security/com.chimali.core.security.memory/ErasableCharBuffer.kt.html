@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErasableCharBuffer.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">security</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.memory</a> &gt; <span class="el_source">ErasableCharBuffer.kt</span></div><h1>ErasableCharBuffer.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.memory
+
+import com.chimali.core.common.annotation.Req
+
+/**
+ * Operation-owned characters for normalization and serialization. Growth erases replaced arrays.
+ * Callers must invoke [erase] in finally. Views borrow this owner and never create immutable text.
+ */
+<span class="fc" id="L9">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="pc" id="L10">class ErasableCharBuffer(</span>
+<span class="nc" id="L11">    initialCapacity: Int = DEFAULT_CAPACITY,</span>
+<span class="nc" id="L12">) : Appendable,</span>
+    CharSequence {
+<span class="pc bpc" id="L14" title="2 of 4 branches missed.">    private var characters = CharArray(initialCapacity.also { require(it &gt;= 0) })</span>
+    private var size = 0
+
+    /** Number of initialized characters; does not expose the backing storage. */
+<span class="fc" id="L18">    override val length: Int get() = size</span>
+
+    /** Returns a borrowed character. Throws if the position is outside the live content. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun get(index: Int): Char {
+<span class="pc bpc" id="L23" title="1 of 6 branches missed.">        require(index in 0 until size)</span>
+<span class="fc" id="L24">        return characters[index]</span>
+    }
+
+    /** Appends a borrowed character, erasing any replaced buffer. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun append(value: Char): ErasableCharBuffer {
+<span class="fc" id="L30">        ensureCapacity(1)</span>
+<span class="fc" id="L31">        characters[size++] = value</span>
+<span class="fc" id="L32">        return this</span>
+    }
+
+    /** Appends borrowed characters; null input is rejected rather than serialized as private text. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun append(value: CharSequence?): ErasableCharBuffer {
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">        val source = requireNotNull(value)</span>
+<span class="fc" id="L39">        return append(source, 0, source.length)</span>
+    }
+
+    /** Appends the requested borrowed range and rejects invalid bounds. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun append(
+        value: CharSequence?,
+        startIndex: Int,
+        endIndex: Int,
+    ): ErasableCharBuffer {
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        val source = requireNotNull(value)</span>
+<span class="pc bpc" id="L50" title="2 of 8 branches missed.">        require(startIndex &gt;= 0 &amp;&amp; endIndex &gt;= startIndex &amp;&amp; endIndex &lt;= source.length)</span>
+<span class="fc" id="L51">        ensureCapacity(endIndex - startIndex)</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        for (index in startIndex until endIndex) characters[size++] = source[index]</span>
+<span class="fc" id="L53">        return this</span>
+    }
+
+    /** Returns a borrowed view. Erasing/replacing this owner invalidates its contents. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun subSequence(
+        startIndex: Int,
+        endIndex: Int,
+    ): CharSequence {
+<span class="pc bpc" id="L62" title="2 of 8 branches missed.">        require(startIndex &gt;= 0 &amp;&amp; endIndex &gt;= startIndex &amp;&amp; endIndex &lt;= size)</span>
+<span class="fc" id="L63">        return View(this, startIndex, endIndex - startIndex)</span>
+    }
+
+    /** Returns a separately owned copy; its recipient must erase it. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L68">    fun copyToOwnedChars(): CharArray = characters.copyOf(size)</span>
+
+    /** Erases all allocated characters, including unused capacity, and releases the live content. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun erase() {
+<span class="fc" id="L73">        characters.fill('\u0000')</span>
+<span class="fc" id="L74">        size = 0</span>
+<span class="fc" id="L75">    }</span>
+
+    private fun ensureCapacity(additional: Int) {
+<span class="fc" id="L78">        val required = Math.addExact(size, additional)</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">        if (required &lt;= characters.size) return</span>
+<span class="fc" id="L80">        val capacity =</span>
+<span class="fc" id="L81">            maxOf(</span>
+<span class="fc" id="L82">                characters.size.toLong() * 2,</span>
+<span class="fc" id="L83">                required.toLong(),</span>
+<span class="fc" id="L84">            ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()</span>
+<span class="fc" id="L85">        val previous = characters</span>
+<span class="fc" id="L86">        characters = previous.copyOf(capacity)</span>
+<span class="fc" id="L87">        previous.fill('\u0000')</span>
+<span class="fc" id="L88">    }</span>
+
+<span class="fc" id="L90">    private class View(</span>
+<span class="fc" id="L91">        private val owner: ErasableCharBuffer,</span>
+<span class="fc" id="L92">        private val offset: Int,</span>
+<span class="fc" id="L93">        override val length: Int,</span>
+    ) : CharSequence {
+        override fun get(index: Int): Char {
+<span class="pc bpc" id="L96" title="3 of 6 branches missed.">            require(index in 0 until length)</span>
+<span class="fc" id="L97">            return owner[offset + index]</span>
+        }
+
+        override fun subSequence(
+            startIndex: Int,
+            endIndex: Int,
+        ): CharSequence {
+<span class="nc bnc" id="L104" title="All 8 branches missed.">            require(startIndex &gt;= 0 &amp;&amp; endIndex &gt;= startIndex &amp;&amp; endIndex &lt;= length)</span>
+<span class="nc" id="L105">            return View(owner, offset + startIndex, endIndex - startIndex)</span>
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_CAPACITY = 32
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

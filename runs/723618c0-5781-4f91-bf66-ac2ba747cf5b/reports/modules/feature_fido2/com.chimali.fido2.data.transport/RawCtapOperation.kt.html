@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RawCtapOperation.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">RawCtapOperation.kt</span></div><h1>RawCtapOperation.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
+import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
+import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
+import org.koin.core.annotation.Single
+
+/**
+ * Result of an unframed CTAP command execution.
+ *
+ * @property responseBytes Full raw response array: status code (first byte, 0x00 on success)
+ *                         followed by optional CBOR-encoded payload.
+ * @property presenceRequired Whether user presence was required for this ceremony.
+ */
+<span class="fc" id="L21">@Req(&quot;FR-BLE-080&quot;, &quot;TR-BLE-030&quot;)</span>
+<span class="fc" id="L22">data class RawCtapResult(</span>
+<span class="fc" id="L23">    val responseBytes: ByteArray,</span>
+<span class="fc" id="L24">    val presenceRequired: Boolean = false,</span>
+<span class="fc" id="L25">) {</span>
+    /** 1-byte CTAP status code (e.g. 0x00 for CTAP2_OK). */
+<span class="pc bpc" id="L27" title="1 of 2 branches missed.">    val status: Byte get() = responseBytes.firstOrNull() ?: 0x7F.toByte()</span>
+
+    /** True if status is CTAP2_OK (0x00). */
+<span class="fc bfc" id="L30" title="All 2 branches covered.">    val isSuccess: Boolean get() = status == 0x00.toByte()</span>
+
+    override fun equals(other: Any?): Boolean {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (this === other) return true</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        if (other !is RawCtapResult) return false</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (!responseBytes.contentEquals(other.responseBytes)) return false</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        return presenceRequired == other.presenceRequired</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="nc" id="L40">        var result = responseBytes.contentHashCode()</span>
+<span class="nc" id="L41">        result = 31 * result + presenceRequired.hashCode()</span>
+<span class="nc" id="L42">        return result</span>
+    }
+}
+
+/**
+ * Raw unframed CTAP operation boundary.
+ *
+ * Decouples CTAP2 protocol execution (authenticatorMakeCredential, authenticatorGetAssertion,
+ * authenticatorGetInfo) from transport framing (HID vs BLE).
+ */
+@Req(&quot;FR-BLE-080&quot;, &quot;TR-BLE-030&quot;)
+interface RawCtapOperation {
+    /**
+     * Executes an unframed CTAP command.
+     *
+     * @param request Full CTAP request starting with the command byte (e.g. 0x01, 0x02, 0x04).
+     * @param onKeepalive Optional callback to report keepalive status (0x01 = processing, 0x02 = upneeded).
+     * @return Owned mutable [RawCtapResult].
+     */
+<span class="pc" id="L61">    suspend fun execute(</span>
+        request: ByteArray,
+<span class="fc" id="L63">        onKeepalive: ((Byte) -&gt; Unit)? = null,</span>
+<span class="nc" id="L64">    ): RawCtapResult</span>
+
+    /** Convenience alias for [execute]. */
+<span class="nc" id="L67">    suspend fun handle(</span>
+        request: ByteArray,
+<span class="nc" id="L69">        onKeepalive: ((Byte) -&gt; Unit)? = null,</span>
+<span class="nc" id="L70">    ): RawCtapResult = execute(request, onKeepalive)</span>
+}
+
+/**
+ * Default implementation of [RawCtapOperation] routing to core handlers while preserving
+ * master seed derivation session ownership, timeouts, and user verification semantics.
+ */
+<span class="fc" id="L77">@Single(binds = [RawCtapOperation::class])</span>
+@Req(&quot;FR-BLE-080&quot;, &quot;TR-BLE-030&quot;)
+<span class="fc" id="L79">class RawCtapOperationImpl(</span>
+<span class="fc" id="L80">    private val makeCredentialHandler: Ctap2MakeCredentialHandler,</span>
+<span class="fc" id="L81">    private val getAssertionHandler: Ctap2GetAssertionHandler,</span>
+<span class="fc" id="L82">    private val authenticatorInfoProvider: AuthenticatorInfoProvider,</span>
+<span class="fc" id="L83">    private val responseBuilder: Ctap2ResponseBuilder,</span>
+<span class="fc" id="L84">    private val masterSeedProvider: MasterSeedProvider,</span>
+) : RawCtapOperation {
+    companion object {
+        const val CMD_MAKE_CREDENTIAL: Byte = 0x01
+        const val CMD_GET_ASSERTION: Byte = 0x02
+        const val CMD_GET_INFO: Byte = 0x04
+
+        const val CTAP2_OK: Byte = 0x00
+        const val CTAP2_ERR_INVALID_CMD: Byte = 0x01
+        const val CTAP2_ERR_UNSUPPORTED_CMD: Byte = 0x01
+        const val CTAP2_ERR_OTHER: Byte = 0x7F.toByte()
+        private const val HEX_RADIX = 16
+        private const val BYTE_MASK = 0xFF
+    }
+
+<span class="fc" id="L99">    override suspend fun execute(</span>
+        request: ByteArray,
+        onKeepalive: ((Byte) -&gt; Unit)?,
+    ): RawCtapResult {
+<span class="fc bfc" id="L103" title="All 4 branches covered.">        if (request.isEmpty()) {</span>
+<span class="fc" id="L104">            return RawCtapResult(byteArrayOf(CTAP2_ERR_INVALID_CMD))</span>
+        }
+
+<span class="fc" id="L107">        val cmd = request[0]</span>
+<span class="fc" id="L108">        return when (cmd) {</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            CMD_MAKE_CREDENTIAL -&gt; {</span>
+<span class="fc" id="L110">                masterSeedProvider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) { _ -&gt;</span>
+<span class="fc" id="L111">                    makeCredentialHandler.handleRaw(request, onKeepalive)</span>
+                }
+            }
+
+<span class="fc bfc" id="L115" title="All 2 branches covered.">            CMD_GET_ASSERTION -&gt; {</span>
+<span class="fc" id="L116">                val requestBody = request.copyOfRange(1, request.size)</span>
+<span class="fc" id="L117">                try {</span>
+<span class="fc" id="L118">                    masterSeedProvider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) { _ -&gt;</span>
+<span class="fc" id="L119">                        getAssertionHandler.handleRaw(requestBody, onKeepalive)</span>
+                    }
+                } finally {
+<span class="fc" id="L122">                    requestBody.fill(0)</span>
+                }
+            }
+
+<span class="fc bfc" id="L126" title="All 2 branches covered.">            CMD_GET_INFO -&gt; {</span>
+<span class="fc" id="L127">                handleGetInfo()</span>
+            }
+
+            else -&gt; {
+<span class="fc" id="L131">                Logger.w { &quot;Unsupported CTAP2 command: 0x${(cmd.toInt() and BYTE_MASK).toString(HEX_RADIX)}&quot; }</span>
+<span class="fc" id="L132">                RawCtapResult(byteArrayOf(CTAP2_ERR_UNSUPPORTED_CMD))</span>
+            }
+        }
+<span class="fc" id="L135">    }</span>
+
+    private suspend fun handleGetInfo(): RawCtapResult =
+<span class="fc" id="L138">        try {</span>
+<span class="fc" id="L139">            val info = authenticatorInfoProvider.getAuthenticatorInfo()</span>
+<span class="fc" id="L140">            val payload = responseBuilder.buildGetInfoRawPayload(info)</span>
+<span class="fc" id="L141">            RawCtapResult(payload)</span>
+<span class="nc" id="L142">        } catch (failure: Fido2Exception) {</span>
+<span class="nc" id="L143">            Logger.e(failure) { &quot;RawCtapOperation: GetInfo failed: ${failure.message}&quot; }</span>
+<span class="pc" id="L144">            RawCtapResult(byteArrayOf(0x30.toByte()))</span>
+<span class="fc" id="L145">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

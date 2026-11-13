@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.FidoBleLifecycleTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:51.986Z" hostname="LOQ15IRX10-3" time="0.045">
+  <properties/>
+  <testcase name="disconnect stops advertising, clears active host, and transitions to Idle()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.001"/>
+  <testcase name="duplicate connect calls are idempotent and do not restart advertiser()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.001"/>
+  <testcase name="disconnect is idempotent when called repeatedly()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.001"/>
+  <testcase name="connect starts advertising and transitions connection state to Advertising()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.002"/>
+  <testcase name="notification completion from previous host does not advance successor queue()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.006"/>
+  <testcase name="authentication failure stops advertising until explicit retry()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.003"/>
+  <testcase name="disconnect increments session generation to fence late incoming packets()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.002"/>
+  <testcase name="late disconnect callback from previous host does not disturb the successor session()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.002"/>
+  <testcase name="single host exclusivity rejects second peer while first peer is active()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.001"/>
+  <testcase name="outbound connectDevice fails immediately with UnsupportedOutboundConnectionException()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.004"/>
+  <testcase name="connect registers FIDO service before advertising and closes server on stop()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.001"/>
+  <testcase name="unexpected peer disconnect cancels the active CTAP operation and drops its response()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.006"/>
+  <testcase name="failed BLE link surfaces pairing recovery error after session cleanup()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.003"/>
+  <testcase name="connect failure transitions to Error state and returns failure()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.002"/>
+  <testcase name="incomplete request autonomously sends timeout error after three seconds()" classname="com.chimali.fido2.data.transport.FidoBleLifecycleTest" time="0.003"/>
+  <system-out><![CDATA[Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleGattTransport: Ignoring notification callback from inactive peer 11:22:33:44:55:66
+Debug: BleSessionOwner: Disconnected, session generation incremented to 3
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Debug: BleGattTransport: Ignoring stale disconnect callback from 11:22:33:44:55:66
+Debug: BleSessionOwner: Disconnected, session generation incremented to 3
+Warn: BleSessionOwner: Rejected second host 99:88:77:66:55:44 (active=11:22:33:44:55:66)
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetInfo
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleGattTransport: In-flight CTAP command was cancelled
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetInfo
+Info: FIDO BLE diagnostic completed operation=GetInfo elapsedMs=0 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 3
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

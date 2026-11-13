@@ -1,0 +1,3 @@
+com.chimali.fido2.data.transport.FidoBleReconnectStressDeviceTest
+com.chimali.fido2.data.transport.FidoBleAdvertiserDiscoveryDeviceTest
+com.chimali.fido2.data.transport.FidoBlePhysicalCorpusClientDeviceTest

@@ -1,0 +1,505 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProcessTransportSelection.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">ProcessTransportSelection.kt</span></div><h1>ProcessTransportSelection.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothAdapter
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
+import com.chimali.fido2.domain.repository.ProcessTransportState
+import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportPreferenceResult
+import com.chimali.fido2.domain.repository.TransportUnavailableReason
+import java.io.IOException
+import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+
+/**
+ * Result of the non-initializing platform capability check.
+ */
+@Req(&quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;)
+sealed interface CapabilityCheckResult {
+    data object Supported : CapabilityCheckResult
+
+    data object Unknown : CapabilityCheckResult
+
+    data object Unsupported : CapabilityCheckResult
+
+    data object PermissionRequired : CapabilityCheckResult
+
+    data object BluetoothOff : CapabilityCheckResult
+}
+
+/**
+ * Checks platform capability signals without initializing Bluetooth or transports.
+ */
+@Req(&quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;)
+interface BluetoothCapabilityChecker {
+    fun checkCapability(mode: BluetoothTransportMode): CapabilityCheckResult
+}
+
+/**
+ * Default Android implementation using system signals without initializing transports.
+ */
+<span class="nc" id="L59">@Req(&quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;)</span>
+<span class="nc" id="L60">class AndroidBluetoothCapabilityChecker(</span>
+<span class="nc" id="L61">    private val context: Context,</span>
+) : BluetoothCapabilityChecker {
+    override fun checkCapability(mode: BluetoothTransportMode): CapabilityCheckResult {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return CapabilityCheckResult.Unsupported</span>
+
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.S) {</span>
+<span class="nc" id="L67">            val hasConnect =</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                ContextCompat.checkSelfPermission(</span>
+<span class="nc" id="L69">                    context,</span>
+<span class="nc" id="L70">                    android.Manifest.permission.BLUETOOTH_CONNECT,</span>
+                ) == PackageManager.PERMISSION_GRANTED
+<span class="nc" id="L72">            val hasAdvertise =</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">                ContextCompat.checkSelfPermission(</span>
+<span class="nc" id="L74">                    context,</span>
+<span class="nc" id="L75">                    android.Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+                ) == PackageManager.PERMISSION_GRANTED
+<span class="nc bnc" id="L77" title="All 4 branches missed.">            if (!hasConnect || !hasAdvertise) {</span>
+<span class="nc" id="L78">                return CapabilityCheckResult.PermissionRequired</span>
+            }
+        }
+
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (!adapter.isEnabled) {</span>
+<span class="nc" id="L83">            return CapabilityCheckResult.BluetoothOff</span>
+        }
+
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (mode == BluetoothTransportMode.FIDO_BLE) {</span>
+<span class="nc" id="L87">            val hasLe = context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            if (!hasLe) {</span>
+<span class="nc" id="L89">                return CapabilityCheckResult.Unsupported</span>
+            }
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (!adapter.isMultipleAdvertisementSupported) {</span>
+<span class="nc" id="L92">                return CapabilityCheckResult.Unknown</span>
+            }
+<span class="nc" id="L94">            return CapabilityCheckResult.Supported</span>
+        }
+
+        // Android exposes no public, non-initializing signal for whether an OEM
+        // Bluetooth stack provides the HID_DEVICE profile service. Generic Bluetooth
+        // hardware is insufficient evidence (for example, Mi/API29 can fail to bind
+        // the profile). Defer that determination to the selected transport's activation.
+<span class="nc" id="L101">        return classicHidCapabilityForApi(Build.VERSION.SDK_INT)</span>
+    }
+}
+
+internal fun classicHidCapabilityForApi(apiLevel: Int): CapabilityCheckResult =
+<span class="fc bfc" id="L106" title="All 2 branches covered.">    if (apiLevel &lt; Build.VERSION_CODES.P) CapabilityCheckResult.Unsupported else CapabilityCheckResult.Unknown</span>
+
+/**
+ * Process-scoped controller and single gated handle for FIDO2 transport selection.
+ */
+<span class="fc" id="L111">@Req(&quot;FR-BT-SEL-030&quot;, &quot;FR-BT-SEL-040&quot;, &quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;, &quot;TR-BT-SEL-030&quot;)</span>
+<span class="fc" id="L112">class ProcessTransportSelection(</span>
+<span class="fc" id="L113">    private val settingsRepository: Fido2SettingsRepository,</span>
+<span class="fc" id="L114">    private val capabilityChecker: BluetoothCapabilityChecker,</span>
+<span class="fc" id="L115">    private val bleTransportFactory: () -&gt; Fido2Transport,</span>
+<span class="fc" id="L116">    private val classicTransportFactory: () -&gt; Fido2Transport,</span>
+<span class="fc" id="L117">    private val coroutineScope: CoroutineScope,</span>
+<span class="fc" id="L118">    private val snapshotTimeoutMs: Long = 5000L,</span>
+<span class="fc" id="L119">    private val activationTimeoutMs: Long = 5000L,</span>
+<span class="fc" id="L120">) : Fido2Transport {</span>
+    private val _state =
+<span class="fc" id="L122">        MutableStateFlow(</span>
+<span class="fc" id="L123">            ProcessTransportState(</span>
+<span class="fc" id="L124">                processChoice = null,</span>
+<span class="fc" id="L125">                availability = TransportAvailability.Loading,</span>
+            ),
+        )
+<span class="fc" id="L128">    val state: StateFlow&lt;ProcessTransportState&gt; = _state.asStateFlow()</span>
+
+<span class="fc" id="L130">    private val _connectionState = MutableStateFlow&lt;Fido2ConnectionState&gt;(Fido2ConnectionState.Idle)</span>
+<span class="fc" id="L131">    override val connectionState: StateFlow&lt;Fido2ConnectionState&gt; = _connectionState.asStateFlow()</span>
+
+<span class="fc" id="L133">    private val snapshotMutex = Mutex()</span>
+    private var snapshotDeferred: CompletableDeferred&lt;BluetoothTransportMode?&gt;? = null
+
+<span class="fc" id="L136">    private val activationMutex = Mutex()</span>
+    private var activeTransport: Fido2Transport? = null
+    private var activationDeferred: CompletableDeferred&lt;Result&lt;Unit&gt;&gt;? = null
+    private var connectionStateJob: kotlinx.coroutines.Job? = null
+
+    /** Starts the snapshot asynchronously with a 5s deadline. */
+    fun startSnapshot() {
+<span class="fc" id="L143">        coroutineScope.launch {</span>
+<span class="fc" id="L144">            resolveSnapshot()</span>
+<span class="fc" id="L145">        }</span>
+<span class="fc" id="L146">    }</span>
+
+    private suspend fun resolveSnapshot(): BluetoothTransportMode? {
+<span class="fc" id="L149">        var isSnapshotOwner = false</span>
+<span class="fc" id="L150">        val existingDeferred =</span>
+<span class="fc" id="L151">            snapshotMutex.withLock {</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                if (_state.value.processChoice != null) {</span>
+<span class="fc" id="L153">                    return _state.value.processChoice</span>
+                }
+<span class="fc" id="L155">                val existing = snapshotDeferred</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">                if (existing != null) {</span>
+<span class="nc" id="L157">                    existing</span>
+                } else {
+<span class="fc" id="L159">                    isSnapshotOwner = true</span>
+<span class="fc" id="L160">                    val deferred = CompletableDeferred&lt;BluetoothTransportMode?&gt;()</span>
+<span class="fc" id="L161">                    snapshotDeferred = deferred</span>
+<span class="fc" id="L162">                    deferred</span>
+<span class="fc" id="L163">                }</span>
+            }
+
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">        if (!isSnapshotOwner) {</span>
+<span class="nc" id="L167">            return existingDeferred.await()</span>
+        }
+
+<span class="fc" id="L170">        val snapshotCompleted =</span>
+<span class="pc" id="L171">            try {</span>
+<span class="fc" id="L172">                withTimeoutOrNull(snapshotTimeoutMs) {</span>
+<span class="fc" id="L173">                    try {</span>
+<span class="fc" id="L174">                        when (val result = settingsRepository.getTransportPreference()) {</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                            is TransportPreferenceResult.Success -&gt; {</span>
+<span class="fc" id="L176">                                val mode = result.preference.mode</span>
+<span class="fc" id="L177">                                _state.value = _state.value.copy(processChoice = mode)</span>
+
+<span class="fc" id="L179">                                when (capabilityChecker.checkCapability(mode)) {</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">                                    CapabilityCheckResult.Supported,</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">                                    CapabilityCheckResult.Unknown,</span>
+                                    -&gt; {
+<span class="fc" id="L183">                                        _state.value =</span>
+<span class="fc" id="L184">                                            _state.value.copy(availability = TransportAvailability.SelectedNotStarted)</span>
+                                    }
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                                    CapabilityCheckResult.Unsupported -&gt; {</span>
+<span class="fc" id="L187">                                        _state.value =</span>
+<span class="fc" id="L188">                                            _state.value.copy(</span>
+                                                availability =
+<span class="fc" id="L190">                                                    TransportAvailability.Unavailable(</span>
+<span class="fc" id="L191">                                                        TransportUnavailableReason.Unsupported,</span>
+                                                    ),
+                                            )
+                                    }
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                                    CapabilityCheckResult.PermissionRequired -&gt; {</span>
+<span class="fc" id="L196">                                        _state.value =</span>
+<span class="fc" id="L197">                                            _state.value.copy(</span>
+                                                availability =
+<span class="fc" id="L199">                                                    TransportAvailability.Unavailable(</span>
+<span class="fc" id="L200">                                                        TransportUnavailableReason.PermissionRequired,</span>
+                                                    ),
+                                            )
+                                    }
+<span class="fc" id="L204">                                    CapabilityCheckResult.BluetoothOff -&gt; {</span>
+<span class="fc" id="L205">                                        _state.value =</span>
+<span class="fc" id="L206">                                            _state.value.copy(</span>
+                                                availability =
+<span class="fc" id="L208">                                                    TransportAvailability.Unavailable(</span>
+<span class="fc" id="L209">                                                        TransportUnavailableReason.BluetoothOff,</span>
+                                                    ),
+                                            )
+                                    }
+                                }
+<span class="fc" id="L214">                                existingDeferred.complete(mode)</span>
+                            }
+<span class="fc bfc" id="L216" title="All 2 branches covered.">                            is TransportPreferenceResult.InvalidPreference -&gt; {</span>
+<span class="fc" id="L217">                                _state.value =</span>
+<span class="fc" id="L218">                                    _state.value.copy(</span>
+                                        availability =
+<span class="fc" id="L220">                                            TransportAvailability.Unavailable(</span>
+<span class="fc" id="L221">                                                TransportUnavailableReason.InvalidPreference,</span>
+                                            ),
+                                    )
+<span class="fc" id="L224">                                existingDeferred.complete(null)</span>
+                            }
+<span class="fc" id="L226">                            is TransportPreferenceResult.ReadError -&gt; {</span>
+<span class="fc" id="L227">                                _state.value =</span>
+<span class="fc" id="L228">                                    _state.value.copy(</span>
+                                        availability =
+<span class="fc" id="L230">                                            TransportAvailability.Unavailable(</span>
+<span class="fc" id="L231">                                                TransportUnavailableReason.PreferenceReadFailed,</span>
+                                            ),
+                                    )
+<span class="fc" id="L234">                                existingDeferred.complete(null)</span>
+                            }
+                        }
+<span class="nc" id="L237">                    } catch (e: IOException) {</span>
+<span class="nc" id="L238">                        Logger.e(e) { &quot;ProcessTransportSelection: Unable to read saved transport preference&quot; }</span>
+<span class="nc" id="L239">                        _state.value =</span>
+<span class="nc" id="L240">                            _state.value.copy(</span>
+                                availability =
+<span class="nc" id="L242">                                    TransportAvailability.Unavailable(</span>
+<span class="nc" id="L243">                                        TransportUnavailableReason.PreferenceReadFailed,</span>
+                                    ),
+                            )
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">                        existingDeferred.complete(null)</span>
+<span class="fc" id="L247">                    }</span>
+                }
+<span class="nc" id="L249">            } catch (cancellation: CancellationException) {</span>
+<span class="nc" id="L250">                existingDeferred.complete(null)</span>
+<span class="nc" id="L251">                throw cancellation</span>
+            }
+<span class="pc bpc" id="L253" title="1 of 4 branches missed.">        if (snapshotCompleted == null &amp;&amp; !existingDeferred.isCompleted) {</span>
+<span class="fc" id="L254">            Logger.w { &quot;ProcessTransportSelection: Initial preference snapshot timed out&quot; }</span>
+<span class="fc" id="L255">            _state.value =</span>
+<span class="fc" id="L256">                _state.value.copy(</span>
+                    availability =
+<span class="fc" id="L258">                        TransportAvailability.Unavailable(</span>
+<span class="fc" id="L259">                            TransportUnavailableReason.InitializationTimeout,</span>
+                        ),
+                )
+<span class="fc" id="L262">            existingDeferred.complete(null)</span>
+        }
+
+<span class="fc" id="L265">        return existingDeferred.await()</span>
+    }
+
+    /** Retries snapshot only if processChoice is not yet frozen. */
+    fun retrySnapshot() {
+<span class="fc bfc" id="L270" title="All 2 branches covered.">        if (_state.value.processChoice != null) return</span>
+<span class="fc" id="L271">        snapshotDeferred = null</span>
+<span class="fc" id="L272">        _state.value =</span>
+<span class="fc" id="L273">            ProcessTransportState(</span>
+<span class="fc" id="L274">                processChoice = null,</span>
+<span class="fc" id="L275">                availability = TransportAvailability.Loading,</span>
+            )
+<span class="fc" id="L277">        startSnapshot()</span>
+<span class="fc" id="L278">    }</span>
+
+    /** Retries activation for the same frozen choice. */
+    fun retryActivation() {
+<span class="fc bfc" id="L282" title="All 2 branches covered.">        val choice = _state.value.processChoice ?: return</span>
+<span class="fc" id="L283">        when (capabilityChecker.checkCapability(choice)) {</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">            CapabilityCheckResult.Supported,</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            CapabilityCheckResult.Unknown,</span>
+            -&gt; {
+<span class="fc" id="L287">                _state.value = _state.value.copy(availability = TransportAvailability.SelectedNotStarted)</span>
+            }
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            CapabilityCheckResult.Unsupported -&gt; {</span>
+<span class="fc" id="L290">                _state.value =</span>
+<span class="fc" id="L291">                    _state.value.copy(</span>
+<span class="fc" id="L292">                        availability = TransportAvailability.Unavailable(TransportUnavailableReason.Unsupported),</span>
+                    )
+            }
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">            CapabilityCheckResult.PermissionRequired -&gt; {</span>
+<span class="fc" id="L296">                _state.value =</span>
+<span class="fc" id="L297">                    _state.value.copy(</span>
+                        availability =
+<span class="fc" id="L299">                            TransportAvailability.Unavailable(TransportUnavailableReason.PermissionRequired),</span>
+                    )
+            }
+<span class="nc" id="L302">            CapabilityCheckResult.BluetoothOff -&gt; {</span>
+<span class="nc" id="L303">                _state.value =</span>
+<span class="nc" id="L304">                    _state.value.copy(</span>
+<span class="nc" id="L305">                        availability = TransportAvailability.Unavailable(TransportUnavailableReason.BluetoothOff),</span>
+                    )
+            }
+        }
+<span class="fc" id="L309">    }</span>
+
+    // This boundary normalizes exceptions from platform transport factories into a stable startup result.
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+<span class="fc" id="L313">    override suspend fun connect(): Result&lt;Unit&gt; {</span>
+<span class="fc bfc" id="L314" title="All 4 branches covered.">        if (_state.value.processChoice == null &amp;&amp; _state.value.availability is TransportAvailability.Loading) {</span>
+<span class="fc" id="L315">            resolveSnapshot()</span>
+        }
+
+<span class="fc" id="L318">        val choice = _state.value.processChoice</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        if (choice == null) {</span>
+<span class="fc" id="L320">            val reason =</span>
+<span class="fc" id="L321">                when (val avail = _state.value.availability) {</span>
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">                    is TransportAvailability.Unavailable -&gt; avail.reason</span>
+<span class="nc" id="L323">                    else -&gt; TransportUnavailableReason.StartupFailed</span>
+                }
+<span class="fc" id="L325">            return Result.failure(IllegalStateException(&quot;No transport selected or available: $reason&quot;))</span>
+        }
+
+<span class="fc" id="L328">        when (val avail = _state.value.availability) {</span>
+<span class="pc bpc" id="L329" title="1 of 2 branches missed.">            is TransportAvailability.Ready -&gt; return Result.success(Unit)</span>
+<span class="fc bfc" id="L330" title="All 2 branches covered.">            is TransportAvailability.Unavailable -&gt; {</span>
+<span class="fc" id="L331">                return Result.failure(IllegalStateException(&quot;Selected transport is unavailable: ${avail.reason}&quot;))</span>
+            }
+<span class="pc bpc" id="L333" title="1 of 2 branches missed.">            is TransportAvailability.Loading,</span>
+<span class="fc bfc" id="L334" title="All 2 branches covered.">            is TransportAvailability.SelectedNotStarted,</span>
+<span class="fc" id="L335">            is TransportAvailability.Starting,</span>
+            -&gt; {
+                // Proceed to activation
+            }
+        }
+
+<span class="fc" id="L341">        var isAttemptOwner = false</span>
+<span class="fc" id="L342">        val currentAttempt =</span>
+<span class="fc" id="L343">            activationMutex.withLock {</span>
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">                if (_state.value.availability is TransportAvailability.Ready) {</span>
+<span class="nc" id="L345">                    return Result.success(Unit)</span>
+                }
+<span class="fc" id="L347">                val existing = activationDeferred</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">                if (existing != null) {</span>
+<span class="fc" id="L349">                    existing</span>
+                } else {
+<span class="fc" id="L351">                    isAttemptOwner = true</span>
+<span class="fc" id="L352">                    val deferred = CompletableDeferred&lt;Result&lt;Unit&gt;&gt;()</span>
+<span class="fc" id="L353">                    activationDeferred = deferred</span>
+<span class="fc" id="L354">                    _state.value = _state.value.copy(availability = TransportAvailability.Starting)</span>
+<span class="fc" id="L355">                    deferred</span>
+<span class="fc" id="L356">                }</span>
+            }
+
+<span class="fc bfc" id="L359" title="All 2 branches covered.">        if (!isAttemptOwner) {</span>
+<span class="fc" id="L360">            return currentAttempt.await()</span>
+        }
+
+<span class="fc" id="L363">        var transportInstance: Fido2Transport? = null</span>
+<span class="fc" id="L364">        try {</span>
+<span class="fc" id="L365">            val result =</span>
+<span class="fc" id="L366">                withTimeoutOrNull(activationTimeoutMs) {</span>
+<span class="fc" id="L367">                    val transport =</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">                        when (choice) {</span>
+<span class="fc" id="L369">                            BluetoothTransportMode.FIDO_BLE -&gt; bleTransportFactory()</span>
+<span class="fc" id="L370">                            BluetoothTransportMode.CLASSIC_HID -&gt; classicTransportFactory()</span>
+                        }
+<span class="fc" id="L372">                    transportInstance = transport</span>
+<span class="fc" id="L373">                    activeTransport = transport</span>
+
+<span class="fc" id="L375">                    val connResult = transport.connect()</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">                    if (connResult.isSuccess) {</span>
+<span class="fc" id="L377">                        _state.value = _state.value.copy(availability = TransportAvailability.Ready)</span>
+<span class="fc" id="L378">                        _connectionState.value = transport.connectionState.value</span>
+<span class="pc bpc" id="L379" title="1 of 2 branches missed.">                        connectionStateJob?.cancel()</span>
+<span class="fc" id="L380">                        connectionStateJob =</span>
+<span class="fc" id="L381">                            coroutineScope.launch {</span>
+<span class="fc" id="L382">                                transport.connectionState.collectLatest { state -&gt;</span>
+<span class="fc" id="L383">                                    _connectionState.value = state</span>
+<span class="fc" id="L384">                                }</span>
+                            }
+<span class="fc" id="L386">                        Result.success(Unit)</span>
+                    } else {
+<span class="fc" id="L388">                        activeTransport = null</span>
+<span class="fc" id="L389">                        _state.value =</span>
+<span class="fc" id="L390">                            _state.value.copy(</span>
+                                availability =
+<span class="fc" id="L392">                                    TransportAvailability.Unavailable(</span>
+<span class="fc" id="L393">                                        TransportUnavailableReason.StartupFailed,</span>
+                                    ),
+                            )
+<span class="fc" id="L396">                        connResult</span>
+<span class="fc" id="L397">                    }</span>
+                }
+<span class="fc bfc" id="L399" title="All 2 branches covered.">            if (result != null) {</span>
+<span class="fc bfc" id="L400" title="All 2 branches covered.">                if (result.isFailure) {</span>
+<span class="pc bpc" id="L401" title="1 of 2 branches missed.">                    transportInstance?.let { transport -&gt; disconnectAfterFailedActivation(transport) }</span>
+<span class="fc" id="L402">                    activeTransport = null</span>
+                }
+<span class="fc" id="L404">                currentAttempt.complete(result)</span>
+<span class="fc" id="L405">                return result</span>
+            }
+<span class="fc" id="L407">            val timeout = TimeoutException(&quot;Selected transport startup exceeded $activationTimeoutMs ms&quot;)</span>
+<span class="fc" id="L408">            Logger.w(timeout) { &quot;ProcessTransportSelection: Selected transport startup timed out&quot; }</span>
+<span class="fc" id="L409">            _state.value =</span>
+<span class="fc" id="L410">                _state.value.copy(</span>
+                    availability =
+<span class="fc" id="L412">                        TransportAvailability.Unavailable(</span>
+<span class="fc" id="L413">                            TransportUnavailableReason.InitializationTimeout,</span>
+                        ),
+                )
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">            transportInstance?.let { transport -&gt; disconnectAfterFailedActivation(transport) }</span>
+<span class="fc" id="L417">            activeTransport = null</span>
+<span class="fc" id="L418">            val failure = Result.failure&lt;Unit&gt;(timeout)</span>
+<span class="fc" id="L419">            currentAttempt.complete(failure)</span>
+<span class="fc" id="L420">            return failure</span>
+<span class="fc" id="L421">        } catch (e: CancellationException) {</span>
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">            transportInstance?.let { transport -&gt; disconnectAfterFailedActivation(transport) }</span>
+<span class="fc" id="L423">            activeTransport = null</span>
+<span class="fc" id="L424">            _state.value = _state.value.copy(availability = TransportAvailability.SelectedNotStarted)</span>
+<span class="fc" id="L425">            _connectionState.value = Fido2ConnectionState.Idle</span>
+<span class="fc" id="L426">            currentAttempt.complete(Result.failure(e))</span>
+<span class="fc" id="L427">            throw e</span>
+<span class="fc" id="L428">        } catch (e: Exception) {</span>
+<span class="fc" id="L429">            Logger.e(e) { &quot;ProcessTransportSelection: Selected transport failed to start&quot; }</span>
+<span class="fc" id="L430">            _state.value =</span>
+<span class="fc" id="L431">                _state.value.copy(</span>
+                    availability =
+<span class="fc" id="L433">                        TransportAvailability.Unavailable(</span>
+<span class="fc" id="L434">                            TransportUnavailableReason.StartupFailed,</span>
+                        ),
+                )
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">            transportInstance?.let { transport -&gt; disconnectAfterFailedActivation(transport) }</span>
+<span class="fc" id="L438">            activeTransport = null</span>
+<span class="fc" id="L439">            val failure = Result.failure&lt;Unit&gt;(e)</span>
+<span class="fc" id="L440">            currentAttempt.complete(failure)</span>
+<span class="fc" id="L441">            return failure</span>
+        } finally {
+<span class="fc" id="L443">            withContext(NonCancellable) {</span>
+<span class="fc" id="L444">                activationMutex.withLock {</span>
+<span class="pc bpc" id="L445" title="1 of 2 branches missed.">                    if (activationDeferred === currentAttempt) {</span>
+<span class="fc" id="L446">                        activationDeferred = null</span>
+                    }
+<span class="fc" id="L448">                }</span>
+<span class="fc" id="L449">            }</span>
+        }
+    }
+
+    /** Cleanup is best-effort and non-cancellable so it cannot strand shared activation waiters. */
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+    private suspend fun disconnectAfterFailedActivation(transport: Fido2Transport) {
+<span class="fc" id="L456">        withContext(NonCancellable) {</span>
+<span class="fc" id="L457">            try {</span>
+<span class="pc bpc" id="L458" title="1 of 2 branches missed.">                transport.disconnect().onFailure { failure -&gt;</span>
+<span class="nc" id="L459">                    Logger.e(failure) { &quot;ProcessTransportSelection: Transport cleanup reported failure&quot; }</span>
+<span class="nc" id="L460">                }</span>
+<span class="nc" id="L461">            } catch (failure: Exception) {</span>
+<span class="nc" id="L462">                Logger.e(failure) { &quot;ProcessTransportSelection: Transport cleanup threw during activation failure&quot; }</span>
+<span class="fc" id="L463">            }</span>
+        }
+<span class="fc" id="L465">    }</span>
+
+    override suspend fun connectDevice(macAddress: String): Result&lt;Unit&gt; {
+<span class="fc bfc" id="L468" title="All 4 branches covered.">        if (_state.value.processChoice == null &amp;&amp; _state.value.availability is TransportAvailability.Loading) {</span>
+<span class="fc" id="L469">            resolveSnapshot()</span>
+        }
+
+<span class="fc" id="L472">        val choice = _state.value.processChoice</span>
+<span class="fc bfc" id="L473" title="All 2 branches covered.">        if (choice == BluetoothTransportMode.FIDO_BLE) {</span>
+<span class="fc" id="L474">            return Result.failure(UnsupportedOutboundConnectionException())</span>
+        }
+
+<span class="fc" id="L477">        val conn = connect()</span>
+<span class="fc bfc" id="L478" title="All 2 branches covered.">        if (conn.isFailure) return conn</span>
+
+<span class="fc" id="L480">        val transport =</span>
+<span class="pc bpc" id="L481" title="1 of 2 branches missed.">            activeTransport</span>
+<span class="nc" id="L482">                ?: return Result.failure(IllegalStateException(&quot;Classic transport not active&quot;))</span>
+<span class="fc" id="L483">        return transport.connectDevice(macAddress)</span>
+    }
+
+    override suspend fun disconnect(): Result&lt;Unit&gt; {
+<span class="fc bfc" id="L487" title="All 2 branches covered.">        connectionStateJob?.cancel()</span>
+<span class="fc" id="L488">        connectionStateJob = null</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">        val transport = activeTransport ?: return Result.success(Unit)</span>
+<span class="fc" id="L490">        val result = transport.disconnect()</span>
+<span class="fc" id="L491">        activeTransport = null</span>
+<span class="pc bpc" id="L492" title="1 of 2 branches missed.">        if (_state.value.availability is TransportAvailability.Ready) {</span>
+<span class="fc" id="L493">            _state.value = _state.value.copy(availability = TransportAvailability.SelectedNotStarted)</span>
+        }
+<span class="fc" id="L495">        _connectionState.value = Fido2ConnectionState.Idle</span>
+<span class="fc" id="L496">        return result</span>
+    }
+
+    /** Releases internal listeners and resources. */
+    fun close() {
+<span class="fc bfc" id="L501" title="All 2 branches covered.">        connectionStateJob?.cancel()</span>
+<span class="fc" id="L502">        connectionStateJob = null</span>
+<span class="fc" id="L503">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

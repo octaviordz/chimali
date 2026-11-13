@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BouncyCastleLoader.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.crypto</a> &gt; <span class="el_source">BouncyCastleLoader.kt</span></div><h1>BouncyCastleLoader.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.crypto
+
+import co.touchlab.kermit.Logger
+import java.security.Security
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+
+/**
+ * Handles the registration of the bundled BouncyCastle provider on Android.
+ */
+object BouncyCastleLoader {
+    /**
+     * Ensures that the bundled BouncyCastle provider is registered and takes precedence
+     * over the system &quot;BC&quot; provider, which is often crippled on modern Android versions.
+     */
+    fun ensureRegistered(): BouncyCastleProvider {
+<span class="fc" id="L16">        val existing = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)</span>
+
+        // If it's already registered and it's our bundled version, return it.
+        // We check if it's an instance of BouncyCastleProvider from our classpath.
+<span class="fc bfc" id="L20" title="All 2 branches covered.">        if (existing is BouncyCastleProvider) {</span>
+<span class="fc" id="L21">            return existing</span>
+        }
+
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        Logger.i { &quot;Registering bundled BouncyCastle provider (replacing existing: ${existing != null})&quot; }</span>
+
+<span class="fc" id="L26">        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)</span>
+<span class="fc" id="L27">        val newProvider = BouncyCastleProvider()</span>
+<span class="fc" id="L28">        Security.insertProviderAt(newProvider, 1)</span>
+
+<span class="fc" id="L30">        return newProvider</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

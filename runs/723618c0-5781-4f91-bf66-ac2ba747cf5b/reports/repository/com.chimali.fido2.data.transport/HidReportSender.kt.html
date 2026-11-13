@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HidReportSender.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">HidReportSender.kt</span></div><h1>HidReportSender.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/** Owns bounded outgoing HID packet queues and serializes driver access across session replacement. */
+<span class="fc" id="L18">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L19">internal class HidReportSender(</span>
+<span class="fc" id="L20">    private val scope: CoroutineScope,</span>
+<span class="fc" id="L21">    private val dispatcher: () -&gt; CoroutineDispatcher,</span>
+<span class="fc" id="L22">    private val sessionGeneration: () -&gt; Long,</span>
+<span class="fc" id="L23">    private val sendReport: suspend (ByteArray, Long) -&gt; Boolean,</span>
+<span class="fc" id="L24">    private val reportAccepted: (ByteArray, Boolean) -&gt; Unit,</span>
+<span class="fc" id="L25">    private val reportPaceDelayMillis: Long,</span>
+) {
+<span class="fc" id="L27">    private data class QueuedPacket(</span>
+<span class="fc" id="L28">        val payload: ByteArray,</span>
+<span class="fc" id="L29">        val sent: CompletableDeferred&lt;Boolean&gt;? = null,</span>
+<span class="fc" id="L30">        val generation: Long,</span>
+<span class="fc" id="L31">        val ownerJob: Job? = null,</span>
+<span class="fc" id="L32">    )</span>
+
+<span class="fc" id="L34">    private data class Session(</span>
+<span class="fc" id="L35">        val generation: Long,</span>
+<span class="fc" id="L36">        val channel: Channel&lt;QueuedPacket&gt;,</span>
+    )
+
+<span class="fc" id="L39">    private val lock = Any()</span>
+<span class="fc" id="L40">    private val driverLock = Mutex()</span>
+    private var session: Session? = null
+    private var senderJob: Job? = null
+
+    /** Replaces the queue with a new host-session owner; previous cleanup remains queue-local. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L46">    fun start(generation: Long = sessionGeneration()) {</span>
+<span class="fc" id="L47">        val (next, previous, previousJob) =</span>
+<span class="pc" id="L48">            synchronized(lock) {</span>
+<span class="pc bpc" id="L49" title="2 of 6 branches missed.">                if (session?.generation == generation) return</span>
+<span class="fc" id="L50">                val next =</span>
+<span class="fc" id="L51">                    Session(</span>
+<span class="fc" id="L52">                        generation = generation,</span>
+<span class="fc" id="L53">                        channel = Channel(capacity = QUEUE_CAPACITY, onUndeliveredElement = ::dispose),</span>
+                    )
+<span class="fc" id="L55">                val oldSession = session</span>
+<span class="fc" id="L56">                val oldJob = senderJob</span>
+<span class="fc" id="L57">                session = next</span>
+<span class="fc" id="L58">                senderJob = null</span>
+<span class="fc" id="L59">                Triple(next, oldSession, oldJob)</span>
+            }
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        previousJob?.cancel()</span>
+<span class="fc bfc" id="L62" title="All 4 branches covered.">        previous?.channel?.cancel()</span>
+
+<span class="fc" id="L64">        val job =</span>
+<span class="fc" id="L65">            scope.launch(dispatcher()) {</span>
+<span class="fc" id="L66">                driverLock.withLock {</span>
+<span class="fc" id="L67">                    try {</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">                        for (packet in next.channel) sendOne(packet)</span>
+                    } finally {
+<span class="fc" id="L70">                        discardQueued(next)</span>
+                    }
+<span class="nc" id="L72">                }</span>
+<span class="nc" id="L73">            }</span>
+<span class="fc" id="L74">        synchronized(lock) {</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">            if (session === next) {</span>
+<span class="fc" id="L76">                senderJob = job</span>
+            } else {
+<span class="nc" id="L78">                job.cancel()</span>
+            }
+<span class="fc" id="L80">        }</span>
+<span class="fc" id="L81">    }</span>
+
+    /** Detaches the current queue before cancellation, so future sessions cannot inherit it. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L85">    fun stop(expectedGeneration: Long? = null) {</span>
+<span class="fc" id="L86">        val (oldSession, oldJob) =</span>
+<span class="fc" id="L87">            synchronized(lock) {</span>
+<span class="pc bpc" id="L88" title="1 of 8 branches missed.">                if (expectedGeneration != null &amp;&amp; session?.generation != expectedGeneration) return</span>
+<span class="fc" id="L89">                val oldSession = session</span>
+<span class="fc" id="L90">                val oldJob = senderJob</span>
+<span class="fc" id="L91">                session = null</span>
+<span class="fc" id="L92">                senderJob = null</span>
+<span class="fc" id="L93">                oldSession to oldJob</span>
+            }
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        oldJob?.cancel()</span>
+<span class="fc bfc" id="L96" title="All 4 branches covered.">        oldSession?.channel?.cancel()</span>
+<span class="fc" id="L97">    }</span>
+
+    /** Copies and consumes each caller packet, admitting only into the current bounded queue. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L101">    fun enqueue(</span>
+        packets: List&lt;ByteArray&gt;,
+<span class="fc" id="L103">        expectedGeneration: Long = sessionGeneration(),</span>
+    ) {
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        for (packet in packets) {</span>
+<span class="fc" id="L106">            val owned = packet.copyOf()</span>
+<span class="fc" id="L107">            val current = synchronized(lock) { session }</span>
+<span class="fc" id="L108">            val result =</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                if (current == null ||</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">                    current.generation != expectedGeneration ||</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">                    sessionGeneration() != expectedGeneration</span>
+                ) {
+<span class="fc" id="L113">                    null</span>
+                } else {
+<span class="fc" id="L115">                    current.channel.trySend(QueuedPacket(owned, generation = expectedGeneration))</span>
+                }
+<span class="fc" id="L117">            packet.fill(0)</span>
+<span class="pc bpc" id="L118" title="1 of 4 branches missed.">            if (result == null || result.isFailure) {</span>
+<span class="fc" id="L119">                reportAccepted(owned, false)</span>
+<span class="fc" id="L120">                Logger.w { &quot;No active HID sender or its bounded queue is full; dropping packet&quot; }</span>
+<span class="fc" id="L121">                owned.fill(0)</span>
+            }
+        }
+<span class="fc" id="L124">    }</span>
+
+    /** Transfers an isolated packet copy and waits for driver handoff within the request session. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun enqueueAndAwait(
+        packets: List&lt;ByteArray&gt;,
+        expectedGeneration: Long,
+    ): Boolean {
+<span class="fc" id="L132">        var allReportsAccepted = true</span>
+<span class="fc" id="L133">        val current =</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            synchronized(lock) {</span>
+<span class="pc bpc" id="L135" title="4 of 8 branches missed.">                session?.takeIf { it.generation == expectedGeneration &amp;&amp; sessionGeneration() == expectedGeneration }</span>
+<span class="nc" id="L136">            } ?: return false</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        for (packet in packets) {</span>
+<span class="fc" id="L138">            currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L139">            val sent = CompletableDeferred&lt;Boolean&gt;()</span>
+<span class="fc" id="L140">            val owned = packet.copyOf()</span>
+<span class="fc" id="L141">            var transferred = false</span>
+<span class="fc" id="L142">            try {</span>
+<span class="fc" id="L143">                current.channel.send(</span>
+<span class="fc" id="L144">                    QueuedPacket(</span>
+<span class="fc" id="L145">                        payload = owned,</span>
+<span class="fc" id="L146">                        sent = sent,</span>
+<span class="fc" id="L147">                        generation = expectedGeneration,</span>
+<span class="fc" id="L148">                        ownerJob = currentCoroutineContext()[Job],</span>
+                    ),
+                )
+<span class="fc" id="L151">                transferred = true</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                if (!sent.await()) allReportsAccepted = false</span>
+            } finally {
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">                if (!transferred) owned.fill(0)</span>
+            }
+        }
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        return allReportsAccepted</span>
+    }
+
+    @Suppress(&quot;TooGenericExceptionCaught&quot;)
+    private suspend fun sendOne(packet: QueuedPacket) {
+<span class="fc" id="L162">        try {</span>
+<span class="pc bpc" id="L163" title="1 of 8 branches missed.">            if (packet.generation != sessionGeneration() || packet.ownerJob?.isActive == false) {</span>
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">                packet.sent?.complete(false)</span>
+<span class="fc" id="L165">                return</span>
+            }
+<span class="fc" id="L167">            val accepted = sendReport(packet.payload, packet.generation)</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">            reportAccepted(packet.payload, accepted)</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">            if (!accepted) Logger.w { &quot;sendReport returned false — host may have disconnected&quot; }</span>
+<span class="fc bfc" id="L170" title="All 4 branches covered.">            packet.sent?.complete(accepted)</span>
+<span class="fc" id="L171">        } catch (cancellation: kotlinx.coroutines.CancellationException) {</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">            packet.sent?.complete(false)</span>
+<span class="fc" id="L173">            throw cancellation</span>
+<span class="fc" id="L174">        } catch (failure: Exception) {</span>
+<span class="fc" id="L175">            reportAccepted(packet.payload, false)</span>
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">            packet.sent?.complete(false)</span>
+<span class="fc" id="L177">            Logger.e(failure) { &quot;Failed to send HID report&quot; }</span>
+        } finally {
+<span class="fc" id="L179">            packet.payload.fill(0)</span>
+        }
+<span class="fc" id="L181">        delay(reportPaceDelayMillis)</span>
+<span class="fc" id="L182">    }</span>
+
+    private fun discardQueued(owner: Session) {
+<span class="fc" id="L185">        while (true) {</span>
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">            val packet = owner.channel.tryReceive().getOrNull() ?: break</span>
+<span class="nc" id="L187">            dispose(packet)</span>
+        }
+<span class="fc" id="L189">    }</span>
+
+    private fun dispose(packet: QueuedPacket) {
+<span class="fc" id="L192">        packet.payload.fill(0)</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        packet.sent?.complete(false)</span>
+<span class="fc" id="L194">    }</span>
+
+    private companion object {
+        const val QUEUE_CAPACITY = 256
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

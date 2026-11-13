@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:57.822Z" hostname="LOQ15IRX10-3" time="0.012">
+  <properties/>
+  <testcase name="deferred callback is invoked immediately when segments drain before callback is stored()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.0"/>
+  <testcase name="cancellation closes the active synthetic lifecycle segment()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.004"/>
+  <testcase name="terminal is deferred when active segments remain at recordTerminal call()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.0"/>
+  <testcase name="deferred callback fires on last of multiple active segments closing()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.001"/>
+  <testcase name="correlation rejects missing duplicate unpaired and active terminal events()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.0"/>
+  <testcase name="terminal follows the final suspend marker when recorded during restore()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.0"/>
+  <testcase name="lifecycle pairs every resume across dispatcher changes()" classname="com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

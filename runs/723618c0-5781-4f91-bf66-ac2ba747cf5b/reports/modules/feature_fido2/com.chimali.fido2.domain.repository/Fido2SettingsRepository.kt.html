@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2SettingsRepository.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.repository</a> &gt; <span class="el_source">Fido2SettingsRepository.kt</span></div><h1>Fido2SettingsRepository.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.repository
+
+import com.chimali.core.common.annotation.Req
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+
+/**
+ * Legal transport mode values.
+ *
+ * Persisted as stable explicit strings `fido_ble` and `classic_hid`, never enum ordinals or localized labels.
+ */
+<span class="fc" id="L12">@Req(&quot;FR-BT-SEL-010&quot;, &quot;TR-BT-SEL-010&quot;)</span>
+<span class="fc" id="L13">enum class BluetoothTransportMode(</span>
+<span class="pc" id="L14">    val wireValue: String,</span>
+) {
+<span class="fc" id="L16">    FIDO_BLE(&quot;fido_ble&quot;),</span>
+<span class="fc" id="L17">    CLASSIC_HID(&quot;classic_hid&quot;),</span>
+    ;
+
+    companion object {
+        const val FIDO_BLE_STRING = &quot;fido_ble&quot;
+        const val CLASSIC_HID_STRING = &quot;classic_hid&quot;
+
+        fun fromWire(value: String): BluetoothTransportMode? =
+<span class="fc" id="L25">            when (value) {</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">                FIDO_BLE_STRING -&gt; FIDO_BLE</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">                CLASSIC_HID_STRING -&gt; CLASSIC_HID</span>
+<span class="fc" id="L28">                else -&gt; null</span>
+<span class="fc" id="L29">            }</span>
+    }
+}
+
+/**
+ * Durable transport selection preference.
+ */
+<span class="fc" id="L36">@Req(&quot;FR-BT-SEL-020&quot;, &quot;TR-BT-SEL-010&quot;)</span>
+<span class="fc" id="L37">data class TransportPreference(</span>
+<span class="fc" id="L38">    val mode: BluetoothTransportMode,</span>
+<span class="fc" id="L39">    val selectedAtEpochMillis: Long,</span>
+)
+
+/**
+ * Result of reading the transport preference from persistent storage.
+ */
+@Req(&quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;)
+sealed interface TransportPreferenceResult {
+<span class="fc" id="L47">    data class Success(</span>
+<span class="fc" id="L48">        val preference: TransportPreference,</span>
+    ) : TransportPreferenceResult
+
+<span class="fc" id="L51">    data class InvalidPreference(</span>
+<span class="fc" id="L52">        val rawValue: String,</span>
+    ) : TransportPreferenceResult
+
+<span class="fc" id="L55">    data class ReadError(</span>
+<span class="fc" id="L56">        val cause: Throwable,</span>
+    ) : TransportPreferenceResult
+}
+
+/**
+ * Result of saving the transport preference to persistent storage.
+ */
+@Req(&quot;FR-BT-SEL-020&quot;, &quot;TR-BT-SEL-010&quot;)
+sealed interface TransportSaveResult {
+<span class="fc" id="L65">    data class Success(</span>
+<span class="fc" id="L66">        val preference: TransportPreference,</span>
+<span class="fc" id="L67">        val isNoOp: Boolean = false,</span>
+<span class="fc" id="L68">    ) : TransportSaveResult</span>
+
+<span class="fc" id="L70">    data class InvalidInput(</span>
+<span class="fc" id="L71">        val rawValue: String,</span>
+    ) : TransportSaveResult
+
+<span class="fc" id="L74">    data class WriteError(</span>
+<span class="fc" id="L75">        val cause: Throwable,</span>
+    ) : TransportSaveResult
+}
+
+/**
+ * Process transport availability state.
+ */
+@Req(&quot;FR-BT-SEL-040&quot;, &quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;, &quot;TR-BT-SEL-030&quot;)
+sealed interface TransportAvailability {
+    data object Loading : TransportAvailability
+
+    data object SelectedNotStarted : TransportAvailability
+
+    data object Starting : TransportAvailability
+
+    data object Ready : TransportAvailability
+
+<span class="fc" id="L92">    data class Unavailable(</span>
+<span class="fc" id="L93">        val reason: TransportUnavailableReason,</span>
+    ) : TransportAvailability
+}
+
+/**
+ * Specific reasons a transport may be unavailable.
+ */
+@Req(&quot;FR-BT-SEL-050&quot;, &quot;TR-BT-SEL-020&quot;)
+enum class TransportUnavailableReason {
+<span class="fc" id="L102">    PreferenceReadFailed,</span>
+<span class="fc" id="L103">    InvalidPreference,</span>
+<span class="fc" id="L104">    InitializationTimeout,</span>
+<span class="fc" id="L105">    Unsupported,</span>
+<span class="fc" id="L106">    PermissionRequired,</span>
+<span class="fc" id="L107">    BluetoothOff,</span>
+<span class="fc" id="L108">    StartupFailed,</span>
+}
+
+/**
+ * Controller-owned read-only runtime state.
+ */
+<span class="fc" id="L114">@Req(&quot;FR-BT-SEL-040&quot;, &quot;TR-BT-SEL-030&quot;)</span>
+<span class="fc" id="L115">data class ProcessTransportState(</span>
+<span class="fc" id="L116">    val processChoice: BluetoothTransportMode?,</span>
+<span class="fc" id="L117">    val availability: TransportAvailability,</span>
+)
+
+/**
+ * Repository for managing FIDO2 authenticator configuration and settings.
+ *
+ * This repository abstracts the storage of persistent settings that define the
+ * authenticator's behavior and limits.
+ */
+interface Fido2SettingsRepository {
+    /**
+     * Returns the maximum number of passkey credentials the authenticator will store.
+     *
+     * This limit is configurable and defaults to 50 per FR-HID-022.
+     */
+    suspend fun getMaxCredentialCount(): Int
+
+    /**
+     * Updates the maximum credential count storage limit.
+     */
+    suspend fun setMaxCredentialCount(count: Int)
+
+    /**
+     * Observes the persistent transport preference as a Flow.
+     */
+    @Req(&quot;FR-BT-SEL-010&quot;, &quot;TR-BT-SEL-010&quot;)
+    fun observeTransportPreference(): Flow&lt;TransportPreferenceResult&gt; =
+<span class="nc" id="L144">        flowOf(</span>
+<span class="nc" id="L145">            TransportPreferenceResult.Success(</span>
+<span class="nc" id="L146">                TransportPreference(BluetoothTransportMode.FIDO_BLE, 0L),</span>
+            ),
+<span class="nc" id="L148">        )</span>
+
+    /**
+     * Reads the current transport preference from persistent storage.
+     */
+    @Req(&quot;FR-BT-SEL-010&quot;, &quot;TR-BT-SEL-010&quot;)
+    suspend fun getTransportPreference(): TransportPreferenceResult =
+<span class="nc" id="L155">        TransportPreferenceResult.Success(</span>
+<span class="nc" id="L156">            TransportPreference(BluetoothTransportMode.FIDO_BLE, 0L),</span>
+<span class="nc" id="L157">        )</span>
+
+    /**
+     * Saves the transport preference atomically using an explicit wire value.
+     */
+    @Req(&quot;FR-BT-SEL-020&quot;, &quot;TR-BT-SEL-010&quot;)
+<span class="nc" id="L163">    suspend fun saveTransportPreference(</span>
+        transportCode: String,
+<span class="nc" id="L165">        epochMillis: Long = System.currentTimeMillis(),</span>
+    ): TransportSaveResult =
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        BluetoothTransportMode.fromWire(transportCode)?.let {</span>
+<span class="nc" id="L168">            TransportSaveResult.Success(TransportPreference(it, epochMillis))</span>
+<span class="nc" id="L169">        } ?: TransportSaveResult.InvalidInput(transportCode)</span>
+
+    /**
+     * Saves the transport preference atomically using a typed mode.
+     */
+    @Req(&quot;FR-BT-SEL-020&quot;, &quot;TR-BT-SEL-010&quot;)
+<span class="pc" id="L175">    suspend fun saveTransportPreference(</span>
+        mode: BluetoothTransportMode,
+<span class="fc" id="L177">        epochMillis: Long = System.currentTimeMillis(),</span>
+<span class="nc" id="L178">    ): TransportSaveResult = saveTransportPreference(mode.wireValue, epochMillis)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

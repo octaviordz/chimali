@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2CryptoService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">Fido2CryptoService.kt</span></div><h1>Fido2CryptoService.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.security.api.GeneratedCredentialPublicKey
+import com.chimali.core.security.api.HdkChild
+import com.chimali.core.security.api.HdkKeyPair
+import com.chimali.core.security.api.HdkManager
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.core.security.hdkeys.HkdfSha256
+import com.chimali.core.security.hdkeys.P256Group
+import java.math.BigInteger
+import java.security.GeneralSecurityException
+import java.security.KeyFactory
+import java.security.MessageDigest
+import java.security.PublicKey
+import java.security.Signature
+import java.security.spec.ECPoint
+import java.security.spec.ECPublicKeySpec
+import java.security.spec.X509EncodedKeySpec
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import org.bouncycastle.crypto.CryptoException
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.koin.core.annotation.Named
+import org.koin.core.annotation.Single
+
+/** Routes each explicitly described credential through its independent local derivation branch. */
+<span class="fc" id="L35">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+@Single
+<span class="fc" id="L37">class Fido2CryptoService(</span>
+<span class="fc" id="L38">    private val hdkManager: HdkManager,</span>
+<span class="fc" id="L39">    private val masterSeedProvider: MasterSeedProvider,</span>
+<span class="fc" id="L40">    private val postQuantumCrypto: PostQuantumCrypto,</span>
+<span class="fc" id="L41">    @Named(&quot;DefaultDispatcher&quot;) private val defaultDispatcher: CoroutineDispatcher,</span>
+) {
+    /** Derives the selected public key once and returns public bytes only. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun generateCredentialPublicKey(
+        descriptor: CredentialKeyDescriptor,
+    ): Outcome&lt;GeneratedCredentialPublicKey, DomainError.CryptoError&gt; =
+<span class="fc" id="L48">        withContext(defaultDispatcher) {</span>
+<span class="fc" id="L49">            val admittedGeneration = masterSeedProvider.sessionGeneration()</span>
+<span class="fc" id="L50">            var publicKey: ByteArray? = null</span>
+<span class="fc" id="L51">            try {</span>
+<span class="fc" id="L52">                ensureCurrentGeneration(admittedGeneration)</span>
+<span class="fc" id="L53">                publicKey =</span>
+<span class="pc bpc" id="L54" title="1 of 4 branches missed.">                    when (descriptor.coseAlgorithm) {</span>
+                        CredentialKeyDescriptor.COSE_ES256 -&gt; {
+<span class="fc" id="L56">                            requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)</span>
+<span class="fc" id="L57">                            deriveP256PublicKey(descriptor)</span>
+                        }
+                        CredentialKeyDescriptor.COSE_EDDSA -&gt; {
+<span class="fc" id="L60">                            requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)</span>
+<span class="fc" id="L61">                            deriveEd25519PublicKey(descriptor)</span>
+                        }
+                        CredentialKeyDescriptor.COSE_ML_DSA_65 -&gt; {
+<span class="fc" id="L64">                            requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)</span>
+<span class="fc" id="L65">                            deriveMlDsaPublicKey(descriptor)</span>
+                        }
+<span class="nc" id="L67">                        else -&gt; throw IllegalArgumentException(&quot;Unsupported credential algorithm&quot;)</span>
+                    }
+<span class="fc" id="L69">                ensureCurrentGeneration(admittedGeneration)</span>
+<span class="fc" id="L70">                val result = GeneratedCredentialPublicKey(publicKey)</span>
+<span class="fc" id="L71">                publicKey = null</span>
+<span class="fc" id="L72">                Outcome.Success(result)</span>
+<span class="fc" id="L73">            } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L74">                throw cancellation</span>
+<span class="fc" id="L75">            } catch (_: GeneralSecurityException) {</span>
+<span class="fc" id="L76">                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)</span>
+<span class="nc" id="L77">            } catch (_: CryptoException) {</span>
+<span class="nc" id="L78">                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)</span>
+<span class="nc" id="L79">            } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L80">                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)</span>
+<span class="nc" id="L81">            } catch (_: IllegalStateException) {</span>
+<span class="nc" id="L82">                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)</span>
+<span class="nc" id="L83">            } catch (_: SecurityException) {</span>
+<span class="pc bfc" id="L84" title="All 2 branches covered.">                return@withContext cryptoFailure(PUBLIC_KEY_DERIVATION_FAILED, KEY_DERIVATION_FALLBACK)</span>
+            } finally {
+<span class="pc" id="L86">                publicKey?.fill(0)</span>
+<span class="fc" id="L87">            }</span>
+<span class="fc" id="L88">        }</span>
+
+    /** Signs with one selected credential key derived from the descriptor's full decoded ID. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L92">    suspend fun sign(</span>
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+<span class="fc" id="L95">        expectedStoredPublicKey: ByteArray? = null,</span>
+    ): Outcome&lt;ByteArray, DomainError.CryptoError&gt; =
+<span class="fc" id="L97">        withContext(defaultDispatcher) {</span>
+<span class="fc" id="L98">            val admittedGeneration = masterSeedProvider.sessionGeneration()</span>
+<span class="fc" id="L99">            var signature: ByteArray? = null</span>
+<span class="fc" id="L100">            try {</span>
+<span class="fc" id="L101">                ensureCurrentGeneration(admittedGeneration)</span>
+<span class="fc" id="L102">                signature =</span>
+<span class="pc bpc" id="L103" title="1 of 4 branches missed.">                    when (descriptor.coseAlgorithm) {</span>
+                        CredentialKeyDescriptor.COSE_ES256 -&gt; {
+<span class="fc" id="L105">                            requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)</span>
+<span class="fc" id="L106">                            signP256(descriptor, data, expectedStoredPublicKey)</span>
+                        }
+                        CredentialKeyDescriptor.COSE_EDDSA -&gt; {
+<span class="fc" id="L109">                            requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)</span>
+<span class="fc" id="L110">                            signEd25519(descriptor, data, expectedStoredPublicKey)</span>
+                        }
+                        CredentialKeyDescriptor.COSE_ML_DSA_65 -&gt; {
+<span class="fc" id="L113">                            requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)</span>
+<span class="fc" id="L114">                            signMlDsa(descriptor, data, expectedStoredPublicKey)</span>
+                        }
+<span class="nc" id="L116">                        else -&gt; throw IllegalArgumentException(&quot;Unsupported credential algorithm&quot;)</span>
+                    }
+<span class="fc" id="L118">                ensureCurrentGeneration(admittedGeneration)</span>
+<span class="fc" id="L119">                val result = signature</span>
+<span class="fc" id="L120">                signature = null</span>
+<span class="fc" id="L121">                Outcome.Success(result)</span>
+<span class="fc" id="L122">            } catch (cancellation: CancellationException) {</span>
+<span class="fc" id="L123">                throw cancellation</span>
+<span class="fc" id="L124">            } catch (_: GeneralSecurityException) {</span>
+<span class="fc" id="L125">                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)</span>
+<span class="nc" id="L126">            } catch (_: CryptoException) {</span>
+<span class="nc" id="L127">                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)</span>
+<span class="fc" id="L128">            } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L129">                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)</span>
+<span class="nc" id="L130">            } catch (_: IllegalStateException) {</span>
+<span class="nc" id="L131">                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)</span>
+<span class="nc" id="L132">            } catch (_: SecurityException) {</span>
+<span class="pc bfc" id="L133" title="All 2 branches covered.">                return@withContext cryptoFailure(SIGNING_FAILED, SIGNING_FAILED)</span>
+            } finally {
+<span class="pc" id="L135">                signature?.fill(0)</span>
+<span class="fc" id="L136">            }</span>
+<span class="fc" id="L137">        }</span>
+
+    /** Discards operation output when trim/replacement has fenced its provider generation. */
+
+    private fun ensureCurrentGeneration(generation: Long) {
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (!masterSeedProvider.isSessionGenerationCurrent(generation)) {</span>
+<span class="fc" id="L143">            throw CancellationException(&quot;Wallet session generation changed during credential operation&quot;)</span>
+        }
+<span class="fc" id="L145">    }</span>
+
+    private fun cryptoFailure(
+        operation: String,
+        fallback: String,
+    ): Outcome.Error&lt;DomainError.CryptoError&gt; {
+        // Provider exception messages and causes are not safe diagnostic material: they may
+        // include key/provider state. Keep diagnostics and domain errors deliberately generic.
+<span class="fc" id="L153">        Logger.e { operation }</span>
+<span class="fc" id="L154">        return Outcome.Error(DomainError.CryptoError(fallback))</span>
+    }
+
+    /** Converts one already-derived native public representation to JCA without regenerating it. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun decodePublicKey(
+        descriptor: CredentialKeyDescriptor,
+        publicKeyBytes: ByteArray,
+    ): PublicKey =
+<span class="pc bpc" id="L163" title="1 of 4 branches missed.">        when (descriptor.coseAlgorithm) {</span>
+            CredentialKeyDescriptor.COSE_ES256 -&gt; {
+<span class="fc" id="L165">                requireProfile(descriptor, CredentialKeyDescriptor.P256_PROFILE)</span>
+<span class="fc" id="L166">                decodeP256Point(publicKeyBytes)</span>
+            }
+<span class="fc" id="L168">            CredentialKeyDescriptor.COSE_EDDSA -&gt; {</span>
+<span class="fc" id="L169">                requireProfile(descriptor, CredentialKeyDescriptor.ED25519_PROFILE)</span>
+<span class="fc" id="L170">                val encoded = ED25519_X509_PREFIX + publicKeyBytes</span>
+                KeyFactory
+<span class="fc" id="L172">                    .getInstance(&quot;Ed25519&quot;, BouncyCastleProvider())</span>
+<span class="fc" id="L173">                    .generatePublic(X509EncodedKeySpec(encoded))</span>
+            }
+<span class="fc" id="L175">            CredentialKeyDescriptor.COSE_ML_DSA_65 -&gt; {</span>
+<span class="fc" id="L176">                requireProfile(descriptor, CredentialKeyDescriptor.MLDSA65_PROFILE)</span>
+                KeyFactory
+<span class="fc" id="L178">                    .getInstance(MLDSA_ALGORITHM, BouncyCastleProvider())</span>
+<span class="fc" id="L179">                    .generatePublic(X509EncodedKeySpec(publicKeyBytes))</span>
+            }
+<span class="nc" id="L181">            else -&gt; throw IllegalArgumentException(&quot;Unsupported credential algorithm&quot;)</span>
+<span class="fc" id="L182">        }</span>
+
+    private suspend fun deriveP256PublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L186">        var parent: HdkKeyPair? = null</span>
+<span class="fc" id="L187">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L188">        var localSecret: ByteArray? = null</span>
+<span class="fc" id="L189">        var child: HdkChild? = null</span>
+<span class="fc" id="L190">        try {</span>
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">            parent = requireNotNull(masterSeedProvider.getDeviceKeyPair()) { &quot;P-256 parent is unavailable&quot; }</span>
+<span class="fc" id="L192">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L193">            localSecret = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.P256_CREDENTIAL_LABEL, credentialId)</span>
+<span class="fc" id="L194">            child = hdkManager.deriveChild(localSecret, parent.publicKey, LOCAL_CREDENTIAL_INDEX)</span>
+<span class="fc" id="L195">            return child.publicKey.copyOf()</span>
+        } finally {
+<span class="fc" id="L197">            prk.fill(0)</span>
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">            parent?.erasePrivateKey()</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">            localSecret?.fill(0)</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">            child?.eraseFactor()</span>
+        }
+    }
+
+    private suspend fun deriveEd25519PublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L207">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L208">        var seed: ByteArray? = null</span>
+<span class="fc" id="L209">        try {</span>
+<span class="fc" id="L210">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L211">            seed = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.ED25519_CREDENTIAL_LABEL, credentialId)</span>
+<span class="fc" id="L212">            return Ed25519PrivateKeyParameters(seed, 0).generatePublicKey().encoded</span>
+        } finally {
+<span class="fc" id="L214">            prk.fill(0)</span>
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">            seed?.fill(0)</span>
+        }
+    }
+
+    private suspend fun deriveMlDsaPublicKey(descriptor: CredentialKeyDescriptor): ByteArray {
+<span class="pc bpc" id="L221" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L222">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L223">        var xi: ByteArray? = null</span>
+<span class="fc" id="L224">        var privateEncoding: ByteArray? = null</span>
+<span class="fc" id="L225">        try {</span>
+<span class="fc" id="L226">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L227">            xi = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.MLDSA65_CREDENTIAL_LABEL, credentialId)</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">            val keyPair = requireNotNull(postQuantumCrypto.generateMlDsaKeyPair(xi)) { &quot;ML-DSA-65 is unavailable&quot; }</span>
+<span class="fc" id="L229">            privateEncoding = keyPair.private.encoded</span>
+<span class="fc" id="L230">            return postQuantumCrypto.publicKeyBytes(keyPair)</span>
+        } finally {
+<span class="fc" id="L232">            prk.fill(0)</span>
+<span class="pc bpc" id="L233" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L234" title="1 of 2 branches missed.">            xi?.fill(0)</span>
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">            privateEncoding?.fill(0)</span>
+        }
+    }
+
+    private suspend fun signP256(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L245">        var parent: HdkKeyPair? = null</span>
+<span class="fc" id="L246">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L247">        var localSecret: ByteArray? = null</span>
+<span class="fc" id="L248">        var child: HdkChild? = null</span>
+<span class="fc" id="L249">        var childPrivateKey: ByteArray? = null</span>
+<span class="fc" id="L250">        try {</span>
+<span class="pc bpc" id="L251" title="1 of 2 branches missed.">            parent = requireNotNull(masterSeedProvider.getDeviceKeyPair()) { &quot;P-256 parent is unavailable&quot; }</span>
+<span class="fc" id="L252">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L253">            localSecret = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.P256_CREDENTIAL_LABEL, credentialId)</span>
+<span class="fc" id="L254">            child = hdkManager.deriveChild(localSecret, parent.publicKey, LOCAL_CREDENTIAL_INDEX)</span>
+<span class="fc" id="L255">            requireRegisteredPublicKeyMatches(descriptor, child.publicKey, expectedStoredPublicKey)</span>
+<span class="fc" id="L256">            childPrivateKey = hdkManager.deriveChildPrivateKey(parent.privateKey, child.factor)</span>
+<span class="fc" id="L257">            return signP256Scalar(childPrivateKey, data)</span>
+        } finally {
+<span class="fc" id="L259">            prk.fill(0)</span>
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">            parent?.erasePrivateKey()</span>
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L262" title="1 of 2 branches missed.">            localSecret?.fill(0)</span>
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">            child?.eraseFactor()</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">            childPrivateKey?.fill(0)</span>
+        }
+    }
+
+    private suspend fun signEd25519(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+<span class="pc bpc" id="L273" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L274">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L275">        var seed: ByteArray? = null</span>
+<span class="fc" id="L276">        try {</span>
+<span class="fc" id="L277">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L278">            seed = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.ED25519_CREDENTIAL_LABEL, credentialId)</span>
+<span class="fc" id="L279">            val privateParameters = Ed25519PrivateKeyParameters(seed, 0)</span>
+<span class="fc" id="L280">            requireRegisteredPublicKeyMatches(</span>
+<span class="fc" id="L281">                descriptor,</span>
+<span class="fc" id="L282">                privateParameters.generatePublicKey().encoded,</span>
+<span class="fc" id="L283">                expectedStoredPublicKey,</span>
+            )
+<span class="fc" id="L285">            val signer = Ed25519Signer()</span>
+<span class="fc" id="L286">            signer.init(true, privateParameters)</span>
+<span class="fc" id="L287">            signer.update(data, 0, data.size)</span>
+<span class="fc" id="L288">            return signer.generateSignature()</span>
+        } finally {
+<span class="fc" id="L290">            prk.fill(0)</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">            seed?.fill(0)</span>
+        }
+    }
+
+    private suspend fun signMlDsa(
+        descriptor: CredentialKeyDescriptor,
+        data: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ): ByteArray {
+<span class="pc bpc" id="L301" title="1 of 2 branches missed.">        val prk = requireNotNull(masterSeedProvider.getMasterSeed()) { WALLET_ROOT_UNAVAILABLE }</span>
+<span class="fc" id="L302">        var credentialId: ByteArray? = null</span>
+<span class="fc" id="L303">        var xi: ByteArray? = null</span>
+<span class="fc" id="L304">        var privateEncoding: ByteArray? = null</span>
+<span class="fc" id="L305">        try {</span>
+<span class="fc" id="L306">            credentialId = descriptor.credentialId.toByteArray()</span>
+<span class="fc" id="L307">            xi = HkdfSha256.deriveCredentialSeed(prk, HkdfSha256.MLDSA65_CREDENTIAL_LABEL, credentialId)</span>
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">            val keyPair = requireNotNull(postQuantumCrypto.generateMlDsaKeyPair(xi)) { &quot;ML-DSA-65 is unavailable&quot; }</span>
+<span class="fc" id="L309">            privateEncoding = keyPair.private.encoded</span>
+<span class="fc" id="L310">            requireRegisteredPublicKeyMatches(</span>
+<span class="fc" id="L311">                descriptor,</span>
+<span class="fc" id="L312">                postQuantumCrypto.publicKeyBytes(keyPair),</span>
+<span class="fc" id="L313">                expectedStoredPublicKey,</span>
+            )
+<span class="pc bpc" id="L315" title="1 of 2 branches missed.">            return requireNotNull(postQuantumCrypto.sign(keyPair.private, data)) { &quot;ML-DSA-65 signing failed&quot; }</span>
+        } finally {
+<span class="fc" id="L317">            prk.fill(0)</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">            credentialId?.fill(0)</span>
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">            xi?.fill(0)</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">            privateEncoding?.fill(0)</span>
+        }
+    }
+
+    private fun signP256Scalar(
+        privateKeyBytes: ByteArray,
+        data: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L328">        val scalar = BigInteger(1, privateKeyBytes)</span>
+<span class="fc" id="L329">        val curve = P256Group.G.curve</span>
+<span class="fc" id="L330">        val ecSpec =</span>
+<span class="fc" id="L331">            org.bouncycastle.jce.spec.ECNamedCurveSpec(</span>
+<span class="fc" id="L332">                &quot;secp256r1&quot;,</span>
+<span class="fc" id="L333">                curve,</span>
+<span class="fc" id="L334">                P256Group.G,</span>
+<span class="fc" id="L335">                P256Group.ORDER,</span>
+<span class="fc" id="L336">                curve.cofactor,</span>
+            )
+<span class="fc" id="L338">        val privateKey =</span>
+            KeyFactory
+<span class="fc" id="L340">                .getInstance(&quot;EC&quot;)</span>
+<span class="fc" id="L341">                .generatePrivate(java.security.spec.ECPrivateKeySpec(scalar, ecSpec))</span>
+<span class="fc" id="L342">        return Signature</span>
+<span class="fc" id="L343">            .getInstance(&quot;SHA256withECDSA&quot;)</span>
+<span class="fc" id="L344">            .apply {</span>
+<span class="fc" id="L345">                initSign(privateKey)</span>
+<span class="fc" id="L346">                update(data)</span>
+<span class="fc" id="L347">            }.sign()</span>
+    }
+
+    private fun decodeP256Point(bytes: ByteArray): PublicKey {
+<span class="pc bpc" id="L351" title="2 of 4 branches missed.">        require(bytes.size == P256Group.ELEMENT_UNCOMPRESSED_LENGTH) { &quot;P-256 public key must be 65 bytes&quot; }</span>
+<span class="fc" id="L352">        val point = P256Group.deserializeElement(bytes).normalize()</span>
+<span class="fc" id="L353">        val ecSpec =</span>
+<span class="fc" id="L354">            org.bouncycastle.jce.spec.ECNamedCurveSpec(</span>
+<span class="fc" id="L355">                &quot;secp256r1&quot;,</span>
+<span class="fc" id="L356">                P256Group.G.curve,</span>
+<span class="fc" id="L357">                P256Group.G,</span>
+<span class="fc" id="L358">                P256Group.ORDER,</span>
+<span class="fc" id="L359">                P256Group.G.curve.cofactor,</span>
+            )
+<span class="fc" id="L361">        return KeyFactory</span>
+<span class="fc" id="L362">            .getInstance(&quot;EC&quot;)</span>
+<span class="fc" id="L363">            .generatePublic(</span>
+<span class="fc" id="L364">                ECPublicKeySpec(ECPoint(point.affineXCoord.toBigInteger(), point.affineYCoord.toBigInteger()), ecSpec),</span>
+            )
+    }
+
+    private fun requireProfile(
+        descriptor: CredentialKeyDescriptor,
+        expectedProfile: String,
+    ) {
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">        require(descriptor.derivationProfile == expectedProfile) { &quot;Unsupported credential derivation profile&quot; }</span>
+<span class="fc" id="L373">    }</span>
+
+    private fun requireRegisteredPublicKeyMatches(
+        descriptor: CredentialKeyDescriptor,
+        derivedPublicKey: ByteArray,
+        expectedStoredPublicKey: ByteArray?,
+    ) {
+<span class="fc bfc" id="L380" title="All 2 branches covered.">        if (expectedStoredPublicKey == null) return</span>
+<span class="fc" id="L381">        val derived = decodePublicKey(descriptor, derivedPublicKey)</span>
+<span class="fc" id="L382">        val storedAlgorithm =</span>
+<span class="pc bpc" id="L383" title="1 of 4 branches missed.">            when (descriptor.coseAlgorithm) {</span>
+<span class="fc" id="L384">                CredentialKeyDescriptor.COSE_ES256 -&gt; &quot;EC&quot;</span>
+<span class="fc" id="L385">                CredentialKeyDescriptor.COSE_EDDSA -&gt; &quot;Ed25519&quot;</span>
+<span class="fc" id="L386">                CredentialKeyDescriptor.COSE_ML_DSA_65 -&gt; MLDSA_ALGORITHM</span>
+<span class="nc" id="L387">                else -&gt; throw IllegalArgumentException(&quot;Unsupported credential algorithm&quot;)</span>
+            }
+<span class="fc" id="L389">        val storedKeyFactory =</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">            if (storedAlgorithm == &quot;EC&quot;) {</span>
+<span class="fc" id="L391">                KeyFactory.getInstance(&quot;EC&quot;)</span>
+            } else {
+<span class="fc" id="L393">                KeyFactory.getInstance(storedAlgorithm, BouncyCastleProvider())</span>
+            }
+<span class="fc" id="L395">        val stored = storedKeyFactory.generatePublic(X509EncodedKeySpec(expectedStoredPublicKey))</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">        require(MessageDigest.isEqual(derived.encoded, stored.encoded)) {</span>
+<span class="fc" id="L397">            &quot;Derived credential public key does not match the registered key&quot;</span>
+        }
+<span class="fc" id="L399">    }</span>
+
+    private companion object {
+        const val PUBLIC_KEY_DERIVATION_FAILED = &quot;Credential public-key derivation failed&quot;
+        const val SIGNING_FAILED = &quot;Credential signing failed&quot;
+        const val KEY_DERIVATION_FALLBACK = &quot;Credential key derivation failed&quot;
+        const val LOCAL_CREDENTIAL_INDEX: UInt = 0u
+        const val MLDSA_ALGORITHM = &quot;ML-DSA-65&quot;
+        const val WALLET_ROOT_UNAVAILABLE = &quot;Wallet root is unavailable&quot;
+<span class="nc" id="L408">        val ED25519_X509_PREFIX =</span>
+<span class="fc" id="L409">            byteArrayOf(</span>
+<span class="fc" id="L410">                0x30,</span>
+<span class="fc" id="L411">                0x2A,</span>
+<span class="fc" id="L412">                0x30,</span>
+<span class="fc" id="L413">                0x05,</span>
+<span class="fc" id="L414">                0x06,</span>
+<span class="fc" id="L415">                0x03,</span>
+<span class="fc" id="L416">                0x2B,</span>
+<span class="fc" id="L417">                0x65,</span>
+<span class="fc" id="L418">                0x70,</span>
+<span class="fc" id="L419">                0x03,</span>
+<span class="fc" id="L420">                0x21,</span>
+<span class="fc" id="L421">                0x00,</span>
+            )
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

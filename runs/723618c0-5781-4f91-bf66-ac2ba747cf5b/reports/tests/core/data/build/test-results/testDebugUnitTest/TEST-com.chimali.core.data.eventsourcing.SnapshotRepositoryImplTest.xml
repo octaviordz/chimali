@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.SnapshotRepositoryImplTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:13.142Z" hostname="LOQ15IRX10-3" time="0.064">
+  <properties/>
+  <testcase name="save should encrypt and insert snapshot" classname="com.chimali.core.data.eventsourcing.SnapshotRepositoryImplTest" time="0.036"/>
+  <testcase name="getLatest should decrypt and deserialize snapshot" classname="com.chimali.core.data.eventsourcing.SnapshotRepositoryImplTest" time="0.014"/>
+  <testcase name="getLatest should return null if no snapshot exists" classname="com.chimali.core.data.eventsourcing.SnapshotRepositoryImplTest" time="0.005"/>
+  <testcase name="save should retain only last 2 snapshots" classname="com.chimali.core.data.eventsourcing.SnapshotRepositoryImplTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

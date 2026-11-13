@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LatencyProfiler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">LatencyProfiler.kt</span></div><h1>LatencyProfiler.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+
+/**
+ * Lightweight local-only profiler for measuring FIDO2 HID operation latency.
+ *
+ * Records adjusted app-side latency through local Bluetooth HID API acceptance. This is not the
+ * RP-to-verified-response end-to-end boundary and is not the 200ms internal-processing metric.
+ * Results are emitted only to Timber (local Logcat) and never uploaded.
+ *
+ * Usage:
+ * ```kotlin
+ * LatencyProfiler.start(&quot;MakeCredential&quot;)
+ * // ... operation ...
+ * LatencyProfiler.end(&quot;MakeCredential&quot;, responseAccepted)
+ * ```
+ */
+object LatencyProfiler {
+<span class="fc" id="L26">    private val startTimes = java.util.concurrent.ConcurrentHashMap&lt;String, Long&gt;()</span>
+<span class="fc" id="L27">    private val userInteractionStarts = java.util.concurrent.ConcurrentHashMap&lt;String, Long&gt;()</span>
+<span class="fc" id="L28">    private val userAccumulatedMs = java.util.concurrent.ConcurrentHashMap&lt;String, Long&gt;()</span>
+
+    private const val NS_TO_MS_CONVERSION = 1_000_000L
+
+    /**
+     * Records the start time for an operation identified by [id].
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun start(id: String) {
+<span class="fc" id="L37">        BaselineMeasurements.start(id)</span>
+<span class="fc" id="L38">        startTimes[id] = System.nanoTime()</span>
+<span class="fc" id="L39">        userAccumulatedMs[id] = 0L</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * Starts timing a user interaction window (e.g. BiometricPrompt).
+     * This time will be subtracted from the total in [end].
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun startUserInteraction(id: String) {
+<span class="fc" id="L48">        BaselineMeasurements.startUserInteraction(id)</span>
+<span class="fc" id="L49">        userInteractionStarts[id] = System.nanoTime()</span>
+<span class="fc" id="L50">    }</span>
+
+    /**
+     * Ends a user interaction window and accumulates the duration.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun endUserInteraction(id: String) {
+<span class="fc" id="L57">        BaselineMeasurements.endUserInteraction(id)</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        val startNs = userInteractionStarts.remove(id) ?: return</span>
+<span class="fc" id="L59">        val durationMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        val current = userAccumulatedMs[id] ?: 0L</span>
+<span class="fc" id="L61">        userAccumulatedMs[id] = current + durationMs</span>
+<span class="fc" id="L62">    }</span>
+
+    /**
+     * Excludes only the time up to the prompt's confirmation/verification signal. The operation
+     * block continues to include derivation, signing, persistence, and response construction.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun &lt;T&gt; untilUserInteractionCompletes(
+        id: String,
+        interactionCompleted: CompletableDeferred&lt;Unit&gt;,
+        operation: suspend () -&gt; T,
+<span class="fc" id="L73">    ): T = withUserInteractionWindow(interactionCompleted, { endUserInteraction(id) }, operation)</span>
+
+    /**
+     * Computes and logs the elapsed local HID handoff time since [start] was called for [id],
+     * subtracting any recorded user interaction time. [responseAccepted] means
+     * Android's HID wrapper accepted each final response report; it does not
+     * confirm that the remote host received or processed those reports.
+     *
+     * @return Pure system latency in milliseconds.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun end(
+        id: String,
+        responseAccepted: Boolean,
+    ): Long {
+<span class="fc" id="L88">        val startNs =</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">            startTimes.remove(id) ?: run {</span>
+<span class="fc" id="L90">                Logger.w { &quot;LatencyProfiler.end called without matching start for id='$id'&quot; }</span>
+<span class="fc" id="L91">                return -1L</span>
+            }
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        val userMs = userAccumulatedMs.remove(id) ?: 0L</span>
+<span class="fc" id="L94">        val totalMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION</span>
+<span class="fc" id="L95">        val pureMs = maxOf(0L, totalMs - userMs)</span>
+
+<span class="fc" id="L97">        Logger.d {</span>
+<span class="fc" id="L98">            &quot;[NFR-PERF-030][local-handoff] $id = ${pureMs}ms &quot; +</span>
+<span class="fc" id="L99">                &quot;(Total: ${totalMs}ms, User: ${userMs}ms, HID reports accepted: $responseAccepted)&quot;</span>
+        }
+<span class="fc" id="L101">        return pureMs</span>
+    }
+}
+
+/** Testable signal boundary shared by CTAP response waiting and user-window accounting. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal suspend fun &lt;T&gt; withUserInteractionWindow(
+    interactionCompleted: CompletableDeferred&lt;Unit&gt;,
+    closeWindow: () -&gt; Unit,
+    operation: suspend () -&gt; T,
+): T =
+<span class="fc" id="L112">    coroutineScope {</span>
+<span class="fc" id="L113">        val closed = AtomicBoolean(false)</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        val closeOnce = { if (closed.compareAndSet(false, true)) closeWindow() }</span>
+<span class="fc" id="L115">        val signalWatcher =</span>
+<span class="fc" id="L116">            launch {</span>
+<span class="fc" id="L117">                interactionCompleted.await()</span>
+<span class="fc" id="L118">                closeOnce()</span>
+<span class="fc" id="L119">            }</span>
+<span class="fc" id="L120">        try {</span>
+<span class="fc" id="L121">            operation()</span>
+        } finally {
+<span class="fc" id="L123">            interactionCompleted.complete(Unit)</span>
+<span class="fc" id="L124">            closeOnce()</span>
+<span class="fc" id="L125">            signalWatcher.cancelAndJoin()</span>
+<span class="fc" id="L126">        }</span>
+<span class="fc" id="L127">    }</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

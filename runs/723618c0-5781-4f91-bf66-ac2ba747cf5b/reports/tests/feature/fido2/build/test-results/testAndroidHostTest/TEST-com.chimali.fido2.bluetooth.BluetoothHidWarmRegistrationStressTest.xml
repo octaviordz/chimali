@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.bluetooth.BluetoothHidWarmRegistrationStressTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:34.180Z" hostname="LOQ15IRX10-3" time="2.098">
+  <properties/>
+  <testcase name="warmRegistrationStress_tenCycles_recordsExecutorTerminationState()" classname="com.chimali.fido2.bluetooth.BluetoothHidWarmRegistrationStressTest" time="2.07"/>
+  <system-out><![CDATA[Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Warn: registerApp failure on attempt 1: HID app registration failed (registered=false)
+Info: [DIAG:REGISTER_FAILURE_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_FAILURE_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_FAILURE_1] bondedDevices=[] (count=0)
+Debug: Retrying registerApp() in 2s...
+Debug: registerApp attempt 2/5
+Info: [DIAG:PRE_REGISTER_2] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_2] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_2] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_2] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_2] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_2] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: [DIAG:POST_REGISTER_CALL_2] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_2] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_2] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 2
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Debug: registerApp attempt 1/5
+Info: [DIAG:PRE_REGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_REGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_REGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 1: Calling unregisterApp() to clear any stale registration...
+Debug: unregisterApp() result: true
+Info: [DIAG:POST_UNREGISTER_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER_1] bondedDevices=[] (count=0)
+Debug: Step 2: Using SUBCLASS1_COMBO...
+Debug: Step 3: Calling registerApp with SDP subclass COMBO and null QoS...
+Info: registerApp() framework return value: true
+Info: [DIAG:POST_REGISTER_CALL_1] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_REGISTER_CALL_1] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_REGISTER_CALL_1] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=true pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Info: registerApp: onAppStatusChanged registered=true — registration confirmed
+Info: registerApp() succeeded on attempt 1
+Info: [DIAG:REGISTER_SUCCESS] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:REGISTER_SUCCESS] getConnectedDevices()=[] (count=0)
+Info: [DIAG:REGISTER_SUCCESS] bondedDevices=[] (count=0)
+Debug: unregisterApp() called
+Info: [DIAG:PRE_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Advertising@3e0fe68f, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:PRE_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:PRE_UNREGISTER] bondedDevices=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:POST_UNREGISTER] getConnectedDevices()=[] (count=0)
+Info: [DIAG:POST_UNREGISTER] bondedDevices=[] (count=0)
+Info: onAppStatusChanged registered=false pluggedDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] _connectionState=com.chimali.fido2.bluetooth.HidConnectionState$Idle@18b362c2, connectedDevice=null, pendingBondDevice=null
+Info: [DIAG:APP_STATUS_CHANGED] getConnectedDevices()=[] (count=0)
+Info: [DIAG:APP_STATUS_CHANGED] bondedDevices=[] (count=0)
+Warn: registerApp: onAppStatusChanged registered=false — registration lost
+Pre-cleanup intermediate R_c series: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11]
+Pre-cleanup V_final termination states: [false, false, false, false, false, false, false, false, false, false, false]
+Pre-cleanup R_final: 11 of M=11
+Defect Verdict: Executor retention observed: R_final=11 of M=11 non-terminated
+Defect Verdict: Linear executor accumulation confirmed under harness: R_final=M (11 == 11)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

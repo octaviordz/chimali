@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.RawCtapOperationTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:52.301Z" hostname="LOQ15IRX10-3" time="0.125">
+  <properties/>
+  <testcase name="execute routes MakeCredential to handler with master seed session ownership()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.016"/>
+  <testcase name="classic HID framing regression verifies raw response can be encoded and decoded via HID()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.006"/>
+  <testcase name="execute routes GetAssertion to handler with master seed session ownership()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.016"/>
+  <testcase name="execute propagates keepalive callbacks during execution()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.008"/>
+  <testcase name="execute returns error on unknown command byte()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.006"/>
+  <testcase name="execute routes GetInfo to responseBuilder without seed ownership()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.016"/>
+  <testcase name="execute returns error on empty request()" classname="com.chimali.fido2.data.transport.RawCtapOperationTest" time="0.004"/>
+  <system-out><![CDATA[Warn: Unsupported CTAP2 command: 0x99
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

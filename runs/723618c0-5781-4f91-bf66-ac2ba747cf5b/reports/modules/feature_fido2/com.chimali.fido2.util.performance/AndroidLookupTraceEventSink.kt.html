@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AndroidLookupTraceEventSink.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">AndroidLookupTraceEventSink.kt</span></div><h1>AndroidLookupTraceEventSink.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import android.os.Build
+import android.os.Trace
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+
+/** Android trace/logcat sink for secret-free, process-local lookup correlation. */
+internal object AndroidLookupTraceEventSink : CoroutineTraceEventSink {
+    private const val TAG = &quot;ChimaliT062&quot;
+    private const val SEGMENT_NAME = &quot;Fido2.Registration.SettingsLookup.Coroutine&quot;
+<span class="nc" id="L12">    private val logger = Logger.withTag(TAG)</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun mapping(
+        context: Fido2OperationTraceContext,
+        lookupCookie: Int,
+        accepted: Boolean,
+    ) {
+<span class="nc" id="L20">        emit(</span>
+<span class="nc" id="L21">            &quot;event=lookup_mapping process_session=${context.processSession} &quot; +</span>
+<span class="nc" id="L22">                &quot;operation_cookie=${context.operationCookie} lookup_trace_cookie=$lookupCookie accepted=$accepted&quot;,</span>
+        )
+<span class="nc" id="L24">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    override fun resumed(
+        context: Fido2OperationTraceContext,
+        traceCookie: Int,
+        threadId: Long,
+        paired: Boolean,
+    ) {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (paired) trace(&quot;begin&quot;, traceCookie)</span>
+<span class="nc" id="L34">        emit(</span>
+<span class="nc" id="L35">            &quot;event=coroutine_resume process_session=${context.processSession} &quot; +</span>
+<span class="nc" id="L36">                &quot;operation_cookie=${context.operationCookie} &quot; +</span>
+<span class="nc" id="L37">                &quot;lookup_trace_cookie=${context.correlation.lookupCookie()} &quot; +</span>
+<span class="nc" id="L38">                &quot;segment_cookie=$traceCookie thread_id=$threadId paired=$paired&quot;,</span>
+        )
+<span class="nc" id="L40">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    override fun suspended(
+        context: Fido2OperationTraceContext,
+        traceCookie: Int,
+        threadId: Long,
+        paired: Boolean,
+    ) {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (paired) trace(&quot;end&quot;, traceCookie)</span>
+<span class="nc" id="L50">        emit(</span>
+<span class="nc" id="L51">            &quot;event=coroutine_suspend process_session=${context.processSession} &quot; +</span>
+<span class="nc" id="L52">                &quot;operation_cookie=${context.operationCookie} &quot; +</span>
+<span class="nc" id="L53">                &quot;lookup_trace_cookie=${context.correlation.lookupCookie()} &quot; +</span>
+<span class="nc" id="L54">                &quot;segment_cookie=$traceCookie thread_id=$threadId paired=$paired&quot;,</span>
+        )
+<span class="nc" id="L56">    }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun terminal(
+        context: Fido2OperationTraceContext,
+        outcome: String,
+        valid: Boolean,
+        complete: Boolean,
+    ) {
+<span class="nc" id="L65">        emit(</span>
+<span class="nc" id="L66">            &quot;event=lookup_terminal process_session=${context.processSession} &quot; +</span>
+<span class="nc" id="L67">                &quot;operation_cookie=${context.operationCookie} &quot; +</span>
+<span class="nc" id="L68">                &quot;lookup_trace_cookie=${context.correlation.lookupCookie()} &quot; +</span>
+<span class="nc" id="L69">                &quot;outcome=$outcome valid=$valid complete=$complete&quot;,</span>
+        )
+<span class="nc" id="L71">    }</span>
+
+    private fun trace(
+        action: String,
+        cookie: Int,
+    ) {
+<span class="nc bnc" id="L77" title="All 4 branches missed.">        if (Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.Q || !Trace.isEnabled()) {</span>
+<span class="nc" id="L78">            return</span>
+        }
+<span class="nc" id="L80">        runCatching {</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (action == &quot;begin&quot;) {</span>
+<span class="nc" id="L82">                Trace.beginAsyncSection(SEGMENT_NAME, cookie)</span>
+            } else {
+<span class="nc" id="L84">                Trace.endAsyncSection(SEGMENT_NAME, cookie)</span>
+            }
+<span class="nc" id="L86">        }</span>
+<span class="nc" id="L87">    }</span>
+
+    private fun emit(message: String) {
+<span class="nc" id="L90">        runCatching { logger.i { message } }</span>
+<span class="nc" id="L91">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

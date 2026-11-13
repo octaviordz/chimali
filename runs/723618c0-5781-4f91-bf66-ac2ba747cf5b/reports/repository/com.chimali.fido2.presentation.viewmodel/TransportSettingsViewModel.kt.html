@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransportSettingsViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.viewmodel</a> &gt; <span class="el_source">TransportSettingsViewModel.kt</span></div><h1>TransportSettingsViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.data.transport.ProcessTransportSelection
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
+import com.chimali.fido2.domain.repository.ProcessTransportState
+import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportPreferenceResult
+import com.chimali.fido2.domain.repository.TransportSaveResult
+import java.io.IOException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import org.koin.android.annotation.KoinViewModel
+
+<span class="fc" id="L24">@Req(&quot;FR-BT-SEL-010&quot;, &quot;FR-BT-SEL-020&quot;, &quot;FR-BT-SEL-030&quot;, &quot;FR-BT-SEL-040&quot;, &quot;FR-BT-SEL-050&quot;)</span>
+<span class="fc" id="L25">data class TransportSettingsState(</span>
+<span class="fc" id="L26">    val savedChoice: BluetoothTransportMode? = null,</span>
+<span class="fc" id="L27">    val processState: ProcessTransportState =</span>
+<span class="fc" id="L28">        ProcessTransportState(null, TransportAvailability.Loading),</span>
+<span class="fc" id="L29">    val isReading: Boolean = true,</span>
+<span class="fc" id="L30">    val isSaving: Boolean = false,</span>
+<span class="fc" id="L31">    val readError: String? = null,</span>
+<span class="fc" id="L32">    val saveError: String? = null,</span>
+<span class="fc" id="L33">) {</span>
+    val restartRequired: Boolean
+<span class="pc bpc" id="L35" title="1 of 6 branches missed.">        get() = savedChoice != null &amp;&amp; processState.processChoice != null &amp;&amp; savedChoice != processState.processChoice</span>
+}
+
+/** Presents durable selection separately from the immutable mode active in this process. */
+<span class="fc" id="L39">@KoinViewModel</span>
+@Req(&quot;FR-BT-SEL-010&quot;, &quot;FR-BT-SEL-020&quot;, &quot;FR-BT-SEL-030&quot;, &quot;FR-BT-SEL-040&quot;, &quot;FR-BT-SEL-050&quot;)
+<span class="fc" id="L41">class TransportSettingsViewModel(</span>
+<span class="fc" id="L42">    private val settingsRepository: Fido2SettingsRepository,</span>
+<span class="fc" id="L43">    private val processTransportSelection: ProcessTransportSelection,</span>
+) : ViewModel() {
+<span class="fc" id="L45">    private val _state = MutableStateFlow(TransportSettingsState())</span>
+<span class="fc" id="L46">    val state: StateFlow&lt;TransportSettingsState&gt; = _state.asStateFlow()</span>
+<span class="fc" id="L47">    private val readMutex = Mutex()</span>
+<span class="fc" id="L48">    private val saveMutex = Mutex()</span>
+
+<span class="fc" id="L50">    init {</span>
+<span class="fc" id="L51">        viewModelScope.launch {</span>
+<span class="pc" id="L52">            processTransportSelection.state.collect { processState -&gt;</span>
+<span class="fc" id="L53">                _state.value = _state.value.copy(processState = processState)</span>
+<span class="fc" id="L54">            }</span>
+        }
+<span class="fc" id="L56">        retryRead()</span>
+<span class="fc" id="L57">    }</span>
+
+    @Req(&quot;FR-BT-SEL-010&quot;, &quot;FR-BT-SEL-050&quot;)
+    fun retryRead() {
+<span class="fc" id="L61">        viewModelScope.launch {</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            if (!readMutex.tryLock()) return@launch</span>
+<span class="fc" id="L63">            try {</span>
+<span class="fc" id="L64">                _state.value = _state.value.copy(isReading = true, readError = null)</span>
+<span class="fc" id="L65">                when (val result = settingsRepository.getTransportPreference()) {</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">                    is TransportPreferenceResult.Success -&gt; {</span>
+<span class="fc" id="L67">                        _state.value = _state.value.copy(savedChoice = result.preference.mode, readError = null)</span>
+                    }
+<span class="fc bfc" id="L69" title="All 2 branches covered.">                    is TransportPreferenceResult.InvalidPreference -&gt; {</span>
+<span class="fc" id="L70">                        _state.value =</span>
+<span class="fc" id="L71">                            _state.value.copy(</span>
+<span class="fc" id="L72">                                savedChoice = null,</span>
+<span class="fc" id="L73">                                readError = &quot;invalid_preference&quot;,</span>
+                            )
+                    }
+<span class="fc" id="L76">                    is TransportPreferenceResult.ReadError -&gt; {</span>
+<span class="fc" id="L77">                        _state.value =</span>
+<span class="fc" id="L78">                            _state.value.copy(</span>
+<span class="fc" id="L79">                                savedChoice = null,</span>
+<span class="fc" id="L80">                                readError = &quot;read_failed&quot;,</span>
+                            )
+                    }
+                }
+<span class="nc" id="L84">            } catch (failure: CancellationException) {</span>
+<span class="nc" id="L85">                throw failure</span>
+<span class="nc" id="L86">            } catch (failure: IOException) {</span>
+<span class="nc" id="L87">                Logger.e(failure) { &quot;TransportSettingsViewModel: Failed to read transport settings&quot; }</span>
+<span class="nc" id="L88">                _state.value =</span>
+<span class="nc" id="L89">                    _state.value.copy(</span>
+<span class="nc" id="L90">                        savedChoice = null,</span>
+<span class="nc" id="L91">                        readError = &quot;read_failed&quot;,</span>
+                    )
+            } finally {
+<span class="fc" id="L94">                _state.value = _state.value.copy(isReading = false)</span>
+<span class="fc" id="L95">                readMutex.unlock()</span>
+            }
+<span class="fc" id="L97">        }</span>
+<span class="fc" id="L98">    }</span>
+
+    @Req(&quot;FR-BT-SEL-020&quot;, &quot;FR-BT-SEL-030&quot;, &quot;FR-BT-SEL-060&quot;)
+    fun select(mode: BluetoothTransportMode) {
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (!canChangePreference(_state.value)) return</span>
+<span class="fc" id="L103">        viewModelScope.launch {</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">            if (!saveMutex.tryLock()) return@launch</span>
+<span class="fc" id="L105">            try {</span>
+<span class="fc" id="L106">                val current = _state.value</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">                if (!canChangePreference(current)) return@launch</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">                if (current.savedChoice == mode) return@launch</span>
+<span class="fc" id="L109">                _state.value = current.copy(isSaving = true, saveError = null)</span>
+<span class="fc" id="L110">                when (val result = settingsRepository.saveTransportPreference(mode)) {</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">                    is TransportSaveResult.Success -&gt; {</span>
+<span class="fc" id="L112">                        _state.value = _state.value.copy(savedChoice = result.preference.mode, saveError = null)</span>
+                    }
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">                    is TransportSaveResult.InvalidInput -&gt; {</span>
+<span class="nc" id="L115">                        _state.value = _state.value.copy(saveError = &quot;invalid_input&quot;)</span>
+                    }
+<span class="fc" id="L117">                    is TransportSaveResult.WriteError -&gt; {</span>
+<span class="fc" id="L118">                        _state.value = _state.value.copy(saveError = &quot;write_failed&quot;)</span>
+                    }
+                }
+<span class="nc" id="L121">            } catch (failure: CancellationException) {</span>
+<span class="nc" id="L122">                throw failure</span>
+<span class="nc" id="L123">            } catch (failure: IOException) {</span>
+<span class="nc" id="L124">                Logger.e(failure) { &quot;TransportSettingsViewModel: Failed to save transport settings&quot; }</span>
+<span class="nc" id="L125">                _state.value =</span>
+<span class="nc" id="L126">                    _state.value.copy(</span>
+<span class="nc" id="L127">                        saveError = &quot;write_failed&quot;,</span>
+                    )
+            } finally {
+<span class="fc" id="L130">                _state.value = _state.value.copy(isSaving = false)</span>
+<span class="pc" id="L131">                saveMutex.unlock()</span>
+            }
+<span class="fc" id="L133">        }</span>
+<span class="fc" id="L134">    }</span>
+
+    private fun canChangePreference(state: TransportSettingsState): Boolean =
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">        !state.isReading &amp;&amp;</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">            !state.isSaving &amp;&amp;</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">            state.readError == null &amp;&amp;</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            state.processState.processChoice != null</span>
+
+    @Req(&quot;FR-BT-SEL-030&quot;)
+    fun cancelPendingChange() {
+<span class="fc" id="L144">        processTransportSelection.state.value.processChoice</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            ?.let(::select)</span>
+<span class="fc" id="L146">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

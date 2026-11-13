@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FidoBleGattServer.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">FidoBleGattServer.kt</span></div><h1>FidoBleGattServer.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattServerCallback
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothProfile
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+
+/**
+ * Sender abstraction for GATT responses and notifications, decoupling callback admission from Android hardware.
+ */
+@Req(&quot;FR-BLE-010&quot;, &quot;TR-BLE-010&quot;)
+interface GattResponseSender {
+    fun sendResponse(
+        device: BluetoothDevice,
+        requestId: Int,
+        status: Int,
+        offset: Int,
+        value: ByteArray?,
+    ): Boolean
+
+    fun notifyCharacteristicChanged(
+        device: BluetoothDevice,
+        characteristic: BluetoothGattCharacteristic,
+        confirm: Boolean,
+        value: ByteArray,
+    ): Boolean
+}
+
+/**
+ * Implements Android GATT server callback admission and explicit ATT responses per CTAP 2.2 FIDO BLE profile.
+ */
+<span class="fc" id="L38">@Req(</span>
+    &quot;FR-BLE-010&quot;,
+    &quot;FR-BLE-020&quot;,
+    &quot;FR-BLE-030&quot;,
+    &quot;FR-BLE-040&quot;,
+    &quot;FR-BLE-050&quot;,
+    &quot;FR-BLE-070&quot;,
+    &quot;TR-BLE-010&quot;,
+    &quot;TR-BLE-020&quot;,
+    &quot;TR-BLE-040&quot;,
+)
+<span class="fc" id="L49">class FidoBleGattServer(</span>
+<span class="fc" id="L50">    private val sessionOwner: BleSessionOwner,</span>
+<span class="fc" id="L51">    private val responseSender: GattResponseSender,</span>
+<span class="pc bnc" id="L52" title="All 2 branches missed.">    private val isDeviceAuthenticated: (BluetoothDevice) -&gt; Boolean = { it.bondState == BluetoothDevice.BOND_BONDED },</span>
+<span class="pc" id="L53">    private val notificationSentListener: (BluetoothDevice, Int) -&gt; Unit = { _, _ -&gt; },</span>
+<span class="pc" id="L54">    private val onConnectionStateChanged: (BluetoothDevice, Int, Int) -&gt; Unit = { _, _, _ -&gt; },</span>
+<span class="pc" id="L55">    private val onConnectionRejected: (BluetoothDevice) -&gt; Unit = {},</span>
+<span class="fc" id="L56">    private val onAuthenticationFailure: (BluetoothDevice) -&gt; Unit = {},</span>
+<span class="pc" id="L57">    private val onGattServiceAdded: (UUID, Int) -&gt; Unit = { _, _ -&gt; },</span>
+<span class="fc" id="L58">) : BluetoothGattServerCallback() {</span>
+<span class="nc" id="L59">    var statusCharacteristic =</span>
+<span class="fc" id="L60">        BluetoothGattCharacteristic(</span>
+<span class="fc" id="L61">            UUID_FIDO_STATUS,</span>
+<span class="fc" id="L62">            BluetoothGattCharacteristic.PROPERTY_NOTIFY,</span>
+<span class="fc" id="L63">            0,</span>
+        )
+        private set
+
+<span class="pc" id="L67">    var onPacketReceivedListener: ((ByteArray) -&gt; Unit)? = null</span>
+
+    companion object {
+        private const val BYTE_SHIFT = 8
+        private const val BYTE_MASK = 0xFF
+
+<span class="fc" id="L73">        val UUID_FIDO_SERVICE: UUID = UUID.fromString(&quot;0000FFFD-0000-1000-8000-00805F9B34FB&quot;)</span>
+<span class="fc" id="L74">        val UUID_FIDO_CONTROL_POINT: UUID = UUID.fromString(&quot;F1D0FFF1-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+<span class="fc" id="L75">        val UUID_FIDO_STATUS: UUID = UUID.fromString(&quot;F1D0FFF2-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+<span class="fc" id="L76">        val UUID_FIDO_CONTROL_POINT_LENGTH: UUID = UUID.fromString(&quot;F1D0FFF3-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+<span class="fc" id="L77">        val UUID_FIDO_SERVICE_REVISION_BITFIELD: UUID = UUID.fromString(&quot;F1D0FFF4-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+<span class="fc" id="L78">        val UUID_CCCD: UUID = UUID.fromString(&quot;00002902-0000-1000-8000-00805F9B34FB&quot;)</span>
+<span class="fc" id="L79">        val UUID_DEVICE_INFORMATION_SERVICE: UUID = UUID.fromString(&quot;0000180A-0000-1000-8000-00805F9B34FB&quot;)</span>
+<span class="fc" id="L80">        val UUID_MANUFACTURER_NAME_STRING: UUID = UUID.fromString(&quot;00002A29-0000-1000-8000-00805F9B34FB&quot;)</span>
+<span class="fc" id="L81">        val UUID_MODEL_NUMBER_STRING: UUID = UUID.fromString(&quot;00002A24-0000-1000-8000-00805F9B34FB&quot;)</span>
+<span class="fc" id="L82">        val UUID_FIRMWARE_REVISION_STRING: UUID = UUID.fromString(&quot;00002A26-0000-1000-8000-00805F9B34FB&quot;)</span>
+
+        private const val MANUFACTURER_NAME = &quot;Chimali&quot;
+        private const val MODEL_NUMBER = &quot;Chimali Authenticator&quot;
+        private const val FIRMWARE_REVISION = &quot;1.0&quot;
+    }
+
+    /**
+     * Builds the primary FIDO BLE GATT service structure with required MITM permissions.
+     */
+<span class="fc" id="L92">    fun buildFidoGattService(</span>
+<span class="fc" id="L93">        serviceFactory: (UUID, Int) -&gt; BluetoothGattService = { uuid, type -&gt; BluetoothGattService(uuid, type) },</span>
+<span class="fc" id="L94">        characteristicFactory: (UUID, Int, Int) -&gt; BluetoothGattCharacteristic = { uuid, prop, perm -&gt;</span>
+<span class="fc" id="L95">            BluetoothGattCharacteristic(uuid, prop, perm)</span>
+        },
+<span class="fc" id="L97">        descriptorFactory: (UUID, Int) -&gt; BluetoothGattDescriptor = { uuid, perm -&gt;</span>
+<span class="fc" id="L98">            BluetoothGattDescriptor(uuid, perm)</span>
+        },
+    ): BluetoothGattService {
+<span class="fc" id="L101">        val service = serviceFactory(UUID_FIDO_SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)</span>
+
+        // Control Point: Write only, encrypted MITM
+<span class="fc" id="L104">        val controlPoint =</span>
+<span class="fc" id="L105">            characteristicFactory(</span>
+<span class="fc" id="L106">                UUID_FIDO_CONTROL_POINT,</span>
+<span class="fc" id="L107">                BluetoothGattCharacteristic.PROPERTY_WRITE,</span>
+<span class="fc" id="L108">                BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED_MITM,</span>
+            )
+<span class="fc" id="L110">        service.addCharacteristic(controlPoint)</span>
+
+        // Status: Notify only
+<span class="fc" id="L113">        val status =</span>
+<span class="fc" id="L114">            characteristicFactory(</span>
+<span class="fc" id="L115">                UUID_FIDO_STATUS,</span>
+<span class="fc" id="L116">                BluetoothGattCharacteristic.PROPERTY_NOTIFY,</span>
+<span class="fc" id="L117">                0,</span>
+<span class="fc" id="L118">            ).also { statusCharacteristic = it }</span>
+<span class="fc" id="L119">        val cccd =</span>
+<span class="fc" id="L120">            descriptorFactory(</span>
+<span class="fc" id="L121">                UUID_CCCD,</span>
+<span class="fc" id="L122">                BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED_MITM or</span>
+                    BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED_MITM,
+            )
+<span class="fc" id="L125">        status.addDescriptor(cccd)</span>
+<span class="fc" id="L126">        service.addCharacteristic(status)</span>
+
+        // Control Point Length: Read only, encrypted MITM
+<span class="fc" id="L129">        val cpLength =</span>
+<span class="fc" id="L130">            characteristicFactory(</span>
+<span class="fc" id="L131">                UUID_FIDO_CONTROL_POINT_LENGTH,</span>
+<span class="fc" id="L132">                BluetoothGattCharacteristic.PROPERTY_READ,</span>
+<span class="fc" id="L133">                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED_MITM,</span>
+            )
+<span class="fc" id="L135">        service.addCharacteristic(cpLength)</span>
+
+        // Service Revision Bitfield: Read/Write, encrypted MITM
+<span class="fc" id="L138">        val revision =</span>
+<span class="fc" id="L139">            characteristicFactory(</span>
+<span class="fc" id="L140">                UUID_FIDO_SERVICE_REVISION_BITFIELD,</span>
+<span class="fc" id="L141">                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE,</span>
+<span class="fc" id="L142">                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED_MITM or</span>
+                    BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED_MITM,
+            )
+<span class="fc" id="L145">        service.addCharacteristic(revision)</span>
+
+<span class="fc" id="L147">        return service</span>
+    }
+
+    /** Builds the standard Device Information Service with generic values that do not identify a device. */
+<span class="fc" id="L151">    fun buildDeviceInformationService(</span>
+<span class="fc" id="L152">        serviceFactory: (UUID, Int) -&gt; BluetoothGattService = { uuid, type -&gt; BluetoothGattService(uuid, type) },</span>
+<span class="fc" id="L153">        characteristicFactory: (UUID, Int, Int) -&gt; BluetoothGattCharacteristic = { uuid, prop, perm -&gt;</span>
+<span class="fc" id="L154">            BluetoothGattCharacteristic(uuid, prop, perm)</span>
+        },
+    ): BluetoothGattService {
+<span class="fc" id="L157">        val service = serviceFactory(UUID_DEVICE_INFORMATION_SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)</span>
+<span class="fc" id="L158">        listOf(</span>
+<span class="fc" id="L159">            UUID_MANUFACTURER_NAME_STRING to MANUFACTURER_NAME,</span>
+<span class="fc" id="L160">            UUID_MODEL_NUMBER_STRING to MODEL_NUMBER,</span>
+<span class="fc" id="L161">            UUID_FIRMWARE_REVISION_STRING to FIRMWARE_REVISION,</span>
+<span class="fc" id="L162">        ).forEach { (uuid, value) -&gt;</span>
+<span class="fc" id="L163">            val characteristic =</span>
+<span class="fc" id="L164">                characteristicFactory(</span>
+<span class="fc" id="L165">                    uuid,</span>
+<span class="fc" id="L166">                    BluetoothGattCharacteristic.PROPERTY_READ,</span>
+<span class="fc" id="L167">                    BluetoothGattCharacteristic.PERMISSION_READ,</span>
+<span class="fc" id="L168">                ).also { it.setValue(value.toByteArray(Charsets.UTF_8)) }</span>
+<span class="fc" id="L169">            service.addCharacteristic(characteristic)</span>
+<span class="fc" id="L170">        }</span>
+<span class="fc" id="L171">        return service</span>
+    }
+
+    override fun onConnectionStateChange(
+        device: BluetoothDevice,
+        status: Int,
+        newState: Int,
+    ) {
+<span class="pc bpc" id="L179" title="1 of 3 branches missed.">        if (newState == BluetoothProfile.STATE_CONNECTED) {</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (!sessionOwner.connectHost(device.address)) {</span>
+<span class="fc" id="L181">                onConnectionRejected(device)</span>
+<span class="fc" id="L182">                return</span>
+            }
+        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+<span class="fc" id="L185">            sessionOwner.disconnectHost(device.address)</span>
+        }
+<span class="fc" id="L187">        onConnectionStateChanged(device, status, newState)</span>
+<span class="fc" id="L188">    }</span>
+
+    override fun onMtuChanged(
+        device: BluetoothDevice,
+        mtu: Int,
+    ) {
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        if (sessionOwner.activeDeviceAddress == device.address) sessionOwner.updateMtu(mtu)</span>
+<span class="fc" id="L195">    }</span>
+
+    override fun onServiceAdded(
+        status: Int,
+        service: BluetoothGattService,
+    ) {
+<span class="fc" id="L201">        onGattServiceAdded(service.uuid, status)</span>
+<span class="fc" id="L202">    }</span>
+
+    override fun onNotificationSent(
+        device: BluetoothDevice,
+        status: Int,
+    ) {
+<span class="fc" id="L208">        notificationSentListener(device, status)</span>
+<span class="fc" id="L209">    }</span>
+
+    override fun onCharacteristicReadRequest(
+        device: BluetoothDevice,
+        requestId: Int,
+        offset: Int,
+        characteristic: BluetoothGattCharacteristic,
+    ) {
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">        if (!isActiveHost(device)) {</span>
+<span class="nc" id="L218">            responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION, offset, null)</span>
+<span class="nc" id="L219">            return</span>
+        }
+<span class="fc" id="L221">        val deviceInformationValue =</span>
+<span class="fc" id="L222">            when (characteristic.uuid) {</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                UUID_MANUFACTURER_NAME_STRING -&gt; MANUFACTURER_NAME</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">                UUID_MODEL_NUMBER_STRING -&gt; MODEL_NUMBER</span>
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">                UUID_FIRMWARE_REVISION_STRING -&gt; FIRMWARE_REVISION</span>
+<span class="fc" id="L226">                else -&gt; null</span>
+            }
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        if (deviceInformationValue != null) {</span>
+<span class="fc" id="L229">            val bytes = deviceInformationValue.toByteArray(Charsets.UTF_8)</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">            if (offset &gt; bytes.size) {</span>
+<span class="fc" id="L231">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+            } else {
+<span class="fc" id="L233">                responseSender.sendResponse(</span>
+<span class="fc" id="L234">                    device,</span>
+<span class="fc" id="L235">                    requestId,</span>
+<span class="fc" id="L236">                    BluetoothGatt.GATT_SUCCESS,</span>
+<span class="fc" id="L237">                    offset,</span>
+<span class="fc" id="L238">                    bytes.copyOfRange(offset, bytes.size),</span>
+                )
+            }
+<span class="fc" id="L241">            return</span>
+        }
+<span class="pc bpc" id="L243" title="1 of 2 branches missed.">        if (!isDeviceAuthenticated(device)) {</span>
+<span class="nc" id="L244">            rejectUnauthenticatedRequest(device, requestId, offset, responseNeeded = true)</span>
+<span class="nc" id="L245">            return</span>
+        }
+
+<span class="fc" id="L248">        when (characteristic.uuid) {</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">            UUID_FIDO_CONTROL_POINT_LENGTH -&gt; {</span>
+<span class="fc" id="L250">                val capacity = sessionOwner.writeCapacity</span>
+<span class="fc" id="L251">                val bytes =</span>
+                    byteArrayOf(
+<span class="fc" id="L253">                        (capacity shr BYTE_SHIFT).toByte(),</span>
+<span class="fc" id="L254">                        (capacity and BYTE_MASK).toByte(),</span>
+                    )
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">                if (offset &gt; bytes.size) {</span>
+<span class="nc" id="L257">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+                } else {
+<span class="fc" id="L259">                    val slice = bytes.copyOfRange(offset, bytes.size)</span>
+<span class="fc" id="L260">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, slice)</span>
+                }
+            }
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">            UUID_FIDO_SERVICE_REVISION_BITFIELD -&gt; {</span>
+<span class="fc" id="L264">                val bytes = byteArrayOf(FidoBleFraming.REVISION_FIDO2)</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">                if (offset &gt; bytes.size) {</span>
+<span class="fc" id="L266">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+                } else {
+<span class="fc" id="L268">                    val slice = bytes.copyOfRange(offset, bytes.size)</span>
+<span class="fc" id="L269">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, slice)</span>
+                }
+            }
+            else -&gt; {
+<span class="pc" id="L273">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED, offset, null)</span>
+            }
+        }
+<span class="fc" id="L276">    }</span>
+
+    override fun onCharacteristicWriteRequest(
+        device: BluetoothDevice,
+        requestId: Int,
+        characteristic: BluetoothGattCharacteristic,
+        preparedWrite: Boolean,
+        responseNeeded: Boolean,
+        offset: Int,
+        value: ByteArray?,
+    ) {
+<span class="fc bfc" id="L287" title="All 2 branches covered.">        if (!isActiveHost(device)) {</span>
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            if (responseNeeded) {</span>
+<span class="fc" id="L289">                responseSender.sendResponse(</span>
+<span class="fc" id="L290">                    device,</span>
+<span class="fc" id="L291">                    requestId,</span>
+<span class="fc" id="L292">                    BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION,</span>
+<span class="fc" id="L293">                    offset,</span>
+<span class="fc" id="L294">                    null,</span>
+                )
+            }
+<span class="fc" id="L297">            return</span>
+        }
+<span class="fc bfc" id="L299" title="All 2 branches covered.">        if (!isDeviceAuthenticated(device)) {</span>
+<span class="fc" id="L300">            rejectUnauthenticatedRequest(device, requestId, offset, responseNeeded)</span>
+<span class="fc" id="L301">            return</span>
+        }
+
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if (preparedWrite) {</span>
+<span class="fc bfc" id="L305" title="All 2 branches covered.">            if (responseNeeded) {</span>
+<span class="fc" id="L306">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED, offset, null)</span>
+            }
+<span class="fc" id="L308">            return</span>
+        }
+
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        if (offset != 0) {</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">            if (responseNeeded) {</span>
+<span class="fc" id="L313">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+            }
+<span class="fc" id="L315">            return</span>
+        }
+
+<span class="fc bfc" id="L318" title="All 2 branches covered.">        val payload = value ?: byteArrayOf()</span>
+
+<span class="fc" id="L320">        when (characteristic.uuid) {</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">            UUID_FIDO_SERVICE_REVISION_BITFIELD -&gt; {</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">                if (payload.size != 1) {</span>
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">                    if (responseNeeded) {</span>
+<span class="fc" id="L324">                        responseSender.sendResponse(</span>
+<span class="fc" id="L325">                            device,</span>
+<span class="fc" id="L326">                            requestId,</span>
+<span class="fc" id="L327">                            BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH,</span>
+<span class="fc" id="L328">                            offset,</span>
+<span class="fc" id="L329">                            null,</span>
+                        )
+                    }
+<span class="fc" id="L332">                    return</span>
+                }
+<span class="fc bfc" id="L334" title="All 2 branches covered.">                if (payload[0] != 0x20.toByte()) {</span>
+<span class="pc bpc" id="L335" title="1 of 2 branches missed.">                    if (responseNeeded) {</span>
+<span class="fc" id="L336">                        responseSender.sendResponse(</span>
+<span class="fc" id="L337">                            device,</span>
+<span class="fc" id="L338">                            requestId,</span>
+<span class="fc" id="L339">                            BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED,</span>
+<span class="fc" id="L340">                            offset,</span>
+<span class="fc" id="L341">                            null,</span>
+                        )
+                    }
+<span class="fc" id="L344">                    return</span>
+                }
+<span class="fc" id="L346">                sessionOwner.selectRevision(payload[0])</span>
+<span class="pc bpc" id="L347" title="1 of 2 branches missed.">                if (responseNeeded) {</span>
+<span class="fc" id="L348">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)</span>
+                }
+            }
+<span class="fc bfc" id="L351" title="All 2 branches covered.">            UUID_FIDO_CONTROL_POINT -&gt; {</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">                if (!sessionOwner.isCommandReady) {</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">                    if (responseNeeded) {</span>
+<span class="fc" id="L354">                        responseSender.sendResponse(</span>
+<span class="fc" id="L355">                            device,</span>
+<span class="fc" id="L356">                            requestId,</span>
+<span class="fc" id="L357">                            BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED,</span>
+<span class="fc" id="L358">                            offset,</span>
+<span class="fc" id="L359">                            null,</span>
+                        )
+                    }
+<span class="fc" id="L362">                    return</span>
+                }
+<span class="pc bpc" id="L364" title="1 of 2 branches missed.">                if (payload.size &gt; sessionOwner.writeCapacity) {</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">                    if (responseNeeded) {</span>
+<span class="nc" id="L366">                        responseSender.sendResponse(</span>
+<span class="nc" id="L367">                            device,</span>
+<span class="nc" id="L368">                            requestId,</span>
+<span class="nc" id="L369">                            BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH,</span>
+<span class="nc" id="L370">                            offset,</span>
+<span class="nc" id="L371">                            null,</span>
+                        )
+                    }
+<span class="nc" id="L374">                    return</span>
+                }
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">                if (responseNeeded) {</span>
+<span class="fc" id="L377">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)</span>
+                }
+<span class="pc bpc" id="L379" title="1 of 2 branches missed.">                onPacketReceivedListener?.invoke(payload)</span>
+            }
+            else -&gt; {
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">                if (responseNeeded) {</span>
+<span class="nc" id="L383">                    responseSender.sendResponse(</span>
+<span class="nc" id="L384">                        device,</span>
+<span class="nc" id="L385">                        requestId,</span>
+<span class="nc" id="L386">                        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED,</span>
+<span class="nc" id="L387">                        offset,</span>
+<span class="nc" id="L388">                        null,</span>
+                    )
+                }
+            }
+        }
+<span class="fc" id="L393">    }</span>
+
+    override fun onDescriptorReadRequest(
+        device: BluetoothDevice,
+        requestId: Int,
+        offset: Int,
+        descriptor: BluetoothGattDescriptor,
+    ) {
+<span class="pc bpc" id="L401" title="1 of 2 branches missed.">        if (!isActiveHost(device)) {</span>
+<span class="nc" id="L402">            responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION, offset, null)</span>
+<span class="nc" id="L403">            return</span>
+        }
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">        if (!isDeviceAuthenticated(device)) {</span>
+<span class="nc" id="L406">            rejectUnauthenticatedRequest(device, requestId, offset, responseNeeded = true)</span>
+<span class="nc" id="L407">            return</span>
+        }
+
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">        if (descriptor.uuid == UUID_CCCD) {</span>
+<span class="fc" id="L411">            val bytes =</span>
+<span class="fc bfc" id="L412" title="All 2 branches covered.">                if (sessionOwner.isNotificationsEnabled) {</span>
+<span class="fc" id="L413">                    byteArrayOf(0x01, 0x00)</span>
+                } else {
+<span class="fc" id="L415">                    byteArrayOf(0x00, 0x00)</span>
+                }
+<span class="pc bpc" id="L417" title="1 of 2 branches missed.">            if (offset &gt; bytes.size) {</span>
+<span class="nc" id="L418">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+            } else {
+<span class="fc" id="L420">                val slice = bytes.copyOfRange(offset, bytes.size)</span>
+<span class="fc" id="L421">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, slice)</span>
+            }
+        } else {
+<span class="pc" id="L424">            responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED, offset, null)</span>
+        }
+<span class="fc" id="L426">    }</span>
+
+    override fun onDescriptorWriteRequest(
+        device: BluetoothDevice,
+        requestId: Int,
+        descriptor: BluetoothGattDescriptor,
+        preparedWrite: Boolean,
+        responseNeeded: Boolean,
+        offset: Int,
+        value: ByteArray?,
+    ) {
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">        if (!isActiveHost(device)) {</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">            if (responseNeeded) {</span>
+<span class="nc" id="L439">                responseSender.sendResponse(</span>
+<span class="nc" id="L440">                    device,</span>
+<span class="nc" id="L441">                    requestId,</span>
+<span class="nc" id="L442">                    BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION,</span>
+<span class="nc" id="L443">                    offset,</span>
+<span class="nc" id="L444">                    null,</span>
+                )
+            }
+<span class="nc" id="L447">            return</span>
+        }
+<span class="pc bpc" id="L449" title="1 of 2 branches missed.">        if (!isDeviceAuthenticated(device)) {</span>
+<span class="nc" id="L450">            rejectUnauthenticatedRequest(device, requestId, offset, responseNeeded)</span>
+<span class="nc" id="L451">            return</span>
+        }
+
+<span class="pc bpc" id="L454" title="1 of 4 branches missed.">        if (preparedWrite || offset != 0) {</span>
+<span class="pc bpc" id="L455" title="1 of 2 branches missed.">            if (responseNeeded) {</span>
+<span class="fc" id="L456">                responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_INVALID_OFFSET, offset, null)</span>
+            }
+<span class="fc" id="L458">            return</span>
+        }
+
+<span class="pc bpc" id="L461" title="1 of 2 branches missed.">        if (descriptor.uuid == UUID_CCCD) {</span>
+<span class="pc bpc" id="L462" title="1 of 2 branches missed.">            val payload = value ?: byteArrayOf()</span>
+<span class="fc bfc" id="L463" title="All 2 branches covered.">            if (payload.contentEquals(byteArrayOf(0x01, 0x00))) {</span>
+<span class="fc" id="L464">                sessionOwner.setNotificationsEnabled(true)</span>
+<span class="pc bpc" id="L465" title="1 of 2 branches missed.">                if (responseNeeded) {</span>
+<span class="fc" id="L466">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)</span>
+                }
+<span class="fc bfc" id="L468" title="All 2 branches covered.">            } else if (payload.contentEquals(byteArrayOf(0x00, 0x00))) {</span>
+<span class="fc" id="L469">                sessionOwner.setNotificationsEnabled(false)</span>
+<span class="pc bpc" id="L470" title="1 of 2 branches missed.">                if (responseNeeded) {</span>
+<span class="fc" id="L471">                    responseSender.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)</span>
+                }
+            } else {
+<span class="fc bfc" id="L474" title="All 2 branches covered.">                if (responseNeeded) {</span>
+<span class="fc" id="L475">                    responseSender.sendResponse(</span>
+<span class="fc" id="L476">                        device,</span>
+<span class="fc" id="L477">                        requestId,</span>
+<span class="fc" id="L478">                        BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED,</span>
+<span class="fc" id="L479">                        offset,</span>
+<span class="fc" id="L480">                        null,</span>
+                    )
+                }
+            }
+        } else {
+<span class="nc bnc" id="L485" title="All 2 branches missed.">            if (responseNeeded) {</span>
+<span class="nc" id="L486">                responseSender.sendResponse(</span>
+<span class="nc" id="L487">                    device,</span>
+<span class="nc" id="L488">                    requestId,</span>
+<span class="nc" id="L489">                    BluetoothGatt.GATT_REQUEST_NOT_SUPPORTED,</span>
+<span class="nc" id="L490">                    offset,</span>
+<span class="nc" id="L491">                    null,</span>
+                )
+            }
+        }
+<span class="fc" id="L495">    }</span>
+
+<span class="fc" id="L497">    private fun isActiveHost(device: BluetoothDevice): Boolean = sessionOwner.activeDeviceAddress == device.address</span>
+
+    private fun rejectUnauthenticatedRequest(
+        device: BluetoothDevice,
+        requestId: Int,
+        offset: Int,
+        responseNeeded: Boolean,
+    ) {
+<span class="fc" id="L505">        val bondState = device.bondState</span>
+<span class="pc bpc" id="L506" title="1 of 2 branches missed.">        if (responseNeeded) {</span>
+<span class="fc" id="L507">            responseSender.sendResponse(</span>
+<span class="fc" id="L508">                device,</span>
+<span class="fc" id="L509">                requestId,</span>
+<span class="fc" id="L510">                BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION,</span>
+<span class="fc" id="L511">                offset,</span>
+<span class="fc" id="L512">                null,</span>
+            )
+        }
+<span class="fc" id="L515">        Logger.w { &quot;FidoBleGattServer: rejected unauthenticated GATT request (bondState=$bondState)&quot; }</span>
+<span class="fc bfc" id="L516" title="All 2 branches covered.">        if (bondState == BluetoothDevice.BOND_BONDING) {</span>
+            // Pairing is still in progress. Keep the GATT session so the host can retry after bonding completes.
+<span class="fc" id="L518">            return</span>
+        }
+<span class="fc" id="L520">        sessionOwner.disconnectHost(device.address)</span>
+<span class="fc" id="L521">        onAuthenticationFailure(device)</span>
+<span class="fc" id="L522">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClipboardManagerService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.clipboard</a> &gt; <span class="el_source">ClipboardManagerService.kt</span></div><h1>ClipboardManagerService.kt</h1><pre class="source lang-java linenums">package com.chimali.core.clipboard
+
+/**
+ * Service for securely managing sensitive data in system clipboard.
+ * Ensure that data is cleared within 60 seconds as mandated by project constitution.
+ */
+interface ClipboardManagerService {
+    /**
+     * Copies the provided sensitive text to the clipboard and schedules an automatic
+     * clear operation after the [clearDelayMs] elapses. If copied again before the delay
+     * expires, the timer should be reset.
+     *
+     * @param label A user-visible label for the copied data.
+     * @param text The sensitive text to copy.
+     * @param clearDelayMs The delay in milliseconds before clearing the clipboard (default 60s).
+     * @return Result.success(Unit) if successful, Result.failure(ClipboardError) if failed.
+     */
+<span class="pc" id="L18">    suspend fun copySensitiveData(</span>
+        label: String,
+        text: String,
+<span class="fc" id="L21">        clearDelayMs: Long = 60_000L,</span>
+<span class="nc" id="L22">    ): Result&lt;Unit&gt;</span>
+
+    /**
+     * Explicitly clears the clipboard immediately and cancels any pending scheduled clears.
+     *
+     * @return Result.success(Unit) if successful, Result.failure(ClipboardError) if failed.
+     */
+    suspend fun clearClipboard(): Result&lt;Unit&gt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

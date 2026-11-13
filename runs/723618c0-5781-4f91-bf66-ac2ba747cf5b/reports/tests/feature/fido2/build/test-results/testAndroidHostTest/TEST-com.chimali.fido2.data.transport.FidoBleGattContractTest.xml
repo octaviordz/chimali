@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.FidoBleGattContractTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:51.776Z" hostname="LOQ15IRX10-3" time="0.21">
+  <properties/>
+  <testcase name="revision bitfield write only accepts exactly 0x20 without prepared write()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.098"/>
+  <testcase name="control point write is admitted only when revision and notifications are ready()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <testcase name="unauthenticated device receives insufficient authentication ATT error()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.003"/>
+  <testcase name="revision bitfield read returns 0x20 and supports valid read offset()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <testcase name="write admission silently rejects requests that do not require an ATT response()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.002"/>
+  <testcase name="device information service uses generic non-identifying product values()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.046"/>
+  <testcase name="bonding device receives insufficient authentication and can retry after bond completes()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <testcase name="control point length read returns write capacity as two big endian bytes()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <testcase name="connection callbacks enforce one active host and update MTU only for that host()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.002"/>
+  <testcase name="device information reads are available to active unbonded host with offsets()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.002"/>
+  <testcase name="second bonded host cannot use the active session()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.002"/>
+  <testcase name="service definition exposes primary service and four required characteristics()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.043"/>
+  <testcase name="CCCD descriptor read and write correctly toggles notifications()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <testcase name="control point rejects offset non-zero and prepared writes()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.0"/>
+  <testcase name="notification sent callback forwards once to listener()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.0"/>
+  <testcase name="CCCD rejects malformed values and prepared writes without changing subscription()" classname="com.chimali.fido2.data.transport.FidoBleGattContractTest" time="0.001"/>
+  <system-out><![CDATA[Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Warn: FidoBleGattServer: rejected unauthenticated GATT request (bondState=10)
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Warn: FidoBleGattServer: rejected unauthenticated GATT request (bondState=11)
+Debug: BleSessionOwner: MTU updated to 256 (writeCap=253, notifyCap=253)
+Debug: BleSessionOwner: MTU updated to 100 (writeCap=97, notifyCap=97)
+Warn: BleSessionOwner: Rejected second host AA:BB:CC:DD:EE:FF (active=11:22:33:44:55:66)
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: Notifications enabled=false
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

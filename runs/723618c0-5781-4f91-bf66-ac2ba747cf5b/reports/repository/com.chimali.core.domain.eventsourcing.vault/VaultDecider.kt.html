@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VaultDecider.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.domain.eventsourcing.vault</a> &gt; <span class="el_source">VaultDecider.kt</span></div><h1>VaultDecider.kt</h1><pre class="source lang-java linenums">package com.chimali.core.domain.eventsourcing.vault
+
+import com.chimali.core.domain.eventsourcing.Decider
+import kotlinx.datetime.Clock
+
+/**
+ * Decider implementation for the VaultEntry aggregate.
+ */
+<span class="fc" id="L9">class VaultDecider : Decider&lt;VaultCommand, VaultState, VaultEvent&gt; {</span>
+<span class="fc" id="L10">    override val initialState: VaultState = VaultState()</span>
+
+    override fun decide(
+        state: VaultState,
+        command: VaultCommand,
+    ): List&lt;VaultEvent&gt; {
+<span class="fc" id="L16">        val nextSequenceNumber = state.sequenceNumber + 1</span>
+<span class="fc" id="L17">        val timestamp = Clock.System.now()</span>
+
+<span class="fc" id="L19">        return when (command) {</span>
+<span class="fc bfc" id="L20" title="All 2 branches covered.">            is VaultCommand.Create -&gt;</span>
+<span class="fc" id="L21">                listOf(</span>
+<span class="fc" id="L22">                    VaultEvent.Created(</span>
+<span class="fc" id="L23">                        aggregateId = command.id,</span>
+<span class="fc" id="L24">                        sequenceNumber = nextSequenceNumber,</span>
+<span class="fc" id="L25">                        timestamp = timestamp,</span>
+<span class="fc" id="L26">                        type = command.type,</span>
+<span class="fc" id="L27">                        title = command.title.copyOf(),</span>
+<span class="fc" id="L28">                        payload = command.payload.copyOf(),</span>
+<span class="fc" id="L29">                        identityId = command.identityId,</span>
+                    ),
+                )
+<span class="fc bfc" id="L32" title="All 2 branches covered.">            is VaultCommand.Update -&gt;</span>
+<span class="fc" id="L33">                listOf(</span>
+<span class="fc" id="L34">                    VaultEvent.Updated(</span>
+<span class="fc" id="L35">                        aggregateId = command.id,</span>
+<span class="fc" id="L36">                        sequenceNumber = nextSequenceNumber,</span>
+<span class="fc" id="L37">                        timestamp = timestamp,</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">                        title = command.title?.copyOf(),</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">                        payload = command.payload?.copyOf(),</span>
+                    ),
+                )
+<span class="fc" id="L42">            is VaultCommand.Delete -&gt;</span>
+<span class="fc" id="L43">                listOf(</span>
+<span class="fc" id="L44">                    VaultEvent.Deleted(</span>
+<span class="fc" id="L45">                        aggregateId = command.id,</span>
+<span class="fc" id="L46">                        sequenceNumber = nextSequenceNumber,</span>
+<span class="fc" id="L47">                        timestamp = timestamp,</span>
+                    ),
+                )
+        }
+    }
+
+    override fun evolve(
+        state: VaultState,
+        event: VaultEvent,
+    ): VaultState =
+<span class="fc" id="L57">        when (event) {</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            is VaultEvent.Created -&gt;</span>
+<span class="fc" id="L59">                state.copy(</span>
+<span class="fc" id="L60">                    id = event.aggregateId,</span>
+<span class="fc" id="L61">                    type = event.type,</span>
+<span class="fc" id="L62">                    title = event.title.copyOf(),</span>
+<span class="fc" id="L63">                    payload = event.payload.copyOf(),</span>
+<span class="fc" id="L64">                    identityId = event.identityId,</span>
+<span class="fc" id="L65">                    sequenceNumber = event.sequenceNumber,</span>
+                )
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            is VaultEvent.Updated -&gt;</span>
+<span class="fc" id="L68">                state.copy(</span>
+<span class="pc bpc" id="L69" title="2 of 4 branches missed.">                    title = event.title?.copyOf() ?: state.title.copyOf(),</span>
+<span class="fc bfc" id="L70" title="All 4 branches covered.">                    payload = event.payload?.copyOf() ?: state.payload.copyOf(),</span>
+<span class="fc" id="L71">                    sequenceNumber = event.sequenceNumber,</span>
+                )
+<span class="fc" id="L73">            is VaultEvent.Deleted -&gt;</span>
+<span class="fc" id="L74">                state.copy(</span>
+<span class="fc" id="L75">                    isDeleted = true,</span>
+<span class="fc" id="L76">                    sequenceNumber = event.sequenceNumber,</span>
+                )
+<span class="fc" id="L78">        }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

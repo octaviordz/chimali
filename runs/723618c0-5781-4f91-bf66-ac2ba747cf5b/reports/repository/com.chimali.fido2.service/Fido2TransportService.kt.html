@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2TransportService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.service</a> &gt; <span class="el_source">Fido2TransportService.kt</span></div><h1>Fido2TransportService.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.service
+
+import android.Manifest
+import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.exceptionOrNull
+import com.chimali.core.common.result.isFailure
+import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.data.transport.ProcessTransportSelection
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
+
+private const val CHANNEL_ID = &quot;fido2_transport_channel&quot;
+private const val NOTIFICATION_ID = 1001
+private const val AUTH_REQUEST_CHANNEL_ID = &quot;fido2_auth_requests&quot;
+private const val AUTH_REQUEST_NOTIF_ID = 1002
+
+/**
+ * Foreground Service that keeps the Bluetooth HID transport alive while
+ * the user navigates away from the Chimali Authenticator screen.
+ *
+ * Without this service, Android kills the CoroutineScope inside
+ * [Fido2HomeViewModel] the moment the Activity leaves the foreground,
+ * which cuts the HID transport within ~5 seconds (process death grace period).
+ *
+ * Lifecycle:
+ * - Started via [ACTION_START] when the user presses &quot;Start Authenticator&quot;.
+ * - Stopped via [ACTION_STOP] when the user presses &quot;Stop Authenticator&quot; or
+ *   explicitly dismisses the notification.
+ */
+<span class="fc" id="L57">class Fido2TransportService : Service() {</span>
+    companion object {
+        /** Explicit action that starts the authenticator foreground service. */
+        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+        const val ACTION_START = &quot;com.chimali.fido2.START_TRANSPORT&quot;
+
+        /** Explicit action that stops the authenticator foreground service. */
+        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+        const val ACTION_STOP = &quot;com.chimali.fido2.STOP_TRANSPORT&quot;
+
+        @Req(&quot;FR-BLE-060&quot;, &quot;FR-BLE-070&quot;, &quot;FR-BT-SEL-040&quot;, &quot;TR-BLE-040&quot;)
+        const val ACTION_RETRY = &quot;com.chimali.fido2.RETRY_TRANSPORT&quot;
+
+        /** Creates an explicit service intent that starts the foreground authenticator transport. */
+        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+        fun startIntent(context: Context) =
+<span class="fc" id="L73">            Intent(context, Fido2TransportService::class.java).apply {</span>
+<span class="fc" id="L74">                action = ACTION_START</span>
+<span class="fc" id="L75">            }</span>
+
+        /** Creates an explicit service intent that disconnects and stops the authenticator transport. */
+        @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+        fun stopIntent(context: Context) =
+<span class="fc" id="L80">            Intent(context, Fido2TransportService::class.java).apply {</span>
+<span class="fc" id="L81">                action = ACTION_STOP</span>
+<span class="fc" id="L82">            }</span>
+
+        fun retryIntent(context: Context) =
+<span class="fc" id="L85">            Intent(context, Fido2TransportService::class.java).apply {</span>
+<span class="fc" id="L86">                action = ACTION_RETRY</span>
+<span class="fc" id="L87">            }</span>
+    }
+
+<span class="fc" id="L90">    private val transport: Fido2Transport by inject()</span>
+
+<span class="fc" id="L92">    private val uiEventBus: Fido2UiEventBus by inject()</span>
+
+<span class="fc" id="L94">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+<span class="fc" id="L95">    private val lifecycleMutex = Mutex()</span>
+    private var startJob: Job? = null
+    private var eventCollectorJob: Job? = null
+    private var startRequested = false
+
+    /** Returns no binder; this service is controlled through explicit start and stop intents. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+<span class="nc" id="L102">    override fun onBind(intent: Intent?): IBinder? = null</span>
+
+    /** Creates notification channels before the service begins advertising. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+    override fun onCreate() {
+<span class="fc" id="L107">        super.onCreate()</span>
+<span class="fc" id="L108">        createNotificationChannel()</span>
+<span class="fc" id="L109">    }</span>
+
+    /** Starts or stops the transport according to the explicit action and requests sticky restart. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        val action = intent?.action</span>
+<span class="pc bpc" id="L119" title="1 of 4 branches missed.">        if (action != ACTION_STOP &amp;&amp; !hasForegroundServicePrerequisites()) {</span>
+<span class="nc" id="L120">            Logger.w {</span>
+<span class="nc" id="L121">                &quot;Bluetooth permissions are unavailable; stopping transport service without a foreground restart&quot;</span>
+            }
+<span class="nc" id="L123">            stopForeground(STOP_FOREGROUND_REMOVE)</span>
+<span class="nc" id="L124">            stopSelf(startId)</span>
+<span class="nc" id="L125">            return START_NOT_STICKY</span>
+        }
+
+<span class="pc bpc" id="L128" title="1 of 5 branches missed.">        when (action) {</span>
+<span class="fc" id="L129">            ACTION_START -&gt; startTransport()</span>
+<span class="fc" id="L130">            ACTION_STOP -&gt; stopTransport()</span>
+<span class="fc" id="L131">            ACTION_RETRY -&gt; retryTransport()</span>
+<span class="fc" id="L132">            null -&gt; startTransport()</span>
+        }
+<span class="fc" id="L134">        return START_STICKY // Restart if killed — keeps the key alive</span>
+    }
+
+    /** Cancels service work before delegating final cleanup to the Android service lifecycle. */
+    @Req(&quot;FR-HID-010&quot;, &quot;FR-HID-030&quot;)
+    override fun onDestroy() {
+<span class="fc" id="L140">        startRequested = false</span>
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        startJob?.cancel()</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        eventCollectorJob?.cancel()</span>
+<span class="fc" id="L143">        scope.cancel()</span>
+<span class="fc" id="L144">        super.onDestroy()</span>
+<span class="fc" id="L145">    }</span>
+
+    // ── Transport lifecycle ────────────────────────────────────────────────────
+
+    private fun startTransport() {
+<span class="fc" id="L150">        promoteToForeground()</span>
+
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        if (startRequested) return</span>
+<span class="fc" id="L153">        startRequested = true</span>
+
+        // Keep one event collector across repeated ACTION_START intents and retries.
+<span class="fc" id="L156">        ensureEventCollector()</span>
+
+<span class="fc" id="L158">        startJob =</span>
+<span class="fc" id="L159">            scope.launch {</span>
+<span class="fc" id="L160">                lifecycleMutex.withLock {</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">                    if (!startRequested) return@withLock</span>
+<span class="fc" id="L162">                    val result = transport.connect()</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">                    if (result.isFailure) {</span>
+<span class="fc" id="L164">                        Logger.e(result.exceptionOrNull()) { &quot;Transport connect failed&quot; }</span>
+<span class="fc" id="L165">                        startRequested = false</span>
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">                        eventCollectorJob?.cancel()</span>
+<span class="fc" id="L167">                        eventCollectorJob = null</span>
+                        // Keep the started service shell available for the UI's explicit Retry action.
+                        // The selected transport failed to activate, so release the foreground state
+                        // but let a later ACTION_RETRY create a fresh activation attempt.
+<span class="fc" id="L171">                        stopForeground(STOP_FOREGROUND_REMOVE)</span>
+                    } else {
+<span class="fc" id="L173">                        Logger.i(&quot;FIDO2 transport is active — service running in foreground&quot;)</span>
+                    }
+<span class="fc" id="L175">                }</span>
+<span class="fc" id="L176">            }</span>
+<span class="fc" id="L177">    }</span>
+
+    private fun stopTransport() {
+<span class="fc" id="L180">        scope.launch {</span>
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">            startJob?.cancelAndJoin()</span>
+<span class="fc" id="L182">            lifecycleMutex.withLock {</span>
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">                if (startRequested) {</span>
+<span class="fc" id="L184">                    startRequested = false</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">                    eventCollectorJob?.cancel()</span>
+<span class="fc" id="L186">                    eventCollectorJob = null</span>
+<span class="fc" id="L187">                    val result = transport.disconnect()</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">                    if (result.isFailure) Logger.w(result.exceptionOrNull()) { &quot;Transport disconnect failed&quot; }</span>
+                }
+<span class="fc" id="L190">                stopForeground(STOP_FOREGROUND_REMOVE)</span>
+<span class="fc" id="L191">                stopSelf()</span>
+<span class="fc" id="L192">            }</span>
+<span class="fc" id="L193">        }</span>
+<span class="fc" id="L194">    }</span>
+
+    private fun retryTransport() {
+<span class="fc" id="L197">        scope.launch {</span>
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">            startJob?.cancelAndJoin()</span>
+<span class="fc" id="L199">            lifecycleMutex.withLock {</span>
+                // A failed start can remove its foreground notification after this retry intent
+                // arrives. Promote only after that attempt has fully completed so its cleanup
+                // cannot leave a successfully retried transport running without foreground state.
+<span class="fc" id="L203">                withContext(Dispatchers.Main.immediate) { promoteToForeground() }</span>
+<span class="fc" id="L204">                val disconnectResult = transport.disconnect()</span>
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">                if (disconnectResult.isFailure) {</span>
+<span class="nc" id="L206">                    Logger.w(disconnectResult.exceptionOrNull()) { &quot;Transport cleanup before retry failed&quot; }</span>
+                }
+<span class="pc bpc" id="L208" title="2 of 4 branches missed.">                (transport as? ProcessTransportSelection)?.retryActivation()</span>
+<span class="fc" id="L209">                startRequested = true</span>
+<span class="fc" id="L210">                ensureEventCollector()</span>
+<span class="fc" id="L211">                val result = transport.connect()</span>
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">                if (result.isFailure) {</span>
+<span class="nc" id="L213">                    Logger.e(result.exceptionOrNull()) { &quot;Transport retry failed&quot; }</span>
+<span class="nc" id="L214">                    startRequested = false</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    eventCollectorJob?.cancel()</span>
+<span class="nc" id="L216">                    eventCollectorJob = null</span>
+<span class="nc" id="L217">                    stopForeground(STOP_FOREGROUND_REMOVE)</span>
+<span class="nc" id="L218">                    stopSelf()</span>
+                }
+<span class="fc" id="L220">            }</span>
+<span class="fc" id="L221">        }</span>
+<span class="fc" id="L222">    }</span>
+
+    private fun ensureEventCollector() {
+<span class="pc bpc" id="L225" title="4 of 6 branches missed.">        if (eventCollectorJob?.isActive == true) return</span>
+<span class="fc" id="L226">        eventCollectorJob =</span>
+<span class="fc" id="L227">            uiEventBus.events</span>
+<span class="fc" id="L228">                .onEach { event -&gt;</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                    if (!isAppInForeground()) showAuthRequestNotification(event)</span>
+<span class="pc" id="L230">                }.launchIn(scope)</span>
+<span class="fc" id="L231">    }</span>
+
+    private fun promoteToForeground() {
+<span class="fc" id="L234">        val notification = buildAdvertisingNotification()</span>
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q) {</span>
+<span class="fc" id="L236">            startForeground(</span>
+<span class="fc" id="L237">                NOTIFICATION_ID,</span>
+<span class="fc" id="L238">                notification,</span>
+<span class="fc" id="L239">                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,</span>
+            )
+        } else {
+<span class="nc" id="L242">            startForeground(NOTIFICATION_ID, notification)</span>
+        }
+<span class="fc" id="L244">    }</span>
+
+    private fun hasForegroundServicePrerequisites(): Boolean {
+<span class="fc" id="L247">        val sdkInt = Build.VERSION.SDK_INT</span>
+<span class="fc" id="L248">        val hasConnectedDeviceForegroundPermission =</span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">            sdkInt &lt; Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">                checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE) ==</span>
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+<span class="fc" id="L252">        val hasBluetoothRuntimePermission =</span>
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">            sdkInt &lt; Build.VERSION_CODES.S ||</span>
+<span class="fc" id="L254">                listOf(</span>
+<span class="fc" id="L255">                    Manifest.permission.BLUETOOTH_CONNECT,</span>
+<span class="fc" id="L256">                    Manifest.permission.BLUETOOTH_ADVERTISE,</span>
+<span class="fc" id="L257">                    Manifest.permission.BLUETOOTH_SCAN,</span>
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">                ).any { permission -&gt;</span>
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">                    checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED</span>
+                }
+<span class="fc" id="L261">        return hasConnectedDeviceForegroundServicePrerequisites(</span>
+<span class="fc" id="L262">            sdkInt = sdkInt,</span>
+<span class="fc" id="L263">            foregroundServicePermissionGranted = hasConnectedDeviceForegroundPermission,</span>
+<span class="fc" id="L264">            bluetoothRuntimePermissionGranted = hasBluetoothRuntimePermission,</span>
+        )
+    }
+
+    // ── Notification ──────────────────────────────────────────────────────────
+
+    private fun createNotificationChannel() {
+<span class="fc" id="L271">        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager</span>
+<span class="fc" id="L272">        val channel =</span>
+<span class="fc" id="L273">            NotificationChannel(</span>
+<span class="fc" id="L274">                CHANNEL_ID,</span>
+<span class="fc" id="L275">                &quot;Chimali Authenticator&quot;,</span>
+                // Silent — no sound/vibration
+<span class="fc" id="L277">                NotificationManager.IMPORTANCE_LOW,</span>
+<span class="fc" id="L278">            ).apply {</span>
+<span class="fc" id="L279">                description = &quot;Keeps the virtual security key active&quot;</span>
+<span class="fc" id="L280">            }</span>
+<span class="fc" id="L281">        nm.createNotificationChannel(channel)</span>
+
+<span class="fc" id="L283">        val authChannel =</span>
+<span class="fc" id="L284">            NotificationChannel(</span>
+<span class="fc" id="L285">                AUTH_REQUEST_CHANNEL_ID,</span>
+<span class="fc" id="L286">                &quot;Authentication Requests&quot;,</span>
+<span class="fc" id="L287">                NotificationManager.IMPORTANCE_HIGH,</span>
+<span class="fc" id="L288">            ).apply {</span>
+<span class="fc" id="L289">                description = &quot;Notifies you when a passkey is requested&quot;</span>
+<span class="fc" id="L290">            }</span>
+<span class="fc" id="L291">        nm.createNotificationChannel(authChannel)</span>
+<span class="fc" id="L292">    }</span>
+
+    private fun buildAdvertisingNotification(): Notification {
+        // Tapping the notification (or the Stop action) will stop the service
+<span class="fc" id="L296">        val stopPendingIntent =</span>
+<span class="fc" id="L297">            PendingIntent.getService(</span>
+<span class="fc" id="L298">                this,</span>
+<span class="fc" id="L299">                0,</span>
+<span class="fc" id="L300">                stopIntent(this),</span>
+<span class="fc" id="L301">                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,</span>
+            )
+
+<span class="fc" id="L304">        return NotificationCompat</span>
+<span class="fc" id="L305">            .Builder(this, CHANNEL_ID)</span>
+<span class="fc" id="L306">            .setContentTitle(&quot;Chimali Authenticator&quot;)</span>
+<span class="fc" id="L307">            .setContentText(&quot;Virtual security key is active&quot;)</span>
+<span class="fc" id="L308">            .setSmallIcon(android.R.drawable.ic_lock_lock)</span>
+<span class="fc" id="L309">            .setPriority(NotificationCompat.PRIORITY_LOW)</span>
+<span class="fc" id="L310">            .setOngoing(true)</span>
+<span class="fc" id="L311">            .addAction(</span>
+<span class="fc" id="L312">                android.R.drawable.ic_media_pause,</span>
+<span class="fc" id="L313">                &quot;Stop&quot;,</span>
+<span class="fc" id="L314">                stopPendingIntent,</span>
+<span class="fc" id="L315">            ).build()</span>
+    }
+
+    private fun isAppInForeground(): Boolean {
+<span class="nc" id="L319">        val processInfo = ActivityManager.RunningAppProcessInfo()</span>
+<span class="nc" id="L320">        ActivityManager.getMyMemoryState(processInfo)</span>
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        return processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND</span>
+    }
+
+    private fun showAuthRequestNotification(event: Fido2UiEvent) {
+<span class="nc" id="L325">        val (title, text) =</span>
+<span class="nc" id="L326">            when (event) {</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                is Fido2UiEvent.RegistrationRequested -&gt;</span>
+<span class="nc" id="L328">                    &quot;Register Passkey&quot; to &quot;Windows is requesting to register a passkey. Tap to authenticate.&quot;</span>
+<span class="nc" id="L329">                is Fido2UiEvent.AuthenticationRequested -&gt;</span>
+<span class="nc" id="L330">                    &quot;Sign In&quot; to &quot;Windows is requesting a passkey for ${event.options.rpId.value}. Tap to authenticate.&quot;</span>
+            }
+
+<span class="nc" id="L333">        val launchIntent =</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            packageManager.getLaunchIntentForPackage(packageName)?.apply {</span>
+<span class="nc" id="L335">                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+<span class="nc" id="L336">            } ?: return</span>
+
+<span class="nc" id="L338">        val pendingIntent =</span>
+<span class="nc" id="L339">            PendingIntent.getActivity(</span>
+<span class="nc" id="L340">                this,</span>
+<span class="nc" id="L341">                0,</span>
+<span class="nc" id="L342">                launchIntent,</span>
+<span class="nc" id="L343">                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,</span>
+            )
+
+<span class="nc" id="L346">        val notification =</span>
+            NotificationCompat
+<span class="nc" id="L348">                .Builder(this, AUTH_REQUEST_CHANNEL_ID)</span>
+<span class="nc" id="L349">                .setContentTitle(title)</span>
+<span class="nc" id="L350">                .setContentText(text)</span>
+<span class="nc" id="L351">                .setSmallIcon(android.R.drawable.ic_lock_lock)</span>
+<span class="nc" id="L352">                .setPriority(NotificationCompat.PRIORITY_HIGH)</span>
+<span class="nc" id="L353">                .setCategory(NotificationCompat.CATEGORY_MESSAGE)</span>
+<span class="nc" id="L354">                .setAutoCancel(true)</span>
+<span class="nc" id="L355">                .setFullScreenIntent(pendingIntent, true)</span>
+<span class="nc" id="L356">                .build()</span>
+
+<span class="nc" id="L358">        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager</span>
+<span class="nc" id="L359">        nm.notify(AUTH_REQUEST_NOTIF_ID, notification)</span>
+<span class="nc" id="L360">    }</span>
+}
+
+internal fun hasConnectedDeviceForegroundServicePrerequisites(
+    sdkInt: Int,
+    foregroundServicePermissionGranted: Boolean,
+    bluetoothRuntimePermissionGranted: Boolean,
+): Boolean =
+<span class="fc bfc" id="L368" title="All 4 branches covered.">    (sdkInt &lt; Build.VERSION_CODES.UPSIDE_DOWN_CAKE || foregroundServicePermissionGranted) &amp;&amp;</span>
+<span class="fc bfc" id="L369" title="All 4 branches covered.">        (sdkInt &lt; Build.VERSION_CODES.S || bluetoothRuntimePermissionGranted)</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

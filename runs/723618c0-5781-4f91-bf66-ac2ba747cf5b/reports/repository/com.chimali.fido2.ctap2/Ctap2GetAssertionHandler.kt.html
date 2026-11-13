@@ -1,0 +1,728 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Ctap2GetAssertionHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.ctap2</a> &gt; <span class="el_source">Ctap2GetAssertionHandler.kt</span></div><h1>Ctap2GetAssertionHandler.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.ctap2
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.model.CredentialProtectionPolicy
+import com.chimali.core.domain.model.CredentialSummary
+import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.data.crypto.CborCodec
+import com.chimali.fido2.data.crypto.HmacSecretProcessor
+import com.chimali.fido2.data.crypto.PrfKeyDerivation
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PrfExtensionInput
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import com.chimali.fido2.domain.model.UserVerificationRequirement
+import com.chimali.fido2.domain.service.CeremonyLock
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.LatencyProfiler
+import org.koin.core.annotation.Single
+
+/**
+
+ * T087 — CTAP2 authenticatorGetAssertion command handler.
+
+ *
+
+ * Receives decoded CBOR request bytes from the HID transport, extracts
+
+ * GetAssertion parameters, delegates to [GetAssertionUseCase], then
+
+ * serializes the [AssertionObject] response back to CBOR.
+
+ *
+
+ * ### CTAP2 Request parameters decoded (§6.2):
+
+ * | Key | Type | Field             |
+
+ * |-----|------|-------------------|
+
+ * | 0x01 | text | rpId             |
+
+ * | 0x02 | bytes | clientDataHash |
+
+ * | 0x03 | array | allowList      |
+
+ * | 0x04 | map  | extensions      |
+
+ * | 0x05 | map  | options         |
+
+ * | 0x06 | map  | pinUvAuthParam  |
+
+ */
+
+<span class="fc" id="L62">@Req(&quot;NFR-PERF-030&quot;, &quot;NFR-SEC-041&quot;)</span>
+@Single
+<span class="fc" id="L64">class Ctap2GetAssertionHandler(</span>
+<span class="fc" id="L65">    private val cborCodec: CborCodec,</span>
+<span class="fc" id="L66">    private val hmacSecretProcessor: HmacSecretProcessor,</span>
+<span class="fc" id="L67">    private val prfKeyDerivation: PrfKeyDerivation,</span>
+<span class="fc" id="L68">    private val hidReportParser: HidReportParser,</span>
+<span class="fc" id="L69">    private val uiEventBus: Fido2UiEventBus,</span>
+<span class="fc" id="L70">    private val getAssertionUseCase: GetAssertionUseCase,</span>
+<span class="fc" id="L71">    private val ceremonyLock: CeremonyLock,</span>
+) {
+    companion object {
+        // CTAP2 Request Keys (§6.2)
+
+        private const val REQ_RP_ID = &quot;1&quot;
+
+        private const val REQ_CLIENT_DATA_HASH = &quot;2&quot;
+
+        private const val REQ_ALLOW_LIST = &quot;3&quot;
+
+        private const val REQ_EXTENSIONS = &quot;4&quot;
+
+        private const val REQ_OPTIONS = &quot;5&quot;
+
+        // CTAP2 Response Keys (§6.2)
+
+        private const val RESP_CREDENTIAL = &quot;1&quot;
+
+        private const val RESP_AUTH_DATA = &quot;2&quot;
+
+        private const val RESP_SIGNATURE = &quot;3&quot;
+
+        private const val RESP_USER = &quot;4&quot;
+
+        private const val RESP_NUM_CREDS = &quot;5&quot;
+
+        // Status and Error Codes
+
+        private const val CTAP2_OK: Byte = 0x00
+
+        private const val CTAP2_ERR_PROCESSING: Byte = 0x17
+
+        private const val CTAP2_ERR_INVALID_CBOR: Byte = 0x12
+
+        private const val CTAP2_ERR_OPERATION_DENIED: Byte = 0x29
+
+        private const val CTAP2_ERR_NO_CREDENTIALS: Byte = 0x2E
+
+        private const val CTAP2_ERR_USER_ACTION_TIMEOUT: Byte = 0x2F.toByte()
+
+        private const val CTAP1_ERR_CHANNEL_BUSY: Byte = 0x06 // Returned when a ceremony is already in progress
+
+        private const val CTAP1_ERR_OTHER: Byte = 0x7F.toByte()
+
+        // Commands
+
+        private const val CTAP_CMD_CBOR: Int = 0x10
+
+        // Authenticator Data Constants
+
+        private const val AUTH_DATA_FLAGS_INDEX = 32
+
+        private const val FLAG_ED_BIT = 0x80
+
+        private const val CLIENT_DATA_HASH_SIZE = 32
+    }
+
+    /**
+
+     * Handles raw CTAP2 GetAssertion request bytes (without the command byte 0x02).
+
+     *
+
+     * @param requestBytes CBOR-encoded request body.
+
+     * @param onKeepalive Optional callback to report keepalive status (e.g. UPNEEDED).
+
+     * @return [com.chimali.fido2.data.transport.RawCtapResult] containing status byte + CBOR response.
+
+     */
+
+    @Req(&quot;FR-BLE-080&quot;, &quot;TR-BLE-030&quot;, &quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L144">    suspend fun handleRaw(</span>
+        requestBytes: ByteArray,
+<span class="fc" id="L146">        onKeepalive: ((Byte) -&gt; Unit)? = null,</span>
+    ): com.chimali.fido2.data.transport.RawCtapResult {
+        // Fix A: Reject concurrent requests immediately across ALL ceremonies (Assertion or Registration).
+
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        if (!ceremonyLock.tryLock()) {</span>
+<span class="fc" id="L151">            Logger.w { &quot;GetAssertion: Authenticator is busy with another ceremony — returning CHANNEL_BUSY&quot; }</span>
+
+<span class="fc" id="L153">            return com.chimali.fido2.data.transport</span>
+<span class="fc" id="L154">                .RawCtapResult(byteArrayOf(CTAP1_ERR_CHANNEL_BUSY))</span>
+        }
+
+<span class="fc" id="L157">        var decodedFields: Map&lt;String, Any&gt;? = null</span>
+
+<span class="fc" id="L159">        var ownedOptions: GetAssertionOptions? = null</span>
+
+<span class="fc" id="L161">        return try {</span>
+<span class="fc" id="L162">            val params = cborCodec.decodeSensitiveRequest(requestBytes)</span>
+
+<span class="fc" id="L164">            decodedFields = params</span>
+
+<span class="fc" id="L166">            val options = decodeOptions(params)</span>
+
+<span class="fc" id="L168">            ownedOptions = options</span>
+
+<span class="fc" id="L170">            Logger.d {</span>
+                &quot;GetAssertion request admitted: &quot; +
+
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                    &quot;allowCredentials=${options.allowCredentials?.size ?: &quot;discoverable&quot;}&quot;</span>
+            }
+
+<span class="fc" id="L176">            val candidates = getAssertionUseCase.findCandidateSummaries(options)</span>
+
+<span class="fc" id="L178">            try {</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">                if (candidates.isEmpty()) {</span>
+<span class="fc" id="L180">                    Logger.d { &quot;GetAssertion: no matching credentials found — returning NO_CREDENTIALS&quot; }</span>
+
+<span class="fc" id="L182">                    return com.chimali.fido2.data.transport</span>
+<span class="fc" id="L183">                        .RawCtapResult(byteArrayOf(CTAP2_ERR_NO_CREDENTIALS))</span>
+                }
+
+<span class="fc" id="L186">                val isHeadless = shouldGoHeadless(options, candidates)</span>
+
+<span class="fc" id="L188">                val assertionResult =</span>
+
+<span class="fc bfc" id="L190" title="All 2 branches covered.">                    if (isHeadless) {</span>
+<span class="fc" id="L191">                        Logger.d { &quot;GetAssertion: executing headless fast-path (candidates=${candidates.size})&quot; }</span>
+
+<span class="fc" id="L193">                        try {</span>
+<span class="fc" id="L194">                            kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {</span>
+<span class="fc" id="L195">                                getAssertionUseCase.invokeHeadless(options, candidates)</span>
+                            }
+<span class="nc" id="L197">                        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {</span>
+<span class="nc" id="L198">                            Logger.e { &quot;GetAssertion timed out after ${options.getSafeTimeout()}ms&quot; }</span>
+
+<span class="pc" id="L200">                            return com.chimali.fido2.data.transport.RawCtapResult(</span>
+<span class="nc" id="L201">                                byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),</span>
+                            )
+                        }
+                    } else {
+<span class="fc" id="L205">                        val deferred = kotlinx.coroutines.CompletableDeferred&lt;Outcome&lt;AssertionObject, DomainError&gt;&gt;()</span>
+
+<span class="fc" id="L207">                        val userInteractionCompleted = kotlinx.coroutines.CompletableDeferred&lt;Unit&gt;()</span>
+
+<span class="fc" id="L209">                        LatencyProfiler.startUserInteraction(&quot;GetAssertion&quot;)</span>
+
+<span class="fc" id="L211">                        uiEventBus.dispatch(</span>
+<span class="fc" id="L212">                            Fido2UiEvent.AuthenticationRequested(options, deferred, userInteractionCompleted),</span>
+                        )
+
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">                        onKeepalive?.invoke(0x02.toByte())</span>
+
+<span class="fc" id="L217">                        try {</span>
+<span class="fc" id="L218">                            LatencyProfiler.untilUserInteractionCompletes(&quot;GetAssertion&quot;, userInteractionCompleted) {</span>
+<span class="fc" id="L219">                                kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {</span>
+<span class="fc" id="L220">                                    deferred.await()</span>
+<span class="fc" id="L221">                                }</span>
+                            }
+<span class="fc" id="L223">                        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {</span>
+<span class="fc" id="L224">                            Logger.e { &quot;GetAssertion timed out after ${options.getSafeTimeout()}ms&quot; }</span>
+
+<span class="fc" id="L226">                            deferred.cancel()</span>
+
+<span class="fc" id="L228">                            return com.chimali.fido2.data.transport.RawCtapResult(</span>
+<span class="fc" id="L229">                                byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),</span>
+                            )
+<span class="fc" id="L231">                        } catch (cancellation: kotlinx.coroutines.CancellationException) {</span>
+<span class="fc" id="L232">                            deferred.cancel(cancellation)</span>
+
+<span class="fc" id="L234">                            throw cancellation</span>
+                        }
+                    }
+
+<span class="fc" id="L238">                when (assertionResult) {</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                    is Outcome.Success -&gt; {</span>
+<span class="fc" id="L240">                        val assertion = assertionResult.data</span>
+
+<span class="fc" id="L242">                        Logger.d { &quot;Assertion response ready&quot; }</span>
+
+<span class="fc" id="L244">                        var responseCbor: ByteArray? = null</span>
+
+<span class="fc" id="L246">                        var responsePayload: ByteArray? = null</span>
+
+<span class="fc" id="L248">                        try {</span>
+<span class="fc" id="L249">                            responseCbor = encodeResponse(assertion, options)</span>
+
+<span class="fc" id="L251">                            responsePayload = byteArrayOf(CTAP2_OK) + responseCbor</span>
+
+<span class="fc" id="L253">                            com.chimali.fido2.data.transport.RawCtapResult(</span>
+<span class="fc" id="L254">                                responsePayload.copyOf(),</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">                                presenceRequired = !isHeadless,</span>
+                            )
+                        } finally {
+<span class="fc bfc" id="L258" title="All 2 branches covered.">                            responseCbor?.fill(0)</span>
+
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                            responsePayload?.fill(0)</span>
+
+<span class="fc" id="L262">                            assertion.authData.fill(0)</span>
+
+<span class="fc" id="L264">                            assertion.signature.fill(0)</span>
+                        }
+                    }
+
+<span class="fc" id="L268">                    is Outcome.Error -&gt; {</span>
+<span class="fc" id="L269">                        val error = assertionResult.error</span>
+
+<span class="fc bfc" id="L271" title="All 2 branches covered.">                        if (error is DomainError.NotFound) {</span>
+<span class="fc" id="L272">                            Logger.d { &quot;Assertion failed: credential not found&quot; }</span>
+                        } else {
+<span class="fc" id="L274">                            Logger.e { &quot;Assertion failed during GetAssertion&quot; }</span>
+                        }
+
+<span class="fc" id="L277">                        val errorCode: Byte =</span>
+
+<span class="fc" id="L279">                            when (error) {</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">                                is DomainError.NotFound -&gt; CTAP2_ERR_NO_CREDENTIALS</span>
+
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                                is DomainError.OperationDenied -&gt; CTAP2_ERR_OPERATION_DENIED</span>
+
+<span class="fc" id="L284">                                else -&gt; CTAP1_ERR_OTHER</span>
+                            }
+
+                        com.chimali.fido2.data.transport
+<span class="fc" id="L288">                            .RawCtapResult(byteArrayOf(errorCode))</span>
+                    }
+                }
+            } finally {
+<span class="fc" id="L292">                candidates.forEach(CredentialSummary::eraseSensitiveText)</span>
+            }
+<span class="fc" id="L294">        } catch (_: Fido2Exception.InvalidFormatException) {</span>
+<span class="fc" id="L295">            Logger.e { &quot;GetAssertion failed with a FIDO2 error&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="fc" id="L298">                .RawCtapResult(byteArrayOf(CTAP2_ERR_INVALID_CBOR))</span>
+<span class="fc" id="L299">        } catch (_: Fido2Exception.InvalidParameter) {</span>
+<span class="fc" id="L300">            Logger.e { &quot;GetAssertion rejected an invalid parameter&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="fc" id="L303">                .RawCtapResult(byteArrayOf(CTAP2_ERR_INVALID_CBOR))</span>
+<span class="nc" id="L304">        } catch (e: Fido2Exception) {</span>
+<span class="nc" id="L305">            Logger.e { &quot;GetAssertion failed with a FIDO2 error&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="nc" id="L308">                .RawCtapResult(byteArrayOf(CTAP2_ERR_PROCESSING))</span>
+<span class="fc" id="L309">        } catch (e: java.io.IOException) {</span>
+<span class="fc" id="L310">            Logger.e { &quot;GetAssertion failed with an I/O error&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="fc" id="L313">                .RawCtapResult(byteArrayOf(CTAP1_ERR_OTHER))</span>
+<span class="fc" id="L314">        } catch (e: IllegalArgumentException) {</span>
+<span class="fc" id="L315">            Logger.e { &quot;GetAssertion rejected an invalid argument&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="fc" id="L318">                .RawCtapResult(byteArrayOf(CTAP1_ERR_OTHER))</span>
+<span class="fc" id="L319">        } catch (e: IllegalStateException) {</span>
+<span class="fc" id="L320">            Logger.e { &quot;GetAssertion encountered an invalid state&quot; }</span>
+
+            com.chimali.fido2.data.transport
+<span class="fc" id="L323">                .RawCtapResult(byteArrayOf(CTAP1_ERR_OTHER))</span>
+        } finally {
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            ownedOptions?.eraseSensitiveText()</span>
+
+<span class="fc" id="L327">            cborCodec.eraseDecodedRequestValues(decodedFields)</span>
+
+<span class="pc" id="L329">            ceremonyLock.unlock()</span>
+        }
+    }
+
+    /**
+
+     * T087 — Handles a raw CTAP2 GetAssertion CBOR payload.
+
+     *
+
+     * @param cid Channel ID for the response.
+
+     * @param requestBytes CBOR-encoded request body (without the command byte).
+
+     * @return A list of 62-byte HID packets to send back to the host.
+
+     */
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L348">    suspend fun handle(</span>
+        cid: ByteArray,
+        requestBytes: ByteArray,
+    ): List&lt;ByteArray&gt; {
+<span class="fc" id="L352">        val rawResult = handleRaw(requestBytes)</span>
+
+<span class="fc" id="L354">        return hidReportParser.encodeResponse(</span>
+            com.chimali.fido2.bluetooth
+<span class="fc" id="L356">                .CtapHidMessage(cid, CTAP_CMD_CBOR, rawResult.responseBytes),</span>
+        )
+    }
+
+    /**
+
+     * T052: Determines if the ceremony can proceed without user interaction.
+
+     * Fast-path criteria:
+
+     * 1. uv is PREFERRED (or DISCOURAGED) — host doesn't REQUIRE biometric/PIN.
+
+     * 2. Exactly one local credential matches the RP ID and allowList.
+
+     */
+
+    private fun shouldGoHeadless(
+        options: GetAssertionOptions,
+        candidates: List&lt;CredentialSummary&gt;,
+    ): Boolean =
+
+<span class="fc bfc" id="L377" title="All 2 branches covered.">        (options.userVerification != UserVerificationRequirement.REQUIRED) &amp;&amp;</span>
+
+<span class="fc bfc" id="L379" title="All 2 branches covered.">            (candidates.size == 1) &amp;&amp;</span>
+
+<span class="pc bpc" id="L381" title="1 of 2 branches missed.">            CredentialProtectionPolicy.isSupported(candidates.single().credProtectPolicy) &amp;&amp;</span>
+
+<span class="fc bfc" id="L383" title="All 2 branches covered.">            (candidates.single().credProtectPolicy != CredentialProtectionPolicy.USER_VERIFICATION_REQUIRED)</span>
+
+    // ── Decoding ──────────────────────────────────────────────────────────────
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    @Suppress(&quot;ThrowsCount&quot;)
+    private fun decodeOptions(params: Map&lt;String, Any&gt;): GetAssertionOptions {
+<span class="fc" id="L390">        var rpIdOwner: SensitiveCredentialText? =</span>
+
+<span class="pc bpc" id="L392" title="1 of 2 branches missed.">            when (val value = params[REQ_RP_ID]) {</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">                is SensitiveCredentialText -&gt; value</span>
+
+<span class="pc bpc" id="L395" title="1 of 2 branches missed.">                is String -&gt; SensitiveCredentialText.copyOf(value)</span>
+
+<span class="nc" id="L397">                else -&gt; null</span>
+            }
+
+<span class="nc" id="L400">                ?: throw Fido2Exception.InvalidParameter(&quot;Missing rpId (key 0x01)&quot;)</span>
+
+<span class="fc" id="L402">        try {</span>
+            // clientDataHash: real CBOR delivers this as a raw ByteArray.
+
+            // The old JSON-based codec delivered it as a base64 string — handle both.
+
+<span class="fc" id="L407">            val clientDataHash: ByteArray =</span>
+
+<span class="fc" id="L409">                when (val raw = params[REQ_CLIENT_DATA_HASH]) {</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">                    is ByteArray -&gt; {</span>
+<span class="fc" id="L411">                        raw</span>
+                    }
+
+<span class="pc bpc" id="L414" title="1 of 2 branches missed.">                    is SensitiveCredentialText -&gt; {</span>
+                        java.util.Base64
+<span class="fc" id="L416">                            .getDecoder()</span>
+<span class="fc" id="L417">                            .decode(raw.toBoundaryString())</span>
+                    }
+
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                    is String -&gt; {</span>
+                        java.util.Base64
+<span class="nc" id="L422">                            .getDecoder()</span>
+<span class="nc" id="L423">                            .decode(raw)</span>
+                    }
+
+                    else -&gt; {
+<span class="nc" id="L427">                        throw Fido2Exception.InvalidParameter(&quot;Missing clientDataHash (key 0x02)&quot;)</span>
+                    }
+                }
+
+<span class="pc bpc" id="L431" title="1 of 2 branches missed.">            require(</span>
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">                clientDataHash.size == CLIENT_DATA_HASH_SIZE,</span>
+<span class="nc" id="L433">            ) { &quot;clientDataHash must be $CLIENT_DATA_HASH_SIZE bytes, got ${clientDataHash.size}&quot; }</span>
+
+            // Optional allow-list: array of PublicKeyCredentialDescriptor maps.
+
+            // Credential ID arrives as a CBOR byte-string (ByteArray) in real CTAP2.
+
+            // Legacy / test paths may send it as a Base64url-encoded String; in that
+
+            // case use CredentialId.fromEncoded() — NOT .toByteArray(), which would
+
+            // produce the UTF-8 bytes of the encoded string instead of the raw ID bytes.
+
+<span class="fc" id="L445">            val allowCredentials =</span>
+
+<span class="fc bfc" id="L447" title="All 2 branches covered.">                if (!params.containsKey(REQ_ALLOW_LIST)) {</span>
+<span class="fc" id="L448">                    null</span>
+                } else {
+<span class="fc" id="L450">                    val rawList =</span>
+
+<span class="fc bfc" id="L452" title="All 4 branches covered.">                        params[REQ_ALLOW_LIST] as? List&lt;*&gt;</span>
+
+<span class="fc" id="L454">                            ?: throw Fido2Exception.InvalidFormatException(&quot;Invalid GetAssertion allowList&quot;)</span>
+
+<span class="fc" id="L456">                    rawList.map { descriptor -&gt;</span>
+
+<span class="fc" id="L458">                        val map =</span>
+
+<span class="fc bfc" id="L460" title="All 4 branches covered.">                            descriptor as? Map&lt;*, *&gt;</span>
+
+<span class="fc" id="L462">                                ?: throw Fido2Exception.InvalidFormatException(</span>
+<span class="fc" id="L463">                                    &quot;Invalid GetAssertion credential descriptor&quot;,</span>
+                                )
+
+<span class="fc" id="L466">                        val credentialId =</span>
+
+<span class="fc" id="L468">                            try {</span>
+<span class="fc" id="L469">                                when (val rawId = map[&quot;id&quot;]) {</span>
+<span class="fc bfc" id="L470" title="All 2 branches covered.">                                    is ByteArray -&gt; CredentialId.fromByteArray(rawId)</span>
+
+<span class="fc bfc" id="L472" title="All 2 branches covered.">                                    is String -&gt; CredentialId.fromEncoded(rawId)</span>
+
+<span class="fc" id="L474">                                    else -&gt; throw Fido2Exception.InvalidFormatException(</span>
+<span class="fc" id="L475">                                        &quot;Invalid GetAssertion credential ID&quot;,</span>
+                                    )
+                                }
+<span class="fc" id="L478">                            } catch (_: IllegalArgumentException) {</span>
+<span class="fc" id="L479">                                throw Fido2Exception.InvalidFormatException(</span>
+<span class="fc" id="L480">                                    &quot;Invalid GetAssertion credential ID&quot;,</span>
+                                )
+                            }
+
+<span class="fc" id="L484">                        PublicKeyCredentialDescriptor.create(id = credentialId)</span>
+                    }
+                }
+
+            // options map (key 0x05): {&quot;uv&quot;: bool, &quot;up&quot;: bool}
+
+<span class="fc" id="L490">            val optionsMap =</span>
+
+<span class="fc bfc" id="L492" title="All 2 branches covered.">                if (!params.containsKey(REQ_OPTIONS)) {</span>
+<span class="fc" id="L493">                    null</span>
+                } else {
+<span class="fc bfc" id="L495" title="All 4 branches covered.">                    params[REQ_OPTIONS] as? Map&lt;*, *&gt;</span>
+
+<span class="fc" id="L497">                        ?: throw Fido2Exception.InvalidFormatException(&quot;Invalid GetAssertion options&quot;)</span>
+                }
+
+<span class="fc" id="L500">            val isUvRequired =</span>
+
+<span class="pc bpc" id="L502" title="1 of 6 branches missed.">                if (optionsMap?.containsKey(&quot;uv&quot;) == true) {</span>
+<span class="fc bfc" id="L503" title="All 4 branches covered.">                    optionsMap[&quot;uv&quot;] as? Boolean</span>
+
+<span class="fc" id="L505">                        ?: throw Fido2Exception.InvalidFormatException(&quot;Invalid GetAssertion UV option&quot;)</span>
+                } else {
+<span class="fc" id="L507">                    false</span>
+                }
+
+<span class="fc" id="L510">            val userVerification =</span>
+
+<span class="fc bfc" id="L512" title="All 2 branches covered.">                if (isUvRequired) {</span>
+<span class="fc" id="L513">                    UserVerificationRequirement.REQUIRED</span>
+                } else {
+<span class="fc" id="L515">                    UserVerificationRequirement.PREFERRED</span>
+                }
+
+            // extensions map (key 0x04): e.g. {&quot;hmac-secret&quot;: {...}}
+
+            @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="fc bfc" id="L521" title="All 2 branches covered.">            val extensions = params[REQ_EXTENSIONS] as? Map&lt;String, Any&gt;</span>
+
+<span class="fc" id="L523">            val options =</span>
+
+<span class="fc" id="L525">                GetAssertionOptions.fromSensitiveRpId(</span>
+<span class="fc" id="L526">                    rpId = requireNotNull(rpIdOwner),</span>
+<span class="fc" id="L527">                    clientDataHash = clientDataHash,</span>
+<span class="fc" id="L528">                    allowCredentials = allowCredentials,</span>
+<span class="fc" id="L529">                    userVerification = userVerification,</span>
+<span class="fc" id="L530">                    extensions = extensions,</span>
+                )
+
+<span class="fc" id="L533">            rpIdOwner = null</span>
+
+<span class="pc bpc" id="L535" title="1 of 2 branches missed.">            return options</span>
+        } finally {
+<span class="fc" id="L537">            rpIdOwner?.erase()</span>
+        }
+    }
+
+    // ── T087a: hmac-secret extension + T088: Response encoding ─────────────────
+
+    /**
+
+     * Encodes the GetAssertion response.
+
+     *
+
+     * If the request contained an `hmac-secret` extension, the extension output
+
+     * is appended to authData (with the ED flag set) before signing is complete.
+
+     * Note: The assertion's authData already carries the signature over the base
+
+     * authData; hmac-secret output is added as a separate extensions map in authData.
+
+     * Per CTAP2.1 §12.4, the ED bit and extensions CBOR are appended to authData
+
+     * after signing, and included in the response map as key 0x02.
+
+     */
+
+<span class="pc" id="L563">    private suspend fun encodeResponse(</span>
+        assertion: AssertionObject,
+        options: GetAssertionOptions,
+    ): ByteArray {
+<span class="fc" id="L567">        val responseMap = mutableMapOf&lt;String, Any&gt;()</span>
+
+<span class="fc" id="L569">        var prfOutput: com.chimali.fido2.domain.model.PrfExtensionOutput? = null</span>
+
+<span class="fc" id="L571">        var hmacOutput: ByteArray? = null</span>
+
+<span class="fc" id="L573">        var extensionCbor: ByteArray? = null</span>
+
+<span class="fc" id="L575">        var extensionAuthData: ByteArray? = null</span>
+
+<span class="fc" id="L577">        var finalAuthData: ByteArray? = null</span>
+
+<span class="fc" id="L579">        try {</span>
+            // 0x01 — credential descriptor
+
+<span class="fc bfc" id="L582" title="All 2 branches covered.">            assertion.credential?.let { desc -&gt;</span>
+
+<span class="fc" id="L584">                responseMap[RESP_CREDENTIAL] =</span>
+
+<span class="fc" id="L586">                    mapOf(</span>
+<span class="fc" id="L587">                        &quot;type&quot; to &quot;public-key&quot;,</span>
+<span class="fc" id="L588">                        &quot;id&quot; to desc.id.toByteArray(),</span>
+                    )
+<span class="fc" id="L590">            }</span>
+
+            // T047: Process hmac-secret / PRF extension.
+
+            // Attempt typed PrfExtensionInput parsing (integer keys 1 and 2) first;
+
+            // fall back to HmacSecretProcessor for legacy flat-ByteArray format.
+
+            // T048: &gt;2 salts → PrfExtensionInput constructor throws → null → omit extension.
+
+            // T049: Missing seed → deriveAll returns null → omit extension gracefully.
+
+<span class="fc" id="L602">            hmacOutput =</span>
+
+<span class="fc" id="L604">                run {</span>
+<span class="fc bfc" id="L605" title="All 4 branches covered.">                    val extData = options.extensions?.get(HmacSecretProcessor.EXTENSION_KEY) ?: return@run null</span>
+
+<span class="fc" id="L607">                    val selectedCredId = assertion.credentialId</span>
+
+<span class="fc" id="L609">                    when (extData) {</span>
+                        // Typed CBOR map format: {1 → salt1, 2 → salt2?}
+
+<span class="pc bpc" id="L612" title="1 of 2 branches missed.">                        is Map&lt;*, *&gt; -&gt; {</span>
+<span class="pc bpc" id="L613" title="3 of 6 branches missed.">                            val salt1 = ((extData[1] ?: extData[1L]) as? ByteArray) ?: return@run null</span>
+
+<span class="pc bpc" id="L615" title="2 of 4 branches missed.">                            val salt2 = (extData[2] ?: extData[2L]) as? ByteArray</span>
+
+<span class="fc" id="L617">                            val salts = listOfNotNull(salt1, salt2)</span>
+
+<span class="fc" id="L619">                            val prfInput =</span>
+
+<span class="fc" id="L621">                                try {</span>
+<span class="fc" id="L622">                                    PrfExtensionInput(salts)</span>
+<span class="nc" id="L623">                                } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L624">                                    Logger.w {</span>
+<span class="nc" id="L625">                                        &quot;GetAssertion hmac-secret input was invalid (${e::class.simpleName})&quot;</span>
+                                    }
+
+<span class="nc" id="L628">                                    return@run null</span>
+                                }
+
+<span class="fc" id="L631">                            val derivedOutput = prfKeyDerivation.deriveAll(prfInput, selectedCredId)</span>
+
+<span class="fc bfc" id="L633" title="All 2 branches covered.">                            if (derivedOutput == null) {</span>
+<span class="fc" id="L634">                                Logger.w { &quot;GetAssertion hmac-secret: PRF derivation returned null — omitting (T049)&quot; }</span>
+
+<span class="fc" id="L636">                                return@run null</span>
+                            }
+
+<span class="fc" id="L639">                            prfOutput = derivedOutput</span>
+
+<span class="fc" id="L641">                            Logger.d {</span>
+<span class="pc bpc" id="L642" title="1 of 2 branches missed.">                                &quot;GetAssertion PRF: derived ${if (derivedOutput.output2 != null) 2 else 1} output(s)&quot;</span>
+                            }
+
+                            // Concatenate output1 [|| output2] for legacy authData embedding.
+
+                            // The typed outputs stay owned here and are erased in the finalizer.
+
+<span class="pc bpc" id="L649" title="1 of 2 branches missed.">                            derivedOutput.output1 + (derivedOutput.output2 ?: byteArrayOf())</span>
+                        }
+
+                        // Legacy flat ByteArray format (32 or 64 bytes)
+
+<span class="nc" id="L654">                        else -&gt; hmacSecretProcessor.process(selectedCredId, extData)</span>
+<span class="fc" id="L655">                    }</span>
+                }
+
+            // Extend authData with extensions CBOR if hmac-secret output is present
+
+<span class="fc" id="L660">            finalAuthData =</span>
+
+<span class="fc bfc" id="L662" title="All 2 branches covered.">                if (hmacOutput != null) {</span>
+<span class="fc" id="L663">                    val extMap = hmacSecretProcessor.buildAuthDataExtensions(hmacOutput)</span>
+
+<span class="pc bpc" id="L665" title="1 of 2 branches missed.">                    if (extMap != null) {</span>
+                        // Set the ED bit (0x80) in the flags byte (authData[32])
+
+<span class="fc" id="L668">                        extensionAuthData = assertion.authData.clone()</span>
+
+<span class="pc bpc" id="L670" title="1 of 2 branches missed.">                        val flags = requireNotNull(extensionAuthData)[AUTH_DATA_FLAGS_INDEX].toInt()</span>
+
+<span class="fc" id="L672">                        requireNotNull(extensionAuthData)[AUTH_DATA_FLAGS_INDEX] = (flags or FLAG_ED_BIT).toByte()</span>
+
+                        // Append CBOR-encoded extensions to authData
+
+<span class="fc" id="L676">                        extensionCbor = cborCodec.encodeToFido2Format(extMap.mapKeys { it.key })</span>
+
+<span class="pc bpc" id="L678" title="1 of 2 branches missed.">                        requireNotNull(extensionAuthData) + requireNotNull(extensionCbor)</span>
+                    } else {
+<span class="nc" id="L680">                        assertion.authData</span>
+                    }
+                } else {
+<span class="fc" id="L683">                    assertion.authData</span>
+                }
+
+            // 0x02 — authData (with optional extension data)
+
+<span class="pc bpc" id="L688" title="1 of 2 branches missed.">            responseMap[RESP_AUTH_DATA] = requireNotNull(finalAuthData)</span>
+
+            // 0x03 — DER-encoded ECDSA signature: raw bytes
+
+<span class="fc" id="L692">            responseMap[RESP_SIGNATURE] = assertion.signature</span>
+
+            // 0x04 — user entity (discoverable credential flow)
+
+<span class="fc bfc" id="L696" title="All 2 branches covered.">            assertion.user?.let { user -&gt;</span>
+
+<span class="fc" id="L698">                responseMap[RESP_USER] =</span>
+
+<span class="fc" id="L700">                    mapOf(</span>
+<span class="fc" id="L701">                        &quot;id&quot; to user.id.value,</span>
+<span class="fc" id="L702">                        &quot;name&quot; to user.name,</span>
+<span class="pc bpc" id="L703" title="2 of 4 branches missed.">                        &quot;displayName&quot; to user.displayName.ifEmpty { user.name },</span>
+                    )
+<span class="fc" id="L705">            }</span>
+
+            // 0x05 — numberOfCredentials (omit if == 1)
+
+<span class="fc bfc" id="L709" title="All 2 branches covered.">            assertion.numberOfCredentials?.let { n -&gt;</span>
+
+<span class="fc bfc" id="L711" title="All 2 branches covered.">                if (n &gt; 1) responseMap[RESP_NUM_CREDS] = n</span>
+<span class="fc" id="L712">            }</span>
+
+<span class="fc" id="L714">            return cborCodec.encodeToFido2Format(responseMap)</span>
+        } finally {
+<span class="pc bpc" id="L716" title="1 of 4 branches missed.">            prfOutput?.clear()</span>
+
+<span class="pc bpc" id="L718" title="1 of 4 branches missed.">            hmacOutput?.fill(0)</span>
+
+<span class="pc bpc" id="L720" title="1 of 4 branches missed.">            extensionCbor?.fill(0)</span>
+
+<span class="pc bpc" id="L722" title="1 of 4 branches missed.">            extensionAuthData?.fill(0)</span>
+
+<span class="pc bpc" id="L724" title="2 of 6 branches missed.">            if (finalAuthData !== assertion.authData) finalAuthData?.fill(0)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

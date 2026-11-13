@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CborEncodingEngine.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.crypto</a> &gt; <span class="el_source">CborEncodingEngine.kt</span></div><h1>CborEncodingEngine.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.crypto
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+
+/** Owns canonical CTAP2 and COSE key encoding, separate from request parsing. */
+<span class="fc" id="L10">@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)</span>
+<span class="fc" id="L11">internal class CborEncodingEngine(</span>
+<span class="fc" id="L12">    private val onIntermediateBufferErased: ((ByteArray) -&gt; Unit)?,</span>
+<span class="fc" id="L13">    private val onTemporaryTextBytesErased: ((ByteArray) -&gt; Unit)?,</span>
+) {
+    private companion object {
+        private const val MAJOR_TYPE_UNSIGNED_INT = 0
+        private const val MAJOR_TYPE_BYTE_STRING = 2
+        private const val MAJOR_TYPE_TEXT_STRING = 3
+        private const val MAJOR_TYPE_ARRAY = 4
+        private const val MAJOR_TYPE_MAP = 5
+        private const val MAJOR_TYPE_SHIFT = 5
+        private const val HEADER_SMALL_LIMIT = 24
+        private const val HEADER_UINT8 = 24
+        private const val HEADER_UINT16 = 25
+        private const val HEADER_UINT32 = 26
+        private const val HEADER_UINT64 = 27
+        private const val COSE_MAP_SIZE_3 = 0xA3
+        private const val COSE_MAP_SIZE_4 = 0xA4
+        private const val COSE_MAP_SIZE_5 = 0xA5
+        private const val BSTR_HEADER_32 = 0x58
+        private const val SIZE_32 = 32
+        private const val SIZE_65 = 65
+        private const val ML_DSA_65_RAW_KEY_SIZE = 1952
+        private const val UNCOMPRESSED_EC_PREFIX = 0x04.toByte()
+        private const val NEG_INT_7 = 0x26
+        private const val NEG_INT_8 = 0x27
+        private const val NEG_INT_1 = 0x20
+        private const val NEG_INT_2 = 0x21
+        private const val NEG_INT_3 = 0x22
+        private const val NEG_INT_49_LEAD = 0x38
+        private const val NEG_INT_49_TAIL = 0x30
+        private const val BYTE_SHIFT_8 = 8
+        private const val MASK_8_BITS = 0xFF
+        private const val COSE_KTY_AKP = 0x07
+        private const val COSE_CRV_ED25519 = 0x06
+        private const val UINT8_MAX = 0xFFL
+        private const val UINT16_MAX = 0xFFFFL
+        private const val UINT32_MAX = 0xFFFFFFFFL
+        private const val OFFSET_X = 1
+        private const val OFFSET_Y = 33
+        private const val COSE_KEY_KTY = 0x01
+        private const val COSE_KEY_ALG = 0x03
+        private const val COSE_KTY_EC2 = 0x02
+        private const val COSE_KTY_OKP = 0x01
+        private const val COSE_CRV_P256 = 0x01
+    }
+
+    /**
+     * Encodes a Kotlin map as canonical CBOR. Keys that parse as signed integers use integer encoding; other keys
+     * use text encoding. The returned bytes are independently owned; intermediate sensitive buffers are erased on
+     * success and failure. Unsupported values fail with [IllegalArgumentException].
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeToFido2Format(data: Map&lt;String, Any&gt;): ByteArray {
+<span class="fc" id="L65">        val out = CborCodec.ErasableByteArrayOutputStream(onIntermediateBufferErased)</span>
+<span class="fc" id="L66">        return try {</span>
+<span class="fc" id="L67">            writeMap(out, data)</span>
+<span class="fc" id="L68">            out.toByteArray()</span>
+        } finally {
+<span class="fc" id="L70">            out.erase()</span>
+        }
+    }
+
+    /**
+     * Encodes a P-256 EC public key as a CBOR COSE_Key map per RFC 8152 / WebAuthn spec.
+     *
+     * The credentialPublicKey in authenticatorData MUST be CBOR with integer keys:
+     *   COSE_KEY_KTY (1) = COSE_KEY_TYPE_EC2 (2)
+     *   COSE_KEY_ALG (3) = COSE_ALG_ES256 (-7)
+     *   COSE_KEY_CRV (-1) = COSE_CRV_P256 (1)
+     *   COSE_KEY_X (-2)   = 32 bytes   (X coordinate)
+     *   COSE_KEY_Y (-3)   = 32 bytes   (Y coordinate)
+     *
+     * @param uncompressedPoint  65-byte uncompressed EC point: 0x04 || X(32) || Y(32)
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCosePublicKeyFromUncompressed(uncompressedPoint: ByteArray): ByteArray {
+<span class="pc bpc" id="L88" title="3 of 6 branches missed.">        require(uncompressedPoint.size == SIZE_65 &amp;&amp; uncompressedPoint[0] == UNCOMPRESSED_EC_PREFIX) {</span>
+            &quot;Expected $SIZE_65-byte uncompressed point starting with $UNCOMPRESSED_EC_PREFIX, &quot; +
+<span class="nc" id="L90">                &quot;got ${uncompressedPoint.size} bytes&quot;</span>
+        }
+<span class="fc" id="L92">        val x = uncompressedPoint.copyOfRange(OFFSET_X, OFFSET_Y)</span>
+<span class="fc" id="L93">        val y = uncompressedPoint.copyOfRange(OFFSET_Y, SIZE_65)</span>
+<span class="fc" id="L94">        val out = ByteArrayOutputStream()</span>
+        // CBOR map with 5 entries
+<span class="fc" id="L96">        out.write(COSE_MAP_SIZE_5) // map(5)</span>
+
+        // kty: 1 = 2 (EC2)
+<span class="fc" id="L99">        out.write(COSE_KEY_KTY) // uint(1) - kty</span>
+<span class="fc" id="L100">        out.write(COSE_KTY_EC2) // uint(2) - EC2</span>
+        // alg: 3 = -7 (ES256)  → CBOR negative = 0x20 | ((-7) - 1 negated) = 0x26
+<span class="fc" id="L102">        out.write(COSE_KEY_ALG) // uint(3) - alg</span>
+<span class="fc" id="L103">        out.write(NEG_INT_7) // negative int -7 (0x20 | 6)</span>
+        // crv: -1 = 1 (P-256)  → key -1 = 0x20 | 0 = 0x20
+<span class="fc" id="L105">        out.write(NEG_INT_1) // negative int -1 (key crv)</span>
+<span class="fc" id="L106">        out.write(COSE_CRV_P256) // uint(1) - P-256</span>
+
+        // x: -2 as key, then 32-byte bstr
+<span class="fc" id="L109">        out.write(NEG_INT_2) // negative int -2 (key x)</span>
+<span class="fc" id="L110">        out.write(BSTR_HEADER_32)</span>
+<span class="fc" id="L111">        out.write(SIZE_32) // bstr(32)</span>
+<span class="fc" id="L112">        out.write(x)</span>
+
+        // y: -3 as key, then 32-byte bstr
+<span class="fc" id="L115">        out.write(NEG_INT_3) // negative int -3 (key y)</span>
+<span class="fc" id="L116">        out.write(BSTR_HEADER_32)</span>
+<span class="fc" id="L117">        out.write(SIZE_32) // bstr(32)</span>
+<span class="fc" id="L118">        out.write(y)</span>
+
+<span class="fc" id="L120">        return out.toByteArray()</span>
+    }
+
+    /**
+     * Encodes an ML-DSA-65 public key as a CBOR COSE_Key map.
+     * Based on draft-ietf-cose-dilithium / IANA COSE registry, using AKP key type.
+     *
+     *   kty  (1)  = 7   (AKP — Algorithm Key Pair)
+     *   alg  (3)  = -49 (ML-DSA-65, per IANA COSE Algorithms registry)
+     *   pub  (-1) = 1952 raw bytes (NIST FIPS 204 §5 — NOT DER/SubjectPublicKeyInfo)
+     *
+     * @param publicKeyBytes Raw 1952-byte ML-DSA-65 public key (no DER wrapper).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCoseMlDsaPublicKey(publicKeyBytes: ByteArray): ByteArray {
+<span class="fc" id="L135">        val out = ByteArrayOutputStream()</span>
+        // CBOR map with 3 entries
+<span class="fc" id="L137">        out.write(COSE_MAP_SIZE_3) // map(3)</span>
+
+        // kty: 1 = 7 (AKP)
+<span class="fc" id="L140">        out.write(COSE_KEY_KTY) // uint(1) - kty</span>
+<span class="fc" id="L141">        out.write(COSE_KTY_AKP) // uint(7) - AKP</span>
+
+        // alg: 3 = -49
+<span class="fc" id="L144">        out.write(COSE_KEY_ALG) // uint(3) - alg</span>
+        // -49 = 0x38 0x30 (negative 48)
+<span class="fc" id="L146">        out.write(NEG_INT_49_LEAD) // negative int</span>
+<span class="fc" id="L147">        out.write(NEG_INT_49_TAIL)</span>
+
+        // key parameter: -1 (pub)
+<span class="fc" id="L150">        out.write(NEG_INT_1) // negative int -1</span>
+
+        // write byte string for public key
+<span class="fc" id="L153">        val bstrHeader = ByteArrayOutputStream()</span>
+<span class="fc" id="L154">        writeHeader(bstrHeader, MAJOR_TYPE_BYTE_STRING, publicKeyBytes.size.toLong())</span>
+<span class="fc" id="L155">        out.write(bstrHeader.toByteArray())</span>
+<span class="fc" id="L156">        out.write(publicKeyBytes)</span>
+
+<span class="fc" id="L158">        return out.toByteArray()</span>
+    }
+
+    /**
+     * Encodes an Ed25519 public key as a CBOR COSE_Key map.
+     * kty(1) = 1 (OKP)
+     * alg(3) = -8 (EdDSA / Ed25519, per WebAuthn L3 §5.4)
+     * crv(-1) = 6 (Ed25519)
+     * x(-2) = publicKeyBytes (32 bytes)
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCoseEd25519PublicKey(publicKeyBytes: ByteArray): ByteArray {
+<span class="fc" id="L170">        val out = ByteArrayOutputStream()</span>
+        // CBOR map with 4 entries
+<span class="fc" id="L172">        out.write(COSE_MAP_SIZE_4) // map(4)</span>
+
+        // kty: 1 = 1 (OKP)
+<span class="fc" id="L175">        out.write(COSE_KEY_KTY) // uint(1) - kty</span>
+<span class="fc" id="L176">        out.write(COSE_KTY_OKP) // uint(1) - OKP</span>
+
+        // alg: 3 = -8
+<span class="fc" id="L179">        out.write(COSE_KEY_ALG) // uint(3) - alg</span>
+<span class="fc" id="L180">        out.write(NEG_INT_8) // negative int -8 (0x20 | 7)</span>
+
+        // crv: -1 = 6 (Ed25519)
+<span class="fc" id="L183">        out.write(NEG_INT_1) // negative int -1</span>
+<span class="fc" id="L184">        out.write(COSE_CRV_ED25519) // uint(6) - Ed25519 curve</span>
+
+        // x: -2
+<span class="fc" id="L187">        out.write(NEG_INT_2) // negative int -2</span>
+<span class="fc" id="L188">        out.write(BSTR_HEADER_32)</span>
+<span class="fc" id="L189">        out.write(SIZE_32) // bstr(32)</span>
+<span class="fc" id="L190">        out.write(publicKeyBytes)</span>
+
+<span class="fc" id="L192">        return out.toByteArray()</span>
+    }
+
+    /**
+     * Convenience wrapper for Java PublicKeys.
+     * Encodes a Java [java.security.PublicKey] (EC P-256 or ML-DSA-65)
+     * to a CBOR COSE_Key map.
+     * Extracts the uncompressed point from the SubjectPublicKeyInfo DER encoding.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun encodeCosePublicKeyFromJavaKey(publicKey: java.security.PublicKey): ByteArray {
+<span class="fc" id="L203">        val derEncoded = publicKey.encoded // SubjectPublicKeyInfo DER</span>
+<span class="fc" id="L204">        val algorithm = publicKey.algorithm</span>
+
+<span class="pc bpc" id="L206" title="8 of 12 branches missed.">        if (algorithm == &quot;ML-DSA&quot; || algorithm == &quot;ML-DSA-65&quot; || algorithm == &quot;Dilithium&quot;) {</span>
+            // Strip the SubjectPublicKeyInfo DER wrapper — COSE pub (-1) must be the
+            // raw 1952-byte key body, NOT the DER-encoded SubjectPublicKeyInfo (~1988 bytes).
+            // Sending the full DER causes &quot;byte string too long&quot; on WebAuthn servers.
+<span class="fc" id="L210">            val spki = SubjectPublicKeyInfo.getInstance(derEncoded)</span>
+<span class="fc" id="L211">            val rawKeyBytes = spki.publicKeyData.bytes</span>
+<span class="pc bpc" id="L212" title="2 of 4 branches missed.">            require(rawKeyBytes.size == ML_DSA_65_RAW_KEY_SIZE) {</span>
+<span class="nc" id="L213">                &quot;Expected $ML_DSA_65_RAW_KEY_SIZE-byte raw ML-DSA-65 key, got ${rawKeyBytes.size} bytes&quot;</span>
+            }
+<span class="fc" id="L215">            return encodeCoseMlDsaPublicKey(rawKeyBytes)</span>
+        }
+
+<span class="pc bpc" id="L218" title="1 of 4 branches missed.">        if (algorithm == &quot;Ed25519&quot; || algorithm == &quot;EdDSA&quot;) {</span>
+            // Extract the last 32 bytes as the raw public key
+<span class="fc" id="L220">            val rawKey = derEncoded.copyOfRange(derEncoded.size - SIZE_32, derEncoded.size)</span>
+<span class="fc" id="L221">            return encodeCoseEd25519PublicKey(rawKey)</span>
+        }
+
+        // Last 65 bytes of P-256 SubjectPublicKeyInfo = 0x04 || X || Y
+<span class="pc bpc" id="L225" title="3 of 6 branches missed.">        require(derEncoded.size &gt;= SIZE_65 &amp;&amp; derEncoded[derEncoded.size - SIZE_65] == UNCOMPRESSED_EC_PREFIX) {</span>
+<span class="nc" id="L226">            &quot;Cannot extract uncompressed EC point from key encoding (algo=$algorithm, size=${derEncoded.size})&quot;</span>
+        }
+
+<span class="fc" id="L229">        val uncompressed = derEncoded.copyOfRange(derEncoded.size - SIZE_65, derEncoded.size)</span>
+<span class="fc" id="L230">        return encodeCosePublicKeyFromUncompressed(uncompressed)</span>
+    }
+
+    // ── Recursive encoder ─────────────────────────────────────────────────────
+
+    private fun writeValue(
+        out: ByteArrayOutputStream,
+        value: Any?,
+    ) {
+<span class="fc" id="L239">        when (value) {</span>
+<span class="fc bfc" id="L240" title="All 4 branches covered.">            is Boolean -&gt; writeByte(out, if (value) 0xF5.toByte() else 0xF4.toByte())</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">            null -&gt; writeByte(out, 0xF6.toByte())</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">            CborCodec.SimpleValue.NULL -&gt; writeByte(out, 0xF6.toByte())</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">            CborCodec.SimpleValue.UNDEFINED -&gt; writeByte(out, 0xF7.toByte())</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">            is ByteArray -&gt; {</span>
+<span class="fc" id="L245">                writeHeader(out, MAJOR_TYPE_BYTE_STRING, value.size.toLong())</span>
+<span class="fc" id="L246">                out.write(value)</span>
+            }
+
+<span class="fc bfc" id="L249" title="All 2 branches covered.">            is SensitiveCredentialText -&gt; {</span>
+<span class="fc" id="L250">                val utf8 = value.toUtf8Bytes()</span>
+<span class="fc" id="L251">                try {</span>
+<span class="fc" id="L252">                    writeHeader(out, MAJOR_TYPE_TEXT_STRING, utf8.size.toLong())</span>
+<span class="fc" id="L253">                    out.write(utf8)</span>
+                } finally {
+<span class="fc" id="L255">                    utf8.fill(0)</span>
+                }
+            }
+
+<span class="fc bfc" id="L259" title="All 2 branches covered.">            is String -&gt; {</span>
+<span class="fc" id="L260">                val b = value.toByteArray(Charsets.UTF_8)</span>
+<span class="fc" id="L261">                try {</span>
+<span class="fc" id="L262">                    writeHeader(out, MAJOR_TYPE_TEXT_STRING, b.size.toLong())</span>
+<span class="fc" id="L263">                    out.write(b)</span>
+                } finally {
+<span class="fc" id="L265">                    b.fill(0)</span>
+<span class="pc bpc" id="L266" title="1 of 2 branches missed.">                    onTemporaryTextBytesErased?.invoke(b)</span>
+                }
+            }
+
+<span class="fc bfc" id="L270" title="All 4 branches covered.">            is Long -&gt; if (value &gt;= 0) writeUInt(out, value) else writeNegInt(out, value)</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">            is Int -&gt; writeValue(out, value.toLong())</span>
+<span class="fc bfc" id="L272" title="All 2 branches covered.">            is Map&lt;*, *&gt; -&gt; {</span>
+                @Suppress(&quot;UNCHECKED_CAST&quot;)
+<span class="fc" id="L274">                writeMap(out, value)</span>
+            }
+
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">            is List&lt;*&gt; -&gt; {</span>
+<span class="fc" id="L278">                writeHeader(out, MAJOR_TYPE_ARRAY, value.size.toLong())</span>
+<span class="fc" id="L279">                value.forEach { writeValue(out, it) }</span>
+            }
+
+<span class="nc" id="L282">            else -&gt; throw IllegalArgumentException(&quot;Unsupported CBOR value type: ${value::class.simpleName}&quot;)</span>
+        }
+<span class="fc" id="L284">    }</span>
+
+    /** CBOR major-type 1: negative integer. Encodes N as -(N+1), e.g. -7 → argument=6 → 0x26. */
+    private fun writeNegInt(
+        out: ByteArrayOutputStream,
+        value: Long,
+<span class="fc" id="L290">    ) = writeHeader(out, 1, -(value + 1))</span>
+
+    private fun writeMap(
+        out: ByteArrayOutputStream,
+        map: Map&lt;*, *&gt;,
+    ) {
+<span class="fc" id="L296">        val entries = mutableListOf&lt;EncodedMapEntry&gt;()</span>
+<span class="fc" id="L297">        try {</span>
+<span class="fc" id="L298">            map.entries.forEach { entry -&gt; entries += EncodedMapEntry(encodeMapKey(entry.key), entry.value) }</span>
+<span class="fc" id="L299">            entries.sortWith { left, right -&gt; compareCanonicalKeys(left.keyBytes, right.keyBytes) }</span>
+<span class="fc" id="L300">            entries.zipWithNext().forEach { (left, right) -&gt;</span>
+<span class="fc bfc" id="L301" title="All 4 branches covered.">                require(!left.keyBytes.contentEquals(right.keyBytes)) { &quot;CBOR map contains duplicate encoded keys&quot; }</span>
+<span class="fc" id="L302">            }</span>
+<span class="fc" id="L303">            writeHeader(out, MAJOR_TYPE_MAP, map.size.toLong())</span>
+<span class="fc" id="L304">            entries.forEach { entry -&gt;</span>
+<span class="fc" id="L305">                out.write(entry.keyBytes)</span>
+<span class="fc" id="L306">                writeValue(out, entry.value)</span>
+<span class="fc" id="L307">            }</span>
+        } finally {
+<span class="fc" id="L309">            entries.forEach { it.keyBytes.fill(0) }</span>
+        }
+<span class="fc" id="L311">    }</span>
+
+    private fun encodeMapKey(key: Any?): ByteArray {
+<span class="fc" id="L314">        val output = ByteArrayOutputStream()</span>
+<span class="fc" id="L315">        when (key) {</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">            is String -&gt; {</span>
+<span class="fc" id="L317">                val numeric = key.toLongOrNull()</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">                if (numeric == null) writeValue(output, key) else writeInteger(output, numeric)</span>
+            }
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">            is Long -&gt; writeInteger(output, key)</span>
+<span class="nc bnc" id="L321" title="All 2 branches missed.">            is Int -&gt; writeInteger(output, key.toLong())</span>
+<span class="nc" id="L322">            else -&gt; throw IllegalArgumentException(&quot;CBOR map keys must be text or integer values&quot;)</span>
+        }
+<span class="fc" id="L324">        return output.toByteArray()</span>
+    }
+
+    private fun writeInteger(
+        out: ByteArrayOutputStream,
+        value: Long,
+    ) {
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        if (value &gt;= 0) writeUInt(out, value) else writeNegInt(out, value)</span>
+<span class="fc" id="L332">    }</span>
+
+    private fun compareCanonicalKeys(
+        left: ByteArray,
+        right: ByteArray,
+    ): Int {
+<span class="fc bfc" id="L338" title="All 2 branches covered.">        if (left.size != right.size) return left.size.compareTo(right.size)</span>
+<span class="fc" id="L339">        left.indices.forEach { index -&gt;</span>
+<span class="fc" id="L340">            val comparison = (left[index].toInt() and MASK_8_BITS).compareTo(right[index].toInt() and MASK_8_BITS)</span>
+<span class="fc bfc" id="L341" title="All 2 branches covered.">            if (comparison != 0) return comparison</span>
+<span class="fc" id="L342">        }</span>
+<span class="fc" id="L343">        return 0</span>
+    }
+
+<span class="fc" id="L346">    private data class EncodedMapEntry(</span>
+<span class="fc" id="L347">        val keyBytes: ByteArray,</span>
+<span class="fc" id="L348">        val value: Any?,</span>
+    )
+
+    private fun writeUInt(
+        out: ByteArrayOutputStream,
+        value: Long,
+<span class="fc" id="L354">    ) = writeHeader(out, MAJOR_TYPE_UNSIGNED_INT, value)</span>
+
+    private fun writeHeader(
+        out: ByteArrayOutputStream,
+        major: Int,
+        argument: Long,
+    ) {
+<span class="pc bpc" id="L361" title="2 of 4 branches missed.">        require(argument &gt;= 0) { &quot;CBOR argument must be non-negative&quot; }</span>
+<span class="fc" id="L362">        val hi = major shl MAJOR_TYPE_SHIFT</span>
+<span class="fc" id="L363">        when {</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">            argument &lt; HEADER_SMALL_LIMIT -&gt; writeByte(out, (hi or argument.toInt()).toByte())</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">            argument &lt;= UINT8_MAX -&gt; {</span>
+<span class="fc" id="L366">                writeByte(out, (hi or HEADER_UINT8).toByte())</span>
+<span class="fc" id="L367">                writeByte(out, argument.toByte())</span>
+            }
+
+<span class="pc bpc" id="L370" title="1 of 2 branches missed.">            argument &lt;= UINT16_MAX -&gt; {</span>
+<span class="fc" id="L371">                writeByte(out, (hi or HEADER_UINT16).toByte())</span>
+<span class="fc" id="L372">                writeShort(out, argument.toInt())</span>
+            }
+
+<span class="nc bnc" id="L375" title="All 2 branches missed.">            argument &lt;= UINT32_MAX -&gt; {</span>
+<span class="nc" id="L376">                writeByte(out, (hi or HEADER_UINT32).toByte())</span>
+<span class="nc" id="L377">                writeInt(out, argument.toInt())</span>
+            }
+
+            else -&gt; {
+<span class="nc" id="L381">                writeByte(out, (hi or HEADER_UINT64).toByte())</span>
+<span class="nc" id="L382">                writeLong(out, argument)</span>
+            }
+        }
+<span class="fc" id="L385">    }</span>
+
+    private fun writeByte(
+        out: ByteArrayOutputStream,
+        b: Byte,
+<span class="fc" id="L390">    ) = out.write(b.toInt())</span>
+
+    private fun writeShort(
+        out: ByteArrayOutputStream,
+        v: Int,
+    ) {
+<span class="fc" id="L396">        out.write(v shr BYTE_SHIFT_8)</span>
+<span class="fc" id="L397">        out.write(v)</span>
+<span class="fc" id="L398">    }</span>
+
+    private fun writeInt(
+        out: ByteArrayOutputStream,
+        v: Int,
+    ) {
+<span class="nc" id="L404">        DataOutputStream(out).writeInt(v)</span>
+<span class="nc" id="L405">    }</span>
+
+    private fun writeLong(
+        out: ByteArrayOutputStream,
+        v: Long,
+    ) {
+<span class="nc" id="L411">        DataOutputStream(out).writeLong(v)</span>
+<span class="nc" id="L412">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,883 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DevelopmentToolsScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">DevelopmentToolsScreen.kt</span></div><h1>DevelopmentToolsScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CopyAll
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
+import com.chimali.core.ui.theme.LegibilityType
+import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
+import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
+import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.ui.components.ChimaliTonalButton
+import com.chimali.fido2.presentation.viewmodel.DevToolsEffect
+import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
+import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
+import com.chimali.fido2.presentation.viewmodel.DevToolsViewModel
+import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
+import io.github.alexzhirkevich.qrose.options.QrBallShape
+import io.github.alexzhirkevich.qrose.options.QrFrameShape
+import io.github.alexzhirkevich.qrose.options.QrPixelShape
+import io.github.alexzhirkevich.qrose.options.QrShapes
+import io.github.alexzhirkevich.qrose.options.circle
+import io.github.alexzhirkevich.qrose.options.roundCorners
+import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
+
+private const val QR_CORNER_ROUNDING = 0.25f
+<span class="fc" id="L113">private val INDEX_WIDTH = 24.dp</span>
+private const val MNEMONIC_GRID_COLUMNS = 3
+private const val MNEMONIC_WORD_COUNT = 24
+
+/**
+ * T146b/c/d/e/f — Development / QA screen housing test utilities.
+ *
+ * Contains:
+ * - Test registration trigger (pre-existing)
+ * - [DEBUG ONLY] View Master Seed (biometric-gated) + QR code export
+ * - [DEBUG ONLY] Recover from Seed (manual entry) + QR scan import
+ *
+ * All mnemonic UI sections are guarded by [BuildConfig.DEBUG] to prevent
+ * accidental inclusion in release builds.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">fun DevelopmentToolsScreen(</span>
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">    homeViewModel: Fido2HomeViewModel? = null,</span>
+<span class="nc" id="L133">    devToolsViewModel: DevToolsViewModel = koinViewModel(),</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">    onHomeTestRegistration: ((MakeCredentialOptions) -&gt; Unit)? = null,</span>
+<span class="nc" id="L135">    authenticateMnemonic: ((ComponentActivity, () -&gt; Unit) -&gt; Unit)? = null,</span>
+<span class="pc bpc" id="L136" title="1 of 6 branches missed.">) {</span>
+<span class="fc" id="L137">    val state by devToolsViewModel.state.collectAsStateWithLifecycle()</span>
+<span class="fc" id="L138">    val snackbarHostState = remember { SnackbarHostState() }</span>
+<span class="fc" id="L139">    val registrationCallback =</span>
+<span class="pc bpc" id="L140" title="3 of 4 branches missed.">        onHomeTestRegistration ?: (homeViewModel ?: koinViewModel()).let { viewModel -&gt;</span>
+<span class="nc" id="L141">            viewModel::testRegistration</span>
+<span class="fc" id="L142">        }</span>
+
+    // Collect one-time effects
+<span class="fc" id="L145">    LaunchedEffect(Unit) {</span>
+<span class="fc" id="L146">        devToolsViewModel.effects.collect { effect -&gt;</span>
+<span class="nc" id="L147">            when (effect) {</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                is DevToolsEffect.ShowSnackbar -&gt;</span>
+<span class="nc" id="L149">                    snackbarHostState.showSnackbar(effect.message)</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                is DevToolsEffect.RequestBiometric -&gt; { /* handled inline below */ }</span>
+            }
+<span class="nc" id="L152">        }</span>
+<span class="nc" id="L153">    }</span>
+
+    // Clear mnemonic on leaving the screen
+<span class="fc" id="L156">    DisposableEffect(Unit) {</span>
+<span class="fc" id="L157">        onDispose { devToolsViewModel.onIntent(DevToolsIntent.ClearMnemonic) }</span>
+    }
+
+<span class="fc" id="L160">    DevelopmentToolsContent(</span>
+<span class="fc" id="L161">        state = state,</span>
+<span class="fc" id="L162">        snackbarHostState = snackbarHostState,</span>
+<span class="fc" id="L163">        onIntent = devToolsViewModel::onIntent,</span>
+<span class="fc" id="L164">        onHomeTestRegistration = registrationCallback,</span>
+<span class="fc" id="L165">        authenticateMnemonic = authenticateMnemonic,</span>
+    )
+<span class="fc" id="L167">}</span>
+
+<span class="fc" id="L169">private val SCANNER_PREVIEW_HEIGHT = 280.dp</span>
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal fun DevelopmentToolsContent(
+    state: DevToolsUiState,
+    snackbarHostState: SnackbarHostState,
+    onIntent: (DevToolsIntent) -&gt; Unit,
+    onHomeTestRegistration: (MakeCredentialOptions) -&gt; Unit,
+<span class="fc" id="L179">    authenticateMnemonic: ((ComponentActivity, () -&gt; Unit) -&gt; Unit)? = null,</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">) {</span>
+    // 0 = ES256, 1 = ML-DSA-65
+<span class="pc" id="L182">    var selectedAlgIndex by remember { mutableIntStateOf(0) }</span>
+
+<span class="fc" id="L184">    Scaffold(</span>
+<span class="fc" id="L185">        topBar = {</span>
+<span class="fc" id="L186">            TopAppBar(</span>
+<span class="fc" id="L187">                title = {</span>
+<span class="fc" id="L188">                    Text(</span>
+<span class="fc" id="L189">                        &quot;Development Tools&quot;,</span>
+<span class="fc" id="L190">                        style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L191">                        fontWeight = FontWeight.Bold,</span>
+<span class="fc" id="L192">                        modifier = Modifier.semantics { heading() },</span>
+                    )
+<span class="fc" id="L194">                },</span>
+                colors =
+<span class="fc" id="L196">                    TopAppBarDefaults.topAppBarColors(</span>
+<span class="fc" id="L197">                        containerColor = MaterialTheme.colorScheme.surface,</span>
+<span class="fc" id="L198">                        titleContentColor = MaterialTheme.colorScheme.onSurface,</span>
+                    ),
+            )
+<span class="fc" id="L201">        },</span>
+<span class="fc" id="L202">        snackbarHost = { SnackbarHost(snackbarHostState) },</span>
+<span class="fc" id="L203">    ) { padding -&gt;</span>
+<span class="fc" id="L204">        Column(</span>
+            modifier =
+<span class="fc" id="L206">                Modifier</span>
+<span class="fc" id="L207">                    .fillMaxSize()</span>
+<span class="fc" id="L208">                    .padding(padding)</span>
+<span class="fc" id="L209">                    .padding(24.dp)</span>
+<span class="fc" id="L210">                    .verticalScroll(rememberScrollState()),</span>
+<span class="fc" id="L211">            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="fc" id="L212">            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+        ) {
+<span class="fc" id="L214">            Icon(</span>
+<span class="fc" id="L215">                imageVector = Icons.Default.BugReport,</span>
+<span class="fc" id="L216">                contentDescription = null,</span>
+<span class="fc" id="L217">                modifier = Modifier.size(56.dp),</span>
+<span class="fc" id="L218">                tint = MaterialTheme.colorScheme.primary,</span>
+            )
+<span class="fc" id="L220">            Text(</span>
+<span class="fc" id="L221">                text = &quot;Test &amp; Debug Utilities&quot;,</span>
+<span class="fc" id="L222">                style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L223">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+<span class="fc" id="L224">                modifier = Modifier.semantics { heading() },</span>
+            )
+
+<span class="fc" id="L227">            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))</span>
+
+<span class="fc" id="L229">            AlgorithmSelector(</span>
+<span class="fc" id="L230">                selectedAlgIndex = selectedAlgIndex,</span>
+<span class="pc" id="L231">                onAlgIndexChange = { selectedAlgIndex = it },</span>
+            )
+
+<span class="fc" id="L234">            TestRegistrationTrigger(</span>
+<span class="fc" id="L235">                selectedAlgIndex = selectedAlgIndex,</span>
+<span class="fc" id="L236">                onHomeTestRegistration = onHomeTestRegistration,</span>
+            )
+
+            // ── DEBUG ONLY: Mnemonic / Master Seed ───────────────────────────
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            if (com.chimali.core.common.isDebug) {</span>
+<span class="fc" id="L241">                DebugMnemonicSection(</span>
+<span class="fc" id="L242">                    state = state,</span>
+<span class="fc" id="L243">                    snackbarHostState = snackbarHostState,</span>
+<span class="fc" id="L244">                    onIntent = onIntent,</span>
+<span class="fc" id="L245">                    authenticateMnemonic = authenticateMnemonic,</span>
+                )
+<span class="pc" id="L247">            } // end DEBUG</span>
+<span class="fc" id="L248">        }</span>
+<span class="fc" id="L249">    }</span>
+<span class="fc" id="L250">}</span>
+
+// ---------------------------------------------------------------------------
+// Sub-composables
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun DebugMnemonicSection(
+    state: DevToolsUiState,
+    snackbarHostState: SnackbarHostState,
+    onIntent: (DevToolsIntent) -&gt; Unit,
+    authenticateMnemonic: ((ComponentActivity, () -&gt; Unit) -&gt; Unit)?,
+<span class="fc" id="L264">) {</span>
+<span class="fc" id="L265">    val scope = rememberCoroutineScope()</span>
+<span class="fc" id="L266">    val context = LocalContext.current</span>
+<span class="fc" id="L267">    var isQrCodeVisible by remember { mutableStateOf(false) }</span>
+<span class="pc" id="L268">    var isScannerVisible by rememberSaveable { mutableStateOf(false) }</span>
+<span class="fc" id="L269">    var isRecoverFormVisible by rememberSaveable { mutableStateOf(false) }</span>
+
+<span class="fc" id="L271">    val cameraLauncher =</span>
+<span class="fc bfc" id="L272" title="All 2 branches covered.">        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -&gt;</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            if (granted) {</span>
+<span class="nc" id="L274">                isScannerVisible = true</span>
+            } else {
+<span class="nc" id="L276">                scope.launch {</span>
+<span class="nc" id="L277">                    val result =</span>
+<span class="nc" id="L278">                        snackbarHostState.showSnackbar(</span>
+<span class="nc" id="L279">                            message = &quot;Camera permission is required to scan QR codes.&quot;,</span>
+<span class="nc" id="L280">                            actionLabel = &quot;Settings&quot;,</span>
+<span class="nc" id="L281">                            duration = SnackbarDuration.Long,</span>
+                        )
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                    if (result == SnackbarResult.ActionPerformed) {</span>
+<span class="nc" id="L284">                        val intent =</span>
+                            android.content
+<span class="nc" id="L286">                                .Intent(</span>
+<span class="nc" id="L287">                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,</span>
+<span class="nc" id="L288">                                ).apply { data = android.net.Uri.fromParts(&quot;package&quot;, context.packageName, null) }</span>
+<span class="nc" id="L289">                        context.startActivity(intent)</span>
+                    }
+<span class="nc" id="L291">                }</span>
+            }
+<span class="nc" id="L293">        }</span>
+
+<span class="fc" id="L295">    Column {</span>
+<span class="fc" id="L296">        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))</span>
+<span class="fc" id="L297">        Text(</span>
+<span class="fc" id="L298">            text = &quot;⚠ Dev-only — Master Seed&quot;,</span>
+<span class="fc" id="L299">            style = MaterialTheme.typography.labelMedium,</span>
+<span class="fc" id="L300">            color = MaterialTheme.colorScheme.error,</span>
+        )
+
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        if (state.mnemonicWords == null) {</span>
+<span class="fc" id="L304">            ChimaliOutlinedButton(</span>
+<span class="fc bfc" id="L305" title="All 4 branches covered.">                onClick = {</span>
+<span class="pc bpc" id="L306" title="2 of 4 branches missed.">                    val activity = context as? ComponentActivity ?: return@ChimaliOutlinedButton</span>
+<span class="fc" id="L307">                    val onAuthenticationSucceeded = { onIntent(DevToolsIntent.LoadMnemonic) }</span>
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">                    if (authenticateMnemonic != null) {</span>
+<span class="fc" id="L309">                        authenticateMnemonic(activity, onAuthenticationSucceeded)</span>
+                    } else {
+<span class="nc bnc" id="L311" title="All 4 branches missed.">                        (activity as? FragmentActivity)?.let { fragmentActivity -&gt;</span>
+<span class="nc" id="L312">                            BiometricHelper.authenticate(</span>
+<span class="nc" id="L313">                                activity = fragmentActivity,</span>
+<span class="nc" id="L314">                                title = &quot;View Master Seed&quot;,</span>
+<span class="nc" id="L315">                                description = &quot;Authenticate to view your BIP39 mnemonic.&quot;,</span>
+<span class="nc" id="L316">                                onSuccess = onAuthenticationSucceeded,</span>
+                            )
+<span class="nc" id="L318">                        }</span>
+                    }
+<span class="fc" id="L320">                },</span>
+<span class="fc" id="L321">                modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">                enabled = !state.isLoading,</span>
+<span class="fc" id="L323">            ) {</span>
+<span class="fc" id="L324">                Icon(Icons.Default.Visibility, contentDescription = null)</span>
+<span class="fc" id="L325">                Spacer(Modifier.width(8.dp))</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">                Text(if (state.isLoading) &quot;Loading…&quot; else &quot;View Master Seed&quot;)</span>
+<span class="fc" id="L327">            }</span>
+<span class="fc" id="L328">        } else {</span>
+<span class="fc" id="L329">            MnemonicWordGrid(words = state.mnemonicWords)</span>
+<span class="fc" id="L330">            MnemonicActionRow(</span>
+<span class="fc" id="L331">                isQrCodeVisible = isQrCodeVisible,</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">                onCopy = { onIntent(DevToolsIntent.CopyToClipboard) },</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">                onToggleQr = { isQrCodeVisible = !isQrCodeVisible },</span>
+<span class="fc bfc" id="L334" title="All 2 branches covered.">                onClear = {</span>
+<span class="fc" id="L335">                    onIntent(DevToolsIntent.ClearMnemonic)</span>
+<span class="fc" id="L336">                    isQrCodeVisible = false</span>
+<span class="fc" id="L337">                },</span>
+            )
+<span class="fc bfc" id="L339" title="All 2 branches covered.">            if (isQrCodeVisible) MnemonicQrCodeView(words = state.mnemonicWords)</span>
+        }
+
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">        state.error?.let { err -&gt;</span>
+<span class="nc" id="L343">            Text(text = err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)</span>
+<span class="pc" id="L344">        }</span>
+
+<span class="fc" id="L346">        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))</span>
+
+<span class="fc" id="L348">        Row(</span>
+<span class="fc" id="L349">            verticalAlignment = Alignment.CenterVertically,</span>
+<span class="fc" id="L350">            modifier = Modifier.fillMaxWidth(),</span>
+        ) {
+<span class="fc" id="L352">            Text(</span>
+<span class="fc" id="L353">                text = &quot;Recover from Seed&quot;,</span>
+<span class="fc" id="L354">                style = MaterialTheme.typography.labelLarge,</span>
+<span class="fc" id="L355">                modifier = Modifier.weight(1f),</span>
+            )
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">            IconButton(onClick = { isRecoverFormVisible = !isRecoverFormVisible }) {</span>
+<span class="fc" id="L358">                Icon(</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">                    if (isRecoverFormVisible) Icons.Default.VisibilityOff else Icons.Default.Refresh,</span>
+<span class="fc" id="L360">                    contentDescription = &quot;Toggle recover form&quot;,</span>
+                )
+<span class="fc" id="L362">            }</span>
+<span class="fc" id="L363">        }</span>
+
+<span class="fc bfc" id="L365" title="All 2 branches covered.">        if (isRecoverFormVisible) {</span>
+<span class="fc" id="L366">            RecoverSeedForm(</span>
+<span class="fc" id="L367">                snackbarHostState = snackbarHostState,</span>
+<span class="fc" id="L368">                onRequestCameraPermission = cameraLauncher::launch,</span>
+<span class="fc" id="L369">                isScannerVisible = isScannerVisible,</span>
+<span class="pc" id="L370">                onShowScanner = { isScannerVisible = it },</span>
+<span class="fc" id="L371">                onIntent = onIntent,</span>
+            )
+<span class="fc" id="L373">        }</span>
+
+<span class="pc bpc" id="L375" title="1 of 2 branches missed.">        if (state.isRecoverSuccessful) {</span>
+<span class="nc" id="L376">            Text(</span>
+<span class="nc" id="L377">                &quot;✔ Mnemonic validated successfully!&quot;,</span>
+<span class="nc" id="L378">                color = MaterialTheme.colorScheme.primary,</span>
+<span class="nc" id="L379">                style = MaterialTheme.typography.bodySmall,</span>
+            )
+<span class="fc" id="L381">        }</span>
+<span class="fc" id="L382">    }</span>
+<span class="fc" id="L383">}</span>
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun MnemonicActionRow(
+    isQrCodeVisible: Boolean,
+    onCopy: () -&gt; Unit,
+    onToggleQr: () -&gt; Unit,
+    onClear: () -&gt; Unit,
+<span class="fc" id="L393">) {</span>
+<span class="fc" id="L394">    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {</span>
+<span class="fc" id="L395">        ChimaliOutlinedButton(</span>
+<span class="fc" id="L396">            onClick = onCopy,</span>
+<span class="fc" id="L397">            modifier = Modifier.weight(1f),</span>
+<span class="fc" id="L398">            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),</span>
+<span class="fc" id="L399">        ) {</span>
+<span class="fc" id="L400">            FlowRow(</span>
+<span class="fc" id="L401">                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),</span>
+<span class="fc" id="L402">                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),</span>
+<span class="fc" id="L403">            ) {</span>
+<span class="fc" id="L404">                Icon(</span>
+<span class="fc" id="L405">                    Icons.Default.CopyAll,</span>
+<span class="fc" id="L406">                    contentDescription = null,</span>
+<span class="fc" id="L407">                    modifier = Modifier.align(Alignment.CenterVertically),</span>
+                )
+<span class="fc" id="L409">                Text(&quot;Copy&quot;, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.CenterVertically))</span>
+<span class="fc" id="L410">            }</span>
+<span class="fc" id="L411">        }</span>
+<span class="fc" id="L412">        ChimaliOutlinedButton(</span>
+<span class="fc" id="L413">            onClick = onToggleQr,</span>
+<span class="fc" id="L414">            modifier = Modifier.weight(1f),</span>
+<span class="fc" id="L415">            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),</span>
+<span class="fc" id="L416">        ) {</span>
+<span class="fc" id="L417">            FlowRow(</span>
+<span class="fc" id="L418">                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),</span>
+<span class="fc" id="L419">                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),</span>
+<span class="fc" id="L420">            ) {</span>
+<span class="fc" id="L421">                Icon(</span>
+<span class="fc bfc" id="L422" title="All 2 branches covered.">                    if (isQrCodeVisible) Icons.Default.VisibilityOff else Icons.Default.QrCode,</span>
+<span class="fc" id="L423">                    contentDescription = null,</span>
+<span class="fc" id="L424">                    modifier = Modifier.align(Alignment.CenterVertically),</span>
+                )
+<span class="fc" id="L426">                Text(</span>
+<span class="fc bfc" id="L427" title="All 2 branches covered.">                    if (isQrCodeVisible) &quot;Hide QR&quot; else &quot;QR&quot;,</span>
+<span class="fc" id="L428">                    textAlign = TextAlign.Center,</span>
+<span class="fc" id="L429">                    modifier = Modifier.align(Alignment.CenterVertically),</span>
+                )
+<span class="fc" id="L431">            }</span>
+<span class="fc" id="L432">        }</span>
+<span class="fc" id="L433">        ChimaliOutlinedButton(</span>
+<span class="fc" id="L434">            onClick = onClear,</span>
+<span class="fc" id="L435">            modifier = Modifier.weight(1f),</span>
+<span class="fc" id="L436">            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),</span>
+<span class="fc" id="L437">            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),</span>
+<span class="fc" id="L438">        ) {</span>
+<span class="fc" id="L439">            FlowRow(</span>
+<span class="fc" id="L440">                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),</span>
+<span class="fc" id="L441">                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),</span>
+<span class="fc" id="L442">            ) {</span>
+<span class="fc" id="L443">                Icon(</span>
+<span class="fc" id="L444">                    Icons.Default.VisibilityOff,</span>
+<span class="fc" id="L445">                    contentDescription = null,</span>
+<span class="fc" id="L446">                    modifier = Modifier.align(Alignment.CenterVertically),</span>
+                )
+<span class="fc" id="L448">                Text(&quot;Clear&quot;, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.CenterVertically))</span>
+<span class="fc" id="L449">            }</span>
+<span class="fc" id="L450">        }</span>
+<span class="fc" id="L451">    }</span>
+<span class="fc" id="L452">}</span>
+
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun RecoverSeedForm(
+    snackbarHostState: SnackbarHostState,
+    onRequestCameraPermission: (String) -&gt; Unit,
+    isScannerVisible: Boolean,
+    onShowScanner: (Boolean) -&gt; Unit,
+    onIntent: (DevToolsIntent) -&gt; Unit,
+<span class="fc" id="L462">) {</span>
+<span class="fc" id="L463">    val scope = rememberCoroutineScope()</span>
+<span class="fc" id="L464">    val context = LocalContext.current</span>
+<span class="pc" id="L465">    var isRationaleVisible by remember { mutableStateOf(false) }</span>
+
+<span class="fc" id="L467">    Box {</span>
+<span class="fc" id="L468">        Column {</span>
+<span class="pc bpc" id="L469" title="1 of 2 branches missed.">            if (!isScannerVisible) {</span>
+<span class="fc" id="L470">                ChimaliTonalButton(</span>
+<span class="pc bpc" id="L471" title="2 of 4 branches missed.">                    onClick = {</span>
+<span class="nc" id="L472">                        val status = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)</span>
+<span class="nc" id="L473">                        when {</span>
+<span class="nc bnc" id="L474" title="All 2 branches missed.">                            status == PackageManager.PERMISSION_GRANTED -&gt; onShowScanner(true)</span>
+<span class="nc bnc" id="L475" title="All 8 branches missed.">                            (context as? FragmentActivity)?.let {</span>
+                                androidx.core.app.ActivityCompat
+<span class="nc" id="L477">                                    .shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)</span>
+<span class="nc" id="L478">                            } == true -&gt; isRationaleVisible = true</span>
+<span class="nc" id="L479">                            else -&gt; onRequestCameraPermission(Manifest.permission.CAMERA)</span>
+                        }
+<span class="nc" id="L481">                    },</span>
+<span class="fc" id="L482">                    modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L483">                ) {</span>
+<span class="fc" id="L484">                    Icon(Icons.Default.CameraAlt, contentDescription = null)</span>
+<span class="fc" id="L485">                    Spacer(Modifier.width(8.dp))</span>
+<span class="fc" id="L486">                    Text(&quot;Scan QR Code&quot;)</span>
+<span class="fc" id="L487">                }</span>
+<span class="nc" id="L488">            } else {</span>
+<span class="nc" id="L489">                Box(modifier = Modifier.fillMaxWidth().height(SCANNER_PREVIEW_HEIGHT)) {</span>
+<span class="nc" id="L490">                    MnemonicQrScanner(</span>
+<span class="nc bnc" id="L491" title="All 6 branches missed.">                        onScan = { mnemonic -&gt;</span>
+<span class="nc" id="L492">                            onShowScanner(false)</span>
+<span class="nc" id="L493">                            onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))</span>
+<span class="nc" id="L494">                            scope.launch { snackbarHostState.showSnackbar(&quot;Recovery phrase scanned.&quot;) }</span>
+<span class="nc" id="L495">                        },</span>
+<span class="nc bnc" id="L496" title="All 4 branches missed.">                        onError = { errMsg -&gt;</span>
+<span class="nc" id="L497">                            onShowScanner(false)</span>
+<span class="nc" id="L498">                            scope.launch {</span>
+<span class="nc" id="L499">                                val result =</span>
+<span class="nc" id="L500">                                    snackbarHostState.showSnackbar(</span>
+<span class="nc" id="L501">                                        message = errMsg,</span>
+<span class="nc" id="L502">                                        actionLabel = &quot;Settings&quot;,</span>
+<span class="nc" id="L503">                                        duration = SnackbarDuration.Long,</span>
+                                    )
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                                if (result == SnackbarResult.ActionPerformed) {</span>
+<span class="nc" id="L506">                                    val intent =</span>
+                                        android.content
+<span class="nc" id="L508">                                            .Intent(</span>
+<span class="nc" id="L509">                                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,</span>
+<span class="nc" id="L510">                                            ).apply {</span>
+<span class="nc" id="L511">                                                data = android.net.Uri.fromParts(&quot;package&quot;, context.packageName, null)</span>
+<span class="nc" id="L512">                                            }</span>
+<span class="nc" id="L513">                                    context.startActivity(intent)</span>
+                                }
+<span class="nc" id="L515">                            }</span>
+<span class="nc" id="L516">                        },</span>
+                    )
+<span class="nc" id="L518">                }</span>
+<span class="pc bnc" id="L519" title="All 2 branches missed.">                TextButton(onClick = { onShowScanner(false) }) { Text(&quot;Cancel Scan&quot;) }</span>
+            }
+
+<span class="fc" id="L522">            Spacer(Modifier.height(8.dp))</span>
+<span class="fc" id="L523">            Text(</span>
+<span class="fc" id="L524">                &quot;— or enter 24 words manually —&quot;,</span>
+<span class="fc" id="L525">                style = MaterialTheme.typography.labelSmall,</span>
+<span class="fc" id="L526">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+<span class="fc" id="L528">            SensitiveMnemonicInputPolicy {</span>
+<span class="fc" id="L529">                ManualMnemonicEntryForm { mnemonic -&gt; onIntent(DevToolsIntent.RecoverFromSeed(mnemonic)) }</span>
+<span class="fc" id="L530">            }</span>
+<span class="fc" id="L531">        }</span>
+
+<span class="pc bpc" id="L533" title="1 of 2 branches missed.">        if (isRationaleVisible) {</span>
+<span class="nc" id="L534">            AlertDialog(</span>
+<span class="nc" id="L535">                onDismissRequest = { isRationaleVisible = false },</span>
+<span class="pc" id="L536">                title = { Text(&quot;Camera Permission&quot;) },</span>
+<span class="pc" id="L537">                text = { Text(&quot;The camera is required to scan the recovery mnemonic QR code.&quot;) },</span>
+<span class="nc" id="L538">                confirmButton = {</span>
+<span class="nc" id="L539">                    TextButton(onClick = {</span>
+<span class="nc" id="L540">                        isRationaleVisible = false</span>
+<span class="nc" id="L541">                        onRequestCameraPermission(Manifest.permission.CAMERA)</span>
+<span class="pc" id="L542">                    }) {</span>
+<span class="nc" id="L543">                        Text(&quot;Allow&quot;)</span>
+<span class="nc" id="L544">                    }</span>
+<span class="nc" id="L545">                },</span>
+<span class="nc" id="L546">                dismissButton = {</span>
+<span class="pc" id="L547">                    TextButton(onClick = { isRationaleVisible = false }) { Text(&quot;Cancel&quot;) }</span>
+<span class="nc" id="L548">                },</span>
+            )
+<span class="fc" id="L550">        }</span>
+<span class="fc" id="L551">    }</span>
+<span class="fc" id="L552">}</span>
+
+// ---------------------------------------------------------------------------
+// Sub-composables
+// ---------------------------------------------------------------------------
+
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L560">private fun MnemonicWordGrid(words: CharArray) {</span>
+<span class="fc" id="L561">    LazyVerticalGrid(</span>
+<span class="fc" id="L562">        columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),</span>
+        modifier =
+<span class="fc" id="L564">            Modifier</span>
+<span class="fc" id="L565">                .fillMaxWidth()</span>
+<span class="fc" id="L566">                .heightIn(max = 360.dp),</span>
+<span class="fc" id="L567">        verticalArrangement = Arrangement.spacedBy(6.dp),</span>
+<span class="fc" id="L568">        horizontalArrangement = Arrangement.spacedBy(6.dp),</span>
+<span class="fc" id="L569">    ) {</span>
+<span class="fc" id="L570">        items(MNEMONIC_WORD_COUNT) { index -&gt;</span>
+<span class="fc" id="L571">            val word = displayMnemonicWord(words, index)</span>
+<span class="fc" id="L572">            Surface(</span>
+<span class="fc" id="L573">                shape = RoundedCornerShape(6.dp),</span>
+<span class="fc" id="L574">                color = MaterialTheme.colorScheme.surfaceVariant,</span>
+                modifier =
+<span class="fc" id="L576">                    Modifier</span>
+<span class="fc" id="L577">                        .border(</span>
+<span class="fc" id="L578">                            1.dp,</span>
+<span class="fc" id="L579">                            MaterialTheme.colorScheme.outlineVariant,</span>
+<span class="fc" id="L580">                            RoundedCornerShape(6.dp),</span>
+<span class="fc" id="L581">                        ).semantics(mergeDescendants = true) { },</span>
+<span class="fc" id="L582">            ) {</span>
+<span class="fc" id="L583">                Row(</span>
+<span class="fc" id="L584">                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),</span>
+<span class="fc" id="L585">                    verticalAlignment = Alignment.CenterVertically,</span>
+                ) {
+<span class="fc" id="L587">                    Text(</span>
+<span class="fc" id="L588">                        text = &quot;${index + 1}.&quot;,</span>
+<span class="fc" id="L589">                        style = MaterialTheme.typography.labelSmall,</span>
+<span class="fc" id="L590">                        color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+<span class="fc" id="L591">                        modifier = Modifier.width(INDEX_WIDTH),</span>
+                    )
+<span class="fc" id="L593">                    Text(</span>
+<span class="fc" id="L594">                        text = word,</span>
+                        style =
+<span class="fc" id="L596">                            MaterialTheme.typography.bodySmall.copy(</span>
+<span class="fc" id="L597">                                fontFamily = LegibilityType.AtkinsonFontFamily,</span>
+                            ),
+<span class="fc" id="L599">                        color = MaterialTheme.colorScheme.onSurface,</span>
+                    )
+<span class="fc" id="L601">                }</span>
+<span class="fc" id="L602">            }</span>
+<span class="fc" id="L603">        }</span>
+<span class="fc" id="L604">    }</span>
+<span class="fc" id="L605">}</span>
+
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L609">private fun MnemonicQrCodeView(words: CharArray) {</span>
+    // The QR library accepts String only. Scope this unavoidable text to the visible QR
+    // composition; hiding the QR removes its painter and this local representation.
+<span class="fc" id="L612">    val painter =</span>
+<span class="fc" id="L613">        rememberQrCodePainter(</span>
+<span class="fc" id="L614">            data = String(words),</span>
+            shapes =
+<span class="fc" id="L616">                QrShapes(</span>
+<span class="fc" id="L617">                    ball = QrBallShape.circle(),</span>
+<span class="fc" id="L618">                    frame = QrFrameShape.roundCorners(QR_CORNER_ROUNDING),</span>
+<span class="fc" id="L619">                    darkPixel = QrPixelShape.roundCorners(),</span>
+                ),
+        )
+<span class="fc" id="L622">    Column(horizontalAlignment = Alignment.CenterHorizontally) {</span>
+<span class="fc" id="L623">        androidx.compose.foundation.Image(</span>
+<span class="fc" id="L624">            painter = painter,</span>
+<span class="fc" id="L625">            contentDescription = &quot;Master seed QR code&quot;,</span>
+<span class="fc" id="L626">            modifier = Modifier.size(240.dp),</span>
+        )
+<span class="fc" id="L628">        Text(</span>
+<span class="fc" id="L629">            &quot;Never screenshot this QR in a production scenario.&quot;,</span>
+<span class="fc" id="L630">            style = MaterialTheme.typography.labelSmall,</span>
+<span class="fc" id="L631">            color = MaterialTheme.colorScheme.error,</span>
+        )
+<span class="fc" id="L633">    }</span>
+<span class="fc" id="L634">}</span>
+
+/** Creates only the visible word's required platform text representation. */
+
+private fun displayMnemonicWord(
+    mnemonic: CharArray,
+    requestedWord: Int,
+): String {
+<span class="fc" id="L642">    var wordIndex = 0</span>
+<span class="fc" id="L643">    var start = 0</span>
+<span class="pc bpc" id="L644" title="1 of 4 branches missed.">    for (position in 0..mnemonic.size) {</span>
+<span class="fc bfc" id="L645" title="All 4 branches covered.">        if (position == mnemonic.size || mnemonic[position] == ' ') {</span>
+<span class="fc bfc" id="L646" title="All 2 branches covered.">            if (wordIndex == requestedWord) return String(mnemonic, start, position - start)</span>
+<span class="fc" id="L647">            wordIndex++</span>
+<span class="fc" id="L648">            start = position + 1</span>
+        }
+    }
+<span class="fc" id="L651">    return &quot;&quot;</span>
+}
+
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L656">private fun ManualMnemonicEntryForm(onSubmit: (CharArray) -&gt; Unit) {</span>
+<span class="fc" id="L657">    val wordCount = MNEMONIC_WORD_COUNT</span>
+<span class="fc" id="L658">    val fields =</span>
+<span class="fc" id="L659">        remember {</span>
+<span class="fc" id="L660">            mutableStateListOf&lt;MutableMnemonicWord&gt;().also { list -&gt;</span>
+<span class="fc bfc" id="L661" title="All 2 branches covered.">                repeat(wordCount) { list.add(MutableMnemonicWord.empty()) }</span>
+<span class="fc" id="L662">            }</span>
+        }
+
+<span class="fc" id="L665">    DisposableEffect(fields) {</span>
+<span class="fc" id="L666">        onDispose {</span>
+<span class="fc" id="L667">            fields.forEach(MutableMnemonicWord::erase)</span>
+<span class="fc" id="L668">            fields.clear()</span>
+<span class="fc" id="L669">        }</span>
+    }
+
+<span class="fc" id="L672">    Column {</span>
+<span class="fc" id="L673">        LazyVerticalGrid(</span>
+<span class="fc" id="L674">            columns = GridCells.Fixed(MNEMONIC_GRID_COLUMNS),</span>
+            modifier =
+<span class="fc" id="L676">                Modifier</span>
+<span class="fc" id="L677">                    .testTag(&quot;manual-recovery-grid&quot;)</span>
+<span class="fc" id="L678">                    .fillMaxWidth()</span>
+<span class="fc" id="L679">                    .heightIn(max = 360.dp),</span>
+<span class="fc" id="L680">            verticalArrangement = Arrangement.spacedBy(4.dp),</span>
+<span class="fc" id="L681">            horizontalArrangement = Arrangement.spacedBy(4.dp),</span>
+<span class="fc" id="L682">        ) {</span>
+<span class="fc" id="L683">            itemsIndexed(fields) { index, word -&gt;</span>
+<span class="fc" id="L684">                OutlinedTextField(</span>
+<span class="fc" id="L685">                    value = word.displayText(),</span>
+<span class="fc" id="L686">                    onValueChange = { replacement -&gt;</span>
+<span class="fc" id="L687">                        word.erase()</span>
+<span class="fc" id="L688">                        fields[index] = MutableMnemonicWord.fromUiText(replacement)</span>
+<span class="fc" id="L689">                    },</span>
+<span class="fc" id="L690">                    label = { Text(&quot;${index + 1}&quot;, style = MaterialTheme.typography.labelSmall) },</span>
+<span class="fc" id="L691">                    singleLine = true,</span>
+<span class="fc" id="L692">                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = LegibilityType.AtkinsonFontFamily),</span>
+<span class="fc" id="L693">                    modifier = Modifier.fillMaxWidth().testTag(&quot;manual-recovery-word-$index&quot;),</span>
+<span class="fc" id="L694">                )</span>
+<span class="fc" id="L695">            }</span>
+<span class="fc" id="L696">        }</span>
+
+<span class="fc" id="L698">        Spacer(Modifier.height(8.dp))</span>
+<span class="fc" id="L699">        ChimaliButton(</span>
+<span class="fc bfc" id="L700" title="All 2 branches covered.">            onClick = {</span>
+<span class="fc" id="L701">                val mnemonic = encodeMnemonicFields(fields)</span>
+<span class="fc" id="L702">                var transferred = false</span>
+<span class="fc" id="L703">                try {</span>
+<span class="fc" id="L704">                    onSubmit(mnemonic)</span>
+<span class="fc" id="L705">                    transferred = true</span>
+                } finally {
+<span class="pc" id="L707">                    if (!transferred) mnemonic.fill('\u0000')</span>
+<span class="pc" id="L708">                    fields.forEach(MutableMnemonicWord::erase)</span>
+<span class="pc" id="L709">                    fields.indices.forEach { fields[it] = MutableMnemonicWord.empty() }</span>
+<span class="fc" id="L710">                }</span>
+<span class="fc" id="L711">            },</span>
+<span class="fc" id="L712">            modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L713">            enabled = fields.all(MutableMnemonicWord::isNotEmpty),</span>
+<span class="fc" id="L714">        ) {</span>
+<span class="fc" id="L715">            Icon(Icons.Default.Key, contentDescription = null)</span>
+<span class="fc" id="L716">            Spacer(Modifier.width(8.dp))</span>
+<span class="fc" id="L717">            Text(&quot;Recover Seed&quot;)</span>
+<span class="fc" id="L718">        }</span>
+<span class="fc" id="L719">    }</span>
+<span class="fc" id="L720">}</span>
+
+/** Mutable UI owner for one entered BIP39 word; the TextField String is only a render/input boundary. */
+<span class="fc" id="L723">private class MutableMnemonicWord private constructor(</span>
+<span class="fc" id="L724">    private val characters: CharArray,</span>
+) {
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L727">    fun displayText(): String = String(characters)</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L730">    fun copyLength(): Int = characters.size</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc bfc" id="L733" title="All 4 branches covered.">    fun isNotEmpty(): Boolean = characters.isNotEmpty()</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun copyInto(
+        destination: CharArray,
+        offset: Int,
+    ): Int {
+<span class="fc" id="L740">        characters.copyInto(destination, offset)</span>
+<span class="fc" id="L741">        return characters.size</span>
+    }
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L745">    fun erase() = characters.fill('\u0000')</span>
+
+    companion object {
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L749">        fun empty() = MutableMnemonicWord(charArrayOf())</span>
+
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun fromUiText(value: String): MutableMnemonicWord {
+<span class="fc" id="L753">            var start = 0</span>
+<span class="fc" id="L754">            var end = value.length</span>
+<span class="pc bpc" id="L755" title="2 of 4 branches missed.">            while (start &lt; end &amp;&amp; value[start].isWhitespace()) start++</span>
+<span class="pc bpc" id="L756" title="2 of 4 branches missed.">            while (end &gt; start &amp;&amp; value[end - 1].isWhitespace()) end--</span>
+<span class="fc bfc" id="L757" title="All 2 branches covered.">            return MutableMnemonicWord(CharArray(end - start) { index -&gt; value[start + index] })</span>
+        }
+    }
+}
+
+/** Builds one mutable import buffer without joining UI strings into another phrase String. */
+
+private fun encodeMnemonicFields(fields: List&lt;MutableMnemonicWord&gt;): CharArray {
+<span class="fc bfc" id="L765" title="All 2 branches covered.">    val resultLength = fields.sumOf { it.copyLength() } + (fields.size - 1)</span>
+<span class="fc" id="L766">    val result = CharArray(resultLength)</span>
+<span class="fc" id="L767">    var destination = 0</span>
+<span class="fc" id="L768">    fields.forEachIndexed { index, word -&gt;</span>
+<span class="fc" id="L769">        destination += word.copyInto(result, destination)</span>
+<span class="fc bfc" id="L770" title="All 2 branches covered.">        if (index != fields.lastIndex) result[destination++] = ' '</span>
+<span class="fc" id="L771">    }</span>
+<span class="fc" id="L772">    return result</span>
+}
+
+/** Thin helper to fire a biometric prompt without pulling in a ViewModel dependency. */
+private object BiometricHelper {
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun authenticate(
+        activity: FragmentActivity,
+        title: String,
+        description: String,
+        onSuccess: () -&gt; Unit,
+    ) {
+<span class="nc" id="L784">        val executor = ContextCompat.getMainExecutor(activity)</span>
+<span class="nc" id="L785">        val prompt =</span>
+<span class="nc" id="L786">            BiometricPrompt(</span>
+<span class="nc" id="L787">                activity,</span>
+<span class="nc" id="L788">                executor,</span>
+<span class="nc" id="L789">                object : BiometricPrompt.AuthenticationCallback() {</span>
+                    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+<span class="nc" id="L792">                        onSuccess()</span>
+<span class="nc" id="L793">                    }</span>
+                },
+            )
+<span class="nc" id="L796">        prompt.authenticate(</span>
+            BiometricPrompt.PromptInfo
+<span class="nc" id="L798">                .Builder()</span>
+<span class="nc" id="L799">                .setTitle(title)</span>
+<span class="nc" id="L800">                .setDescription(description)</span>
+<span class="nc" id="L801">                .allowFidoUserVerification()</span>
+<span class="nc" id="L802">                .build(),</span>
+        )
+<span class="nc" id="L804">    }</span>
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun AlgorithmSelector(
+    selectedAlgIndex: Int,
+    onAlgIndexChange: (Int) -&gt; Unit,
+<span class="fc" id="L813">) {</span>
+<span class="fc" id="L814">    Column {</span>
+<span class="fc" id="L815">        Text(</span>
+<span class="fc" id="L816">            text = &quot;Algorithm&quot;,</span>
+<span class="fc" id="L817">            style = MaterialTheme.typography.labelMedium,</span>
+<span class="fc" id="L818">            color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+<span class="fc" id="L819">            modifier = Modifier.fillMaxWidth(),</span>
+        )
+<span class="fc" id="L821">        val algOptions = listOf(&quot;ES256&quot;, &quot;EdDSA&quot;, &quot;ML-DSA-65&quot;)</span>
+<span class="fc" id="L822">        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {</span>
+<span class="fc" id="L823">            algOptions.forEachIndexed { index, label -&gt;</span>
+<span class="fc" id="L824">                SegmentedButton(</span>
+<span class="fc bfc" id="L825" title="All 2 branches covered.">                    selected = selectedAlgIndex == index,</span>
+<span class="pc" id="L826">                    onClick = { onAlgIndexChange(index) },</span>
+<span class="fc" id="L827">                    shape = SegmentedButtonDefaults.itemShape(index, algOptions.size),</span>
+<span class="fc" id="L828">                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },</span>
+                )
+<span class="fc" id="L830">            }</span>
+<span class="fc" id="L831">        }</span>
+<span class="fc" id="L832">    }</span>
+<span class="fc" id="L833">}</span>
+
+@Composable
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+private fun TestRegistrationTrigger(
+    selectedAlgIndex: Int,
+    onHomeTestRegistration: (MakeCredentialOptions) -&gt; Unit,
+<span class="fc" id="L840">) {</span>
+<span class="fc" id="L841">    Column {</span>
+<span class="fc" id="L842">        ChimaliOutlinedButton(</span>
+<span class="pc bpc" id="L843" title="2 of 4 branches missed.">            onClick = {</span>
+<span class="nc" id="L844">                val mockUserId = &quot;user_${System.currentTimeMillis()}&quot;</span>
+<span class="nc" id="L845">                val algId =</span>
+<span class="nc bnc" id="L846" title="All 3 branches missed.">                    when (selectedAlgIndex) {</span>
+<span class="nc" id="L847">                        0 -&gt; CredentialKeyDescriptor.COSE_ES256</span>
+<span class="nc" id="L848">                        1 -&gt; CredentialKeyDescriptor.COSE_EDDSA</span>
+<span class="nc" id="L849">                        else -&gt; CredentialKeyDescriptor.COSE_ML_DSA_65</span>
+                    }
+<span class="nc" id="L851">                val params =</span>
+<span class="nc bnc" id="L852" title="All 3 branches missed.">                    when (selectedAlgIndex) {</span>
+<span class="nc" id="L853">                        0 -&gt; PublicKeyCredentialParameters.createES256P256()</span>
+<span class="nc" id="L854">                        1 -&gt; PublicKeyCredentialParameters.createEdDsa()</span>
+<span class="nc" id="L855">                        else -&gt; PublicKeyCredentialParameters.createMlDsa65()</span>
+                    }
+<span class="nc" id="L857">                val mockOptions =</span>
+<span class="nc" id="L858">                    MakeCredentialOptions.create(</span>
+<span class="nc" id="L859">                        rp = PublicKeyCredentialRpEntity.create(RpId(&quot;webauthn.io&quot;), &quot;WebAuthn.io (Test)&quot;),</span>
+                        user =
+<span class="nc" id="L861">                            PublicKeyCredentialUserEntity.create(</span>
+<span class="nc" id="L862">                                UserId(mockUserId),</span>
+<span class="nc" id="L863">                                mockUserId,</span>
+<span class="nc" id="L864">                                &quot;Chimali Test User&quot;,</span>
+                            ),
+<span class="nc" id="L866">                        challenge = &quot;challenge&quot;.toByteArray(),</span>
+<span class="nc" id="L867">                        pubKeyCredParams = params,</span>
+<span class="nc" id="L868">                        selectedAlgId = algId,</span>
+                    )
+<span class="nc" id="L870">                onHomeTestRegistration(mockOptions)</span>
+<span class="nc" id="L871">            },</span>
+<span class="fc" id="L872">            modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L873">        ) {</span>
+<span class="fc" id="L874">            Text(&quot;Trigger Test Registration UI&quot;)</span>
+<span class="fc" id="L875">        }</span>
+<span class="fc" id="L876">        Text(</span>
+<span class="fc" id="L877">            text = &quot;Simulates an incoming FIDO2 MakeCredential request from a PC host.&quot;,</span>
+<span class="fc" id="L878">            style = MaterialTheme.typography.bodySmall,</span>
+<span class="fc" id="L879">            color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+        )
+<span class="fc" id="L881">    }</span>
+<span class="fc" id="L882">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.FidoBleRecoveryTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:52.031Z" hostname="LOQ15IRX10-3" time="0.005">
+  <properties/>
+  <testcase name="valid continuation refreshes the 3-second receive deadline()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.001"/>
+  <testcase name="out-of-order sequence number discards partial request and preserves clean next transaction()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.001"/>
+  <testcase name="at 2999ms partial request remains valid and continuation completes message()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.001"/>
+  <testcase name="scheduled timeout expires only the matching incomplete assembly()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.0"/>
+  <testcase name="at 3000ms partial request expires and continuation is discarded()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.0"/>
+  <testcase name="disconnect and reconnect discards partial data and fences old session()" classname="com.chimali.fido2.data.transport.FidoBleRecoveryTest" time="0.001"/>
+  <system-out><![CDATA[Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Warn: BleSessionOwner: Multi-packet assembly timed out after 3 seconds
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

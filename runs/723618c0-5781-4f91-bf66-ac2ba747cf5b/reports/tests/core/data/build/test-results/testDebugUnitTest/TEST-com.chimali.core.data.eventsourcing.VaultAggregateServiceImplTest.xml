@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:13.258Z" hostname="LOQ15IRX10-3" time="0.843">
+  <properties/>
+  <testcase name="execute clears owned state and events when append throws" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.665"/>
+  <testcase name="execute clears command and event payloads when append is cancelled" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.028"/>
+  <testcase name="clearing vault state erases title and payload buffers" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.002"/>
+  <testcase name="getState with asOf should reconstruct state at specific point in time" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.011"/>
+  <testcase name="execute returns early failure when getState fails" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.008"/>
+  <testcase name="execute should retry on optimistic concurrency failure" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.013"/>
+  <testcase name="execute clears owned state when decider throws before append" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.017"/>
+  <testcase name="getState should hydrate state from events" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.006"/>
+  <testcase name="execute returns failure when all retries are exhausted" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.02"/>
+  <testcase name="execute saves snapshot when sequence number reaches snapshot threshold" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.014"/>
+  <testcase name="execute returns current state without append when decider yields no events" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.016"/>
+  <testcase name="getState falls back to event history when snapshot lookup fails" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.009"/>
+  <testcase name="execute preserves state when decider returns the same owned instance" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.016"/>
+  <testcase name="execute clears evolved state when snapshot persistence throws" classname="com.chimali.core.data.eventsourcing.VaultAggregateServiceImplTest" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

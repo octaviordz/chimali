@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.TransportSelectionCeremonyTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:52.427Z" hostname="LOQ15IRX10-3" time="0.024">
+  <properties/>
+  <testcase name="saving another mode cannot commit or emit a response after registration or authentication cancellation()" classname="com.chimali.fido2.data.transport.TransportSelectionCeremonyTest" time="0.016"/>
+  <testcase name="saving another mode preserves the original registration and authentication handle and response()" classname="com.chimali.fido2.data.transport.TransportSelectionCeremonyTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

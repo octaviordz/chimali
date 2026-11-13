@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BleSessionOwner.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">BleSessionOwner.kt</span></div><h1>BleSessionOwner.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * Reassembled BLE command frame.
+ *
+ * @property command The command byte (e.g. 0x81 for PING, 0x83 for MSG, 0xBE for CANCEL).
+ * @property data The complete payload.
+ */
+<span class="fc" id="L13">@Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)</span>
+<span class="pc" id="L14">data class FidoBleMessage(</span>
+<span class="fc" id="L15">    val command: Byte,</span>
+<span class="fc" id="L16">    val data: ByteArray,</span>
+<span class="pc" id="L17">    val sessionGeneration: Long = 0L,</span>
+<span class="nc" id="L18">) {</span>
+    override fun equals(other: Any?): Boolean {
+<span class="fc bfc" id="L20" title="All 2 branches covered.">        if (this === other) return true</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        if (other !is FidoBleMessage) return false</span>
+<span class="fc bfc" id="L22" title="All 2 branches covered.">        if (command != other.command) return false</span>
+<span class="fc bfc" id="L23" title="All 2 branches covered.">        if (sessionGeneration != other.sessionGeneration) return false</span>
+<span class="fc" id="L24">        return data.contentEquals(other.data)</span>
+    }
+
+    override fun hashCode(): Int {
+<span class="fc" id="L28">        var result = command.toInt()</span>
+<span class="fc" id="L29">        result = 31 * result + data.contentHashCode()</span>
+<span class="fc" id="L30">        result = 31 * result + sessionGeneration.hashCode()</span>
+<span class="fc" id="L31">        return result</span>
+    }
+}
+
+/** Outcome of admitting one Control Point packet into the current FIDO BLE request. */
+sealed interface BleIncomingWriteResult {
+<span class="fc" id="L37">    data class Complete(</span>
+<span class="fc" id="L38">        val message: FidoBleMessage,</span>
+    ) : BleIncomingWriteResult
+
+<span class="fc" id="L41">    data class InProgress(</span>
+<span class="fc" id="L42">        val sessionGeneration: Long,</span>
+<span class="fc" id="L43">        val timeoutToken: Long,</span>
+    ) : BleIncomingWriteResult
+
+    data object NotReady : BleIncomingWriteResult
+
+<span class="fc" id="L48">    data class Error(</span>
+<span class="fc" id="L49">        val errorCode: Byte,</span>
+<span class="fc" id="L50">        val sessionGeneration: Long,</span>
+    ) : BleIncomingWriteResult
+}
+
+/**
+ * Owns run, session, connection generation, and multi-packet assembly state for FIDO BLE.
+ *
+ * Enforces:
+ * - Single-active host exclusivity: only one connected BLE central at a time.
+ * - Fencing: stale generation callbacks are ignored.
+ * - Revision: only FIDO2 revision 0x20 can be selected.
+ * - Readiness: requires both selected revision 0x20 and enabled CCCD notifications.
+ * - Capacities: dynamic write/notify limits based on negotiated ATT MTU.
+ * - 3-second receive deadline: incomplete multi-packet requests expire 3000ms after last fragment.
+ */
+<span class="fc" id="L65">@Req(&quot;FR-BLE-040&quot;, &quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)</span>
+<span class="fc" id="L66">class BleSessionOwner(</span>
+<span class="fc" id="L67">    private val monotonicNanos: () -&gt; Long = System::nanoTime,</span>
+<span class="fc" id="L68">    private val maxMsgSize: Int = 1200,</span>
+<span class="fc" id="L69">    private val supportedAndroidWriteCapacity: Int = MAX_WRITE_CAPACITY,</span>
+<span class="fc" id="L70">    private val supportedAndroidNotificationCapacity: Int = Int.MAX_VALUE,</span>
+<span class="fc" id="L71">) {</span>
+    companion object {
+        const val REVISION_FIDO2_0x20: Byte = 0x20
+        const val DEFAULT_ATT_MTU = 23
+        const val MIN_CAPACITY = 20
+        const val MAX_WRITE_CAPACITY = 512
+        const val RECEIVE_TIMEOUT_NANOS = 3_000_000_000L // 3 seconds
+        private const val ATT_HEADER_OVERHEAD = 3
+        private const val BLE_ERROR_FRAME_SIZE = 4
+        private const val MAX_WIRE_LENGTH = 65535
+        private const val CMD_FLAG_MASK = 0x80
+        private const val BYTE_MASK = 0xFF
+        private const val HEX_RADIX = 16
+    }
+
+<span class="fc" id="L86">    init {</span>
+<span class="fc bfc" id="L87" title="All 6 branches covered.">        require(maxMsgSize in 1..MAX_WIRE_LENGTH) {</span>
+<span class="fc" id="L88">            &quot;maxMsgSize must be positive and &lt;= $MAX_WIRE_LENGTH, but was $maxMsgSize&quot;</span>
+        }
+<span class="fc bfc" id="L90" title="All 4 branches covered.">        require(supportedAndroidWriteCapacity &gt;= MIN_CAPACITY) {</span>
+<span class="fc" id="L91">            &quot;Supported Android write capacity must be at least $MIN_CAPACITY, but was $supportedAndroidWriteCapacity&quot;</span>
+        }
+<span class="fc bfc" id="L93" title="All 4 branches covered.">        require(supportedAndroidNotificationCapacity &gt;= BLE_ERROR_FRAME_SIZE) {</span>
+<span class="fc" id="L94">            &quot;Supported Android notification capacity must fit a BLE error response&quot;</span>
+        }
+<span class="fc" id="L96">    }</span>
+
+<span class="fc" id="L98">    private val lock = Any()</span>
+
+<span class="fc" id="L100">    private val sessionGenerationCounter = AtomicLong(1L)</span>
+    val currentSessionGeneration: Long
+<span class="fc" id="L102">        get() = sessionGenerationCounter.get()</span>
+
+<span class="fc" id="L104">    var activeDeviceAddress: String? = null</span>
+        private set
+
+<span class="fc" id="L107">    var selectedRevision: Byte? = null</span>
+        private set
+
+<span class="fc" id="L110">    var isNotificationsEnabled: Boolean = false</span>
+        private set
+
+<span class="pc" id="L113">    var attMtu: Int = DEFAULT_ATT_MTU</span>
+        private set
+
+    val writeCapacity: Int
+        get() =
+<span class="fc" id="L118">            synchronized(lock) {</span>
+<span class="fc" id="L119">                minOf(MAX_WRITE_CAPACITY, attMtu - ATT_HEADER_OVERHEAD, supportedAndroidWriteCapacity)</span>
+<span class="fc" id="L120">            }</span>
+
+    val notifyCapacity: Int
+        get() =
+<span class="fc" id="L124">            synchronized(lock) {</span>
+<span class="fc" id="L125">                minOf(attMtu - ATT_HEADER_OVERHEAD, supportedAndroidNotificationCapacity)</span>
+<span class="fc" id="L126">            }</span>
+
+    val isCommandReady: Boolean
+        get() =
+<span class="fc" id="L130">            synchronized(lock) {</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                activeDeviceAddress != null &amp;&amp;</span>
+<span class="pc bpc" id="L132" title="1 of 6 branches missed.">                    selectedRevision == REVISION_FIDO2_0x20 &amp;&amp;</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">                    isNotificationsEnabled</span>
+<span class="fc" id="L134">            }</span>
+
+    // Reuse the bounded framer; this owner adds the per-session receive deadline.
+<span class="fc" id="L137">    private val requestAssembler = FidoBleFraming.RequestAssembler(maxMsgSize)</span>
+    private var lastActivityNanos: Long? = null
+    private var assemblyTimeoutToken = 0L
+    private var activeAssemblyTimeoutToken: Long? = null
+
+    /**
+     * Connects a new host if no other host is active.
+     *
+     * @return true if accepted, false if another host is already connected.
+     */
+    @Req(&quot;FR-BLE-040&quot;, &quot;TR-BLE-020&quot;)
+    fun connectHost(address: String): Boolean =
+<span class="fc" id="L149">        synchronized(lock) {</span>
+<span class="fc bfc" id="L150" title="All 4 branches covered.">            if (activeDeviceAddress != null &amp;&amp; activeDeviceAddress != address) {</span>
+<span class="fc" id="L151">                Logger.w { &quot;BleSessionOwner: Rejected second host $address (active=$activeDeviceAddress)&quot; }</span>
+<span class="fc" id="L152">                return false</span>
+            }
+<span class="fc" id="L154">            activeDeviceAddress = address</span>
+<span class="fc" id="L155">            selectedRevision = null</span>
+<span class="fc" id="L156">            isNotificationsEnabled = false</span>
+<span class="fc" id="L157">            attMtu = DEFAULT_ATT_MTU</span>
+<span class="fc" id="L158">            resetAssembly()</span>
+<span class="fc" id="L159">            true</span>
+<span class="fc" id="L160">        }</span>
+
+    /**
+     * Disconnects the given host, fences the session generation, and clears transient state.
+     */
+    @Req(&quot;FR-BLE-040&quot;, &quot;TR-BLE-020&quot;)
+    fun disconnectHost(address: String?) =
+<span class="fc" id="L167">        synchronized(lock) {</span>
+<span class="fc bfc" id="L168" title="All 4 branches covered.">            if (address == null || activeDeviceAddress == address) {</span>
+<span class="fc" id="L169">                activeDeviceAddress = null</span>
+<span class="fc" id="L170">                selectedRevision = null</span>
+<span class="fc" id="L171">                isNotificationsEnabled = false</span>
+<span class="fc" id="L172">                attMtu = DEFAULT_ATT_MTU</span>
+<span class="fc" id="L173">                resetAssembly()</span>
+<span class="fc" id="L174">                sessionGenerationCounter.incrementAndGet()</span>
+<span class="fc" id="L175">                Logger.d {</span>
+<span class="fc" id="L176">                    &quot;BleSessionOwner: Disconnected, session generation incremented to $currentSessionGeneration&quot;</span>
+                }
+            }
+<span class="fc" id="L179">        }</span>
+
+    /**
+     * Updates the negotiated ATT MTU and recalculates per-session capacities.
+     */
+    @Req(&quot;FR-BLE-020&quot;, &quot;TR-BLE-020&quot;)
+    fun updateMtu(mtu: Int) =
+<span class="fc" id="L186">        synchronized(lock) {</span>
+<span class="fc" id="L187">            attMtu = maxOf(DEFAULT_ATT_MTU, mtu)</span>
+<span class="fc" id="L188">            Logger.d { &quot;BleSessionOwner: MTU updated to $attMtu (writeCap=$writeCapacity, notifyCap=$notifyCapacity)&quot; }</span>
+<span class="fc" id="L189">        }</span>
+
+    /**
+     * Selects the FIDO revision. Only [REVISION_FIDO2_0x20] is permitted.
+     */
+    @Req(&quot;FR-BLE-020&quot;, &quot;TR-BLE-010&quot;)
+    fun selectRevision(revision: Byte): Boolean =
+<span class="fc" id="L196">        synchronized(lock) {</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">            if (revision == REVISION_FIDO2_0x20) {</span>
+<span class="fc" id="L198">                selectedRevision = revision</span>
+<span class="fc" id="L199">                Logger.i { &quot;BleSessionOwner: FIDO2 revision 0x20 selected&quot; }</span>
+<span class="fc" id="L200">                true</span>
+            } else {
+<span class="fc" id="L202">                Logger.w { &quot;BleSessionOwner: Rejected invalid revision 0x${revision.toString(HEX_RADIX)}&quot; }</span>
+<span class="fc" id="L203">                false</span>
+<span class="fc" id="L204">            }</span>
+<span class="fc" id="L205">        }</span>
+
+    /**
+     * Updates CCCD notification subscription state.
+     */
+    @Req(&quot;FR-BLE-020&quot;, &quot;TR-BLE-020&quot;)
+    fun setNotificationsEnabled(enabled: Boolean) =
+<span class="fc" id="L212">        synchronized(lock) {</span>
+<span class="fc" id="L213">            isNotificationsEnabled = enabled</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (!enabled) resetAssembly()</span>
+<span class="fc" id="L215">            Logger.d { &quot;BleSessionOwner: Notifications enabled=$enabled&quot; }</span>
+<span class="fc" id="L216">        }</span>
+
+    /**
+     * Checks if a session generation is still current.
+     */
+    @Req(&quot;FR-BLE-040&quot;, &quot;TR-BLE-020&quot;)
+<span class="fc bfc" id="L222" title="All 2 branches covered.">    fun isSessionCurrent(generation: Long): Boolean = sessionGenerationCounter.get() == generation</span>
+
+    /** Runs a synchronous side effect against the address only while its session generation is current. */
+    @Req(&quot;FR-BLE-040&quot;, &quot;TR-BLE-020&quot;)
+    fun runForCurrentSession(
+        generation: Long,
+        action: (String) -&gt; Unit,
+    ): Boolean =
+<span class="fc" id="L230">        synchronized(lock) {</span>
+<span class="fc" id="L231">            val address = activeDeviceAddress</span>
+<span class="pc bpc" id="L232" title="1 of 4 branches missed.">            if (sessionGenerationCounter.get() != generation || address == null) {</span>
+<span class="fc" id="L233">                return false</span>
+            }
+<span class="fc" id="L235">            action(address)</span>
+<span class="fc" id="L236">            true</span>
+<span class="fc" id="L237">        }</span>
+
+    /**
+     * Processes an incoming write packet for multi-packet reassembly.
+     *
+     * Invalid frames return a typed error so the transport can send the required CMD_ERROR response.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun processIncomingWrite(packet: ByteArray): BleIncomingWriteResult =
+<span class="fc" id="L246">        synchronized(lock) {</span>
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            if (!isCommandReady) {</span>
+<span class="fc" id="L248">                Logger.w { &quot;BleSessionOwner: Command rejected; revision 0x20 and notifications must be active first&quot; }</span>
+<span class="fc" id="L249">                BleIncomingWriteResult.NotReady</span>
+<span class="fc bfc" id="L250" title="All 4 branches covered.">            } else if (packet.isEmpty()) {</span>
+<span class="fc" id="L251">                resetAssembly()</span>
+<span class="fc" id="L252">                incomingWriteError(FidoBleFraming.ERR_INVALID_PAR)</span>
+            } else {
+<span class="fc" id="L254">                val now = monotonicNanos()</span>
+<span class="fc" id="L255">                val firstByte = packet[0].toInt() and BYTE_MASK</span>
+<span class="fc bfc" id="L256" title="All 2 branches covered.">                val isInitialization = firstByte and CMD_FLAG_MASK != 0</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                if (isInitialization) {</span>
+<span class="fc" id="L258">                    resetAssembly()</span>
+<span class="fc bfc" id="L259" title="All 4 branches covered.">                } else if (requestAssembler.isAssembling &amp;&amp; isReceiveTimedOut(now)) {</span>
+<span class="fc" id="L260">                    Logger.w { &quot;BleSessionOwner: Multi-packet assembly timed out after 3 seconds&quot; }</span>
+<span class="fc" id="L261">                    resetAssembly()</span>
+<span class="fc" id="L262">                    return incomingWriteError(FidoBleFraming.ERR_REQ_TIMEOUT)</span>
+                }
+
+<span class="fc" id="L265">                when (val result = requestAssembler.feed(packet)) {</span>
+<span class="fc bfc" id="L266" title="All 2 branches covered.">                    is FidoBleFraming.FeedResult.Complete -&gt; {</span>
+<span class="fc" id="L267">                        lastActivityNanos = null</span>
+<span class="fc" id="L268">                        activeAssemblyTimeoutToken = null</span>
+<span class="fc" id="L269">                        assemblyTimeoutToken++</span>
+<span class="fc" id="L270">                        BleIncomingWriteResult.Complete(</span>
+<span class="fc" id="L271">                            FidoBleMessage(result.command, result.payload, currentSessionGeneration),</span>
+                        )
+                    }
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                    is FidoBleFraming.FeedResult.InProgress -&gt; {</span>
+<span class="fc" id="L275">                        lastActivityNanos = now</span>
+<span class="fc" id="L276">                        assemblyTimeoutToken++</span>
+<span class="fc" id="L277">                        activeAssemblyTimeoutToken = assemblyTimeoutToken</span>
+<span class="fc" id="L278">                        BleIncomingWriteResult.InProgress(currentSessionGeneration, assemblyTimeoutToken)</span>
+                    }
+<span class="fc" id="L280">                    is FidoBleFraming.FeedResult.Error -&gt; {</span>
+<span class="fc" id="L281">                        resetAssembly()</span>
+<span class="fc" id="L282">                        incomingWriteError(result.errorCode)</span>
+                    }
+                }
+<span class="fc" id="L285">            }</span>
+<span class="fc" id="L286">        }</span>
+
+    /** Expires only the matching incomplete request; stale timer callbacks are harmless. */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun expireIncompleteRequest(
+        generation: Long,
+        timeoutToken: Long,
+    ): BleIncomingWriteResult.Error? =
+<span class="fc" id="L294">        synchronized(lock) {</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">            if (generation != currentSessionGeneration ||</span>
+<span class="fc bfc" id="L296" title="All 4 branches covered.">                activeAssemblyTimeoutToken != timeoutToken ||</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">                !requestAssembler.isAssembling</span>
+            ) {
+<span class="fc" id="L299">                return null</span>
+            }
+<span class="fc" id="L301">            resetAssembly()</span>
+<span class="fc" id="L302">            incomingWriteError(FidoBleFraming.ERR_REQ_TIMEOUT)</span>
+<span class="fc" id="L303">        }</span>
+
+    private fun isReceiveTimedOut(nowNanos: Long): Boolean =
+<span class="pc bpc" id="L306" title="1 of 4 branches missed.">        lastActivityNanos?.let { nowNanos - it &gt;= RECEIVE_TIMEOUT_NANOS } ?: false</span>
+
+    private fun incomingWriteError(errorCode: Byte): BleIncomingWriteResult.Error =
+<span class="fc" id="L309">        BleIncomingWriteResult.Error(errorCode, currentSessionGeneration)</span>
+
+    private fun resetAssembly() {
+<span class="fc" id="L312">        requestAssembler.reset()</span>
+<span class="fc" id="L313">        lastActivityNanos = null</span>
+<span class="fc" id="L314">        activeAssemblyTimeoutToken = null</span>
+<span class="fc" id="L315">        assemblyTimeoutToken++</span>
+<span class="fc" id="L316">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2HomeViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.viewmodel</a> &gt; <span class="el_source">Fido2HomeViewModel.kt</span></div><h1>Fido2HomeViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.viewmodel
+
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.data.transport.Fido2ConnectionState
+import com.chimali.fido2.data.transport.Fido2Transport
+import com.chimali.fido2.data.transport.ProcessTransportSelection
+import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportUnavailableReason
+import com.chimali.fido2.presentation.navigation.Fido2UiEvent
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.service.Fido2TransportService
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.koin.android.annotation.KoinViewModel
+
+/**
+ * T156a — ViewModel for the FIDO2 Authenticator Dashboard.
+ * Manages the lifecycle of the foreground HID transport service and exposes its state.
+ *
+ * The actual Bluetooth work is delegated to [Fido2TransportService], a foreground
+ * Service, so the HID connection survives the Activity going to background.
+ */
+<span class="nc" id="L37">@KoinViewModel</span>
+<span class="nc" id="L38">class Fido2HomeViewModel(</span>
+<span class="nc" id="L39">    private val context: Context,</span>
+<span class="nc" id="L40">    private val fido2Transport: Fido2Transport,</span>
+<span class="nc" id="L41">    private val processTransportSelection: ProcessTransportSelection,</span>
+<span class="nc" id="L42">    private val repository: com.chimali.fido2.domain.repository.PairedDeviceRepository,</span>
+<span class="nc" id="L43">    private val uiEventBus: Fido2UiEventBus,</span>
+) : ViewModel() {
+<span class="nc" id="L45">    val connectionState: StateFlow&lt;Fido2ConnectionState&gt; = fido2Transport.connectionState</span>
+<span class="nc" id="L46">    val processTransportState = processTransportSelection.state</span>
+<span class="nc" id="L47">    val uiEvents: SharedFlow&lt;Fido2UiEvent&gt; = uiEventBus.events</span>
+<span class="nc" id="L48">    val pendingRegistrationRequest = uiEventBus.pendingRegistrationRequest</span>
+<span class="nc" id="L49">    val pendingAuthenticationRequest = uiEventBus.pendingAuthenticationRequest</span>
+<span class="nc" id="L50">    private val _outboundBleUnsupported = MutableStateFlow(false)</span>
+<span class="nc" id="L51">    val outboundBleUnsupported = _outboundBleUnsupported.asStateFlow()</span>
+
+    /**
+     * Resolves the display name for the connected host, prioritizing user-defined aliases.
+     */
+<span class="nc" id="L56">    val connectedDeviceDisplayName: StateFlow&lt;String?&gt; =</span>
+<span class="nc" id="L57">        combine(</span>
+<span class="nc" id="L58">            connectionState,</span>
+<span class="nc" id="L59">            repository.getAllPairedDevices(),</span>
+        ) { state, devices -&gt;
+<span class="nc" id="L61">            when (state) {</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                is Fido2ConnectionState.Connected -&gt; {</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                    val address = state.device?.address</span>
+<span class="nc bnc" id="L64" title="All 6 branches missed.">                    val match = address?.let { targetAddress -&gt; devices.find { it.macAddress == targetAddress } }</span>
+<span class="nc bnc" id="L65" title="All 8 branches missed.">                    match?.alias ?: state.device?.name ?: &quot;Connected Host&quot;</span>
+                }
+
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                is Fido2ConnectionState.Connecting -&gt; {</span>
+<span class="nc bnc" id="L69" title="All 4 branches missed.">                    state.device?.name ?: &quot;Connecting...&quot;</span>
+                }
+
+                else -&gt; {
+<span class="nc" id="L73">                    null</span>
+                }
+<span class="nc" id="L75">            }</span>
+<span class="nc" id="L76">        }.stateIn(</span>
+<span class="nc" id="L77">            scope = viewModelScope,</span>
+<span class="nc" id="L78">            started = SharingStarted.WhileSubscribed(SUBSCRIBED_STOP_TIMEOUT_MS),</span>
+<span class="nc" id="L79">            initialValue = null,</span>
+        )
+
+    /**
+     * Starts the foreground [Fido2TransportService] when idle/errored, or stops
+     * it when connected/advertising. The service keeps the HID transport alive
+     * even when the user navigates away from this screen.
+     */
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun toggleTransport() {
+<span class="nc bnc" id="L90" title="All 3 branches missed.">        when (transportToggleAction(connectionState.value, processTransportState.value.availability)) {</span>
+<span class="nc" id="L91">            TransportToggleAction.Start -&gt; context.startForegroundService(Fido2TransportService.startIntent(context))</span>
+<span class="nc" id="L92">            TransportToggleAction.Retry -&gt; retryTransport()</span>
+<span class="nc" id="L93">            TransportToggleAction.Stop -&gt; context.startService(Fido2TransportService.stopIntent(context))</span>
+        }
+<span class="nc" id="L95">    }</span>
+
+    /**
+     * Proactively initiates an outbound Bluetooth HID connection to a paired host.
+     * Ensures the transport service is running first if currently idle.
+     */
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun connectDevice(macAddress: String) {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (processTransportSelection.state.value.processChoice == BluetoothTransportMode.FIDO_BLE) {</span>
+<span class="nc" id="L105">            _outboundBleUnsupported.value = true</span>
+<span class="nc" id="L106">            return</span>
+        }
+<span class="nc" id="L108">        val currentState = connectionState.value</span>
+<span class="nc" id="L109">        viewModelScope.launch {</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">            if (currentState is Fido2ConnectionState.Idle || currentState is Fido2ConnectionState.Error) {</span>
+<span class="nc" id="L111">                context.startForegroundService(Fido2TransportService.startIntent(context))</span>
+                // Wait for the transport service to initialize and start advertising
+<span class="nc" id="L113">                withTimeoutOrNull(SERVICE_STARTUP_TIMEOUT_MS) {</span>
+<span class="nc" id="L114">                    connectionState.first { it is Fido2ConnectionState.Advertising }</span>
+                }
+            }
+<span class="nc" id="L117">            fido2Transport.connectDevice(macAddress)</span>
+<span class="nc" id="L118">        }</span>
+<span class="nc" id="L119">    }</span>
+
+    fun dismissOutboundBleUnsupported() {
+<span class="nc" id="L122">        _outboundBleUnsupported.value = false</span>
+<span class="nc" id="L123">    }</span>
+
+    @Req(&quot;FR-BLE-070&quot;, &quot;TR-BLE-040&quot;)
+    fun retryTransport() {
+<span class="nc" id="L127">        context.startForegroundService(Fido2TransportService.retryIntent(context))</span>
+<span class="nc" id="L128">    }</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun testRegistration(options: MakeCredentialOptions) {
+        // Mock a registration request as if it came from Bluetooth
+<span class="nc" id="L133">        uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(options, CompletableDeferred()))</span>
+<span class="nc" id="L134">    }</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L137">    fun getPendingRegistration(): Fido2UiEvent.RegistrationRequested? = uiEventBus.currentRegistrationRequest</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L140">    fun getPendingAuthentication(): Fido2UiEvent.AuthenticationRequested? = uiEventBus.currentAuthenticationRequest</span>
+
+    companion object {
+        private const val SUBSCRIBED_STOP_TIMEOUT_MS = 5000L
+        private const val SERVICE_STARTUP_TIMEOUT_MS = 10_000L
+    }
+}
+
+internal enum class TransportToggleAction {
+<span class="fc" id="L149">    Start,</span>
+<span class="fc" id="L150">    Retry,</span>
+<span class="fc" id="L151">    Stop,</span>
+}
+
+<span class="fc bfc" id="L154" title="All 2 branches covered.">internal fun isTransportStartEnabled(processChoice: BluetoothTransportMode?): Boolean = processChoice != null</span>
+
+internal fun transportToggleAction(
+    connectionState: Fido2ConnectionState,
+    availability: TransportAvailability,
+): TransportToggleAction =
+<span class="fc" id="L160">    when (connectionState) {</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        Fido2ConnectionState.Idle -&gt; {</span>
+<span class="fc bfc" id="L162" title="All 4 branches covered.">            if (availability is TransportAvailability.Unavailable || availability is TransportAvailability.Ready) {</span>
+<span class="fc" id="L163">                TransportToggleAction.Retry</span>
+            } else {
+<span class="fc" id="L165">                TransportToggleAction.Start</span>
+            }
+        }
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        is Fido2ConnectionState.Error -&gt; TransportToggleAction.Retry</span>
+<span class="fc" id="L169">        else -&gt; TransportToggleAction.Stop</span>
+<span class="fc" id="L170">    }</span>
+
+internal fun dashboardStateForTransport(
+    connectionState: Fido2ConnectionState,
+    availability: TransportAvailability,
+): Fido2ConnectionState =
+<span class="fc" id="L176">    when {</span>
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">        connectionState !is Fido2ConnectionState.Idle -&gt; connectionState</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">        availability is TransportAvailability.Unavailable -&gt;</span>
+<span class="fc" id="L179">            Fido2ConnectionState.Error(availability.reason.dashboardMessage())</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        availability is TransportAvailability.Ready -&gt;</span>
+<span class="nc" id="L181">            Fido2ConnectionState.Error(&quot;Transport is not reporting an active connection; retry to restore it&quot;)</span>
+<span class="nc" id="L182">        else -&gt; connectionState</span>
+<span class="fc" id="L183">    }</span>
+
+private fun TransportUnavailableReason.dashboardMessage(): String =
+<span class="fc bfc" id="L186" title="All 7 branches covered.">    when (this) {</span>
+        TransportUnavailableReason.PreferenceReadFailed -&gt;
+<span class="fc" id="L188">            &quot;Could not read the saved Bluetooth transport. Retry or open Transport Settings.&quot;</span>
+        TransportUnavailableReason.InvalidPreference -&gt;
+<span class="fc" id="L190">            &quot;The saved Bluetooth transport is invalid. Choose a transport in Settings.&quot;</span>
+        TransportUnavailableReason.InitializationTimeout -&gt;
+<span class="fc" id="L192">            &quot;Bluetooth transport initialization timed out. Retry or choose another transport in Settings.&quot;</span>
+        TransportUnavailableReason.Unsupported -&gt;
+<span class="fc" id="L194">            &quot;This Bluetooth transport is unsupported on this device. Choose the alternative in Settings.&quot;</span>
+        TransportUnavailableReason.PermissionRequired -&gt;
+<span class="fc" id="L196">            &quot;Bluetooth permission is required. Grant it and retry.&quot;</span>
+        TransportUnavailableReason.BluetoothOff -&gt;
+<span class="fc" id="L198">            &quot;Bluetooth is off. Turn it on and retry.&quot;</span>
+        TransportUnavailableReason.StartupFailed -&gt;
+<span class="fc" id="L200">            &quot;Bluetooth transport failed to start. Retry or choose another transport in Settings.&quot;</span>
+<span class="fc" id="L201">    }</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppNavGraph.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.chimali.navigation</a> &gt; <span class="el_source">AppNavGraph.kt</span></div><h1>AppNavGraph.kt</h1><pre class="source lang-java linenums">package com.chimali.navigation
+
+import androidx.activity.compose.ReportDrawnWhen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.datastore.core.CorruptionException
+import androidx.datastore.core.DataStore
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.feature.onboarding.presentation.navigation.OnboardingNavGraph
+import com.chimali.feature.settings.ui.BluetoothTransportSettingsUiState
+import com.chimali.feature.settings.ui.SettingsScreen
+import com.chimali.feature.vault.ui.navigation.VaultNavGraph
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.TransportAvailability
+import com.chimali.fido2.domain.repository.TransportUnavailableReason
+import com.chimali.fido2.presentation.navigation.Fido2Destinations
+import com.chimali.fido2.presentation.navigation.Fido2RegistrationNavGraph
+import com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModel
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+
+private enum class AppScreen {
+<span class="fc" id="L46">    Loading,</span>
+<span class="fc" id="L47">    Onboarding,</span>
+<span class="fc" id="L48">    Shell,</span>
+<span class="fc" id="L49">    Settings,</span>
+}
+
+@Composable
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">fun AppNavGraph(</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="fc" id="L55">    dataStore: DataStore&lt;UserPreferences&gt; = koinInject(),</span>
+<span class="pc bpc" id="L56" title="2 of 6 branches missed.">) {</span>
+<span class="fc" id="L57">    val routingFlow =</span>
+<span class="fc" id="L58">        remember(dataStore) {</span>
+<span class="fc" id="L59">            dataStore.data</span>
+<span class="fc" id="L60">                .catch { exception -&gt;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                    if (exception is CorruptionException) {</span>
+<span class="nc" id="L62">                        emit(UserPreferences())</span>
+                    } else {
+<span class="nc" id="L64">                        throw exception</span>
+                    }
+<span class="pc" id="L66">                }.map(AppRoutingState::from)</span>
+        }
+<span class="fc" id="L68">    val routingState by routingFlow.collectAsState(initial = null)</span>
+
+<span class="pc" id="L70">    var screenOverride by rememberSaveable { mutableStateOf&lt;AppScreen?&gt;(null) }</span>
+<span class="pc" id="L71">    var onboardingReturnScreen by rememberSaveable { mutableStateOf(AppScreen.Shell) }</span>
+
+<span class="fc" id="L73">    val targetScreen =</span>
+<span class="fc" id="L74">        when {</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">            screenOverride != null -&gt; screenOverride!!</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            routingState == null -&gt; AppScreen.Loading</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">            !routingState!!.onboardingCompleted -&gt; AppScreen.Onboarding</span>
+<span class="nc" id="L78">            else -&gt; AppScreen.Shell</span>
+        }
+
+    // Mark startup complete only after persisted routing state resolves and the initial route is ready to draw.
+<span class="fc bfc" id="L82" title="All 2 branches covered.">    ReportDrawnWhen { targetScreen != AppScreen.Loading }</span>
+
+<span class="pc bpc" id="L84" title="2 of 4 branches missed.">    when (targetScreen) {</span>
+<span class="fc" id="L85">        AppScreen.Loading -&gt; {</span>
+<span class="fc" id="L86">            LoadingScreen(modifier = modifier)</span>
+        }
+
+<span class="fc" id="L89">        AppScreen.Onboarding -&gt; {</span>
+<span class="fc" id="L90">            OnboardingNavGraph(</span>
+<span class="fc" id="L91">                onFinish = {</span>
+<span class="nc" id="L92">                    screenOverride = null</span>
+<span class="nc" id="L93">                    onboardingReturnScreen = AppScreen.Shell</span>
+<span class="nc" id="L94">                },</span>
+<span class="fc" id="L95">                onCancel = {</span>
+<span class="nc" id="L96">                    screenOverride = null</span>
+<span class="nc" id="L97">                    screenOverride = onboardingReturnScreen</span>
+<span class="nc" id="L98">                },</span>
+<span class="fc" id="L99">                modifier = modifier,</span>
+            )
+        }
+
+        AppScreen.Shell, AppScreen.Settings -&gt; {
+<span class="nc" id="L104">            AppShellWithOverlay(</span>
+<span class="nc" id="L105">                mainContent = {</span>
+<span class="nc" id="L106">                    MainShell(</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                        routingState = routingState ?: AppRoutingState(false, false, false, &quot;&quot;),</span>
+<span class="nc" id="L108">                        dataStore = dataStore,</span>
+<span class="nc" id="L109">                        onOpenSettings = {</span>
+<span class="nc" id="L110">                            onboardingReturnScreen = AppScreen.Shell</span>
+<span class="nc" id="L111">                            screenOverride = AppScreen.Settings</span>
+<span class="nc" id="L112">                        },</span>
+<span class="nc" id="L113">                        onExternalCeremonyRequest = { screenOverride = null },</span>
+<span class="nc" id="L114">                        modifier = Modifier.fillMaxSize(),</span>
+                    )
+<span class="nc" id="L116">                },</span>
+<span class="nc" id="L117">                overlayContent = {</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                    if (targetScreen == AppScreen.Settings) {</span>
+<span class="nc" id="L119">                        val transportSettingsViewModel: TransportSettingsViewModel = koinViewModel()</span>
+<span class="nc" id="L120">                        val transportSettings by transportSettingsViewModel.state.collectAsState()</span>
+<span class="nc" id="L121">                        val processTransport = transportSettings.processState</span>
+<span class="nc" id="L122">                        val availabilityCode =</span>
+<span class="nc" id="L123">                            when (val availability = processTransport.availability) {</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                                TransportAvailability.Loading -&gt; &quot;loading&quot;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                                TransportAvailability.SelectedNotStarted -&gt; &quot;selected_not_started&quot;</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                                TransportAvailability.Starting -&gt; &quot;starting&quot;</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                                TransportAvailability.Ready -&gt; &quot;ready&quot;</span>
+<span class="nc" id="L128">                                is TransportAvailability.Unavailable -&gt;</span>
+<span class="nc bnc" id="L129" title="All 7 branches missed.">                                    when (availability.reason) {</span>
+<span class="nc" id="L130">                                        TransportUnavailableReason.PreferenceReadFailed -&gt; &quot;preference_read_failed&quot;</span>
+<span class="nc" id="L131">                                        TransportUnavailableReason.InvalidPreference -&gt; &quot;invalid_preference&quot;</span>
+<span class="nc" id="L132">                                        TransportUnavailableReason.InitializationTimeout -&gt; &quot;initialization_timeout&quot;</span>
+<span class="nc" id="L133">                                        TransportUnavailableReason.Unsupported -&gt; &quot;unsupported&quot;</span>
+<span class="nc" id="L134">                                        TransportUnavailableReason.PermissionRequired -&gt; &quot;permission_required&quot;</span>
+<span class="nc" id="L135">                                        TransportUnavailableReason.BluetoothOff -&gt; &quot;bluetooth_off&quot;</span>
+<span class="nc" id="L136">                                        TransportUnavailableReason.StartupFailed -&gt; &quot;startup_failed&quot;</span>
+                                    }
+                            }
+<span class="nc" id="L139">                        val transportUiState =</span>
+<span class="nc" id="L140">                            BluetoothTransportSettingsUiState(</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                                savedTransportCode = transportSettings.savedChoice?.wireValue,</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                                processTransportCode = processTransport.processChoice?.wireValue,</span>
+<span class="nc" id="L143">                                availabilityCode = availabilityCode,</span>
+<span class="nc" id="L144">                                isLoading = transportSettings.isReading,</span>
+<span class="nc" id="L145">                                isSaving = transportSettings.isSaving,</span>
+<span class="nc" id="L146">                                readError = transportSettings.readError,</span>
+<span class="nc" id="L147">                                saveError = transportSettings.saveError,</span>
+<span class="nc" id="L148">                                restartRequired = transportSettings.restartRequired,</span>
+                            )
+<span class="nc" id="L150">                        SettingsScreen(</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                            vaultEnabled = routingState?.vaultEnabled ?: false,</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                            passkeyEnabled = routingState?.passkeyEnabled ?: false,</span>
+<span class="nc" id="L153">                            bluetoothTransportSettings = transportUiState,</span>
+<span class="nc" id="L154">                            onSelectTransport = { code -&gt;</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                                BluetoothTransportMode.fromWire(code)?.let(transportSettingsViewModel::select)</span>
+<span class="nc" id="L156">                            },</span>
+<span class="nc" id="L157">                            onRetryTransportSettings = transportSettingsViewModel::retryRead,</span>
+<span class="nc" id="L158">                            onCancelPendingTransportChange = transportSettingsViewModel::cancelPendingChange,</span>
+<span class="nc" id="L159">                            onRetakeOnboarding = {</span>
+<span class="nc" id="L160">                                onboardingReturnScreen = AppScreen.Settings</span>
+<span class="nc" id="L161">                                screenOverride = AppScreen.Onboarding</span>
+<span class="nc" id="L162">                            },</span>
+<span class="nc" id="L163">                            onBack = { screenOverride = null },</span>
+<span class="nc" id="L164">                            modifier = Modifier.fillMaxSize(),</span>
+                        )
+<span class="nc" id="L166">                    }</span>
+<span class="nc" id="L167">                },</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                overlayVisible = targetScreen == AppScreen.Settings,</span>
+<span class="nc" id="L169">                onOverlayBack = { screenOverride = null },</span>
+<span class="nc" id="L170">                modifier = modifier,</span>
+            )
+        }
+<span class="nc" id="L173">    }</span>
+<span class="fc" id="L174">}</span>
+
+@Composable
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">private fun LoadingScreen(modifier: Modifier = Modifier) {</span>
+<span class="fc" id="L178">    Box(</span>
+<span class="fc" id="L179">        modifier = modifier.fillMaxSize(),</span>
+<span class="fc" id="L180">        contentAlignment = Alignment.Center,</span>
+    ) {
+<span class="fc" id="L182">        CircularProgressIndicator()</span>
+<span class="fc" id="L183">    }</span>
+<span class="fc" id="L184">}</span>
+
+@Composable
+private fun MainShell(
+    routingState: AppRoutingState,
+    dataStore: DataStore&lt;UserPreferences&gt;,
+    onOpenSettings: () -&gt; Unit,
+    onExternalCeremonyRequest: () -&gt; Unit,
+<span class="nc" id="L192">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L194">    val dualFeatureSelection = routingState.hasVaultAndPasskeyEnabled</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">    var selectedRoute by rememberSaveable(routingState.lastVisitedMainScreen) {</span>
+<span class="nc" id="L196">        mutableStateOf(routingState.mainRoute)</span>
+    }
+
+<span class="nc bnc" id="L199" title="All 2 branches missed.">    LaunchedEffect(routingState.mainRoute) {</span>
+<span class="nc" id="L200">        selectedRoute = routingState.mainRoute</span>
+<span class="nc" id="L201">    }</span>
+
+<span class="nc bnc" id="L203" title="All 2 branches missed.">    LaunchedEffect(dualFeatureSelection, selectedRoute) {</span>
+<span class="nc" id="L204">        val isValidMainRoute =</span>
+<span class="nc bnc" id="L205" title="All 4 branches missed.">            selectedRoute == AppDestinations.VAULT_ROUTE || selectedRoute == Fido2Destinations.HOME_ROUTE</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        if (dualFeatureSelection &amp;&amp;</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">            isValidMainRoute &amp;&amp;</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            routingState.normalizedLastVisitedMainScreen() != selectedRoute</span>
+        ) {
+<span class="nc" id="L210">            dataStore.updateData { preferences -&gt;</span>
+<span class="nc" id="L211">                preferences.copy(lastVisitedMainScreen = selectedRoute)</span>
+            }
+        }
+<span class="nc" id="L214">    }</span>
+
+<span class="nc" id="L216">    Scaffold(</span>
+<span class="nc" id="L217">        modifier = modifier.fillMaxSize(),</span>
+<span class="nc" id="L218">        bottomBar = {</span>
+<span class="nc bnc" id="L219" title="All 4 branches missed.">            if (dualFeatureSelection || com.chimali.core.common.isDebug) {</span>
+<span class="nc" id="L220">                NavigationBar {</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                    if (routingState.vaultEnabled) {</span>
+<span class="nc" id="L222">                        NavigationBarItem(</span>
+<span class="nc" id="L223">                            selected = selectedRoute == AppDestinations.VAULT_ROUTE,</span>
+<span class="nc" id="L224">                            onClick = { selectedRoute = AppDestinations.VAULT_ROUTE },</span>
+<span class="nc" id="L225">                            icon = { Icon(Icons.Filled.Folder, contentDescription = &quot;Vault&quot;) },</span>
+<span class="nc" id="L226">                            label = { Text(&quot;Vault&quot;) },</span>
+                        )
+<span class="nc" id="L228">                    }</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                    if (routingState.passkeyEnabled) {</span>
+<span class="nc" id="L230">                        NavigationBarItem(</span>
+<span class="nc" id="L231">                            selected = selectedRoute == Fido2Destinations.HOME_ROUTE,</span>
+<span class="nc" id="L232">                            onClick = { selectedRoute = Fido2Destinations.HOME_ROUTE },</span>
+<span class="nc" id="L233">                            icon = { Icon(Icons.Filled.Security, contentDescription = &quot;Passkey Authenticator&quot;) },</span>
+<span class="nc" id="L234">                            label = { Text(&quot;Authenticator&quot;) },</span>
+                        )
+<span class="nc" id="L236">                    }</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                    if (com.chimali.core.common.isDebug) {</span>
+<span class="nc" id="L238">                        NavigationBarItem(</span>
+<span class="nc" id="L239">                            selected = selectedRoute == Fido2Destinations.DEVELOPMENT_ROUTE,</span>
+<span class="nc" id="L240">                            onClick = { selectedRoute = Fido2Destinations.DEVELOPMENT_ROUTE },</span>
+<span class="nc" id="L241">                            icon = { Icon(Icons.Filled.BugReport, contentDescription = &quot;Dev Tools&quot;) },</span>
+<span class="nc" id="L242">                            label = { Text(&quot;Dev Tools&quot;) },</span>
+                        )
+<span class="nc" id="L244">                    }</span>
+<span class="nc" id="L245">                }</span>
+<span class="nc" id="L246">            }</span>
+<span class="nc" id="L247">        },</span>
+<span class="nc" id="L248">    ) { padding -&gt;</span>
+<span class="nc" id="L249">        Box(modifier = Modifier.fillMaxSize().padding(padding)) {</span>
+<span class="nc bnc" id="L250" title="All 4 branches missed.">            when (selectedRoute) {</span>
+<span class="nc" id="L251">                AppDestinations.VAULT_ROUTE -&gt; {</span>
+<span class="nc" id="L252">                    VaultFeatureScreen(onOpenSettings = onOpenSettings)</span>
+                }
+
+<span class="nc" id="L255">                Fido2Destinations.HOME_ROUTE -&gt; {</span>
+<span class="nc" id="L256">                    AuthenticatorFeatureScreen(</span>
+<span class="nc" id="L257">                        onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L258">                        onExternalCeremonyRequest = onExternalCeremonyRequest,</span>
+                    )
+                }
+
+<span class="nc" id="L262">                Fido2Destinations.DEVELOPMENT_ROUTE -&gt; {</span>
+                    com.chimali.fido2.presentation.ui
+<span class="nc" id="L264">                        .DevelopmentToolsScreen()</span>
+                }
+
+<span class="nc" id="L267">                else -&gt; {</span>
+<span class="nc" id="L268">                    AuthenticatorFeatureScreen(</span>
+<span class="nc" id="L269">                        onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L270">                        onExternalCeremonyRequest = onExternalCeremonyRequest,</span>
+                    )
+                }
+            }
+<span class="nc" id="L274">        }</span>
+<span class="nc" id="L275">    }</span>
+<span class="nc" id="L276">}</span>
+
+@Composable
+<span class="nc" id="L279">private fun VaultFeatureScreen(onOpenSettings: () -&gt; Unit) {</span>
+<span class="nc" id="L280">    VaultNavGraph(onOpenSettings = onOpenSettings)</span>
+<span class="nc" id="L281">}</span>
+
+@Composable
+private fun AuthenticatorFeatureScreen(
+    onOpenSettings: () -&gt; Unit,
+    onExternalCeremonyRequest: () -&gt; Unit,
+<span class="nc" id="L287">) {</span>
+<span class="nc" id="L288">    Fido2RegistrationNavGraph(</span>
+<span class="nc" id="L289">        onRegistrationComplete = { },</span>
+<span class="nc" id="L290">        onRegistrationCancelled = { },</span>
+<span class="nc" id="L291">        onAuthenticationComplete = { },</span>
+<span class="nc" id="L292">        onAuthenticationCancelled = { },</span>
+<span class="nc" id="L293">        startDestination = Fido2Destinations.HOME_ROUTE,</span>
+<span class="nc" id="L294">        onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L295">        onExternalCeremonyRequest = onExternalCeremonyRequest,</span>
+    )
+<span class="nc" id="L297">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

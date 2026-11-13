@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="12" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-13T19:29:49" hostname="localhost">
+  <testsuite name="com.chimali.feature.settings.ui.SettingsScreenTest" tests="12" failures="0" errors="0" skipped="0" time="11.044" timestamp="2026-11-13T19:29:49" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="bluetoothTransportOptionsShowSavedAndActiveStateSeparately" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="1.081" />
+    <testcase name="retakeOnboardingButtonInvokesCallback" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="1.009" />
+    <testcase name="loadingTransportSettingsDoNotInventAChoice" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.949" />
+    <testcase name="unavailableProcessChoiceIsNotLabeledActive" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.989" />
+    <testcase name="transportReadFailureKeepsSavedChoiceUnresolvedAndOffersRetry" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.653" />
+    <testcase name="cancelPendingBluetoothChangeInvokesCallback" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.951" />
+    <testcase name="fidoBleSavedChoiceIsSelectedByDefault" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.960" />
+    <testcase name="screenDisplaysEnabledAndDisabledFeatureSelections" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.549" />
+    <testcase name="startingTransportIsNotPresentedAsActive" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.943" />
+    <testcase name="largeTextCanScrollToTransportStatusAndRemainingSettingsActions" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="1.071" />
+    <testcase name="pendingBleSelectionKeepsClassicDisplayedAsActive" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.991" />
+    <testcase name="screenDisplaysBothFeaturesEnabled" classname="com.chimali.feature.settings.ui.SettingsScreenTest" time="0.898" />
+  </testsuite>
+</testsuites>

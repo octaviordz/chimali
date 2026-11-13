@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticationPromptScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">AuthenticationPromptScreen.kt</span></div><h1>AuthenticationPromptScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.biometric.BiometricPrompt
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.AuthenticationEffect
+import com.chimali.fido2.presentation.viewmodel.AuthenticationIntent
+import com.chimali.fido2.presentation.viewmodel.AuthenticationPromptViewModel
+import com.chimali.fido2.presentation.viewmodel.AuthenticationState
+import kotlinx.coroutines.flow.collectLatest
+import org.koin.compose.viewmodel.koinViewModel
+
+/** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
+private fun Context.findFragmentActivity(): FragmentActivity? {
+<span class="nc" id="L65">    var ctx = this</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">    while (ctx is ContextWrapper) {</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (ctx is FragmentActivity) return ctx</span>
+<span class="nc" id="L68">        ctx = ctx.baseContext</span>
+    }
+<span class="nc" id="L70">    return null</span>
+}
+
+/**
+ * T096 — FIDO2 Authentication Prompt Screen.
+ *
+ * Shown when a website requests sign-in with an existing passkey.
+ * Collects user consent then delegates to biometric or PIN.
+ */
+@Composable
+<span class="nc bnc" id="L80" title="All 2 branches missed.">fun AuthenticationPromptScreen(</span>
+    onSuccess: (credentialId: String) -&gt; Unit,
+    onCancel: () -&gt; Unit,
+<span class="nc bnc" id="L83" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">    onOpenSettings: () -&gt; Unit = {},</span>
+<span class="nc" id="L85">    viewModel: AuthenticationPromptViewModel = koinViewModel(),</span>
+<span class="nc bnc" id="L86" title="All 6 branches missed.">) {</span>
+<span class="nc" id="L87">    val state by viewModel.state.collectAsStateWithLifecycle()</span>
+
+<span class="nc" id="L89">    val context = LocalContext.current</span>
+<span class="nc" id="L90">    val activity = context.findFragmentActivity()</span>
+
+<span class="nc" id="L92">    val updatedOnSuccess by rememberUpdatedState(onSuccess)</span>
+<span class="nc" id="L93">    val updatedOnCancel by rememberUpdatedState(onCancel)</span>
+<span class="nc" id="L94">    var activePrompt by remember { mutableStateOf&lt;Pair&lt;Long, BiometricPrompt&gt;?&gt;(null) }</span>
+
+<span class="nc" id="L96">    DisposableEffect(Unit) {</span>
+<span class="nc" id="L97">        onDispose {</span>
+<span class="nc" id="L98">            activePrompt?.second?.cancelAuthentication()</span>
+<span class="nc" id="L99">            activePrompt = null</span>
+<span class="nc" id="L100">        }</span>
+    }
+
+<span class="nc" id="L103">    LaunchedEffect(Unit) {</span>
+<span class="nc" id="L104">        viewModel.effects.collectLatest { effect -&gt;</span>
+<span class="nc" id="L105">            when (effect) {</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                is AuthenticationEffect.NavigateBack -&gt; updatedOnCancel()</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                is AuthenticationEffect.NavigateToSuccess -&gt; updatedOnSuccess(effect.assertion.credentialId)</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                is AuthenticationEffect.CancelSystemPrompt -&gt; {</span>
+<span class="nc bnc" id="L109" title="All 6 branches missed.">                    if (activePrompt?.first == effect.promptId) {</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">                        activePrompt?.second?.cancelAuthentication()</span>
+<span class="nc" id="L111">                        activePrompt = null</span>
+                    }
+                }
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                is AuthenticationEffect.LaunchSystemPrompt -&gt; {</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                    activity?.let { act -&gt;</span>
+<span class="nc" id="L116">                        val executor = ContextCompat.getMainExecutor(act)</span>
+<span class="nc" id="L117">                        val promptInfo =</span>
+                            BiometricPrompt.PromptInfo
+<span class="nc" id="L119">                                .Builder()</span>
+<span class="nc" id="L120">                                .setTitle(effect.promptTitle)</span>
+<span class="nc" id="L121">                                .setSubtitle(effect.promptSubtitle)</span>
+<span class="nc" id="L122">                                .allowFidoUserVerification()</span>
+<span class="nc" id="L123">                                .build()</span>
+
+<span class="nc" id="L125">                        val biometricPrompt =</span>
+<span class="nc" id="L126">                            BiometricPrompt(</span>
+<span class="nc" id="L127">                                act,</span>
+<span class="nc" id="L128">                                executor,</span>
+<span class="nc" id="L129">                                object : BiometricPrompt.AuthenticationCallback() {</span>
+                                    override fun onAuthenticationError(
+                                        errorCode: Int,
+                                        errString: CharSequence,
+                                    ) {
+<span class="nc" id="L134">                                        super.onAuthenticationError(errorCode, errString)</span>
+                                        // Only treat cancel as an explicit failure vs error
+<span class="nc" id="L136">                                        val isCancel =</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                                            errorCode == BiometricPrompt.ERROR_CANCELED ||</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                                                errorCode == BiometricPrompt.ERROR_USER_CANCELED</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                                        if (isCancel) {</span>
+<span class="nc bnc" id="L140" title="All 6 branches missed.">                                            if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L141">                                            viewModel.handleIntent(</span>
+<span class="nc" id="L142">                                                AuthenticationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L143">                                                    effect.promptId,</span>
+<span class="nc" id="L144">                                                    &quot;Verification cancelled by user&quot;,</span>
+                                                ),
+                                            )
+                                        } else {
+<span class="nc bnc" id="L148" title="All 6 branches missed.">                                            if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L149">                                            viewModel.handleIntent(</span>
+<span class="nc" id="L150">                                                AuthenticationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L151">                                                    effect.promptId,</span>
+<span class="nc" id="L152">                                                    errString.toString(),</span>
+                                                ),
+                                            )
+                                        }
+<span class="nc" id="L156">                                    }</span>
+
+                                    override fun onAuthenticationSucceeded(
+                                        result: BiometricPrompt.AuthenticationResult,
+                                    ) {
+<span class="nc" id="L161">                                        super.onAuthenticationSucceeded(result)</span>
+<span class="nc bnc" id="L162" title="All 6 branches missed.">                                        if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L163">                                        viewModel.handleIntent(</span>
+<span class="nc" id="L164">                                            AuthenticationIntent.UserVerificationSuccess(effect.promptId),</span>
+                                        )
+<span class="nc" id="L166">                                    }</span>
+                                },
+                            )
+<span class="nc" id="L169">                        activePrompt = effect.promptId to biometricPrompt</span>
+<span class="nc" id="L170">                        biometricPrompt.authenticate(promptInfo)</span>
+<span class="nc" id="L171">                    } ?: run {</span>
+<span class="nc" id="L172">                        viewModel.handleIntent(</span>
+<span class="nc" id="L173">                            AuthenticationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L174">                                effect.promptId,</span>
+<span class="nc" id="L175">                                &quot;Activity context required for biometric prompt&quot;,</span>
+                            ),
+                        )
+<span class="nc" id="L178">                    }</span>
+                }
+<span class="nc bnc" id="L180" title="All 2 branches missed.">                is AuthenticationEffect.ShowSnackbar -&gt; { /* handled via state */ }</span>
+            }
+<span class="nc" id="L182">        }</span>
+<span class="nc" id="L183">    }</span>
+
+<span class="nc" id="L185">    AuthenticationPromptContent(</span>
+<span class="nc" id="L186">        modifier = modifier,</span>
+<span class="nc" id="L187">        state = state,</span>
+<span class="nc" id="L188">        onConfirm = { viewModel.handleIntent(AuthenticationIntent.ConfirmAuthentication) },</span>
+<span class="nc" id="L189">        onCancel = { viewModel.handleIntent(AuthenticationIntent.CancelAuthentication) },</span>
+<span class="nc" id="L190">        onSelectCredential = { viewModel.handleIntent(AuthenticationIntent.SelectCredential(it)) },</span>
+<span class="nc" id="L191">        onRetry = { viewModel.handleIntent(AuthenticationIntent.Retry) },</span>
+<span class="nc" id="L192">        onOpenSettings = onOpenSettings,</span>
+    )
+<span class="nc" id="L194">}</span>
+
+@Composable
+internal fun AuthenticationPromptContent(
+    state: AuthenticationState,
+    onConfirm: () -&gt; Unit,
+    onCancel: () -&gt; Unit,
+    onSelectCredential: (PasskeyCredential) -&gt; Unit,
+    onRetry: () -&gt; Unit,
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="pc" id="L204">    onOpenSettings: () -&gt; Unit = {},</span>
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L206">    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {</span>
+<span class="fc" id="L207">        AnimatedContent(</span>
+<span class="fc" id="L208">            targetState = state,</span>
+<span class="fc" id="L209">            transitionSpec = { fadeIn() togetherWith fadeOut() },</span>
+<span class="fc" id="L210">            label = &quot;auth-state&quot;,</span>
+<span class="fc" id="L211">        ) { currentState -&gt;</span>
+<span class="pc" id="L212">            when (currentState) {</span>
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">                is AuthenticationState.Idle -&gt;</span>
+<span class="nc" id="L214">                    Box(</span>
+<span class="nc" id="L215">                        Modifier.fillMaxSize(),</span>
+<span class="nc" id="L216">                        contentAlignment = Alignment.Center,</span>
+<span class="nc" id="L217">                    ) { CircularProgressIndicator() }</span>
+
+<span class="pc bpc" id="L219" title="1 of 2 branches missed.">                is AuthenticationState.AwaitingUserConsent -&gt; {</span>
+<span class="fc" id="L220">                    Column(</span>
+<span class="fc" id="L221">                        modifier = Modifier.fillMaxSize().padding(24.dp),</span>
+<span class="fc" id="L222">                        verticalArrangement = Arrangement.Center,</span>
+<span class="fc" id="L223">                        horizontalAlignment = Alignment.CenterHorizontally,</span>
+                    ) {
+<span class="fc" id="L225">                        Surface(</span>
+<span class="fc" id="L226">                            shape = CircleShape,</span>
+<span class="fc" id="L227">                            color = MaterialTheme.colorScheme.primaryContainer,</span>
+<span class="fc" id="L228">                            modifier = Modifier.size(96.dp),</span>
+<span class="fc" id="L229">                        ) {</span>
+<span class="fc" id="L230">                            Box(contentAlignment = Alignment.Center) {</span>
+<span class="fc" id="L231">                                Icon(</span>
+<span class="fc" id="L232">                                    Icons.Filled.Lock,</span>
+<span class="fc" id="L233">                                    contentDescription = &quot;Passkey&quot;,</span>
+<span class="fc" id="L234">                                    modifier = Modifier.size(48.dp),</span>
+<span class="fc" id="L235">                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,</span>
+                                )
+<span class="fc" id="L237">                            }</span>
+<span class="fc" id="L238">                        }</span>
+<span class="fc" id="L239">                        Spacer(Modifier.height(24.dp))</span>
+<span class="fc" id="L240">                        Text(</span>
+<span class="fc" id="L241">                            &quot;Sign in with Passkey&quot;,</span>
+<span class="fc" id="L242">                            style = MaterialTheme.typography.headlineMedium,</span>
+<span class="fc" id="L243">                            fontWeight = FontWeight.Bold,</span>
+                            modifier =
+<span class="fc" id="L245">                                Modifier.semantics {</span>
+<span class="fc" id="L246">                                    heading()</span>
+<span class="fc" id="L247">                                },</span>
+                        )
+<span class="fc" id="L249">                        Spacer(Modifier.height(8.dp))</span>
+<span class="fc" id="L250">                        Card(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }) {</span>
+<span class="fc" id="L251">                            Column(modifier = Modifier.padding(16.dp)) {</span>
+<span class="fc" id="L252">                                Text(</span>
+<span class="fc" id="L253">                                    currentState.rpId.toBoundaryString(),</span>
+<span class="fc" id="L254">                                    style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L255">                                    fontWeight = FontWeight.SemiBold,</span>
+                                )
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">                                if (currentState.credentialCount &gt; 1) {</span>
+<span class="nc" id="L258">                                    Text(</span>
+<span class="nc" id="L259">                                        &quot;${currentState.credentialCount} passkeys available&quot;,</span>
+<span class="nc" id="L260">                                        style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L261">                                        color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                                    )
+<span class="fc" id="L263">                                }</span>
+<span class="fc" id="L264">                            }</span>
+<span class="fc" id="L265">                        }</span>
+<span class="fc" id="L266">                        Spacer(Modifier.height(24.dp))</span>
+<span class="fc" id="L267">                        ChimaliButton(</span>
+<span class="fc" id="L268">                            onClick = onConfirm,</span>
+                            modifier =
+<span class="fc" id="L270">                                Modifier</span>
+<span class="fc" id="L271">                                    .fillMaxWidth()</span>
+<span class="fc" id="L272">                                    .semantics { contentDescription = &quot;Confirm authentication button&quot; },</span>
+<span class="fc" id="L273">                        ) {</span>
+<span class="fc" id="L274">                            Text(&quot;Sign in&quot;)</span>
+<span class="fc" id="L275">                        }</span>
+<span class="fc" id="L276">                        Spacer(Modifier.height(8.dp))</span>
+<span class="fc" id="L277">                        ChimaliOutlinedButton(</span>
+<span class="fc" id="L278">                            onClick = onCancel,</span>
+                            modifier =
+<span class="fc" id="L280">                                Modifier</span>
+<span class="fc" id="L281">                                    .fillMaxWidth()</span>
+<span class="fc" id="L282">                                    .semantics { contentDescription = &quot;Cancel authentication button&quot; },</span>
+<span class="fc" id="L283">                        ) {</span>
+<span class="fc" id="L284">                            Text(&quot;Cancel&quot;)</span>
+<span class="fc" id="L285">                        }</span>
+<span class="fc" id="L286">                        TextButton(</span>
+<span class="fc" id="L287">                            onClick = onOpenSettings,</span>
+                            modifier =
+<span class="fc" id="L289">                                Modifier</span>
+<span class="fc" id="L290">                                    .fillMaxWidth()</span>
+<span class="fc" id="L291">                                    .semantics { contentDescription = &quot;Open transport settings&quot; },</span>
+<span class="fc" id="L292">                        ) {</span>
+<span class="fc" id="L293">                            Text(&quot;Transport settings&quot;)</span>
+<span class="fc" id="L294">                        }</span>
+<span class="fc" id="L295">                    }</span>
+                }
+
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                is AuthenticationState.SelectingCredential -&gt; {</span>
+<span class="nc" id="L299">                    CredentialSelectionDialog(</span>
+<span class="nc" id="L300">                        credentials = currentState.credentials,</span>
+<span class="nc" id="L301">                        onSelect = onSelectCredential,</span>
+<span class="nc" id="L302">                        onDismiss = onCancel,</span>
+                    )
+                }
+
+<span class="nc bnc" id="L306" title="All 2 branches missed.">                is AuthenticationState.AwaitingUserVerification -&gt; {</span>
+<span class="nc" id="L307">                    Box(</span>
+                        modifier =
+<span class="nc" id="L309">                            Modifier</span>
+<span class="nc" id="L310">                                .fillMaxSize()</span>
+<span class="nc" id="L311">                                .semantics { contentDescription = &quot;Awaiting verification&quot; },</span>
+<span class="nc" id="L312">                        contentAlignment = Alignment.Center,</span>
+                    ) {
+<span class="nc" id="L314">                        Column(</span>
+<span class="nc" id="L315">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L316">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+                        ) {
+<span class="nc" id="L318">                            Icon(</span>
+<span class="nc" id="L319">                                Icons.Filled.Lock,</span>
+<span class="nc" id="L320">                                contentDescription = &quot;Verifying&quot;,</span>
+<span class="nc" id="L321">                                modifier = Modifier.size(64.dp),</span>
+<span class="nc" id="L322">                                tint = MaterialTheme.colorScheme.primary,</span>
+                            )
+<span class="nc" id="L324">                            Text(&quot;Verifying identity…&quot;, style = MaterialTheme.typography.titleMedium)</span>
+<span class="nc" id="L325">                        }</span>
+<span class="nc" id="L326">                    }</span>
+                }
+
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                is AuthenticationState.Processing -&gt;</span>
+<span class="nc" id="L330">                    Box(</span>
+                        modifier =
+<span class="nc" id="L332">                            Modifier</span>
+<span class="nc" id="L333">                                .fillMaxSize()</span>
+<span class="nc" id="L334">                                .semantics { contentDescription = &quot;Authentication in progress&quot; },</span>
+<span class="nc" id="L335">                        contentAlignment = Alignment.Center,</span>
+<span class="nc" id="L336">                    ) { AuthenticationProgressIndicator() }</span>
+
+<span class="nc bnc" id="L338" title="All 2 branches missed.">                is AuthenticationState.Success -&gt;</span>
+<span class="nc" id="L339">                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L340">                        Column(</span>
+<span class="nc" id="L341">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L342">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+                            modifier =
+<span class="nc" id="L344">                                Modifier</span>
+<span class="nc" id="L345">                                    .padding(32.dp)</span>
+<span class="nc" id="L346">                                    .semantics { liveRegion = LiveRegionMode.Polite },</span>
+                        ) {
+<span class="nc" id="L348">                            Text(</span>
+<span class="nc" id="L349">                                &quot;Signed in!&quot;,</span>
+<span class="nc" id="L350">                                style = MaterialTheme.typography.headlineMedium,</span>
+<span class="nc" id="L351">                                fontWeight = FontWeight.Bold,</span>
+                                modifier =
+<span class="nc" id="L353">                                    Modifier.semantics {</span>
+<span class="nc" id="L354">                                        heading()</span>
+<span class="nc" id="L355">                                    },</span>
+                            )
+<span class="nc" id="L357">                            Text(</span>
+<span class="nc" id="L358">                                &quot;Authentication successful.&quot;,</span>
+<span class="nc" id="L359">                                textAlign = TextAlign.Center,</span>
+<span class="nc" id="L360">                                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                            )
+<span class="nc" id="L362">                        }</span>
+<span class="nc" id="L363">                    }</span>
+
+<span class="nc bnc" id="L365" title="All 2 branches missed.">                is AuthenticationState.Error -&gt;</span>
+<span class="nc" id="L366">                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L367">                        Column(</span>
+<span class="nc" id="L368">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L369">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+                            modifier =
+<span class="nc" id="L371">                                Modifier</span>
+<span class="nc" id="L372">                                    .padding(32.dp)</span>
+<span class="nc" id="L373">                                    .semantics { liveRegion = LiveRegionMode.Polite },</span>
+                        ) {
+<span class="nc" id="L375">                            Text(</span>
+<span class="nc" id="L376">                                &quot;Authentication failed&quot;,</span>
+<span class="nc" id="L377">                                style = MaterialTheme.typography.titleLarge,</span>
+<span class="nc" id="L378">                                color = MaterialTheme.colorScheme.error,</span>
+                                modifier =
+<span class="nc" id="L380">                                    Modifier.semantics {</span>
+<span class="nc" id="L381">                                        heading()</span>
+<span class="nc" id="L382">                                    },</span>
+                            )
+<span class="nc" id="L384">                            Text(currentState.message, textAlign = TextAlign.Center)</span>
+<span class="nc" id="L385">                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {</span>
+<span class="pc" id="L386">                                ChimaliOutlinedButton(onClick = onCancel) { Text(&quot;Cancel&quot;) }</span>
+<span class="pc bnc" id="L387" title="All 2 branches missed.">                                if (currentState.isRetryable) ChimaliButton(onClick = onRetry) { Text(&quot;Try again&quot;) }</span>
+<span class="nc" id="L388">                            }</span>
+<span class="nc" id="L389">                        }</span>
+<span class="nc" id="L390">                    }</span>
+
+<span class="nc bnc" id="L392" title="All 2 branches missed.">                is AuthenticationState.Cancelled -&gt; { /* navigate away */ }</span>
+<span class="nc" id="L393">            }</span>
+<span class="fc" id="L394">        }</span>
+<span class="fc" id="L395">    }</span>
+<span class="fc" id="L396">}</span>
+
+// ── T098 — Authentication Progress Indicator ──────────────────────────────────
+
+private const val PROGRESS_WIDTH_FRACTION = 0.6f
+
+@Composable
+fun AuthenticationProgressIndicator(
+<span class="nc bnc" id="L404" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc" id="L405">    message: String = &quot;Signing in…&quot;,</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">) {</span>
+<span class="nc" id="L407">    Column(</span>
+<span class="nc" id="L408">        horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L409">        verticalArrangement = Arrangement.spacedBy(20.dp),</span>
+<span class="nc" id="L410">        modifier = modifier.padding(32.dp).semantics { contentDescription = &quot;Authentication in progress&quot; },</span>
+    ) {
+<span class="nc" id="L412">        CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)</span>
+<span class="nc" id="L413">        Text(</span>
+<span class="nc" id="L414">            message,</span>
+<span class="nc" id="L415">            style = MaterialTheme.typography.bodyLarge,</span>
+<span class="nc" id="L416">            fontWeight = FontWeight.Medium,</span>
+<span class="nc" id="L417">            textAlign = TextAlign.Center,</span>
+        )
+<span class="nc" id="L419">        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(PROGRESS_WIDTH_FRACTION))</span>
+<span class="nc" id="L420">    }</span>
+<span class="nc" id="L421">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

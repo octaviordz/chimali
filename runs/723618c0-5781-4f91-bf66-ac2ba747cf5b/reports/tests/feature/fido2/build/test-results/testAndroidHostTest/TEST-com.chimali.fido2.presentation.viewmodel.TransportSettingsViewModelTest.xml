@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:57.502Z" hostname="LOQ15IRX10-3" time="0.016">
+  <properties/>
+  <testcase name="saved choice changes only after a successful write and active process choice stays frozen()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.003"/>
+  <testcase name="invalid saved choice stays unresolved and cannot be overwritten before retry()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.002"/>
+  <testcase name="saving a different mode does not disconnect either in-flight ceremony()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.005"/>
+  <testcase name="cancel pending selection restores active choice and no-op selection does not write()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.002"/>
+  <testcase name="selection is blocked until process snapshot resolves and allowed afterward()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.001"/>
+  <testcase name="read failure leaves choice unresolved and allows retry()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.001"/>
+  <testcase name="classic process keeps its frozen handle while BLE choice awaits restart()" classname="com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

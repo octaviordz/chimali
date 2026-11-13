@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HdkP256.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.hdkeys</a> &gt; <span class="el_source">HdkP256.kt</span></div><h1>HdkP256.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.hdkeys
+
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.HdkChild
+import com.chimali.core.security.api.HdkManager
+import java.math.BigInteger
+import java.security.MessageDigest
+
+/** Implements Chimali's local P-256 child relation from the byte-only HDK contract. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+object HdkP256 : HdkManager {
+    private const val LOCAL_SECRET_LENGTH = 32
+
+    /** Owned low-level result used while signing; callers erase factor and child scalar.
+     * @property childPublicKey Owned uncompressed SEC1 P-256 point (65 bytes); public and not erased.
+     * @property factor Owned 32-byte non-zero derivation factor; caller must erase after signing.
+     * @property childPrivateScalar Owned 32-byte big-endian child scalar; caller must erase after signing.
+     */
+<span class="fc" id="L19">    class Result(</span>
+<span class="fc" id="L20">        val childPublicKey: ByteArray,</span>
+<span class="fc" id="L21">        val factor: ByteArray,</span>
+<span class="fc" id="L22">        val childPrivateScalar: ByteArray,</span>
+    ) {
+        /** Erases the owned factor and child scalar; [childPublicKey] is public and remains available. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun eraseSecrets() {
+<span class="nc" id="L27">            factor.fill(0)</span>
+<span class="nc" id="L28">            childPrivateScalar.fill(0)</span>
+<span class="nc" id="L29">        }</span>
+    }
+
+    /**
+     * Derives a child pair and verifies that the borrowed parent scalar belongs to the supplied
+     * point. Child factors use the contract's non-zero `(digest mod (n-1))+1` mapping, so zero
+     * child scalars are algebraically impossible; no modulo repair or alternate validation path is
+     * needed. The JVM's temporary [BigInteger] values cannot be erased and remain operation-local.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun deriveChild(
+        localSecret: ByteArray,
+        parentPrivateScalar: ByteArray,
+        parentPublicKey: ByteArray,
+        index: UInt,
+    ): Result {
+<span class="fc bfc" id="L45" title="All 4 branches covered.">        require(localSecret.size == LOCAL_SECRET_LENGTH) { &quot;Local credential secret must be 32 bytes&quot; }</span>
+<span class="fc" id="L46">        val parentPoint = P256Group.deserializeElement(parentPublicKey)</span>
+<span class="fc" id="L47">        val parentScalar = P256Group.deserializeScalar(parentPrivateScalar)</span>
+<span class="fc" id="L48">        val expectedParentPoint = P256Group.scalarBaseMult(parentScalar)</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        require(expectedParentPoint == parentPoint) { &quot;Parent private and public keys do not correspond&quot; }</span>
+
+<span class="fc" id="L51">        var digest: ByteArray? = null</span>
+<span class="fc" id="L52">        var factorBytes: ByteArray? = null</span>
+<span class="fc" id="L53">        var childPrivate: ByteArray? = null</span>
+<span class="fc" id="L54">        val context = ByteArray(P256Group.ELEMENT_UNCOMPRESSED_LENGTH + UINT_BYTES)</span>
+<span class="fc" id="L55">        val preimage = ByteArray(localSecret.size + context.size)</span>
+<span class="fc" id="L56">        try {</span>
+<span class="fc" id="L57">            parentPublicKey.copyInto(context)</span>
+<span class="fc" id="L58">            writeUInt32(index, context, P256Group.ELEMENT_UNCOMPRESSED_LENGTH)</span>
+<span class="fc" id="L59">            localSecret.copyInto(preimage)</span>
+<span class="fc" id="L60">            context.copyInto(preimage, localSecret.size)</span>
+<span class="fc" id="L61">            digest = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(preimage)</span>
+<span class="fc" id="L62">            val factor = BigInteger(1, digest).mod(P256Group.ORDER - BigInteger.ONE).add(BigInteger.ONE)</span>
+<span class="fc" id="L63">            factorBytes = P256Group.serializeScalar(factor)</span>
+<span class="fc" id="L64">            val childPoint = P256Group.scalarMult(parentPoint, factor)</span>
+<span class="fc" id="L65">            childPrivate = P256Group.serializeScalar(parentScalar.multiply(factor).mod(P256Group.ORDER))</span>
+<span class="fc" id="L66">            val publicBytes = P256Group.serializeElement(childPoint)</span>
+<span class="fc" id="L67">            val result = Result(publicBytes, factorBytes, childPrivate)</span>
+<span class="fc" id="L68">            factorBytes = null</span>
+<span class="fc" id="L69">            childPrivate = null</span>
+<span class="fc" id="L70">            return result</span>
+        } finally {
+<span class="pc" id="L72">            context.fill(0)</span>
+<span class="pc" id="L73">            preimage.fill(0)</span>
+<span class="pc bpc" id="L74" title="3 of 4 branches missed.">            digest?.fill(0)</span>
+<span class="pc bnc" id="L75" title="All 2 branches missed.">            factorBytes?.fill(0)</span>
+<span class="pc bnc" id="L76" title="All 2 branches missed.">            childPrivate?.fill(0)</span>
+        }
+    }
+
+    /** Derives the public child from borrowed secret/public inputs and returns its caller-owned factor. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun deriveChild(
+        localSecret: ByteArray,
+        parentPublicKey: ByteArray,
+        index: UInt,
+    ): HdkChild {
+<span class="fc bfc" id="L87" title="All 4 branches covered.">        require(localSecret.size == LOCAL_SECRET_LENGTH) { &quot;Local credential secret must be 32 bytes&quot; }</span>
+<span class="fc" id="L88">        val parentPoint = P256Group.deserializeElement(parentPublicKey)</span>
+<span class="fc" id="L89">        var digest: ByteArray? = null</span>
+<span class="fc" id="L90">        var factorBytes: ByteArray? = null</span>
+<span class="fc" id="L91">        val context = ByteArray(P256Group.ELEMENT_UNCOMPRESSED_LENGTH + UINT_BYTES)</span>
+<span class="fc" id="L92">        val preimage = ByteArray(localSecret.size + context.size)</span>
+<span class="fc" id="L93">        try {</span>
+<span class="fc" id="L94">            parentPublicKey.copyInto(context)</span>
+<span class="fc" id="L95">            writeUInt32(index, context, P256Group.ELEMENT_UNCOMPRESSED_LENGTH)</span>
+<span class="fc" id="L96">            localSecret.copyInto(preimage)</span>
+<span class="fc" id="L97">            context.copyInto(preimage, localSecret.size)</span>
+<span class="fc" id="L98">            digest = MessageDigest.getInstance(&quot;SHA-256&quot;).digest(preimage)</span>
+<span class="fc" id="L99">            val factor = BigInteger(1, digest).mod(P256Group.ORDER - BigInteger.ONE).add(BigInteger.ONE)</span>
+<span class="fc" id="L100">            factorBytes = P256Group.serializeScalar(factor)</span>
+<span class="fc" id="L101">            val childPublicKey = P256Group.serializeElement(P256Group.scalarMult(parentPoint, factor))</span>
+<span class="fc" id="L102">            val child = HdkChild(childPublicKey, factorBytes)</span>
+<span class="fc" id="L103">            factorBytes = null</span>
+<span class="fc" id="L104">            return child</span>
+        } finally {
+<span class="pc" id="L106">            context.fill(0)</span>
+<span class="pc" id="L107">            preimage.fill(0)</span>
+<span class="pc bpc" id="L108" title="3 of 4 branches missed.">            digest?.fill(0)</span>
+<span class="pc bnc" id="L109" title="All 2 branches missed.">            factorBytes?.fill(0)</span>
+        }
+    }
+
+    /** Combines borrowed valid parent scalar and factor inputs into a new child scalar. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun deriveChildPrivateKey(
+        parentPrivateKey: ByteArray,
+        factor: ByteArray,
+    ): ByteArray {
+<span class="fc" id="L119">        val parentScalar = P256Group.deserializeScalar(parentPrivateKey)</span>
+<span class="fc" id="L120">        val factorScalar = P256Group.deserializeScalar(factor)</span>
+<span class="fc" id="L121">        return P256Group.serializeScalar(parentScalar.multiply(factorScalar).mod(P256Group.ORDER))</span>
+    }
+
+    private fun writeUInt32(
+        value: UInt,
+        destination: ByteArray,
+        offset: Int,
+    ) {
+<span class="fc" id="L129">        destination[offset] = (value shr 24).toByte()</span>
+<span class="fc" id="L130">        destination[offset + 1] = (value shr 16).toByte()</span>
+<span class="fc" id="L131">        destination[offset + 2] = (value shr 8).toByte()</span>
+<span class="fc" id="L132">        destination[offset + 3] = value.toByte()</span>
+<span class="fc" id="L133">    }</span>
+
+    private const val UINT_BYTES = 4
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DevToolsViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.viewmodel</a> &gt; <span class="el_source">DevToolsViewModel.kt</span></div><h1>DevToolsViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
+import com.chimali.core.clipboard.ClipboardManagerService
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.security.api.ImportMnemonicResult
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import java.security.GeneralSecurityException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.koin.android.annotation.KoinViewModel
+
+private const val MNEMONIC_WORD_COUNT = 24
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+<span class="fc" id="L32">data class DevToolsUiState(</span>
+<span class="fc" id="L33">    val mnemonicWords: CharArray? = null,</span>
+<span class="fc" id="L34">    val isMnemonicVisible: Boolean = false,</span>
+<span class="fc" id="L35">    val isLoading: Boolean = false,</span>
+<span class="fc" id="L36">    val error: String? = null,</span>
+<span class="fc" id="L37">    val isRecoverSuccessful: Boolean = false,</span>
+<span class="fc" id="L38">)</span>
+
+// ---------------------------------------------------------------------------
+// Intents
+// ---------------------------------------------------------------------------
+
+sealed interface DevToolsIntent {
+    /** Load the mnemonic after biometric authentication succeeds. */
+    data object LoadMnemonic : DevToolsIntent
+
+    /** Clear the mnemonic from state (e.g. on navigate away). */
+    data object ClearMnemonic : DevToolsIntent
+
+    /** Dismiss any error message. */
+    data object DismissError : DevToolsIntent
+
+    /** Support copying the mnemonic words to the clipboard securely. */
+    data object CopyToClipboard : DevToolsIntent
+
+    /** Attempt to re-ingest a mnemonic (e.g. from QR scan or manual entry). */
+<span class="fc" id="L58">    data class RecoverFromSeed(</span>
+        /** Mutable mnemonic ownership transfers to the ViewModel and is erased on every exit. */
+<span class="fc" id="L60">        val mnemonic: CharArray,</span>
+    ) : DevToolsIntent
+
+    /**
+     * T148c — Notifies the ViewModel that Android BiometricPrompt reported an error.
+     *
+     * Specifically handles [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT]
+     * and [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT].
+     * On lockout the ViewModel must clear any sensitive state from memory immediately.
+     */
+<span class="fc" id="L70">    data class BiometricError(</span>
+<span class="fc" id="L71">        val errorCode: Int,</span>
+<span class="fc" id="L72">        val message: String,</span>
+    ) : DevToolsIntent
+}
+
+// ---------------------------------------------------------------------------
+// One-time Effects
+// ---------------------------------------------------------------------------
+
+sealed interface DevToolsEffect {
+    /** Prompt the caller to show the system biometric dialog before loading. */
+    data object RequestBiometric : DevToolsEffect
+
+<span class="fc" id="L84">    data class ShowSnackbar(</span>
+<span class="pc" id="L85">        val message: String,</span>
+    ) : DevToolsEffect
+}
+
+// ---------------------------------------------------------------------------
+// ViewModel
+// ---------------------------------------------------------------------------
+
+/**
+ * T146a — MVI ViewModel for the Dev Tools mnemonic export/recovery flows.
+ *
+ * **Security note**: the ViewModel owns the revealed mnemonic `CharArray`. The UI clears it
+ * through [DevToolsIntent.ClearMnemonic] when hidden or disposed. Immutable copies are limited
+ * to the explicit platform rendering/clipboard boundary.
+ */
+<span class="fc" id="L100">@KoinViewModel</span>
+<span class="fc" id="L101">class DevToolsViewModel(</span>
+<span class="fc" id="L102">    private val masterSeedProvider: MasterSeedProvider,</span>
+<span class="fc" id="L103">    private val clipboardManagerService: ClipboardManagerService,</span>
+) : ViewModel() {
+<span class="fc" id="L105">    private val _state = MutableStateFlow(DevToolsUiState())</span>
+<span class="fc" id="L106">    val state: StateFlow&lt;DevToolsUiState&gt; = _state.asStateFlow()</span>
+
+<span class="fc" id="L108">    private val _effects = Channel&lt;DevToolsEffect&gt;(Channel.BUFFERED)</span>
+<span class="fc" id="L109">    val effects: Flow&lt;DevToolsEffect&gt; = _effects.receiveAsFlow()</span>
+
+    private var mnemonicLoadJob: Job? = null
+    private var mnemonicImportJob: Job? = null
+    private var mnemonicImportBuffer: CharArray? = null
+    private var clipboardCopyJob: Job? = null
+    private var mnemonicLoadGeneration: Long = 0
+    private var mnemonicImportGeneration: Long = 0
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun onIntent(intent: DevToolsIntent) {
+<span class="fc" id="L120">        when (intent) {</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">            is DevToolsIntent.LoadMnemonic -&gt; loadMnemonic()</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            is DevToolsIntent.ClearMnemonic -&gt; clearMnemonic()</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">            is DevToolsIntent.DismissError -&gt; _state.update { it.copy(error = null) }</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">            is DevToolsIntent.RecoverFromSeed -&gt; recoverFromSeed(intent.mnemonic)</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            is DevToolsIntent.CopyToClipboard -&gt; {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                _state.value.mnemonicWords?.let { words -&gt;</span>
+<span class="fc" id="L127">                    val text = String(words)</span>
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">                    clipboardCopyJob?.cancel()</span>
+<span class="fc" id="L129">                    clipboardCopyJob =</span>
+<span class="fc" id="L130">                        viewModelScope.launch {</span>
+<span class="fc" id="L131">                            clipboardManagerService.copySensitiveData(&quot;Chimali Master Seed&quot;, text)</span>
+<span class="fc" id="L132">                            _effects.send(DevToolsEffect.ShowSnackbar(&quot;Mnemonic copied safely. It will clear in 60s.&quot;))</span>
+<span class="fc" id="L133">                        }</span>
+<span class="fc" id="L134">                }</span>
+            }
+<span class="fc" id="L136">            is DevToolsIntent.BiometricError -&gt; handleBiometricError(intent.errorCode, intent.message)</span>
+        }
+<span class="fc" id="L138">    }</span>
+
+    /**
+     * T148c — Handles biometric authentication errors from the OS, including lockout
+     * ([android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT] and
+     * [android.hardware.biometrics.BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT]).
+     *
+     * Clears mnemonic from state immediately regardless of error code. No retry is attempted.
+     */
+
+    private fun handleBiometricError(
+        errorCode: Int,
+        message: String,
+    ) {
+<span class="fc" id="L152">        cancelMnemonicReveal()</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">        clipboardCopyJob?.cancel()</span>
+<span class="fc" id="L154">        clipboardCopyJob = null</span>
+<span class="fc" id="L155">        eraseRevealedMnemonic()</span>
+<span class="fc" id="L156">        Logger.w { &quot;Biometric error received: code=$errorCode&quot; }</span>
+<span class="fc" id="L157">        _state.update {</span>
+<span class="fc" id="L158">            it.copy(</span>
+<span class="fc" id="L159">                mnemonicWords = null,</span>
+<span class="fc" id="L160">                isMnemonicVisible = false,</span>
+<span class="fc" id="L161">                isLoading = false,</span>
+<span class="fc" id="L162">                error = message,</span>
+<span class="fc" id="L163">            )</span>
+        }
+<span class="fc" id="L165">    }</span>
+
+    /** Called from UI after biometric succeeds to show the mnemonic. */
+
+    private fun loadMnemonic() {
+<span class="fc" id="L170">        val generation = ++mnemonicLoadGeneration</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        mnemonicLoadJob?.cancel()</span>
+<span class="fc" id="L172">        eraseRevealedMnemonic()</span>
+<span class="fc" id="L173">        _state.update { it.copy(isLoading = true, error = null) }</span>
+<span class="fc" id="L174">        mnemonicLoadJob =</span>
+<span class="fc" id="L175">            viewModelScope.launch {</span>
+<span class="fc" id="L176">                var ownedWords: CharArray? = null</span>
+<span class="fc" id="L177">                var transferred = false</span>
+<span class="fc" id="L178">                try {</span>
+<span class="fc" id="L179">                    masterSeedProvider.withSessionOwner(</span>
+<span class="fc" id="L180">                        initialize = false,</span>
+<span class="fc" id="L181">                        ownerKind = MasterSeedOwnerKind.FOREGROUND,</span>
+<span class="fc" id="L182">                    ) { _ -&gt;</span>
+<span class="fc" id="L183">                        ownedWords = masterSeedProvider.getMnemonic()</span>
+<span class="fc" id="L184">                        currentCoroutineContext().ensureActive()</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">                        if (generation != mnemonicLoadGeneration) return@withSessionOwner</span>
+<span class="fc" id="L186">                        val words = ownedWords</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                        if (words != null) {</span>
+<span class="fc" id="L188">                            _state.update {</span>
+<span class="fc" id="L189">                                it.copy(mnemonicWords = words, isMnemonicVisible = true, isLoading = false)</span>
+                            }
+<span class="fc" id="L191">                            transferred = true</span>
+                            // Keep the foreground owner for the entire reveal lifetime. Hide,
+                            // replacement, disposal or a provider generation fence cancels this job.
+<span class="pc" id="L194">                            kotlinx.coroutines.awaitCancellation()</span>
+                        } else {
+<span class="fc" id="L196">                            _state.update {</span>
+<span class="fc" id="L197">                                it.copy(</span>
+<span class="fc" id="L198">                                    mnemonicWords = null,</span>
+<span class="fc" id="L199">                                    isMnemonicVisible = false,</span>
+<span class="fc" id="L200">                                    isLoading = false,</span>
+<span class="fc" id="L201">                                    error = &quot;Master seed not initialized. Launch the authenticator first.&quot;,</span>
+<span class="fc" id="L202">                                )</span>
+                            }
+                        }
+<span class="fc" id="L205">                    }</span>
+                } finally {
+<span class="fc bfc" id="L207" title="All 2 branches covered.">                    if (!transferred) {</span>
+<span class="pc bpc" id="L208" title="1 of 2 branches missed.">                        ownedWords?.fill('\u0000')</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">                    } else if (!currentCoroutineContext().isActive) {</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                        ownedWords?.fill('\u0000')</span>
+<span class="fc" id="L211">                        _state.update { it.copy(mnemonicWords = null, isMnemonicVisible = false, isLoading = false) }</span>
+                    }
+<span class="fc bfc" id="L213" title="All 2 branches covered.">                    if (generation == mnemonicLoadGeneration) _state.update { it.copy(isLoading = false) }</span>
+                }
+<span class="fc" id="L215">            }</span>
+<span class="fc" id="L216">    }</span>
+
+    private fun clearMnemonic() {
+<span class="fc" id="L219">        cancelMnemonicReveal()</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        clipboardCopyJob?.cancel()</span>
+<span class="fc" id="L221">        clipboardCopyJob = null</span>
+<span class="fc" id="L222">        eraseRevealedMnemonic()</span>
+<span class="fc" id="L223">        _state.update {</span>
+<span class="fc" id="L224">            it.copy(</span>
+<span class="fc" id="L225">                mnemonicWords = null,</span>
+<span class="fc" id="L226">                isMnemonicVisible = false,</span>
+<span class="fc" id="L227">                isLoading = false,</span>
+<span class="fc" id="L228">                isRecoverSuccessful = false,</span>
+<span class="fc" id="L229">                error = null,</span>
+<span class="fc" id="L230">            )</span>
+        }
+<span class="fc" id="L232">    }</span>
+
+    /**
+     * Validates the mnemonic word count, then delegates persistence to [MasterSeedProvider].
+     *
+     * Converts platform input words to an owned [CharArray]; the provider consumes and erases it.
+     *
+     * If a seed already existed, the user is warned that previous credentials are orphaned.
+     */
+
+    private fun recoverFromSeed(mnemonic: CharArray) {
+<span class="fc" id="L243">        val wordCount = countMnemonicWords(mnemonic)</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        if (wordCount != MNEMONIC_WORD_COUNT) {</span>
+<span class="fc" id="L245">            mnemonic.fill('\u0000')</span>
+<span class="fc" id="L246">            _state.update {</span>
+<span class="fc" id="L247">                it.copy(error = &quot;Invalid mnemonic: expected $MNEMONIC_WORD_COUNT words, got $wordCount.&quot;)</span>
+            }
+<span class="fc" id="L249">            return</span>
+        }
+<span class="fc" id="L251">        cancelMnemonicReveal()</span>
+<span class="fc" id="L252">        eraseRevealedMnemonic()</span>
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">        clipboardCopyJob?.cancel()</span>
+<span class="fc" id="L254">        clipboardCopyJob = null</span>
+<span class="fc" id="L255">        _state.update { it.copy(mnemonicWords = null, isMnemonicVisible = false) }</span>
+<span class="fc" id="L256">        val generation = ++mnemonicImportGeneration</span>
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">        mnemonicImportJob?.cancel()</span>
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">        mnemonicImportBuffer?.fill('\u0000')</span>
+<span class="fc" id="L259">        mnemonicImportBuffer = mnemonic</span>
+<span class="fc" id="L260">        val importJob =</span>
+<span class="fc" id="L261">            viewModelScope.launch {</span>
+<span class="fc" id="L262">                _state.update { it.copy(isLoading = true, error = null) }</span>
+<span class="fc" id="L263">                try {</span>
+<span class="fc" id="L264">                    val result = masterSeedProvider.importMnemonic(mnemonic)</span>
+
+<span class="fc" id="L266">                    val message =</span>
+<span class="fc" id="L267">                        when (result) {</span>
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">                            is ImportMnemonicResult.Created -&gt;</span>
+<span class="fc" id="L269">                                &quot;Mnemonic imported and persisted successfully.&quot;</span>
+<span class="nc" id="L270">                            is ImportMnemonicResult.Replaced -&gt;</span>
+<span class="nc" id="L271">                                &quot;⚠️ Existing seed overwritten. Re-registration required for previous credentials.&quot;</span>
+                        }
+<span class="fc" id="L273">                    _state.update { it.copy(isLoading = false, isRecoverSuccessful = true) }</span>
+<span class="fc" id="L274">                    _effects.send(DevToolsEffect.ShowSnackbar(message))</span>
+<span class="nc" id="L275">                } catch (_: IllegalArgumentException) {</span>
+<span class="nc" id="L276">                    Logger.e { &quot;Mnemonic recovery input was rejected&quot; }</span>
+<span class="nc" id="L277">                    _state.update { it.copy(isLoading = false, error = &quot;Recovery phrase is invalid.&quot;) }</span>
+<span class="nc" id="L278">                } catch (_: GeneralSecurityException) {</span>
+<span class="nc" id="L279">                    Logger.e { &quot;Mnemonic recovery security operation failed&quot; }</span>
+<span class="nc" id="L280">                    _state.update {</span>
+<span class="nc" id="L281">                        it.copy(</span>
+<span class="nc" id="L282">                            isLoading = false,</span>
+<span class="nc" id="L283">                            error = &quot;Security operation failed while importing the recovery phrase.&quot;,</span>
+<span class="nc" id="L284">                        )</span>
+                    }
+                } finally {
+<span class="fc" id="L287">                    mnemonic.fill('\u0000')</span>
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">                    if (mnemonicImportBuffer === mnemonic) mnemonicImportBuffer = null</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                    if (generation == mnemonicImportGeneration) _state.update { it.copy(isLoading = false) }</span>
+                }
+<span class="fc" id="L291">            }</span>
+        // A job cancelled before its dispatcher starts the body never enters the try/finally.
+        // Completion cleanup covers that queued-but-never-started ownership path as well.
+<span class="fc" id="L294">        importJob.invokeOnCompletion { mnemonic.fill('\u0000') }</span>
+<span class="fc" id="L295">        mnemonicImportJob = importJob</span>
+<span class="fc" id="L296">    }</span>
+
+    private fun eraseRevealedMnemonic() {
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">        _state.value.mnemonicWords?.fill('\u0000')</span>
+<span class="fc" id="L300">    }</span>
+
+    private fun cancelMnemonicReveal() {
+<span class="fc" id="L303">        mnemonicLoadGeneration += 1</span>
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        mnemonicLoadJob?.cancel()</span>
+<span class="fc" id="L305">        mnemonicLoadJob = null</span>
+<span class="fc" id="L306">    }</span>
+
+    private fun countMnemonicWords(mnemonic: CharArray): Int {
+<span class="fc" id="L309">        var count = 0</span>
+<span class="fc" id="L310">        var inWord = false</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        for (character in mnemonic) {</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">            if (character.isWhitespace()) {</span>
+<span class="fc" id="L313">                inWord = false</span>
+<span class="fc bfc" id="L314" title="All 2 branches covered.">            } else if (!inWord) {</span>
+<span class="fc" id="L315">                count += 1</span>
+<span class="fc" id="L316">                inWord = true</span>
+            }
+        }
+<span class="fc" id="L319">        return count</span>
+    }
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun onCleared() {
+<span class="fc" id="L324">        mnemonicLoadGeneration += 1</span>
+<span class="fc" id="L325">        mnemonicImportGeneration += 1</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">        mnemonicLoadJob?.cancel()</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        mnemonicImportJob?.cancel()</span>
+<span class="pc bpc" id="L328" title="1 of 2 branches missed.">        clipboardCopyJob?.cancel()</span>
+<span class="fc bfc" id="L329" title="All 2 branches covered.">        mnemonicImportBuffer?.fill('\u0000')</span>
+<span class="fc" id="L330">        mnemonicImportBuffer = null</span>
+<span class="fc" id="L331">        eraseRevealedMnemonic()</span>
+<span class="fc" id="L332">        _state.update { it.copy(mnemonicWords = null, isMnemonicVisible = false, isLoading = false) }</span>
+<span class="fc" id="L333">        super.onCleared()</span>
+<span class="fc" id="L334">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

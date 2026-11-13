@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BleNotificationWriter.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">BleNotificationWriter.kt</span></div><h1>BleNotificationWriter.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/**
+ * Bounded FIFO notification ownership for FIDO BLE.
+ *
+ * Enforces:
+ * - One in-flight notification at a time with completion via [onNotificationSent].
+ * - Strict FIFO packet ordering.
+ * - Keepalive coalescing (replaces previous pending keepalive).
+ * - Keepalive suppression during terminal response transmission.
+ * - Bounded queue capacity (max 2 * maxMsgSize + 1024 bytes).
+ * - 5-second completion deadline: triggers [onSessionStalled] and clears if a notification stalls.
+ */
+<span class="fc" id="L23">@Req(&quot;FR-BLE-050&quot;, &quot;FR-BLE-060&quot;, &quot;TR-BLE-020&quot;, &quot;TR-BLE-040&quot;)</span>
+<span class="fc" id="L24">class BleNotificationWriter(</span>
+<span class="fc" id="L25">    private val scope: CoroutineScope,</span>
+<span class="fc" id="L26">    private val maxMsgSize: Int = 1200,</span>
+<span class="fc" id="L27">    private val sendGattNotification: suspend (Long, ByteArray) -&gt; Boolean,</span>
+<span class="fc" id="L28">    private val isSessionCurrent: (Long) -&gt; Boolean = { true },</span>
+<span class="fc" id="L29">    private val onSessionStalled: (Long) -&gt; Unit,</span>
+<span class="fc" id="L30">) {</span>
+    companion object {
+        const val NOTIFICATION_TIMEOUT_MILLIS = 5000L
+        private const val RESPONSE_QUEUE_PACKET_ALLOWANCE = 2
+        private const val QUEUE_OVERHEAD_BYTES = 1024
+    }
+
+<span class="fc" id="L37">    private val maxCapacityBytes = RESPONSE_QUEUE_PACKET_ALLOWANCE * maxMsgSize + QUEUE_OVERHEAD_BYTES</span>
+
+<span class="fc" id="L39">    private data class QueuedNotification(</span>
+<span class="fc" id="L40">        var data: ByteArray,</span>
+<span class="fc" id="L41">        val isKeepalive: Boolean,</span>
+<span class="fc" id="L42">        val sessionGeneration: Long,</span>
+<span class="fc" id="L43">        val onDeliveryResult: ((Boolean) -&gt; Unit)?,</span>
+    )
+
+<span class="fc" id="L46">    private val lock = Any()</span>
+<span class="fc" id="L47">    private val queue = ArrayDeque&lt;QueuedNotification&gt;()</span>
+    private var totalQueuedBytes = 0
+    private var inFlight = false
+    private var inFlightNotification: QueuedNotification? = null
+    private var inFlightTimeoutJob: Job? = null
+    private var inFlightSendJob: Job? = null
+    private var responseTransmissionStarted = false
+    private var activeSessionGeneration: Long? = null
+    private var operationGeneration = 0L
+
+    /**
+     * Enqueues one notification packet for FIFO delivery.
+     *
+     * @param packet The notification byte array to transmit.
+     * @param isKeepalive True if this is a progress keepalive frame.
+     * @return true if enqueued or coalesced, false if rejected due to capacity bounds or response phase.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;FR-BLE-060&quot;, &quot;TR-BLE-020&quot;, &quot;TR-BLE-040&quot;)
+<span class="fc" id="L65">    fun enqueue(</span>
+        packet: ByteArray,
+        isKeepalive: Boolean,
+        sessionGeneration: Long,
+<span class="fc" id="L69">        onDeliveryResult: ((Boolean) -&gt; Unit)? = null,</span>
+    ): Boolean {
+<span class="fc" id="L71">        var queueOverflowed = false</span>
+<span class="fc" id="L72">        val accepted =</span>
+<span class="fc" id="L73">            synchronized(lock) {</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">                if (!activateSessionLocked(sessionGeneration)) return false</span>
+<span class="fc bfc" id="L75" title="All 4 branches covered.">                if (responseTransmissionStarted &amp;&amp; isKeepalive) {</span>
+<span class="fc" id="L76">                    Logger.d { &quot;BleNotificationWriter: Keepalive suppressed during response delivery&quot; }</span>
+<span class="fc" id="L77">                    return false</span>
+                }
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                if (isKeepalive) {</span>
+<span class="fc" id="L81">                    val existingIndex = queue.indexOfFirst { it.isKeepalive }</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">                    if (existingIndex &gt;= 0) {</span>
+<span class="fc" id="L83">                        val old = queue[existingIndex]</span>
+<span class="fc" id="L84">                        totalQueuedBytes -= old.data.size</span>
+<span class="fc" id="L85">                        old.data.fill(0)</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">                        old.onDeliveryResult?.let { notifyDeliveryResult(it, false) }</span>
+<span class="fc" id="L87">                        old.data = packet.copyOf()</span>
+<span class="fc" id="L88">                        totalQueuedBytes += packet.size</span>
+<span class="fc" id="L89">                        Logger.d { &quot;BleNotificationWriter: Coalesced keepalive in queue&quot; }</span>
+<span class="fc" id="L90">                        return true</span>
+                    }
+                }
+
+<span class="fc bfc" id="L94" title="All 2 branches covered.">                if (totalQueuedBytes + packet.size &gt; maxCapacityBytes) {</span>
+<span class="fc" id="L95">                    Logger.w {</span>
+                        &quot;BleNotificationWriter: Queue capacity exceeded &quot; +
+<span class="fc" id="L97">                            &quot;($totalQueuedBytes + ${packet.size} &gt; $maxCapacityBytes); aborting session&quot;</span>
+                    }
+<span class="fc" id="L99">                    queueOverflowed = true</span>
+<span class="fc" id="L100">                    return@synchronized false</span>
+                }
+
+<span class="fc" id="L103">                queue.addLast(QueuedNotification(packet.copyOf(), isKeepalive, sessionGeneration, onDeliveryResult))</span>
+<span class="fc" id="L104">                totalQueuedBytes += packet.size</span>
+
+<span class="fc bfc" id="L106" title="All 2 branches covered.">                if (!inFlight) {</span>
+<span class="fc" id="L107">                    scheduleNextLocked()</span>
+                }
+<span class="fc" id="L109">                true</span>
+            }
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (queueOverflowed) abortOverflowedSession(sessionGeneration)</span>
+<span class="fc" id="L112">        return accepted</span>
+    }
+
+    private fun abortOverflowedSession(sessionGeneration: Long) {
+<span class="fc" id="L116">        val aborted =</span>
+<span class="fc" id="L117">            synchronized(lock) {</span>
+<span class="pc bpc" id="L118" title="3 of 6 branches missed.">                if (activeSessionGeneration != sessionGeneration || !isSessionCurrent(sessionGeneration)) {</span>
+<span class="nc" id="L119">                    false</span>
+                } else {
+<span class="fc" id="L121">                    clearLocked()</span>
+<span class="fc" id="L122">                    true</span>
+<span class="fc" id="L123">                }</span>
+            }
+<span class="pc bpc" id="L125" title="2 of 4 branches missed.">        if (aborted &amp;&amp; isSessionCurrent(sessionGeneration)) onSessionStalled(sessionGeneration)</span>
+<span class="fc" id="L126">    }</span>
+
+    /**
+     * Called by the GATT callback when a notification transmission completes.
+     *
+     * @param success true if transmitted successfully, false if failed.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun onNotificationSent(success: Boolean) {
+<span class="pc" id="L135">        synchronized(lock) {</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">            val sessionGeneration = activeSessionGeneration ?: return</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">            inFlightTimeoutJob?.cancel()</span>
+<span class="fc" id="L138">            inFlightTimeoutJob = null</span>
+<span class="fc" id="L139">            inFlight = false</span>
+<span class="fc" id="L140">            val completedNotification = inFlightNotification</span>
+<span class="fc" id="L141">            inFlightNotification = null</span>
+<span class="fc" id="L142">            inFlightSendJob = null</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            if (completedNotification != null) totalQueuedBytes -= completedNotification.data.size</span>
+
+<span class="fc bfc" id="L145" title="All 2 branches covered.">            if (!success) {</span>
+<span class="fc" id="L146">                Logger.e { &quot;BleNotificationWriter: GATT notification send failed — stalling session&quot; }</span>
+<span class="pc bpc" id="L147" title="2 of 4 branches missed.">                completedNotification?.onDeliveryResult?.let { notifyDeliveryResult(it, false) }</span>
+<span class="pc bpc" id="L148" title="2 of 4 branches missed.">                completedNotification?.data?.fill(0)</span>
+<span class="fc" id="L149">                clearLocked()</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">                if (isSessionCurrent(sessionGeneration)) onSessionStalled(sessionGeneration)</span>
+<span class="fc" id="L151">                return</span>
+            }
+
+<span class="fc bfc" id="L154" title="All 4 branches covered.">            completedNotification?.onDeliveryResult?.let { notifyDeliveryResult(it, true) }</span>
+<span class="pc bpc" id="L155" title="2 of 4 branches missed.">            completedNotification?.data?.fill(0)</span>
+<span class="fc" id="L156">            scheduleNextLocked()</span>
+<span class="fc" id="L157">        }</span>
+<span class="fc" id="L158">    }</span>
+
+    /**
+     * Signals that terminal response transmission has begun. Drops any queued keepalives.
+     */
+    @Req(&quot;FR-BLE-060&quot;, &quot;TR-BLE-040&quot;)
+    fun markResponseTransmissionStarted(sessionGeneration: Long) {
+<span class="fc" id="L165">        synchronized(lock) {</span>
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">            if (!activateSessionLocked(sessionGeneration)) return@synchronized</span>
+<span class="fc" id="L167">            responseTransmissionStarted = true</span>
+<span class="fc" id="L168">            val iterator = queue.iterator()</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">            while (iterator.hasNext()) {</span>
+<span class="nc" id="L170">                val item = iterator.next()</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                if (item.isKeepalive) {</span>
+<span class="nc" id="L172">                    totalQueuedBytes -= item.data.size</span>
+<span class="nc" id="L173">                    item.data.fill(0)</span>
+<span class="nc" id="L174">                    iterator.remove()</span>
+                }
+            }
+<span class="fc" id="L177">        }</span>
+<span class="fc" id="L178">    }</span>
+
+    /**
+     * Resets the response transmission phase at the end of a transaction.
+     */
+    @Req(&quot;FR-BLE-060&quot;, &quot;TR-BLE-040&quot;)
+    fun resetResponseTransmission(sessionGeneration: Long) =
+<span class="fc" id="L185">        synchronized(lock) {</span>
+<span class="pc bpc" id="L186" title="3 of 6 branches missed.">            if (activeSessionGeneration == sessionGeneration &amp;&amp; isSessionCurrent(sessionGeneration)) {</span>
+<span class="fc" id="L187">                responseTransmissionStarted = false</span>
+            }
+<span class="fc" id="L189">        }</span>
+
+    /**
+     * Clears all pending notifications and cancels in-flight timeout.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun clear() =
+<span class="fc" id="L196">        synchronized(lock) {</span>
+<span class="fc" id="L197">            clearLocked()</span>
+<span class="fc" id="L198">        }</span>
+
+    /**
+     * Aborts a stalled session: cancels in-flight work and invokes stalled callback.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun abortStalledSession() =
+<span class="fc" id="L205">        synchronized(lock) {</span>
+<span class="fc" id="L206">            val sessionGeneration = activeSessionGeneration</span>
+<span class="fc" id="L207">            clearLocked()</span>
+<span class="pc bpc" id="L208" title="1 of 4 branches missed.">            if (sessionGeneration != null &amp;&amp; isSessionCurrent(sessionGeneration)) {</span>
+<span class="nc" id="L209">                onSessionStalled(sessionGeneration)</span>
+            }
+<span class="fc" id="L211">        }</span>
+
+    private fun clearLocked() {
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        inFlightTimeoutJob?.cancel()</span>
+<span class="fc" id="L215">        inFlightTimeoutJob = null</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        inFlightSendJob?.cancel()</span>
+<span class="fc" id="L217">        inFlightSendJob = null</span>
+<span class="fc" id="L218">        inFlight = false</span>
+<span class="fc bfc" id="L219" title="All 4 branches covered.">        inFlightNotification?.onDeliveryResult?.let { notifyDeliveryResult(it, false) }</span>
+<span class="fc" id="L220">        inFlightNotification = null</span>
+<span class="fc" id="L221">        responseTransmissionStarted = false</span>
+<span class="fc" id="L222">        activeSessionGeneration = null</span>
+<span class="fc" id="L223">        operationGeneration++</span>
+<span class="fc" id="L224">        queue.forEach {</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">            it.onDeliveryResult?.let { callback -&gt; notifyDeliveryResult(callback, false) }</span>
+<span class="fc" id="L226">            it.data.fill(0)</span>
+<span class="fc" id="L227">        }</span>
+<span class="fc" id="L228">        queue.clear()</span>
+<span class="fc" id="L229">        totalQueuedBytes = 0</span>
+<span class="fc" id="L230">    }</span>
+
+    private fun activateSessionLocked(sessionGeneration: Long): Boolean {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (!isSessionCurrent(sessionGeneration)) return false</span>
+<span class="pc bpc" id="L234" title="1 of 4 branches missed.">        if (activeSessionGeneration != sessionGeneration) {</span>
+<span class="fc" id="L235">            clearLocked()</span>
+<span class="fc" id="L236">            activeSessionGeneration = sessionGeneration</span>
+        }
+<span class="fc" id="L238">        return true</span>
+    }
+
+    private fun scheduleNextLocked() {
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        if (queue.isEmpty()) {</span>
+<span class="fc" id="L243">            inFlight = false</span>
+<span class="fc" id="L244">            return</span>
+        }
+
+<span class="fc" id="L247">        val next = queue.removeFirst()</span>
+<span class="fc" id="L248">        inFlight = true</span>
+<span class="fc" id="L249">        inFlightNotification = next</span>
+<span class="fc" id="L250">        val scheduledOperationGeneration = operationGeneration</span>
+<span class="fc" id="L251">        val sessionGeneration = next.sessionGeneration</span>
+
+<span class="fc" id="L253">        inFlightTimeoutJob =</span>
+<span class="fc" id="L254">            scope.launch {</span>
+<span class="fc" id="L255">                delay(NOTIFICATION_TIMEOUT_MILLIS)</span>
+<span class="fc" id="L256">                val shouldStall =</span>
+<span class="fc" id="L257">                    synchronized(lock) {</span>
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">                        if (scheduledOperationGeneration != operationGeneration ||</span>
+<span class="pc bpc" id="L259" title="2 of 4 branches missed.">                            activeSessionGeneration != sessionGeneration ||</span>
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">                            !inFlight</span>
+                        ) {
+<span class="nc" id="L262">                            false</span>
+                        } else {
+<span class="fc" id="L264">                            Logger.e {</span>
+<span class="fc" id="L265">                                &quot;BleNotificationWriter: Notification timed out after ${NOTIFICATION_TIMEOUT_MILLIS}ms&quot;</span>
+                            }
+<span class="fc" id="L267">                            clearLocked()</span>
+<span class="fc" id="L268">                            true</span>
+<span class="fc" id="L269">                        }</span>
+                    }
+<span class="pc bpc" id="L271" title="2 of 4 branches missed.">                if (shouldStall &amp;&amp; isSessionCurrent(sessionGeneration)) onSessionStalled(sessionGeneration)</span>
+<span class="fc" id="L272">            }</span>
+
+<span class="fc" id="L274">        val packetToSend = next.data</span>
+<span class="fc" id="L275">        val sendJob =</span>
+<span class="fc" id="L276">            scope.launch(start = CoroutineStart.LAZY) {</span>
+<span class="fc" id="L277">                try {</span>
+<span class="fc" id="L278">                    val maySend =</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">                        isSessionCurrent(sessionGeneration) &amp;&amp;</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">                            synchronized(lock) {</span>
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">                                scheduledOperationGeneration == operationGeneration &amp;&amp;</span>
+<span class="pc bpc" id="L282" title="2 of 4 branches missed.">                                    activeSessionGeneration == sessionGeneration &amp;&amp;</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">                                    inFlight</span>
+                            }
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">                    val initiated = if (maySend) sendGattNotification(sessionGeneration, packetToSend) else false</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">                    if (!initiated) {</span>
+<span class="fc" id="L287">                        val shouldStall =</span>
+<span class="fc" id="L288">                            synchronized(lock) {</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                                if (scheduledOperationGeneration != operationGeneration ||</span>
+<span class="pc bpc" id="L290" title="2 of 4 branches missed.">                                    activeSessionGeneration != sessionGeneration ||</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">                                    !isSessionCurrent(sessionGeneration)</span>
+                                ) {
+<span class="nc" id="L293">                                    false</span>
+                                } else {
+<span class="fc" id="L295">                                    Logger.e { &quot;BleNotificationWriter: Failed to initiate GATT notification&quot; }</span>
+<span class="fc" id="L296">                                    clearLocked()</span>
+<span class="fc" id="L297">                                    true</span>
+<span class="fc" id="L298">                                }</span>
+                            }
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">                        if (shouldStall) onSessionStalled(sessionGeneration)</span>
+                    }
+<span class="fc" id="L302">                } catch (cancelled: CancellationException) {</span>
+<span class="fc" id="L303">                    throw cancelled</span>
+<span class="fc" id="L304">                } catch (failure: SecurityException) {</span>
+<span class="fc" id="L305">                    handleInitiationFailure(sessionGeneration, scheduledOperationGeneration, failure)</span>
+<span class="fc" id="L306">                } catch (failure: IllegalArgumentException) {</span>
+<span class="fc" id="L307">                    handleInitiationFailure(sessionGeneration, scheduledOperationGeneration, failure)</span>
+<span class="fc" id="L308">                } catch (failure: IllegalStateException) {</span>
+<span class="fc" id="L309">                    handleInitiationFailure(sessionGeneration, scheduledOperationGeneration, failure)</span>
+                } finally {
+                    // The send call owns this buffer until it returns, even if session cleanup already detached it.
+<span class="fc" id="L312">                    packetToSend.fill(0)</span>
+                }
+<span class="fc" id="L314">            }</span>
+<span class="fc" id="L315">        inFlightSendJob = sendJob</span>
+<span class="fc" id="L316">        sendJob.start()</span>
+<span class="fc" id="L317">    }</span>
+
+    private fun handleInitiationFailure(
+        sessionGeneration: Long,
+        scheduledGeneration: Long,
+        failure: RuntimeException,
+    ) {
+<span class="fc" id="L324">        Logger.e(failure) { &quot;BleNotificationWriter: GATT notification initiation failed&quot; }</span>
+<span class="fc" id="L325">        val shouldStall =</span>
+<span class="fc" id="L326">            synchronized(lock) {</span>
+<span class="pc bpc" id="L327" title="1 of 2 branches missed.">                if (operationGeneration != scheduledGeneration ||</span>
+<span class="pc bpc" id="L328" title="2 of 4 branches missed.">                    activeSessionGeneration != sessionGeneration ||</span>
+<span class="pc bpc" id="L329" title="1 of 2 branches missed.">                    !isSessionCurrent(sessionGeneration)</span>
+                ) {
+<span class="nc" id="L331">                    false</span>
+                } else {
+<span class="fc" id="L333">                    clearLocked()</span>
+<span class="fc" id="L334">                    true</span>
+<span class="fc" id="L335">                }</span>
+            }
+<span class="pc bpc" id="L337" title="1 of 2 branches missed.">        if (shouldStall) onSessionStalled(sessionGeneration)</span>
+<span class="fc" id="L338">    }</span>
+
+    private fun notifyDeliveryResult(
+        callback: (Boolean) -&gt; Unit,
+        success: Boolean,
+    ) {
+<span class="pc" id="L344">        runCatching { callback(success) }</span>
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">            .onFailure { failure -&gt; Logger.e(failure) { &quot;BleNotificationWriter: Delivery callback failed&quot; } }</span>
+<span class="fc" id="L346">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

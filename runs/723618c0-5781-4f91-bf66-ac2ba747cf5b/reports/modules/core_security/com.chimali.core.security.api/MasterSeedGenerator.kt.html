@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MasterSeedGenerator.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">security</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.security.api</a> &gt; <span class="el_source">MasterSeedGenerator.kt</span></div><h1>MasterSeedGenerator.kt</h1><pre class="source lang-java linenums">package com.chimali.core.security.api
+
+import com.chimali.core.common.annotation.Req
+
+/** Mutable BIP39 boundary used to create and reconstruct the wallet root input. */
+interface MasterSeedGenerator {
+    /**
+     * Generate an owned mutable English mnemonic. The current wallet profile permits 24 words
+     * only; other counts are rejected. The caller owns and erases the returned buffer.
+     */
+    @Req(&quot;NFR-SEC-041&quot;)
+<span class="pc" id="L12">    fun generateMnemonic(wordCount: Int = 24): CharArray</span>
+
+    /**
+     * Validate a 24-word English BIP39 mnemonic and return its full owned 64-byte PBKDF2-HMAC-SHA512
+     * result. This wallet profile fixes the BIP39 passphrase to empty. [mnemonic] is borrowed and
+     * must remain unchanged; the caller owns and erases the returned seed.
+     */
+    @Req(&quot;NFR-SEC-041&quot;)
+    fun deriveSeed(mnemonic: CharArray): ByteArray
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

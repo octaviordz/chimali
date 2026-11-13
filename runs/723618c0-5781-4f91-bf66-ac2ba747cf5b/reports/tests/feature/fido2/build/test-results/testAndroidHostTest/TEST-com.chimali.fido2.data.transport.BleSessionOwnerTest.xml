@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.BleSessionOwnerTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:42.867Z" hostname="LOQ15IRX10-3" time="0.015">
+  <properties/>
+  <testcase name="single active host connects and second host is rejected()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.002"/>
+  <testcase name="disconnect fences session generation and allows reconnection()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.002"/>
+  <testcase name="commands are rejected when revision or notifications are not ready()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.002"/>
+  <testcase name="disabling notifications erases partial request assembly()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.002"/>
+  <testcase name="MTU update recalculates write and notify capacities correctly()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <testcase name="side effect runs only for the active session generation()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="assembleRequest reassembles multi-packet message within 3s deadline()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <testcase name="only revision 0x20 is selectable()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <testcase name="unrelated disconnect preserves active host while addressless disconnect resets it()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="CCCD notification subscription and revision are required for command readiness()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="message value identity includes CTAP payload and session generation()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="assembly expiry ignores stale generation and token then expires the matching request()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <testcase name="malformed initialization length and oversized continuation return typed errors()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="assembleRequest times out after 3 seconds without continuation()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <testcase name="out-of-sequence continuation discards assembly()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.0"/>
+  <testcase name="write and notify capacities honor platform maximum limits()" classname="com.chimali.fido2.data.transport.BleSessionOwnerTest" time="0.001"/>
+  <system-out><![CDATA[Warn: BleSessionOwner: Rejected second host AA:BB:CC:DD:EE:02 (active=AA:BB:CC:DD:EE:01)
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Warn: BleSessionOwner: Command rejected; revision 0x20 and notifications must be active first
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Warn: BleSessionOwner: Command rejected; revision 0x20 and notifications must be active first
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: Notifications enabled=false
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: MTU updated to 256 (writeCap=253, notifyCap=253)
+Debug: BleSessionOwner: MTU updated to 517 (writeCap=512, notifyCap=514)
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Warn: BleSessionOwner: Rejected invalid revision 0x10
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: Notifications enabled=false
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Warn: BleSessionOwner: Multi-packet assembly timed out after 3 seconds
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: BleSessionOwner: MTU updated to 517 (writeCap=300, notifyCap=200)
+Debug: BleSessionOwner: MTU updated to 517 (writeCap=512, notifyCap=10)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

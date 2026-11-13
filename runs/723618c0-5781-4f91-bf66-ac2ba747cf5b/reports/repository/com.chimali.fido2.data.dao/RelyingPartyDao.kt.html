@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RelyingPartyDao.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.dao</a> &gt; <span class="el_source">RelyingPartyDao.kt</span></div><h1>RelyingPartyDao.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.dao
+
+import app.cash.sqldelight.coroutines.asFlow
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.fido2.data.database.Fido2Database
+import com.chimali.fido2.data.database.Relying_party as RelyingPartyEntity
+import com.chimali.fido2.data.service.CredentialMetadataProtectionService
+import com.chimali.fido2.domain.model.toOwnedUtf8
+import kotlin.time.Duration.Companion.days
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Instant
+import org.koin.core.annotation.Single
+
+/**
+ * Data Access Object for RelyingParty entities using SQLDelight.
+ * Provides database operations for relying party metadata storage.
+ */
+<span class="fc" id="L22">@Single</span>
+<span class="fc" id="L23">class RelyingPartyDao(</span>
+<span class="fc" id="L24">    private val database: Fido2Database,</span>
+<span class="fc" id="L25">    private val timeProvider: TimeProvider,</span>
+<span class="fc" id="L26">    private val metadataProtectionService: CredentialMetadataProtectionService,</span>
+) {
+    /**
+     * Inserts or updates a relying party in the database (Upsert).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L32">    suspend fun insertOrUpdateRelyingParty(rp: RelyingParty) = writeRelyingParty(rp, insert = true)</span>
+
+    /**
+     * Retrieves a relying party by its ID.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L38">    suspend fun getRelyingPartyById(rpId: RpId): RelyingPartyEntity? = getRelyingPartyByText(rpId.value)</span>
+
+    /** Borrows mutable RP text for one SQL lookup; the returned row transfers to its mapper/caller. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun getRelyingPartyByText(rpId: CharSequence): RelyingPartyEntity? =
+<span class="fc" id="L43">        withRpIdBytes(rpId) { bytes -&gt;</span>
+<span class="fc" id="L44">            database.relyingPartyQueries.select_by_id(id = bytes).executeAsOneOrNull()</span>
+<span class="fc" id="L45">        }</span>
+
+    /**
+     * Retrieves all relying parties from the database.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getAllRelyingParties(): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L52">        database.relyingPartyQueries</span>
+<span class="nc" id="L53">            .select_all()</span>
+<span class="nc" id="L54">            .asFlow()</span>
+<span class="nc" id="L55">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Updates an existing relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L61">    suspend fun updateRelyingParty(rp: RelyingParty) = writeRelyingParty(rp, insert = false)</span>
+
+    private fun writeRelyingParty(
+        rp: RelyingParty,
+        insert: Boolean,
+    ) {
+<span class="fc" id="L67">        val idBytes = rp.idText.toOwnedUtf8()</span>
+<span class="fc" id="L68">        var nameBytes: ByteArray? = null</span>
+<span class="fc" id="L69">        try {</span>
+<span class="fc" id="L70">            val ownedName = rp.nameText.toOwnedUtf8()</span>
+<span class="fc" id="L71">            nameBytes = ownedName</span>
+<span class="fc" id="L72">            val encrypted = metadataProtectionService.encryptRelyingPartyMetadata(rp.idText)</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">            if (insert) {</span>
+<span class="fc" id="L74">                database.transaction {</span>
+<span class="fc" id="L75">                    val existingCreation =</span>
+<span class="fc" id="L76">                        database.relyingPartyQueries</span>
+<span class="fc" id="L77">                            .select_created_at(idBytes)</span>
+<span class="fc" id="L78">                            .executeAsOneOrNull()</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                    val incomingLastUsed = rp.lastUsedAt?.toEpochMilliseconds()</span>
+<span class="fc" id="L80">                    val activityTimeIsValid =</span>
+<span class="fc bfc" id="L81" title="All 6 branches covered.">                        existingCreation == null || incomingLastUsed == null || incomingLastUsed &gt;= existingCreation</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">                    require(activityTimeIsValid) {</span>
+<span class="fc" id="L83">                        &quot;Last-used time cannot precede the stored relying-party creation time&quot;</span>
+                    }
+<span class="fc" id="L85">                    database.relyingPartyQueries.insert(</span>
+<span class="fc" id="L86">                        id = idBytes,</span>
+<span class="fc" id="L87">                        created_at = rp.createdAt.toEpochMilliseconds(),</span>
+<span class="fc" id="L88">                        last_used_at = incomingLastUsed,</span>
+                        updated_at =
+<span class="fc" id="L90">                            maxOf(</span>
+<span class="fc" id="L91">                                timeProvider.now(),</span>
+<span class="fc" id="L92">                                rp.createdAt,</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">                                rp.lastUsedAt ?: rp.createdAt,</span>
+<span class="fc" id="L94">                            ).toEpochMilliseconds(),</span>
+<span class="fc" id="L95">                        credential_count = rp.credentialCount.toLong(),</span>
+<span class="fc" id="L96">                        icon_url = rp.iconUrl,</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">                        is_blocked = if (rp.isBlocked) 1L else 0L,</span>
+<span class="fc" id="L98">                        name = ownedName,</span>
+<span class="fc" id="L99">                        encrypted_metadata = encrypted,</span>
+                    )
+<span class="fc" id="L101">                }</span>
+            } else {
+<span class="fc" id="L103">                database.relyingPartyQueries.update(</span>
+<span class="fc" id="L104">                    id = idBytes,</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">                    last_used_at = rp.lastUsedAt?.toEpochMilliseconds(),</span>
+<span class="fc" id="L106">                    credential_count = rp.credentialCount.toLong(),</span>
+<span class="fc" id="L107">                    icon_url = rp.iconUrl,</span>
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">                    is_blocked = if (rp.isBlocked) 1L else 0L,</span>
+<span class="fc" id="L109">                    name = ownedName,</span>
+<span class="fc" id="L110">                    encrypted_metadata = encrypted,</span>
+                )
+            }
+        } finally {
+<span class="fc" id="L114">            idBytes.fill(0)</span>
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">            nameBytes?.fill(0)</span>
+        }
+<span class="fc" id="L117">    }</span>
+
+    private inline fun &lt;T&gt; withRpIdBytes(
+        rpId: CharSequence,
+        block: (ByteArray) -&gt; T,
+    ): T {
+<span class="fc" id="L123">        val bytes = rpId.toOwnedUtf8()</span>
+<span class="fc" id="L124">        return try {</span>
+<span class="fc" id="L125">            block(bytes)</span>
+        } finally {
+<span class="fc" id="L127">            bytes.fill(0)</span>
+<span class="fc" id="L128">        }</span>
+    }
+
+    /**
+     * Updates the credential count for a relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun updateCredentialCount(
+        rpId: RpId,
+        count: Int,
+    ) {
+<span class="fc" id="L139">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="pc" id="L140">            database.relyingPartyQueries.update_credential_count(</span>
+<span class="fc" id="L141">                id = rpIdBytes,</span>
+<span class="fc" id="L142">                credential_count = count.toLong(),</span>
+<span class="fc" id="L143">                last_used_at = timeProvider.now().toEpochMilliseconds(),</span>
+<span class="nc" id="L144">            )</span>
+        }
+<span class="nc" id="L146">    }</span>
+
+    /**
+     * Increments the credential count for a relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun incrementCredentialCount(rpId: RpId) {
+<span class="fc" id="L153">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="pc" id="L154">            database.relyingPartyQueries.increment_credential_count(</span>
+<span class="fc" id="L155">                id = rpIdBytes,</span>
+<span class="fc" id="L156">                last_used_at = timeProvider.now().toEpochMilliseconds(),</span>
+<span class="nc" id="L157">            )</span>
+        }
+<span class="nc" id="L159">    }</span>
+
+    /**
+     * Decrements the credential count for a relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun decrementCredentialCount(rpId: RpId) {
+<span class="fc" id="L166">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="pc" id="L167">            database.relyingPartyQueries.decrement_credential_count(</span>
+<span class="fc" id="L168">                id = rpIdBytes,</span>
+<span class="fc" id="L169">                last_used_at = timeProvider.now().toEpochMilliseconds(),</span>
+<span class="nc" id="L170">            )</span>
+        }
+<span class="nc" id="L172">    }</span>
+
+    /**
+     * Updates the last used timestamp for a relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun updateLastUsedAt(rpId: RpId) {
+<span class="fc" id="L179">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="pc" id="L180">            database.relyingPartyQueries.update_last_used_at(</span>
+<span class="fc" id="L181">                id = rpIdBytes,</span>
+<span class="fc" id="L182">                last_used_at = timeProvider.now().toEpochMilliseconds(),</span>
+<span class="nc" id="L183">            )</span>
+        }
+<span class="nc" id="L185">    }</span>
+
+    /**
+     * Blocks or unblocks a relying party.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun updateBlockedStatus(
+        rpId: RpId,
+        isBlocked: Boolean,
+    ) {
+<span class="nc" id="L195">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="nc" id="L196">            database.relyingPartyQueries.update_blocked_status(</span>
+<span class="nc" id="L197">                id = rpIdBytes,</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                is_blocked = if (isBlocked) 1L else 0L,</span>
+<span class="nc" id="L199">            )</span>
+        }
+<span class="nc" id="L201">    }</span>
+
+    /**
+     * Deletes a relying party by its ID.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun deleteRelyingParty(rpId: RpId) {
+<span class="nc" id="L208">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+<span class="nc" id="L209">            database.relyingPartyQueries.delete_by_id(id = rpIdBytes)</span>
+        }
+<span class="nc" id="L211">    }</span>
+
+    /**
+     * Searches relying parties by name.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun searchRelyingParties(query: String): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; {
+<span class="nc" id="L218">        val searchPattern = &quot;%${query.trim()}%&quot;</span>
+<span class="nc" id="L219">        return database.relyingPartyQueries</span>
+<span class="nc" id="L220">            .search_by_name(query = searchPattern)</span>
+<span class="nc" id="L221">            .asFlow()</span>
+<span class="nc" id="L222">            .map { query -&gt; query.executeAsList() }</span>
+    }
+
+    /**
+     * Retrieves relying parties with credentials.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getRelyingPartiesWithCredentials(): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L230">        database.relyingPartyQueries</span>
+<span class="nc" id="L231">            .select_with_credentials()</span>
+<span class="nc" id="L232">            .asFlow()</span>
+<span class="nc" id="L233">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties without credentials.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getRelyingPartiesWithoutCredentials(): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L240">        database.relyingPartyQueries</span>
+<span class="nc" id="L241">            .select_without_credentials()</span>
+<span class="nc" id="L242">            .asFlow()</span>
+<span class="nc" id="L243">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves blocked relying parties.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getBlockedRelyingParties(): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L250">        database.relyingPartyQueries</span>
+<span class="nc" id="L251">            .select_blocked()</span>
+<span class="nc" id="L252">            .asFlow()</span>
+<span class="nc" id="L253">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves unblocked relying parties.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getUnblockedRelyingParties(): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L260">        database.relyingPartyQueries</span>
+<span class="nc" id="L261">            .select_unblocked()</span>
+<span class="nc" id="L262">            .asFlow()</span>
+<span class="nc" id="L263">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties sorted by credential count (most first).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L269">    fun getRelyingPartiesByCredentialCount(limit: Int = 50): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =</span>
+<span class="nc" id="L270">        database.relyingPartyQueries</span>
+<span class="nc" id="L271">            .select_by_credential_count(limit = limit.toLong())</span>
+<span class="nc" id="L272">            .asFlow()</span>
+<span class="nc" id="L273">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties sorted by last used date (most recent first).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L279">    fun getRelyingPartiesByLastUsed(limit: Int = 50): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =</span>
+<span class="nc" id="L280">        database.relyingPartyQueries</span>
+<span class="nc" id="L281">            .select_by_last_used(limit = limit.toLong())</span>
+<span class="nc" id="L282">            .asFlow()</span>
+<span class="nc" id="L283">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties sorted by creation date (newest first).
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L289">    fun getRelyingPartiesByCreationDate(limit: Int = 50): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =</span>
+<span class="nc" id="L290">        database.relyingPartyQueries</span>
+<span class="nc" id="L291">            .select_by_creation_date(limit = limit.toLong())</span>
+<span class="nc" id="L292">            .asFlow()</span>
+<span class="nc" id="L293">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties created within a date range.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getRelyingPartiesByDateRange(
+        startDate: Instant,
+        endDate: Instant,
+    ): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L303">        database.relyingPartyQueries</span>
+<span class="nc" id="L304">            .select_by_date_range(</span>
+<span class="nc" id="L305">                start = startDate.toEpochMilliseconds(),</span>
+<span class="nc" id="L306">                end = endDate.toEpochMilliseconds(),</span>
+<span class="nc" id="L307">            ).asFlow()</span>
+<span class="nc" id="L308">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties that haven't been used in a specified number of days.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getUnusedRelyingParties(days: Int): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; {
+<span class="nc" id="L315">        val cutoffDate = timeProvider.now().toEpochMilliseconds() - days.days.inWholeMilliseconds</span>
+<span class="nc" id="L316">        return database.relyingPartyQueries</span>
+<span class="nc" id="L317">            .select_unused(cutoff_date = cutoffDate)</span>
+<span class="nc" id="L318">            .asFlow()</span>
+<span class="nc" id="L319">            .map { query -&gt; query.executeAsList() }</span>
+    }
+
+    /**
+     * Counts relying parties in the database.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun countAllRelyingParties(): Long =
+<span class="nc" id="L327">        database.relyingPartyQueries</span>
+<span class="nc" id="L328">            .count_all()</span>
+<span class="nc" id="L329">            .executeAsOne()</span>
+
+    /**
+     * Counts relying parties with credentials.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun countRelyingPartiesWithCredentials(): Long =
+<span class="nc" id="L336">        database.relyingPartyQueries</span>
+<span class="nc" id="L337">            .count_with_credentials()</span>
+<span class="nc" id="L338">            .executeAsOne()</span>
+
+    /**
+     * Counts blocked relying parties.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun countBlockedRelyingParties(): Long =
+<span class="nc" id="L345">        database.relyingPartyQueries</span>
+<span class="nc" id="L346">            .count_blocked()</span>
+<span class="nc" id="L347">            .executeAsOne()</span>
+
+    /**
+     * Checks if a relying party exists.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun relyingPartyExists(rpId: RpId): Boolean =
+<span class="nc" id="L354">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+
+<span class="nc" id="L356">            database.relyingPartyQueries</span>
+<span class="nc" id="L357">                .exists_by_id(id = rpIdBytes)</span>
+<span class="nc" id="L358">                .executeAsOne()</span>
+<span class="nc" id="L359">        }</span>
+
+    /**
+     * Checks if a relying party is blocked.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun isRelyingPartyBlocked(rpId: RpId): Boolean =
+<span class="nc" id="L366">        withRpIdBytes(rpId.value) { rpIdBytes -&gt;</span>
+
+<span class="nc bnc" id="L368" title="All 2 branches missed.">            database.relyingPartyQueries</span>
+<span class="nc" id="L369">                .is_blocked(id = rpIdBytes)</span>
+<span class="nc" id="L370">                .executeAsOne() &gt; 0L</span>
+<span class="nc" id="L371">        }</span>
+
+    /**
+     * Retrieves relying parties by domain.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getRelyingPartiesByDomain(domain: String): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L378">        database.relyingPartyQueries</span>
+<span class="nc" id="L379">            .select_by_domain(domain = &quot;%$domain%&quot;)</span>
+<span class="nc" id="L380">            .asFlow()</span>
+<span class="nc" id="L381">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Retrieves relying parties with specific credential count range.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun getRelyingPartiesByCredentialCountRange(
+        minCount: Int,
+        maxCount: Int,
+    ): Flow&lt;List&lt;RelyingPartyEntity&gt;&gt; =
+<span class="nc" id="L391">        database.relyingPartyQueries</span>
+<span class="nc" id="L392">            .select_by_credential_count_range(</span>
+<span class="nc" id="L393">                min = minCount.toLong(),</span>
+<span class="nc" id="L394">                max = maxCount.toLong(),</span>
+<span class="nc" id="L395">            ).asFlow()</span>
+<span class="nc" id="L396">            .map { query -&gt; query.executeAsList() }</span>
+
+    /**
+     * Updates multiple relying parties in a transaction.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun updateRelyingParties(rps: List&lt;RelyingParty&gt;) {
+<span class="pc" id="L403">        database.transaction { rps.forEach { writeRelyingParty(it, insert = false) } }</span>
+<span class="nc" id="L404">    }</span>
+
+    /**
+     * Deletes multiple relying parties in a transaction.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun deleteRelyingParties(rpIds: List&lt;RpId&gt;): Int {
+<span class="nc" id="L411">        var deletedCount = 0</span>
+<span class="nc" id="L412">        database.transaction {</span>
+<span class="nc" id="L413">            rpIds.forEach { rpId -&gt;</span>
+<span class="nc" id="L414">                withRpIdBytes(rpId.value) { bytes -&gt; database.relyingPartyQueries.delete_by_id(id = bytes) }</span>
+<span class="nc" id="L415">                deletedCount++</span>
+<span class="nc" id="L416">            }</span>
+<span class="nc" id="L417">        }</span>
+<span class="nc" id="L418">        return deletedCount</span>
+    }
+
+    /**
+     * Cleans up relying parties without credentials.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun cleanupEmptyRelyingParties(): Int {
+<span class="nc" id="L426">        database.relyingPartyQueries.delete_empty_relying_parties()</span>
+<span class="nc" id="L427">        return getChangesCount()</span>
+    }
+
+    /**
+     * Gets the number of changes from the last operation.
+     */
+    private suspend fun getChangesCount(): Int =
+<span class="nc" id="L434">        database.relyingPartyQueries</span>
+<span class="nc" id="L435">            .changes()</span>
+<span class="nc" id="L436">            .executeAsOne()</span>
+<span class="nc" id="L437">            .toInt()</span>
+
+    companion object {
+        private const val DEFAULT_TOP_RPS_LIMIT = 10L
+    }
+
+    /**
+     * Retrieves relying party statistics.
+     */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun getRelyingPartyStatistics(): RelyingPartyStatistics {
+<span class="nc" id="L448">        val total = countAllRelyingParties()</span>
+<span class="nc" id="L449">        val withCredentials = countRelyingPartiesWithCredentials()</span>
+<span class="nc" id="L450">        val blocked = countBlockedRelyingParties()</span>
+<span class="nc" id="L451">        val topRps =</span>
+<span class="nc" id="L452">            database.relyingPartyQueries</span>
+<span class="nc" id="L453">                .get_top_relying_parties(limit = DEFAULT_TOP_RPS_LIMIT)</span>
+<span class="nc" id="L454">                .executeAsList()</span>
+
+<span class="nc" id="L456">        return RelyingPartyStatistics(</span>
+<span class="nc" id="L457">            totalRelyingParties = total.toInt(),</span>
+<span class="nc" id="L458">            relyingPartiesWithCredentials = withCredentials.toInt(),</span>
+<span class="nc" id="L459">            blockedRelyingParties = blocked.toInt(),</span>
+            topRelyingParties =
+<span class="nc" id="L461">                topRps.map {</span>
+<span class="nc" id="L462">                    TopRelyingParty(</span>
+<span class="nc" id="L463">                        id = it.id,</span>
+<span class="nc" id="L464">                        name = it.name,</span>
+<span class="nc" id="L465">                        credentialCount = it.credential_count,</span>
+<span class="nc" id="L466">                    )</span>
+                },
+        )
+    }
+
+    /**
+     * Data class for relying party statistics.
+     */
+<span class="nc" id="L474">    data class RelyingPartyStatistics(</span>
+<span class="nc" id="L475">        val totalRelyingParties: Int,</span>
+<span class="nc" id="L476">        val relyingPartiesWithCredentials: Int,</span>
+<span class="nc" id="L477">        val blockedRelyingParties: Int,</span>
+<span class="nc" id="L478">        val topRelyingParties: List&lt;TopRelyingParty&gt;,</span>
+    )
+
+    /**
+     * Data class for top relying party information.
+     */
+<span class="nc" id="L484">    data class TopRelyingParty(</span>
+<span class="nc" id="L485">        val id: ByteArray,</span>
+<span class="nc" id="L486">        val name: ByteArray,</span>
+<span class="nc" id="L487">        val credentialCount: Long,</span>
+    ) {
+        /** Erases the metadata transferred by the statistics query; callers release the complete result batch. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun eraseSensitiveText() {
+<span class="nc" id="L492">            id.fill(0)</span>
+<span class="nc" id="L493">            name.fill(0)</span>
+<span class="nc" id="L494">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

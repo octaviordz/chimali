@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegistrationPromptScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.ui</a> &gt; <span class="el_source">RegistrationPromptScreen.kt</span></div><h1>RegistrationPromptScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.ui
+
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.biometric.BiometricPrompt
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.service.VerificationMethod
+import com.chimali.fido2.presentation.ui.components.ChimaliButton
+import com.chimali.fido2.presentation.ui.components.ChimaliOutlinedButton
+import com.chimali.fido2.presentation.viewmodel.RegistrationEffect
+import com.chimali.fido2.presentation.viewmodel.RegistrationIntent
+import com.chimali.fido2.presentation.viewmodel.RegistrationPromptViewModel
+import com.chimali.fido2.presentation.viewmodel.RegistrationState
+import kotlinx.coroutines.flow.collectLatest
+import org.koin.compose.viewmodel.koinViewModel
+
+/** Walk up the ContextWrapper chain to find the underlying FragmentActivity. */
+private fun Context.findFragmentActivity(): FragmentActivity? {
+<span class="nc" id="L64">    var ctx = this</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">    while (ctx is ContextWrapper) {</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (ctx is FragmentActivity) return ctx</span>
+<span class="nc" id="L67">        ctx = ctx.baseContext</span>
+    }
+<span class="nc" id="L69">    return null</span>
+}
+
+/**
+ * T063 — FIDO2 Registration Prompt Screen.
+ *
+ * Shown to the user when a website/app requests a new passkey credential.
+ * Collects user consent (confirm or cancel), then delegates to biometric or PIN.
+ *
+ * @param onSuccess   Called with the new credential after successful registration.
+ * @param onCancel    Called when user dismisses without registering.
+ * @param viewModel   Hilt-injected [RegistrationPromptViewModel].
+ * Also forwards biometric completion or cancellation to [viewModel].
+ */
+@Composable
+@Req(&quot;FR-HID-030&quot;, &quot;FR-AUTH-010&quot;)
+<span class="nc bnc" id="L85" title="All 2 branches missed.">fun RegistrationPromptScreen(</span>
+    onSuccess: (credentialId: String) -&gt; Unit,
+    onCancel: () -&gt; Unit,
+<span class="nc bnc" id="L88" title="All 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">    onOpenSettings: () -&gt; Unit = {},</span>
+<span class="nc" id="L90">    viewModel: RegistrationPromptViewModel = koinViewModel(),</span>
+<span class="nc bnc" id="L91" title="All 6 branches missed.">) {</span>
+<span class="nc" id="L92">    val state by viewModel.state.collectAsStateWithLifecycle()</span>
+
+<span class="nc" id="L94">    val context = LocalContext.current</span>
+<span class="nc" id="L95">    val activity = context.findFragmentActivity()</span>
+
+<span class="nc" id="L97">    val updatedOnSuccess by rememberUpdatedState(onSuccess)</span>
+<span class="nc" id="L98">    val updatedOnCancel by rememberUpdatedState(onCancel)</span>
+<span class="nc" id="L99">    var activePrompt by remember { mutableStateOf&lt;Pair&lt;Long, BiometricPrompt&gt;?&gt;(null) }</span>
+
+<span class="nc" id="L101">    DisposableEffect(Unit) {</span>
+<span class="nc" id="L102">        onDispose {</span>
+<span class="nc" id="L103">            activePrompt?.second?.cancelAuthentication()</span>
+<span class="nc" id="L104">            activePrompt = null</span>
+<span class="nc" id="L105">        }</span>
+    }
+
+    // Handle one-shot effects
+<span class="nc" id="L109">    LaunchedEffect(Unit) {</span>
+<span class="nc" id="L110">        viewModel.effects.collectLatest { effect -&gt;</span>
+<span class="nc" id="L111">            when (effect) {</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                is RegistrationEffect.NavigateBack -&gt; updatedOnCancel()</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                is RegistrationEffect.NavigateToSuccess -&gt; updatedOnSuccess(effect.credentialId)</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                is RegistrationEffect.CancelSystemPrompt -&gt; {</span>
+<span class="nc bnc" id="L115" title="All 6 branches missed.">                    if (activePrompt?.first == effect.promptId) {</span>
+<span class="nc bnc" id="L116" title="All 4 branches missed.">                        activePrompt?.second?.cancelAuthentication()</span>
+<span class="nc" id="L117">                        activePrompt = null</span>
+                    }
+                }
+<span class="nc bnc" id="L120" title="All 2 branches missed.">                is RegistrationEffect.LaunchSystemPrompt -&gt; {</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                    activity?.let { act -&gt;</span>
+<span class="nc" id="L122">                        val executor = ContextCompat.getMainExecutor(act)</span>
+<span class="nc" id="L123">                        val promptInfo =</span>
+                            BiometricPrompt.PromptInfo
+<span class="nc" id="L125">                                .Builder()</span>
+<span class="nc" id="L126">                                .setTitle(effect.promptTitle)</span>
+<span class="nc" id="L127">                                .setSubtitle(effect.promptSubtitle)</span>
+<span class="nc" id="L128">                                .allowFidoUserVerification()</span>
+<span class="nc" id="L129">                                .build()</span>
+
+<span class="nc" id="L131">                        val biometricPrompt =</span>
+<span class="nc" id="L132">                            BiometricPrompt(</span>
+<span class="nc" id="L133">                                act,</span>
+<span class="nc" id="L134">                                executor,</span>
+<span class="nc" id="L135">                                object : BiometricPrompt.AuthenticationCallback() {</span>
+                                    override fun onAuthenticationError(
+                                        errorCode: Int,
+                                        errString: CharSequence,
+                                    ) {
+<span class="nc" id="L140">                                        super.onAuthenticationError(errorCode, errString)</span>
+                                        // Only treat cancel as an explicit failure vs error
+<span class="nc" id="L142">                                        val isCancel =</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                                            errorCode == BiometricPrompt.ERROR_CANCELED ||</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">                                                errorCode == BiometricPrompt.ERROR_USER_CANCELED</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                                        if (isCancel) {</span>
+<span class="nc bnc" id="L146" title="All 6 branches missed.">                                            if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L147">                                            viewModel.handleIntent(</span>
+<span class="nc" id="L148">                                                RegistrationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L149">                                                    effect.promptId,</span>
+<span class="nc" id="L150">                                                    &quot;Verification cancelled by user&quot;,</span>
+                                                ),
+                                            )
+                                        } else {
+<span class="nc bnc" id="L154" title="All 6 branches missed.">                                            if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L155">                                            viewModel.handleIntent(</span>
+<span class="nc" id="L156">                                                RegistrationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L157">                                                    effect.promptId,</span>
+<span class="nc" id="L158">                                                    errString.toString(),</span>
+                                                ),
+                                            )
+                                        }
+<span class="nc" id="L162">                                    }</span>
+
+                                    override fun onAuthenticationSucceeded(
+                                        result: BiometricPrompt.AuthenticationResult,
+                                    ) {
+<span class="nc" id="L167">                                        super.onAuthenticationSucceeded(result)</span>
+<span class="nc bnc" id="L168" title="All 6 branches missed.">                                        if (activePrompt?.first == effect.promptId) activePrompt = null</span>
+<span class="nc" id="L169">                                        viewModel.handleIntent(</span>
+<span class="nc" id="L170">                                            RegistrationIntent.UserVerificationSuccess(effect.promptId),</span>
+                                        )
+<span class="nc" id="L172">                                    }</span>
+                                },
+                            )
+<span class="nc" id="L175">                        activePrompt = effect.promptId to biometricPrompt</span>
+<span class="nc" id="L176">                        biometricPrompt.authenticate(promptInfo)</span>
+<span class="nc" id="L177">                    } ?: run {</span>
+<span class="nc" id="L178">                        viewModel.handleIntent(</span>
+<span class="nc" id="L179">                            RegistrationIntent.UserVerificationFailed(</span>
+<span class="nc" id="L180">                                effect.promptId,</span>
+<span class="nc" id="L181">                                &quot;Activity context required for biometric prompt&quot;,</span>
+                            ),
+                        )
+<span class="nc" id="L184">                    }</span>
+                }
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                is RegistrationEffect.ShowSnackbar -&gt; { /* handled via state */ }</span>
+            }
+<span class="nc" id="L188">        }</span>
+<span class="nc" id="L189">    }</span>
+
+<span class="nc" id="L191">    RegistrationPromptContent(</span>
+<span class="nc" id="L192">        state = state,</span>
+<span class="nc" id="L193">        onConfirm = { viewModel.handleIntent(RegistrationIntent.ConfirmRegistration) },</span>
+<span class="nc" id="L194">        onCancel = { viewModel.handleIntent(RegistrationIntent.CancelRegistration) },</span>
+<span class="nc" id="L195">        onRetry = { viewModel.handleIntent(RegistrationIntent.Retry) },</span>
+<span class="nc" id="L196">        onOpenSettings = onOpenSettings,</span>
+<span class="nc" id="L197">        modifier = modifier,</span>
+    )
+<span class="nc" id="L199">}</span>
+
+/** Renders [state] and invokes the supplied registration action callbacks. */
+@Composable
+@Req(&quot;FR-HID-030&quot;, &quot;FR-AUTH-010&quot;)
+internal fun RegistrationPromptContent(
+    state: RegistrationState,
+    onConfirm: () -&gt; Unit,
+    onCancel: () -&gt; Unit,
+    onRetry: () -&gt; Unit,
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">    modifier: Modifier = Modifier,</span>
+<span class="pc" id="L210">    onOpenSettings: () -&gt; Unit = {},</span>
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L212">    Surface(</span>
+<span class="fc" id="L213">        modifier = modifier.fillMaxSize(),</span>
+<span class="fc" id="L214">        color = MaterialTheme.colorScheme.background,</span>
+<span class="fc" id="L215">    ) {</span>
+<span class="fc" id="L216">        AnimatedContent(</span>
+<span class="fc" id="L217">            targetState = state,</span>
+<span class="fc" id="L218">            transitionSpec = { fadeIn() togetherWith fadeOut() },</span>
+<span class="fc" id="L219">            label = &quot;registration-state&quot;,</span>
+<span class="fc" id="L220">        ) { currentState -&gt;</span>
+<span class="pc" id="L221">            when (currentState) {</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">                is RegistrationState.Idle -&gt; {</span>
+<span class="nc" id="L223">                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L224">                        CircularProgressIndicator()</span>
+<span class="nc" id="L225">                    }</span>
+                }
+
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">                is RegistrationState.AwaitingUserConsent -&gt; {</span>
+<span class="fc" id="L229">                    AwaitingConsentContent(</span>
+<span class="fc" id="L230">                        state = currentState,</span>
+<span class="fc" id="L231">                        onConfirm = onConfirm,</span>
+<span class="fc" id="L232">                        onCancel = onCancel,</span>
+<span class="fc" id="L233">                        onOpenSettings = onOpenSettings,</span>
+                    )
+                }
+
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                is RegistrationState.AwaitingUserVerification -&gt; {</span>
+<span class="nc" id="L238">                    Box(</span>
+<span class="nc" id="L239">                        Modifier.fillMaxSize().semantics { contentDescription = &quot;User verification prompt&quot; },</span>
+<span class="nc" id="L240">                        contentAlignment = Alignment.Center,</span>
+                    ) {
+<span class="nc" id="L242">                        Column(</span>
+<span class="nc" id="L243">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L244">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+                        ) {
+<span class="nc" id="L246">                            Icon(</span>
+<span class="nc" id="L247">                                imageVector = Icons.Filled.Lock,</span>
+<span class="nc" id="L248">                                contentDescription = &quot;Authentication&quot;,</span>
+<span class="nc" id="L249">                                modifier = Modifier.size(72.dp),</span>
+<span class="nc" id="L250">                                tint = MaterialTheme.colorScheme.primary,</span>
+                            )
+<span class="nc" id="L252">                            Text(&quot;Please verify your identity&quot;, style = MaterialTheme.typography.titleMedium)</span>
+<span class="nc" id="L253">                        }</span>
+<span class="nc" id="L254">                    }</span>
+                }
+
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                is RegistrationState.Processing -&gt; {</span>
+<span class="nc" id="L258">                    Box(</span>
+<span class="nc" id="L259">                        Modifier.fillMaxSize().semantics { contentDescription = &quot;Registering credential&quot; },</span>
+<span class="nc" id="L260">                        contentAlignment = Alignment.Center,</span>
+                    ) {
+<span class="nc" id="L262">                        RegistrationProgressIndicator()</span>
+<span class="nc" id="L263">                    }</span>
+                }
+
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                is RegistrationState.Success -&gt; {</span>
+<span class="nc" id="L267">                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L268">                        Column(</span>
+<span class="nc" id="L269">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L270">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+<span class="nc" id="L271">                            modifier = Modifier.padding(32.dp),</span>
+                        ) {
+<span class="nc" id="L273">                            Surface(</span>
+<span class="nc" id="L274">                                shape = CircleShape,</span>
+<span class="nc" id="L275">                                color = MaterialTheme.colorScheme.primaryContainer,</span>
+<span class="nc" id="L276">                                modifier = Modifier.size(80.dp),</span>
+<span class="fc" id="L277">                            ) {</span>
+<span class="nc" id="L278">                                Box(contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L279">                                    Icon(</span>
+<span class="nc" id="L280">                                        Icons.Filled.Lock,</span>
+<span class="nc" id="L281">                                        contentDescription = null,</span>
+<span class="nc" id="L282">                                        modifier = Modifier.size(40.dp),</span>
+<span class="nc" id="L283">                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,</span>
+                                    )
+<span class="nc" id="L285">                                }</span>
+<span class="nc" id="L286">                            }</span>
+<span class="nc" id="L287">                            Text(</span>
+<span class="nc" id="L288">                                &quot;Passkey created!&quot;,</span>
+<span class="nc" id="L289">                                style = MaterialTheme.typography.headlineSmall,</span>
+<span class="nc" id="L290">                                fontWeight = FontWeight.Bold,</span>
+<span class="nc" id="L291">                                modifier = Modifier.semantics { heading() },</span>
+                            )
+<span class="nc" id="L293">                            Text(</span>
+<span class="nc" id="L294">                                &quot;You can now sign in with your passkey.&quot;,</span>
+<span class="nc" id="L295">                                textAlign = TextAlign.Center,</span>
+<span class="nc" id="L296">                                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                            )
+<span class="nc" id="L298">                        }</span>
+<span class="nc" id="L299">                    }</span>
+                }
+
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                is RegistrationState.Error -&gt; {</span>
+<span class="nc" id="L303">                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {</span>
+<span class="nc" id="L304">                        Column(</span>
+<span class="nc" id="L305">                            horizontalAlignment = Alignment.CenterHorizontally,</span>
+<span class="nc" id="L306">                            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+<span class="nc" id="L307">                            modifier = Modifier.padding(32.dp),</span>
+                        ) {
+<span class="nc" id="L309">                            Text(</span>
+<span class="nc" id="L310">                                &quot;Registration failed&quot;,</span>
+<span class="nc" id="L311">                                style = MaterialTheme.typography.titleLarge,</span>
+<span class="nc" id="L312">                                color = MaterialTheme.colorScheme.error,</span>
+                            )
+<span class="nc" id="L314">                            Text(currentState.message, textAlign = TextAlign.Center)</span>
+<span class="nc" id="L315">                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {</span>
+<span class="pc" id="L316">                                ChimaliOutlinedButton(onClick = onCancel) { Text(&quot;Cancel&quot;) }</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                                if (currentState.isRetryable) {</span>
+<span class="pc" id="L318">                                    ChimaliButton(onClick = onRetry) { Text(&quot;Try again&quot;) }</span>
+<span class="nc" id="L319">                                }</span>
+<span class="nc" id="L320">                            }</span>
+<span class="nc" id="L321">                        }</span>
+<span class="nc" id="L322">                    }</span>
+                }
+
+<span class="nc bnc" id="L325" title="All 2 branches missed.">                is RegistrationState.Cancelled -&gt; {</span>
+                    // Will navigate away; show nothing
+<span class="nc" id="L327">                }</span>
+<span class="nc" id="L328">            }</span>
+<span class="fc" id="L329">        }</span>
+<span class="fc" id="L330">    }</span>
+<span class="fc" id="L331">}</span>
+
+@Composable
+private fun AwaitingConsentContent(
+    state: RegistrationState.AwaitingUserConsent,
+    onConfirm: () -&gt; Unit,
+    onCancel: () -&gt; Unit,
+    onOpenSettings: () -&gt; Unit,
+<span class="fc" id="L339">) {</span>
+<span class="fc" id="L340">    Column(</span>
+        modifier =
+<span class="fc" id="L342">            Modifier</span>
+<span class="fc" id="L343">                .fillMaxSize()</span>
+<span class="fc" id="L344">                .padding(24.dp),</span>
+<span class="fc" id="L345">        verticalArrangement = Arrangement.Center,</span>
+<span class="fc" id="L346">        horizontalAlignment = Alignment.CenterHorizontally,</span>
+    ) {
+        // Shield icon
+<span class="fc" id="L349">        Surface(</span>
+<span class="fc" id="L350">            shape = CircleShape,</span>
+<span class="fc" id="L351">            color = MaterialTheme.colorScheme.primaryContainer,</span>
+<span class="fc" id="L352">            modifier = Modifier.size(96.dp),</span>
+<span class="fc" id="L353">        ) {</span>
+<span class="fc" id="L354">            Box(contentAlignment = Alignment.Center) {</span>
+<span class="fc" id="L355">                Icon(</span>
+<span class="fc" id="L356">                    imageVector = Icons.Filled.Lock,</span>
+<span class="fc" id="L357">                    contentDescription = &quot;Security&quot;,</span>
+<span class="fc" id="L358">                    modifier = Modifier.size(48.dp),</span>
+<span class="fc" id="L359">                    tint = MaterialTheme.colorScheme.onPrimaryContainer,</span>
+                )
+<span class="fc" id="L361">            }</span>
+<span class="fc" id="L362">        }</span>
+
+<span class="fc" id="L364">        Spacer(Modifier.height(24.dp))</span>
+
+<span class="fc" id="L366">        Text(</span>
+<span class="fc" id="L367">            text = &quot;Create Passkey&quot;,</span>
+<span class="fc" id="L368">            style = MaterialTheme.typography.headlineMedium,</span>
+<span class="fc" id="L369">            fontWeight = FontWeight.Bold,</span>
+<span class="fc" id="L370">            modifier = Modifier.semantics { heading() },</span>
+        )
+
+<span class="fc" id="L373">        Spacer(Modifier.height(8.dp))</span>
+
+        // Site/RP card
+<span class="fc" id="L376">        Card(</span>
+            modifier =
+<span class="fc" id="L378">                Modifier</span>
+<span class="fc" id="L379">                    .fillMaxWidth()</span>
+<span class="fc" id="L380">                    .semantics(mergeDescendants = true) { },</span>
+<span class="fc" id="L381">            shape = RoundedCornerShape(12.dp),</span>
+<span class="fc" id="L382">        ) {</span>
+<span class="fc" id="L383">            Column(</span>
+<span class="fc" id="L384">                modifier = Modifier.padding(16.dp),</span>
+<span class="fc" id="L385">                verticalArrangement = Arrangement.spacedBy(4.dp),</span>
+            ) {
+<span class="fc" id="L387">                Text(</span>
+<span class="fc" id="L388">                    text = state.rpName.toBoundaryString(),</span>
+<span class="fc" id="L389">                    style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L390">                    fontWeight = FontWeight.SemiBold,</span>
+                )
+<span class="fc" id="L392">                Text(</span>
+<span class="fc" id="L393">                    text = state.rpId.toBoundaryString(),</span>
+<span class="fc" id="L394">                    style = MaterialTheme.typography.bodySmall,</span>
+<span class="fc" id="L395">                    color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                )
+<span class="fc" id="L397">            }</span>
+<span class="fc" id="L398">        }</span>
+
+<span class="fc" id="L400">        Spacer(Modifier.height(8.dp))</span>
+
+        // User card
+<span class="fc" id="L403">        Card(</span>
+            modifier =
+<span class="fc" id="L405">                Modifier</span>
+<span class="fc" id="L406">                    .fillMaxWidth()</span>
+<span class="fc" id="L407">                    .semantics(mergeDescendants = true) { },</span>
+<span class="fc" id="L408">            shape = RoundedCornerShape(12.dp),</span>
+<span class="fc" id="L409">        ) {</span>
+<span class="fc" id="L410">            Column(</span>
+<span class="fc" id="L411">                modifier = Modifier.padding(16.dp),</span>
+<span class="fc" id="L412">                verticalArrangement = Arrangement.spacedBy(4.dp),</span>
+            ) {
+<span class="fc" id="L414">                Text(</span>
+<span class="fc" id="L415">                    &quot;Signing in as&quot;,</span>
+<span class="fc" id="L416">                    style = MaterialTheme.typography.labelMedium,</span>
+<span class="fc" id="L417">                    color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                )
+<span class="fc" id="L419">                Text(</span>
+<span class="fc" id="L420">                    text = state.userDisplayName.toBoundaryString(),</span>
+<span class="fc" id="L421">                    style = MaterialTheme.typography.bodyLarge,</span>
+<span class="fc" id="L422">                    fontWeight = FontWeight.Medium,</span>
+                )
+<span class="pc bpc" id="L424" title="1 of 2 branches missed.">                if (!state.userName.contentEquals(state.userDisplayName)) {</span>
+<span class="fc" id="L425">                    Text(</span>
+<span class="fc" id="L426">                        state.userName.toBoundaryString(),</span>
+<span class="fc" id="L427">                        style = MaterialTheme.typography.bodySmall,</span>
+<span class="fc" id="L428">                        color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+                    )
+<span class="pc" id="L430">                }</span>
+<span class="fc" id="L431">            }</span>
+<span class="fc" id="L432">        }</span>
+
+<span class="fc" id="L434">        Spacer(Modifier.height(8.dp))</span>
+
+        // Verification method info
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">        if (state.availableMethod != VerificationMethod.NONE) {</span>
+<span class="nc" id="L438">            val methodLabel =</span>
+<span class="nc bnc" id="L439" title="All 3 branches missed.">                when (state.availableMethod) {</span>
+<span class="nc" id="L440">                    VerificationMethod.BIOMETRIC -&gt; &quot;You'll verify with biometric&quot;</span>
+<span class="nc" id="L441">                    VerificationMethod.PIN -&gt; &quot;You'll verify with your PIN&quot;</span>
+<span class="nc" id="L442">                    else -&gt; &quot;Verification required&quot;</span>
+                }
+<span class="nc" id="L444">            Text(</span>
+<span class="nc" id="L445">                text = methodLabel,</span>
+<span class="nc" id="L446">                style = MaterialTheme.typography.bodySmall,</span>
+<span class="nc" id="L447">                color = MaterialTheme.colorScheme.onSurfaceVariant,</span>
+            )
+<span class="nc" id="L449">            Spacer(Modifier.height(16.dp))</span>
+<span class="fc" id="L450">        }</span>
+
+<span class="fc" id="L452">        Spacer(Modifier.height(16.dp))</span>
+
+        // Action buttons
+<span class="fc" id="L455">        ChimaliButton(</span>
+<span class="fc" id="L456">            onClick = onConfirm,</span>
+            modifier =
+<span class="fc" id="L458">                Modifier</span>
+<span class="fc" id="L459">                    .fillMaxWidth()</span>
+<span class="fc" id="L460">                    .semantics { contentDescription = &quot;Confirm registration button&quot; },</span>
+<span class="fc" id="L461">        ) {</span>
+<span class="fc" id="L462">            Text(&quot;Create Passkey&quot;)</span>
+<span class="fc" id="L463">        }</span>
+
+<span class="fc" id="L465">        Spacer(Modifier.height(8.dp))</span>
+
+<span class="fc" id="L467">        ChimaliOutlinedButton(</span>
+<span class="fc" id="L468">            onClick = onCancel,</span>
+            modifier =
+<span class="fc" id="L470">                Modifier</span>
+<span class="fc" id="L471">                    .fillMaxWidth()</span>
+<span class="fc" id="L472">                    .semantics { contentDescription = &quot;Cancel registration button&quot; },</span>
+<span class="fc" id="L473">        ) {</span>
+<span class="fc" id="L474">            Text(&quot;Cancel&quot;)</span>
+<span class="fc" id="L475">        }</span>
+<span class="fc" id="L476">        TextButton(</span>
+<span class="fc" id="L477">            onClick = onOpenSettings,</span>
+<span class="fc" id="L478">            modifier = Modifier.fillMaxWidth().semantics { contentDescription = &quot;Open transport settings&quot; },</span>
+<span class="fc" id="L479">        ) {</span>
+<span class="fc" id="L480">            Text(&quot;Transport settings&quot;)</span>
+<span class="fc" id="L481">        }</span>
+<span class="fc" id="L482">    }</span>
+<span class="fc" id="L483">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

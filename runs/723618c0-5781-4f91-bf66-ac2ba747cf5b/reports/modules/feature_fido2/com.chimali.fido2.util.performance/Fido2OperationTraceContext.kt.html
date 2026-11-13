@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2OperationTraceContext.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">Fido2OperationTraceContext.kt</span></div><h1>Fido2OperationTraceContext.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+
+/** Secret-free correlation context propagated from one CTAP MakeCredential dispatch. */
+<span class="fc" id="L11">internal class Fido2OperationTraceContext(</span>
+<span class="pc" id="L12">    val processSession: String,</span>
+<span class="pc" id="L13">    val operationCookie: Int,</span>
+<span class="fc" id="L14">) : AbstractCoroutineContextElement(Key) {</span>
+<span class="fc" id="L15">    val correlation = LookupTraceCorrelation()</span>
+
+    companion object Key : CoroutineContext.Key&lt;Fido2OperationTraceContext&gt;
+}
+
+/**
+ * Validates one lookup mapping and the paired lifecycle segments for a single operation.
+ *
+ * A pending-terminal callback handles the race where [recordTerminal] is called from the lookup
+ * section's finally block while the final [restoreThreadContext] has not yet emitted its suspend
+ * marker. When [recordTerminal] observes active or closing segments, it stores the callback; the
+ * last [finishSegmentRestore] call invokes it after the marker has been emitted. The terminal is
+ * emitted exactly once regardless of ordering.
+ */
+<span class="fc" id="L29">internal class LookupTraceCorrelation {</span>
+    private var lookupTraceCookie: Int? = null
+<span class="fc" id="L31">    private val startedSegments = ConcurrentHashMap.newKeySet&lt;Int&gt;()</span>
+<span class="fc" id="L32">    private val activeSegments = ConcurrentHashMap.newKeySet&lt;Int&gt;()</span>
+
+    // A segment leaves active state before its suspend marker is emitted. Keep it here until
+    // that marker has been written so terminal cannot overtake the final lifecycle event.
+<span class="fc" id="L36">    private val closingSegments = ConcurrentHashMap.newKeySet&lt;Int&gt;()</span>
+<span class="fc" id="L37">    private val closedSegments = ConcurrentHashMap.newKeySet&lt;Int&gt;()</span>
+<span class="fc" id="L38">    private val terminal = AtomicBoolean(false)</span>
+
+    /**
+     * Pending terminal callback set by [recordTerminal] when active segments remain.
+     * Consumed and invoked by [finishSegmentRestore] when active and closing segments drain.
+     */
+<span class="fc" id="L44">    private val pendingTerminalCallback = AtomicReference&lt;(() -&gt; Unit)?&gt;(null)</span>
+
+    @Synchronized
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun recordLookupCookie(traceCookie: Int): Boolean {
+<span class="pc bpc" id="L49" title="2 of 6 branches missed.">        if (traceCookie &lt;= 0 || lookupTraceCookie != null || terminal.get()) return false</span>
+<span class="fc" id="L50">        lookupTraceCookie = traceCookie</span>
+<span class="fc" id="L51">        return true</span>
+    }
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    @Synchronized
+    fun startSegment(traceCookie: Int): Boolean {
+<span class="pc bpc" id="L57" title="2 of 6 branches missed.">        if (lookupTraceCookie == null || traceCookie &lt;= 0 || terminal.get()) return false</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (!startedSegments.add(traceCookie)) return false</span>
+<span class="fc" id="L59">        return activeSegments.add(traceCookie)</span>
+    }
+
+    /** Begins closing a segment; completion waits until its suspend marker has been emitted. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    @Synchronized
+    fun beginSegmentRestore(traceCookie: Int): Boolean {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (!activeSegments.remove(traceCookie)) return false</span>
+<span class="fc" id="L67">        return closingSegments.add(traceCookie)</span>
+    }
+
+    /** Marks a segment fully closed after its suspend diagnostic has been emitted. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    @Synchronized
+    fun finishSegmentRestore(traceCookie: Int): Boolean {
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (!closingSegments.remove(traceCookie)) return false</span>
+<span class="fc" id="L75">        closedSegments.add(traceCookie)</span>
+<span class="fc" id="L76">        emitPendingTerminalIfDrained()</span>
+<span class="fc" id="L77">        return true</span>
+    }
+
+    /** Convenience close for correlation-only callers that have no lifecycle marker to emit. */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun endSegment(traceCookie: Int): Boolean {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (!beginSegmentRestore(traceCookie)) return false</span>
+<span class="fc" id="L84">        return finishSegmentRestore(traceCookie)</span>
+    }
+
+    private fun emitPendingTerminalIfDrained() {
+<span class="fc bfc" id="L88" title="All 4 branches covered.">        if (activeSegments.isEmpty() &amp;&amp; closingSegments.isEmpty()) {</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">            pendingTerminalCallback.getAndSet(null)?.invoke()</span>
+        }
+<span class="fc" id="L91">    }</span>
+
+    /**
+     * Records the terminal event for this lookup. Returns [TerminalResult] to let the caller
+     * distinguish the no-mapping/duplicate-reject case from the deferred-emit race case.
+     *
+     * - [TerminalResult.IMMEDIATE]: all segments were already closed; caller emits inline.
+     * - [TerminalResult.DEFERRED]: segments are active or their suspend markers are being emitted;
+     *   [onTerminalReady] is stored and invoked after the last marker. Caller suppresses inline emission.
+     * - [TerminalResult.REJECTED]: lookup mapping absent or terminal already set; caller emits
+     *   with valid=false to record the rejection.
+     */
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    @Synchronized
+<span class="fc" id="L105">    fun recordTerminal(onTerminalReady: (() -&gt; Unit)? = null): TerminalResult {</span>
+<span class="fc bfc" id="L106" title="All 4 branches covered.">        if (lookupTraceCookie == null || !terminal.compareAndSet(false, true)) {</span>
+<span class="fc" id="L107">            return TerminalResult.REJECTED</span>
+        }
+<span class="fc bfc" id="L109" title="All 4 branches covered.">        if (activeSegments.isEmpty() &amp;&amp; closingSegments.isEmpty()) {</span>
+<span class="fc" id="L110">            return TerminalResult.IMMEDIATE</span>
+        }
+        // Return/restore race: active or closing segments remain. Store the callback until both
+        // sets drain, so terminal cannot overtake a suspend marker.
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        if (onTerminalReady != null) {</span>
+<span class="fc" id="L115">            pendingTerminalCallback.set(onTerminalReady)</span>
+            // Segment restore may finish between the initial check and callback installation.
+            // Recheck after storing so that this interleaving cannot strand the callback.
+<span class="fc" id="L118">            emitPendingTerminalIfDrained()</span>
+        }
+<span class="fc" id="L120">        return TerminalResult.DEFERRED</span>
+    }
+
+    /** Three-way outcome of [recordTerminal]. */
+<span class="fc" id="L124">    enum class TerminalResult { IMMEDIATE, DEFERRED, REJECTED }</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+    fun isComplete(): Boolean =
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">        lookupTraceCookie != null &amp;&amp;</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">            terminal.get() &amp;&amp;</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">            activeSegments.isEmpty() &amp;&amp;</span>
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">            closingSegments.isEmpty() &amp;&amp;</span>
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">            startedSegments == closedSegments</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc" id="L135">    fun lookupCookie(): Int? = lookupTraceCookie</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+<span class="nc bnc" id="L138" title="All 2 branches missed.">    fun hasLookupMapping(): Boolean = lookupTraceCookie != null</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

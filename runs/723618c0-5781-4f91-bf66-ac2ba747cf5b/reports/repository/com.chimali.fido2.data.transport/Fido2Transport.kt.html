@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2Transport.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">Fido2Transport.kt</span></div><h1>Fido2Transport.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothDevice
+import com.chimali.core.common.annotation.Req
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * Represents the transport-neutral authenticator connection and advertising lifecycle.
+ *
+ * Supported states:
+ * - [Idle]: Transport is inactive and not broadcasting.
+ * - [Advertising]: Transport is broadcasting and awaiting incoming host connections.
+ * - [Connecting]: A host has initiated or is establishing a connection.
+ * - [Connected]: A host is connected and ready to exchange CTAP2 commands.
+ * - [Error]: An unrecoverable hardware, permission, or transport error occurred.
+ */
+@Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;, &quot;TR-BLE-010&quot;)
+sealed class Fido2ConnectionState {
+<span class="fc" id="L19">    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+    object Idle : Fido2ConnectionState()
+
+<span class="fc" id="L22">    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+    object Advertising : Fido2ConnectionState()
+
+<span class="fc" id="L25">    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L26">    data class Connecting(</span>
+<span class="fc" id="L27">        @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L28">        val device: BluetoothDevice? = null,</span>
+<span class="fc" id="L29">    ) : Fido2ConnectionState()</span>
+
+<span class="fc" id="L31">    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L32">    data class Connected(</span>
+<span class="fc" id="L33">        @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L34">        val device: BluetoothDevice? = null,</span>
+<span class="fc" id="L35">    ) : Fido2ConnectionState()</span>
+
+<span class="fc" id="L37">    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L38">    data class Error(</span>
+<span class="fc" id="L39">        @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)</span>
+<span class="fc" id="L40">        val message: String,</span>
+    ) : Fido2ConnectionState()
+}
+
+/** Exception returned when BLE transport is asked to initiate an outbound host connection. */
+<span class="fc" id="L45">class UnsupportedOutboundConnectionException(</span>
+    message: String =
+<span class="fc" id="L47">        &quot;FIDO BLE peripheral transport does not support outbound host connections; connections must be host-initiated.&quot;,</span>
+<span class="fc" id="L48">) : UnsupportedOperationException(message)</span>
+
+/** Unified contract for FIDO2 transports (Classic HID and FIDO BLE). */
+interface Fido2Transport {
+    /** Current connection state; observers do not own or close the flow. */
+    val connectionState: StateFlow&lt;Fido2ConnectionState&gt;
+
+    /**
+     * Starts advertising or listening for host connections.
+     * @return Success when started, or failure when the transport cannot start.
+     */
+    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)
+    suspend fun connect(): Result&lt;Unit&gt;
+
+    /**
+     * Connects to a host device (Classic HID only).
+     * Returns an explicit [UnsupportedOutboundConnectionException] on BLE transport.
+     * @param macAddress Address of the host to connect.
+     * @return Success when connected, or the connection failure.
+     */
+    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)
+    suspend fun connectDevice(macAddress: String): Result&lt;Unit&gt;
+
+    /**
+     * Ends the current transport session and releases its connection resources.
+     * @return Success when disconnected, or the transport failure.
+     */
+    @Req(&quot;FR-BLE-080&quot;, &quot;FR-BT-SEL-040&quot;)
+    suspend fun disconnect(): Result&lt;Unit&gt;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

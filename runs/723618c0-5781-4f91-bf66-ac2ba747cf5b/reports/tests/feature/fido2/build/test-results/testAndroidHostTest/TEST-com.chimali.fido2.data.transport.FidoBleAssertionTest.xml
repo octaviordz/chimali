@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.fido2.data.transport.FidoBleAssertionTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:51.570Z" hostname="LOQ15IRX10-3" time="0.166">
+  <properties/>
+  <testcase name="keepalives resume for the next request after terminal response delivery()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.11"/>
+  <testcase name="keepalives emitted during assertion processing stop before terminal response fragments()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.008"/>
+  <testcase name="assertion with UV rejection returns CTAP2_ERR_OPERATION_DENIED()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.006"/>
+  <testcase name="keepalive cadence continues through processing and user presence then stops before response()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.01"/>
+  <testcase name="successful assertion returns CTAP2_OK and fragmented CBOR response in FIFO order()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.014"/>
+  <testcase name="fragmented MakeCredential corpus preserves request and attestation response bytes()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.01"/>
+  <testcase name="unauthorized assertion request returns CTAP2_ERR_UNAUTHORIZED_PERMISSION()" classname="com.chimali.fido2.data.transport.FidoBleAssertionTest" time="0.007"/>
+  <system-out><![CDATA[Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=4 terminalNotificationAcknowledged=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=0 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=1 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=0 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=2 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=2 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=MakeCredential
+Info: FIDO BLE diagnostic completed operation=MakeCredential elapsedMs=1 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+Info: BleSessionOwner: FIDO2 revision 0x20 selected
+Debug: BleSessionOwner: Notifications enabled=true
+Debug: FIDO BLE diagnostic started operation=GetAssertion
+Info: FIDO BLE diagnostic completed operation=GetAssertion elapsedMs=0 terminalNotificationAcknowledged=true
+Debug: BleSessionOwner: Disconnected, session generation incremented to 2
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

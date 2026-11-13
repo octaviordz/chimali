@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NordicBleAdvertiserController.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">NordicBleAdvertiserController.kt</span></div><h1>NordicBleAdvertiserController.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.ParcelUuid
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import no.nordicsemi.android.kotlin.ble.advertiser.BleAdvertiser
+import no.nordicsemi.android.kotlin.ble.advertiser.callback.BleAdvertisingStatus
+import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStarted
+import no.nordicsemi.android.kotlin.ble.advertiser.callback.OnAdvertisingSetStopped
+import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingConfig
+import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingData
+import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingSettings
+
+<span class="fc" id="L31">@Req(&quot;FR-BLE-010&quot;, &quot;TR-BLE-010&quot;)</span>
+<span class="fc" id="L32">class NordicBleAdvertiserController(</span>
+<span class="fc" id="L33">    private val context: Context,</span>
+<span class="fc" id="L34">    private val scope: CoroutineScope,</span>
+<span class="fc" id="L35">    private val advertiserFactory: (Context) -&gt; BleAdvertiser = { BleAdvertiser.create(it) },</span>
+<span class="fc" id="L36">) : BleAdvertiserController {</span>
+    private var advertisingJob: Job? = null
+    private var advertiser: BleAdvertiser? = null
+    private var adapterStateReceiver: BroadcastReceiver? = null
+
+    @Volatile private var advertisingStarted = false
+
+    @Suppress(&quot;TooGenericExceptionCaught&quot;) // Convert Nordic flow failures into a retryable transport startup result.
+    override suspend fun startAdvertising(
+        serviceUuid: UUID,
+        onUnexpectedFailure: (Throwable) -&gt; Unit,
+    ): Result&lt;Unit&gt; =
+<span class="fc" id="L48">        try {</span>
+<span class="pc bpc" id="L49" title="3 of 8 branches missed.">            if (advertisingStarted &amp;&amp; advertisingJob?.isActive == true) return Result.success(Unit)</span>
+
+<span class="fc" id="L51">            val adapterTurnedOff = AtomicBoolean(false)</span>
+<span class="fc" id="L52">            registerAdapterStateReceiver { failure -&gt;</span>
+<span class="fc" id="L53">                adapterTurnedOff.set(true)</span>
+<span class="fc" id="L54">                onUnexpectedFailure(failure)</span>
+<span class="fc" id="L55">            }</span>
+<span class="fc" id="L56">            val adv = advertiserFactory(context)</span>
+<span class="fc" id="L57">            advertiser = adv</span>
+<span class="fc" id="L58">            val config =</span>
+<span class="fc" id="L59">                BleAdvertisingConfig(</span>
+                    settings =
+<span class="fc" id="L61">                        BleAdvertisingSettings(</span>
+<span class="fc" id="L62">                            connectable = true,</span>
+<span class="fc" id="L63">                            legacyMode = true,</span>
+<span class="fc" id="L64">                            scannable = true,</span>
+                        ),
+                    advertiseData =
+<span class="fc" id="L67">                        BleAdvertisingData(</span>
+<span class="fc" id="L68">                            serviceUuid = ParcelUuid(serviceUuid),</span>
+                        ),
+<span class="fc" id="L70">                    scanResponseData = BleAdvertisingData(includeDeviceName = true),</span>
+                )
+<span class="fc" id="L72">            val startup = CompletableDeferred&lt;Result&lt;Unit&gt;&gt;()</span>
+<span class="fc" id="L73">            val job =</span>
+<span class="fc" id="L74">                scope.launch {</span>
+<span class="fc" id="L75">                    try {</span>
+<span class="fc" id="L76">                        adv.advertise(config).collect { event -&gt;</span>
+<span class="fc" id="L77">                            when (event) {</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">                                is OnAdvertisingSetStarted -&gt; {</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                                    if (event.status == BleAdvertisingStatus.ADVERTISE_SUCCESS) {</span>
+<span class="fc" id="L80">                                        advertisingStarted = true</span>
+<span class="fc" id="L81">                                        startup.complete(Result.success(Unit))</span>
+                                    } else {
+<span class="fc" id="L83">                                        startup.complete(</span>
+<span class="fc" id="L84">                                            Result.failure(</span>
+<span class="fc" id="L85">                                                IllegalStateException(</span>
+<span class="fc" id="L86">                                                    &quot;Nordic advertiser failed to start: ${event.status}&quot;,</span>
+                                                ),
+                                            ),
+                                        )
+                                    }
+                                }
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">                                is OnAdvertisingSetStopped -&gt; {</span>
+<span class="fc" id="L93">                                    advertisingStarted = false</span>
+<span class="fc" id="L94">                                    error(&quot;Nordic advertiser stopped&quot;)</span>
+                                }
+<span class="nc" id="L96">                                else -&gt; Unit</span>
+                            }
+<span class="fc" id="L98">                        }</span>
+<span class="fc" id="L99">                        val failure = IllegalStateException(&quot;Nordic advertiser flow completed&quot;)</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                        if (!startup.complete(Result.failure(failure))) onUnexpectedFailure(failure)</span>
+<span class="fc" id="L101">                    } catch (e: CancellationException) {</span>
+<span class="fc" id="L102">                        startup.complete(Result.failure(e))</span>
+<span class="fc" id="L103">                        throw e</span>
+<span class="fc" id="L104">                    } catch (e: Exception) {</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">                        if (!startup.complete(Result.failure(e))) onUnexpectedFailure(e)</span>
+<span class="fc" id="L106">                        Logger.e(e) { &quot;NordicBleAdvertiserController: Advertising failed or interrupted&quot; }</span>
+                    }
+<span class="fc" id="L108">                }</span>
+<span class="fc" id="L109">            advertisingJob = job</span>
+<span class="fc" id="L110">            val result =</span>
+<span class="fc" id="L111">                try {</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                    withTimeoutOrNull(ADVERTISING_START_TIMEOUT_MS) {</span>
+<span class="fc" id="L113">                        startup.await()</span>
+<span class="pc" id="L114">                    } ?: Result.failure(TimeoutException(&quot;Nordic advertiser did not report a start within 5 seconds&quot;))</span>
+<span class="nc" id="L115">                } catch (cancellation: CancellationException) {</span>
+<span class="nc" id="L116">                    job.cancelAndJoin()</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                    if (advertisingJob === job) {</span>
+<span class="nc" id="L118">                        advertisingJob = null</span>
+<span class="nc" id="L119">                        advertiser = null</span>
+<span class="nc" id="L120">                        advertisingStarted = false</span>
+                    }
+<span class="nc" id="L122">                    unregisterAdapterStateReceiver()</span>
+<span class="nc" id="L123">                    throw cancellation</span>
+                }
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            if (result.isFailure) {</span>
+<span class="fc" id="L126">                job.cancelAndJoin()</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">                if (advertisingJob === job) {</span>
+<span class="fc" id="L128">                    advertisingJob = null</span>
+<span class="fc" id="L129">                    advertiser = null</span>
+<span class="fc" id="L130">                    advertisingStarted = false</span>
+                }
+<span class="fc" id="L132">                unregisterAdapterStateReceiver()</span>
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">            } else if (adapterTurnedOff.get()) {</span>
+<span class="nc" id="L134">                val failure = IllegalStateException(&quot;Bluetooth adapter turned off during BLE startup&quot;)</span>
+<span class="nc" id="L135">                stopAdvertising()</span>
+<span class="nc" id="L136">                stopObservingAdapterState()</span>
+<span class="nc" id="L137">                return Result.failure(failure)</span>
+            }
+<span class="fc" id="L139">            result</span>
+<span class="fc" id="L140">        } catch (e: SecurityException) {</span>
+<span class="fc" id="L141">            stopAdvertising()</span>
+<span class="fc" id="L142">            stopObservingAdapterState()</span>
+<span class="fc" id="L143">            Logger.e(e) { &quot;NordicBleAdvertiserController: Failed to start advertising&quot; }</span>
+<span class="fc" id="L144">            Result.failure(e)</span>
+<span class="fc" id="L145">        } catch (e: IllegalArgumentException) {</span>
+<span class="fc" id="L146">            stopAdvertising()</span>
+<span class="fc" id="L147">            stopObservingAdapterState()</span>
+<span class="fc" id="L148">            Logger.e(e) { &quot;NordicBleAdvertiserController: Failed to start advertising&quot; }</span>
+<span class="fc" id="L149">            Result.failure(e)</span>
+<span class="fc" id="L150">        } catch (e: IllegalStateException) {</span>
+<span class="fc" id="L151">            stopAdvertising()</span>
+<span class="fc" id="L152">            stopObservingAdapterState()</span>
+<span class="fc" id="L153">            Logger.e(e) { &quot;NordicBleAdvertiserController: Failed to start advertising&quot; }</span>
+<span class="fc" id="L154">            Result.failure(e)</span>
+<span class="fc" id="L155">        }</span>
+
+    override fun stopAdvertising() {
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        advertisingJob?.cancel()</span>
+<span class="fc" id="L159">        advertisingJob = null</span>
+<span class="fc" id="L160">        advertiser = null</span>
+<span class="fc" id="L161">        advertisingStarted = false</span>
+<span class="fc" id="L162">    }</span>
+
+    override fun stopObservingAdapterState() {
+<span class="fc" id="L165">        unregisterAdapterStateReceiver()</span>
+<span class="fc" id="L166">    }</span>
+
+    private fun registerAdapterStateReceiver(onUnexpectedFailure: (Throwable) -&gt; Unit) {
+<span class="fc" id="L169">        unregisterAdapterStateReceiver()</span>
+<span class="fc" id="L170">        val receiver =</span>
+<span class="fc" id="L171">            object : BroadcastReceiver() {</span>
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+<span class="pc bpc" id="L176" title="2 of 4 branches missed.">                    if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return</span>
+<span class="fc" id="L177">                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)</span>
+<span class="pc bpc" id="L178" title="1 of 4 branches missed.">                    if (state != BluetoothAdapter.STATE_TURNING_OFF &amp;&amp; state != BluetoothAdapter.STATE_OFF) return</span>
+
+<span class="fc" id="L180">                    advertisingStarted = false</span>
+<span class="fc" id="L181">                    val failure = IllegalStateException(&quot;Bluetooth adapter turned off during BLE advertising&quot;)</span>
+<span class="fc" id="L182">                    onUnexpectedFailure(failure)</span>
+<span class="fc" id="L183">                    stopAdvertising()</span>
+<span class="fc" id="L184">                }</span>
+            }
+<span class="fc" id="L186">        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.TIRAMISU) {</span>
+            // Bluetooth may broadcast from a privileged UID. Android protects ACTION_STATE_CHANGED,
+            // so EXPORTED receives that system event without accepting app-forged broadcasts.
+<span class="fc" id="L190">            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)</span>
+        } else {
+<span class="fc" id="L192">            context.registerReceiver(receiver, filter)</span>
+        }
+<span class="fc" id="L194">        adapterStateReceiver = receiver</span>
+<span class="fc" id="L195">    }</span>
+
+    private fun unregisterAdapterStateReceiver() {
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        val receiver = adapterStateReceiver ?: return</span>
+<span class="fc" id="L199">        adapterStateReceiver = null</span>
+<span class="fc" id="L200">        try {</span>
+<span class="fc" id="L201">            context.unregisterReceiver(receiver)</span>
+<span class="nc" id="L202">        } catch (_: IllegalArgumentException) {</span>
+            // The receiver may already have been removed by Android during teardown.
+        }
+<span class="fc" id="L205">    }</span>
+
+    private companion object {
+        const val ADVERTISING_START_TIMEOUT_MS = 5_000L
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

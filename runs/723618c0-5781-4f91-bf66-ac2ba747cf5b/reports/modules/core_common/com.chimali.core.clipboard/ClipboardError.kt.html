@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClipboardError.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">common</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.clipboard</a> &gt; <span class="el_source">ClipboardError.kt</span></div><h1>ClipboardError.kt</h1><pre class="source lang-java linenums">package com.chimali.core.clipboard
+
+/**
+ * Sealed class representing all possible clipboard-related errors.
+ * Provides type-safe error handling for clipboard operations.
+ */
+<span class="nc" id="L7">sealed class ClipboardError(</span>
+<span class="nc" id="L8">    message: String? = null,</span>
+<span class="nc" id="L9">    cause: Throwable? = null,</span>
+<span class="nc" id="L10">) : Exception(message, cause) {</span>
+    /**
+     * Clipboard service is unavailable on this platform/device.
+     */
+<span class="nc" id="L14">    class ClipboardUnavailable : ClipboardError(&quot;Clipboard service unavailable&quot;)</span>
+
+    /**
+     * Failed to copy data to clipboard.
+     */
+<span class="nc" id="L19">    data class CopyFailed(</span>
+<span class="nc" id="L20">        val reason: String,</span>
+<span class="nc" id="L21">        override val cause: Throwable? = null,</span>
+<span class="nc" id="L22">    ) : ClipboardError(&quot;Copy failed: $reason&quot;, cause)</span>
+
+    /**
+     * Failed to clear clipboard.
+     */
+<span class="nc" id="L27">    data class ClearFailed(</span>
+<span class="nc" id="L28">        val reason: String,</span>
+<span class="nc" id="L29">        override val cause: Throwable? = null,</span>
+<span class="nc" id="L30">    ) : ClipboardError(&quot;Clear failed: $reason&quot;, cause)</span>
+
+    /**
+     * Platform-specific clipboard error.
+     */
+<span class="nc" id="L35">    data class PlatformError(</span>
+<span class="nc" id="L36">        val platform: String,</span>
+<span class="nc" id="L37">        val errorCode: String?,</span>
+<span class="nc" id="L38">        val errorMessage: String,</span>
+<span class="nc" id="L39">        override val cause: Throwable? = null,</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">    ) : ClipboardError(&quot;[$platform Error ${errorCode ?: &quot;&quot;}] $errorMessage&quot;, cause)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

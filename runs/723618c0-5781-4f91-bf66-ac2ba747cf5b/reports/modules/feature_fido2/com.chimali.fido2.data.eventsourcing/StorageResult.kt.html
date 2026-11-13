@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StorageResult.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.eventsourcing</a> &gt; <span class="el_source">StorageResult.kt</span></div><h1>StorageResult.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.eventsourcing
+
+import android.database.SQLException as AndroidSQLException
+import com.chimali.core.common.annotation.Req
+import java.nio.charset.CharacterCodingException
+import java.security.GeneralSecurityException
+import java.sql.SQLException as JdbcSQLException
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
+
+/** Converts expected persistence, serialization, and encryption failures to the repository Result. */
+@Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+internal suspend fun &lt;T&gt; captureStorageResult(operation: suspend () -&gt; T): Result&lt;T&gt; =
+<span class="fc" id="L14">    try {</span>
+<span class="fc" id="L15">        Result.success(operation())</span>
+<span class="fc" id="L16">    } catch (failure: CancellationException) {</span>
+<span class="fc" id="L17">        throw failure</span>
+<span class="nc" id="L18">    } catch (failure: AndroidSQLException) {</span>
+<span class="nc" id="L19">        Result.failure(failure)</span>
+<span class="nc" id="L20">    } catch (failure: JdbcSQLException) {</span>
+<span class="nc" id="L21">        Result.failure(failure)</span>
+<span class="nc" id="L22">    } catch (failure: GeneralSecurityException) {</span>
+<span class="nc" id="L23">        Result.failure(failure)</span>
+<span class="nc" id="L24">    } catch (failure: SerializationException) {</span>
+<span class="nc" id="L25">        Result.failure(failure)</span>
+<span class="fc" id="L26">    } catch (failure: CharacterCodingException) {</span>
+<span class="fc" id="L27">        Result.failure(failure)</span>
+<span class="fc" id="L28">    } catch (failure: IllegalArgumentException) {</span>
+<span class="fc" id="L29">        Result.failure(failure)</span>
+<span class="fc" id="L30">    } catch (failure: IllegalStateException) {</span>
+<span class="fc" id="L31">        Result.failure(failure)</span>
+<span class="nc" id="L32">    } catch (failure: SecurityException) {</span>
+<span class="pc" id="L33">        Result.failure(failure)</span>
+<span class="fc" id="L34">    }</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

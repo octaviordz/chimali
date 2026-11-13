@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthenticationPromptViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.presentation.viewmodel</a> &gt; <span class="el_source">AuthenticationPromptViewModel.kt</span></div><h1>AuthenticationPromptViewModel.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.result.DomainError
+import com.chimali.core.common.result.Outcome
+import com.chimali.core.security.api.MasterSeedOwnerKind
+import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.model.SensitiveCredentialText
+import com.chimali.fido2.domain.service.UserVerificationService
+import com.chimali.fido2.domain.service.VerificationMethod
+import com.chimali.fido2.domain.usecase.GetAssertionUseCase
+import com.chimali.fido2.presentation.error.Fido2ErrorHandler
+import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
+import org.koin.android.annotation.KoinViewModel
+
+// ── MVI: Intent ───────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationIntent {
+<span class="fc" id="L45">    data class InitAuthentication(</span>
+<span class="fc" id="L46">        val options: GetAssertionOptions,</span>
+    ) : AuthenticationIntent
+
+    data object ConfirmAuthentication : AuthenticationIntent
+
+    data object CancelAuthentication : AuthenticationIntent
+
+    data object VerifyUser : AuthenticationIntent
+
+<span class="fc" id="L55">    data class UserVerificationSuccess(</span>
+<span class="fc" id="L56">        val promptId: Long,</span>
+    ) : AuthenticationIntent
+
+<span class="fc" id="L59">    data class UserVerificationFailed(</span>
+<span class="fc" id="L60">        val promptId: Long,</span>
+<span class="pc" id="L61">        val message: String,</span>
+    ) : AuthenticationIntent
+
+<span class="fc" id="L64">    data class SelectCredential(</span>
+<span class="fc" id="L65">        val credential: PasskeyCredential,</span>
+    ) : AuthenticationIntent
+
+    data object Retry : AuthenticationIntent
+}
+
+// ── MVI: State ────────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationState {
+    data object Idle : AuthenticationState
+
+<span class="fc" id="L76">    data class AwaitingUserConsent(</span>
+<span class="fc" id="L77">        val rpId: SensitiveCredentialText,</span>
+<span class="fc" id="L78">        val rpName: SensitiveCredentialText,</span>
+<span class="pc" id="L79">        val availableMethod: VerificationMethod,</span>
+<span class="fc" id="L80">        val credentialCount: Int,</span>
+    ) : AuthenticationState {
+        /** Erases the presenter-owned RP text after the consent state ends. */
+        @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+        fun eraseSensitiveText() {
+<span class="fc" id="L85">            rpId.erase()</span>
+<span class="fc" id="L86">            rpName.erase()</span>
+<span class="fc" id="L87">        }</span>
+    }
+
+<span class="nc" id="L90">    data class SelectingCredential(</span>
+<span class="nc" id="L91">        val rpId: SensitiveCredentialText,</span>
+<span class="nc" id="L92">        val credentials: List&lt;PasskeyCredential&gt;,</span>
+    ) : AuthenticationState
+
+    data object AwaitingUserVerification : AuthenticationState
+
+    data object Processing : AuthenticationState
+
+<span class="fc" id="L99">    data class Success(</span>
+<span class="pc" id="L100">        val assertion: AssertionObject,</span>
+    ) : AuthenticationState
+
+<span class="pc" id="L103">    data class Error(</span>
+<span class="pc" id="L104">        val message: String,</span>
+<span class="pc" id="L105">        val isRetryable: Boolean = true,</span>
+<span class="nc" id="L106">    ) : AuthenticationState</span>
+
+    data object Cancelled : AuthenticationState
+}
+
+// ── MVI: Effects ─────────────────────────────────────────────────────────────
+
+sealed interface AuthenticationEffect {
+<span class="fc" id="L114">    data class LaunchSystemPrompt(</span>
+<span class="fc" id="L115">        val promptId: Long,</span>
+<span class="pc" id="L116">        val promptTitle: String,</span>
+<span class="pc" id="L117">        val promptSubtitle: String,</span>
+    ) : AuthenticationEffect
+
+<span class="fc" id="L120">    data class CancelSystemPrompt(</span>
+<span class="fc" id="L121">        val promptId: Long,</span>
+    ) : AuthenticationEffect
+
+<span class="fc" id="L124">    data class NavigateToSuccess(</span>
+<span class="pc" id="L125">        val assertion: AssertionObject,</span>
+    ) : AuthenticationEffect
+
+    data object NavigateBack : AuthenticationEffect
+
+<span class="nc" id="L130">    data class ShowSnackbar(</span>
+<span class="nc" id="L131">        val message: String,</span>
+    ) : AuthenticationEffect
+}
+
+// ── ViewModel ─────────────────────────────────────────────────────────────────
+
+/**
+ * T095 — MVI ViewModel for the FIDO2 Authentication Prompt.
+ *
+ * Mirrors the structure of [RegistrationPromptViewModel] for consistency.
+ * Drives [GetAssertionUseCase] via intents and emits state/effects.
+ */
+<span class="fc" id="L143">@KoinViewModel</span>
+<span class="fc" id="L144">class AuthenticationPromptViewModel(</span>
+<span class="fc" id="L145">    private val getAssertionUseCase: GetAssertionUseCase,</span>
+<span class="fc" id="L146">    private val userVerificationService: UserVerificationService,</span>
+<span class="fc" id="L147">    private val uiEventBus: Fido2UiEventBus,</span>
+<span class="fc" id="L148">    private val masterSeedProvider: MasterSeedProvider,</span>
+) : ViewModel() {
+<span class="fc" id="L150">    private val _state = MutableStateFlow&lt;AuthenticationState&gt;(AuthenticationState.Idle)</span>
+<span class="fc" id="L151">    val state: StateFlow&lt;AuthenticationState&gt; = _state.asStateFlow()</span>
+
+<span class="fc" id="L153">    private val _effects = Channel&lt;AuthenticationEffect&gt;(Channel.BUFFERED)</span>
+<span class="fc" id="L154">    val effects: Flow&lt;AuthenticationEffect&gt; = _effects.receiveAsFlow()</span>
+
+    private var pendingOptions: GetAssertionOptions? = null
+    private var ownsPendingOptions = false
+    private var pendingDeferred: kotlinx.coroutines.CompletableDeferred&lt;Outcome&lt;AssertionObject, DomainError&gt;&gt;? = null
+    private var pendingUserInteractionCompleted: kotlinx.coroutines.CompletableDeferred&lt;Unit&gt;? = null
+    private var ceremonyJob: Job? = null
+    private var pendingForegroundJob: Job? = null
+    private var pendingPromptAuthorized = false
+    private var pendingPromptGeneration = 0L
+    private var verificationPromptSequence = 0L
+    private var activeVerificationPromptId: Long? = null
+    private var responseCompletionOwned: AtomicBoolean? = null
+    private var requestWalletGeneration = 0L
+    private var requestGeneration = 0L
+    private var pendingRequestJob: CompletableJob? = null
+
+<span class="fc" id="L171">    init {</span>
+<span class="fc" id="L172">        uiEventBus.pendingAuthenticationRequest</span>
+<span class="fc" id="L173">            .filterNotNull()</span>
+<span class="fc" id="L174">            .onEach { event -&gt;</span>
+                // Guard: If we are already processing a ceremony or showing an error,
+                // do NOT let a background retry overwrite our current state/deferred.
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                if (_state.value !is AuthenticationState.Idle) {</span>
+<span class="fc" id="L178">                    Logger.d {</span>
+<span class="fc" id="L179">                        &quot;Ignoring incoming AuthenticationRequested — current state: ${_state.value::class.simpleName}&quot;</span>
+                    }
+<span class="fc" id="L181">                    return@onEach</span>
+                }
+<span class="fc" id="L183">                uiEventBus.clearAuthenticationRequest(event.deferred)</span>
+<span class="fc" id="L184">                initAuthentication(event.options, event.deferred, event.userInteractionCompleted)</span>
+<span class="fc" id="L185">            }.launchIn(viewModelScope)</span>
+<span class="fc" id="L186">    }</span>
+
+    // ── Intent dispatch ───────────────────────────────────────────────────────
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    fun handleIntent(intent: AuthenticationIntent) {
+<span class="fc" id="L192">        when (intent) {</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            is AuthenticationIntent.InitAuthentication -&gt; initAuthentication(intent.options)</span>
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            is AuthenticationIntent.ConfirmAuthentication -&gt; confirmAuthentication()</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">            is AuthenticationIntent.CancelAuthentication -&gt; cancel()</span>
+<span class="pc bpc" id="L196" title="1 of 2 branches missed.">            is AuthenticationIntent.VerifyUser -&gt; startSystemVerification()</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">            is AuthenticationIntent.UserVerificationSuccess -&gt; {</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">                if (consumeVerificationResult(intent.promptId)) {</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">                    pendingOptions?.let { performAuthentication(it, userVerificationPerformed = true) }</span>
+                }
+            }
+<span class="fc bfc" id="L202" title="All 2 branches covered.">            is AuthenticationIntent.UserVerificationFailed -&gt; {</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                if (!consumeVerificationResult(intent.promptId)) return</span>
+<span class="fc" id="L204">                finishUserInteraction()</span>
+<span class="fc" id="L205">                val response = pendingDeferred</span>
+<span class="fc" id="L206">                pendingDeferred = null</span>
+<span class="fc" id="L207">                pendingUserInteractionCompleted = null</span>
+<span class="fc" id="L208">                clearOwnedPendingOptions()</span>
+<span class="fc" id="L209">                finishPendingForegroundPrompt(authorized = false)</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                if (!completeResponse(</span>
+<span class="fc" id="L211">                        response,</span>
+<span class="fc" id="L212">                        Outcome.Error(DomainError.OperationDenied(&quot;User verification failed&quot;)),</span>
+                    )
+                ) {
+<span class="fc" id="L215">                    return</span>
+                }
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                pendingRequestJob?.complete()</span>
+<span class="nc" id="L218">                pendingRequestJob = null</span>
+<span class="nc" id="L219">                setState(AuthenticationState.Error(intent.message))</span>
+<span class="nc" id="L220">                viewModelScope.launch { emit(AuthenticationEffect.ShowSnackbar(intent.message)) }</span>
+            }
+<span class="fc bfc" id="L222" title="All 2 branches covered.">            is AuthenticationIntent.SelectCredential -&gt; onCredentialSelected(intent.credential)</span>
+<span class="fc" id="L223">            is AuthenticationIntent.Retry -&gt; retry()</span>
+        }
+<span class="fc" id="L225">    }</span>
+
+    // ── Handlers ──────────────────────────────────────────────────────────────
+
+<span class="fc" id="L229">    private fun initAuthentication(</span>
+        options: GetAssertionOptions,
+<span class="fc" id="L231">        response: kotlinx.coroutines.CompletableDeferred&lt;Outcome&lt;AssertionObject, DomainError&gt;&gt;? = null,</span>
+<span class="fc" id="L232">        userInteraction: kotlinx.coroutines.CompletableDeferred&lt;Unit&gt;? = null,</span>
+    ) {
+<span class="fc" id="L234">        val previousResponse = pendingDeferred</span>
+<span class="fc" id="L235">        val previousJob = pendingRequestJob</span>
+<span class="fc" id="L236">        clearOwnedPendingOptions()</span>
+<span class="fc" id="L237">        finishPendingForegroundPrompt(authorized = false)</span>
+<span class="fc" id="L238">        ceremonyJob = null</span>
+<span class="fc" id="L239">        requestGeneration += 1</span>
+<span class="fc" id="L240">        val generation = requestGeneration</span>
+<span class="fc" id="L241">        val request = Job(viewModelScope.coroutineContext[Job])</span>
+<span class="fc" id="L242">        pendingRequestJob = request</span>
+<span class="fc" id="L243">        requestWalletGeneration = masterSeedProvider.sessionGeneration()</span>
+<span class="fc" id="L244">        pendingOptions = options</span>
+<span class="fc" id="L245">        ownsPendingOptions = false</span>
+<span class="fc" id="L246">        pendingDeferred = response</span>
+<span class="fc" id="L247">        pendingUserInteractionCompleted = userInteraction</span>
+<span class="fc" id="L248">        setState(AuthenticationState.Idle)</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">        previousJob?.cancel(CancellationException(&quot;Authentication request was replaced&quot;))</span>
+<span class="fc bfc" id="L250" title="All 4 branches covered.">        if (previousResponse !== response) previousResponse?.cancel()</span>
+<span class="fc" id="L251">        val completionOwned = AtomicBoolean(false)</span>
+<span class="fc" id="L252">        responseCompletionOwned = completionOwned</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        response?.invokeOnCompletion { cause -&gt;</span>
+<span class="fc bfc" id="L254" title="All 4 branches covered.">            if (cause != null || !completionOwned.get()) {</span>
+<span class="fc" id="L255">                request.cancel(CancellationException(&quot;Authentication response ended&quot;, cause))</span>
+<span class="fc" id="L256">                viewModelScope.launch { terminateRequest(generation, request) }</span>
+            }
+<span class="fc" id="L258">        }</span>
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">        if (!isLiveRequest(generation)) return</span>
+<span class="fc" id="L260">        startPendingForegroundPrompt()</span>
+<span class="fc" id="L261">        CoroutineScope(viewModelScope.coroutineContext + request).launch {</span>
+<span class="fc" id="L262">            val availability = userVerificationService.getUserVerificationAvailability()</span>
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">            if (!isLiveRequest(generation)) return@launch</span>
+<span class="fc" id="L264">            setState(</span>
+<span class="fc" id="L265">                AuthenticationState.AwaitingUserConsent(</span>
+<span class="fc" id="L266">                    rpId = options.copyRpIdOwner(),</span>
+                    // RP name resolved from repo in a future pass
+<span class="fc" id="L268">                    rpName = options.copyRpIdOwner(),</span>
+<span class="fc" id="L269">                    availableMethod = availability.getBestAvailableMethod(),</span>
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">                    credentialCount = options.allowCredentials?.size ?: 0,</span>
+                ),
+            )
+
+            // Fix F — Fallback auto-confirm for UV=NONE capability.
+            // If the device has no biometric/PIN and UV is not strictly required,
+            // we auto-confirm to skip the redundant &quot;Sign in&quot; button click.
+            // Note: This only fires if we have 0 (discoverable) or 1 specific credential.
+            // If multiple credentials exist, we must still show SelectingCredential.
+<span class="fc bfc" id="L279" title="All 2 branches covered.">            if (availability.getBestAvailableMethod() == VerificationMethod.NONE &amp;&amp;</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">                options.userVerification != com.chimali.fido2.domain.model.UserVerificationRequirement.REQUIRED &amp;&amp;</span>
+<span class="pc bpc" id="L281" title="2 of 4 branches missed.">                (options.allowCredentials?.size ?: 0) &lt;= 1</span>
+            ) {
+<span class="fc" id="L283">                Logger.d { &quot;Auto-confirming authentication (UV capability: NONE)&quot; }</span>
+<span class="fc" id="L284">                confirmAuthentication()</span>
+            }
+<span class="fc" id="L286">        }</span>
+<span class="fc" id="L287">    }</span>
+
+    private fun confirmAuthentication() {
+<span class="fc bfc" id="L290" title="All 2 branches covered.">        if (_state.value !is AuthenticationState.AwaitingUserConsent &amp;&amp;</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">            _state.value !is AuthenticationState.SelectingCredential</span>
+        ) {
+<span class="fc" id="L293">            return</span>
+        }
+<span class="fc" id="L295">        val generation = requestGeneration</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        val request = pendingRequestJob ?: return</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        if (!isLiveRequest(generation)) return</span>
+<span class="fc" id="L298">        val options =</span>
+<span class="pc bpc" id="L299" title="1 of 2 branches missed.">            pendingOptions ?: run {</span>
+<span class="nc" id="L300">                setState(AuthenticationState.Error(&quot;No pending authentication request&quot;, false))</span>
+<span class="nc" id="L301">                return</span>
+            }
+<span class="fc" id="L303">        CoroutineScope(viewModelScope.coroutineContext + request).launch {</span>
+<span class="fc" id="L304">            val availability = userVerificationService.getUserVerificationAvailability()</span>
+<span class="pc bpc" id="L305" title="2 of 4 branches missed.">            if (!isLiveRequest(generation) || pendingOptions !== options) return@launch</span>
+
+<span class="fc bfc" id="L307" title="All 2 branches covered.">            if (availability.getBestAvailableMethod() == VerificationMethod.NONE) {</span>
+<span class="fc" id="L308">                performAuthentication(options)</span>
+            } else {
+<span class="fc" id="L310">                startSystemVerification()</span>
+            }
+<span class="fc" id="L312">        }</span>
+<span class="fc" id="L313">    }</span>
+
+    private fun startSystemVerification() {
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        val options = pendingOptions ?: return</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        if (_state.value !is AuthenticationState.AwaitingUserConsent &amp;&amp;</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">            _state.value !is AuthenticationState.SelectingCredential</span>
+        ) {
+<span class="nc" id="L320">            return</span>
+        }
+<span class="pc bpc" id="L322" title="2 of 4 branches missed.">        if (activeVerificationPromptId != null || _state.value == AuthenticationState.Processing) return</span>
+<span class="fc" id="L323">        val promptId = ++verificationPromptSequence</span>
+<span class="fc" id="L324">        activeVerificationPromptId = promptId</span>
+<span class="fc" id="L325">        setState(AuthenticationState.AwaitingUserVerification)</span>
+<span class="fc" id="L326">        viewModelScope.launch {</span>
+<span class="fc" id="L327">            val promptTitle = &quot;Sign in&quot;</span>
+<span class="fc" id="L328">            val promptSubtitle = options.rpId.value</span>
+<span class="pc bpc" id="L329" title="2 of 4 branches missed.">            if (activeVerificationPromptId == promptId &amp;&amp;</span>
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">                _state.value == AuthenticationState.AwaitingUserVerification</span>
+            ) {
+<span class="fc" id="L332">                emit(AuthenticationEffect.LaunchSystemPrompt(promptId, promptTitle, promptSubtitle))</span>
+            }
+<span class="fc" id="L334">        }</span>
+<span class="fc" id="L335">    }</span>
+
+    private fun consumeVerificationResult(promptId: Long): Boolean {
+<span class="fc bfc" id="L338" title="All 2 branches covered.">        if (!isLiveRequest(requestGeneration) ||</span>
+<span class="fc bfc" id="L339" title="All 4 branches covered.">            activeVerificationPromptId != promptId ||</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">            _state.value != AuthenticationState.AwaitingUserVerification</span>
+        ) {
+<span class="fc" id="L342">            return false</span>
+        }
+<span class="fc" id="L344">        activeVerificationPromptId = null</span>
+<span class="fc" id="L345">        return true</span>
+    }
+
+    private fun onCredentialSelected(credential: PasskeyCredential) {
+        // Re-run with updated allow-list that only contains selected credential
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">        val options = pendingOptions ?: return</span>
+<span class="fc" id="L351">        val filtered =</span>
+<span class="fc" id="L352">            listOf(</span>
+<span class="fc" id="L353">                com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor</span>
+<span class="fc" id="L354">                    .create(id = credential.id),</span>
+            )
+<span class="fc" id="L356">        val filteredOptions = options.copy(allowCredentials = filtered)</span>
+<span class="fc" id="L357">        clearOwnedPendingOptions()</span>
+<span class="fc" id="L358">        pendingOptions = filteredOptions</span>
+<span class="fc" id="L359">        ownsPendingOptions = true</span>
+<span class="fc" id="L360">        confirmAuthentication()</span>
+<span class="fc" id="L361">    }</span>
+
+    private fun cancel() {
+<span class="fc" id="L364">        val request = pendingRequestJob</span>
+<span class="fc" id="L365">        pendingRequestJob = null</span>
+<span class="fc" id="L366">        requestGeneration += 1</span>
+<span class="fc" id="L367">        finishUserInteraction()</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">        ceremonyJob?.cancel(CancellationException(&quot;Authentication was cancelled by the user&quot;))</span>
+<span class="fc" id="L369">        ceremonyJob = null</span>
+<span class="fc" id="L370">        finishPendingForegroundPrompt(authorized = false)</span>
+<span class="fc" id="L371">        completeResponse(pendingDeferred, Outcome.Error(DomainError.OperationCanceled(&quot;Cancelled by user&quot;)))</span>
+<span class="fc" id="L372">        uiEventBus.clearAuthenticationRequest(pendingDeferred)</span>
+<span class="fc" id="L373">        clearOwnedPendingOptions()</span>
+<span class="fc" id="L374">        pendingDeferred = null</span>
+<span class="fc" id="L375">        setState(AuthenticationState.Cancelled)</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">        request?.cancel(CancellationException(&quot;Authentication was cancelled by the user&quot;))</span>
+<span class="fc" id="L377">        viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }</span>
+<span class="fc" id="L378">    }</span>
+
+    /** A terminal CTAP request can only be retried through a newly admitted transport request. */
+    private fun retry() {
+<span class="fc bfc" id="L382" title="All 2 branches covered.">        if (isLiveRequest(requestGeneration)) return</span>
+<span class="fc" id="L383">        val next = uiEventBus.currentAuthenticationRequest</span>
+<span class="pc bpc" id="L384" title="1 of 4 branches missed.">        if (next != null &amp;&amp; next.deferred.isActive) {</span>
+<span class="fc" id="L385">            uiEventBus.clearAuthenticationRequest(next.deferred)</span>
+<span class="fc" id="L386">            initAuthentication(next.options, next.deferred, next.userInteractionCompleted)</span>
+        } else {
+<span class="fc" id="L388">            clearOwnedPendingOptions()</span>
+<span class="fc" id="L389">            setState(AuthenticationState.Error(&quot;Start a new request to try again&quot;, false))</span>
+        }
+<span class="fc" id="L391">    }</span>
+
+<span class="fc" id="L393">    private fun performAuthentication(</span>
+        options: GetAssertionOptions,
+<span class="fc" id="L395">        userVerificationPerformed: Boolean = false,</span>
+    ) {
+<span class="fc" id="L397">        val generation = requestGeneration</span>
+<span class="fc" id="L398">        val admittedWalletGeneration = requestWalletGeneration</span>
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">        val request = pendingRequestJob ?: return</span>
+<span class="pc bpc" id="L400" title="1 of 2 branches missed.">        if (!isLiveRequest(generation)) return</span>
+<span class="fc" id="L401">        finishUserInteraction()</span>
+<span class="fc" id="L402">        finishPendingForegroundPrompt(authorized = true)</span>
+<span class="fc" id="L403">        setState(AuthenticationState.Processing)</span>
+<span class="fc" id="L404">        val responseDeferred = pendingDeferred</span>
+<span class="fc" id="L405">        val operation =</span>
+<span class="fc" id="L406">            CoroutineScope(viewModelScope.coroutineContext + request).launch(start = CoroutineStart.LAZY) {</span>
+<span class="fc" id="L407">                currentCoroutineContext().ensureActive()</span>
+<span class="pc bpc" id="L408" title="1 of 2 branches missed.">                if (!isLiveRequest(generation)) return@launch</span>
+<span class="fc" id="L409">                requireCurrentWallet(admittedWalletGeneration)</span>
+<span class="fc" id="L410">                val result =</span>
+<span class="fc" id="L411">                    masterSeedProvider.withSessionOwner(</span>
+<span class="fc" id="L412">                        ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,</span>
+                    ) { ownerGeneration -&gt;
+<span class="fc" id="L414">                        currentCoroutineContext().ensureActive()</span>
+<span class="fc" id="L415">                        requireCurrentWallet(admittedWalletGeneration, ownerGeneration)</span>
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">                        if (!isLiveRequest(generation)) throw CancellationException(&quot;Authentication request ended&quot;)</span>
+<span class="fc" id="L417">                        getAssertionUseCase(options, userVerificationPerformed)</span>
+                    }
+<span class="pc bpc" id="L419" title="1 of 2 branches missed.">                if (!isLiveRequest(generation)) return@launch</span>
+<span class="fc" id="L420">                when (result) {</span>
+<span class="fc bfc" id="L421" title="All 2 branches covered.">                    is Outcome.Success -&gt; {</span>
+<span class="fc" id="L422">                        val assertion = result.data</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">                        if (!completeResponse(</span>
+<span class="fc" id="L424">                                responseDeferred,</span>
+<span class="fc" id="L425">                                Outcome.Success(assertion),</span>
+                            )
+                        ) {
+<span class="fc" id="L428">                            return@launch</span>
+                        }
+<span class="fc" id="L430">                        uiEventBus.clearAuthenticationRequest(responseDeferred)</span>
+<span class="fc" id="L431">                        setState(AuthenticationState.Success(assertion))</span>
+<span class="fc" id="L432">                        emit(AuthenticationEffect.NavigateToSuccess(assertion))</span>
+<span class="fc" id="L433">                        clearOwnedPendingOptions()</span>
+<span class="fc" id="L434">                        pendingDeferred = null</span>
+<span class="fc" id="L435">                        pendingUserInteractionCompleted = null</span>
+                    }
+<span class="fc" id="L437">                    is Outcome.Error -&gt; {</span>
+                        // Fix B — Null deferred + navigate back on error so the retry storm stops.
+                        // Previously: pendingDeferred was completed but NOT nulled, and NavigateBack
+                        // was never emitted.  The screen stayed open, the CTAP2 host retried,
+                        // the next AuthenticationRequested overwrote pendingDeferred, and a new
+                        // biometric prompt appeared.  Repeat until auto-select fired on attempt 5+.
+<span class="fc" id="L443">                        val error = result.error</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">                        if (!completeResponse(</span>
+<span class="fc" id="L445">                                responseDeferred,</span>
+<span class="fc" id="L446">                                result,</span>
+                            )
+                        ) {
+<span class="fc" id="L449">                            return@launch</span>
+                        }
+<span class="fc" id="L451">                        pendingDeferred = null</span>
+<span class="fc" id="L452">                        pendingUserInteractionCompleted = null</span>
+<span class="fc" id="L453">                        clearOwnedPendingOptions()</span>
+<span class="fc" id="L454">                        Logger.e { &quot;Authentication process failed&quot; }</span>
+<span class="fc" id="L455">                        val ui = Fido2ErrorHandler.handle(error)</span>
+<span class="fc" id="L456">                        setState(AuthenticationState.Error(ui.message, ui.isRetryable))</span>
+<span class="fc" id="L457">                        viewModelScope.launch { emit(AuthenticationEffect.NavigateBack) }</span>
+                    }
+                }
+<span class="fc" id="L460">            }</span>
+<span class="fc" id="L461">        ceremonyJob = operation</span>
+<span class="fc" id="L462">        operation.invokeOnCompletion { cause -&gt;</span>
+<span class="fc bfc" id="L463" title="All 2 branches covered.">            if (cause is CancellationException) {</span>
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">                responseDeferred?.cancel(cause)</span>
+<span class="fc" id="L465">                request.cancel(cause)</span>
+<span class="fc" id="L466">                viewModelScope.launch { terminateRequest(generation, request) }</span>
+            } else {
+<span class="fc" id="L468">                request.complete()</span>
+            }
+<span class="fc" id="L470">        }</span>
+<span class="fc" id="L471">        operation.start()</span>
+<span class="fc" id="L472">    }</span>
+
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    override fun onCleared() {
+<span class="fc bfc" id="L476" title="All 2 branches covered.">        pendingRequestJob?.cancel()</span>
+<span class="fc" id="L477">        pendingRequestJob = null</span>
+<span class="fc" id="L478">        clearOwnedPendingOptions()</span>
+<span class="fc" id="L479">        finishUserInteraction()</span>
+<span class="pc bpc" id="L480" title="1 of 2 branches missed.">        ceremonyJob?.cancel()</span>
+<span class="fc" id="L481">        ceremonyJob = null</span>
+<span class="fc" id="L482">        finishPendingForegroundPrompt(authorized = false)</span>
+<span class="fc" id="L483">        eraseStateSensitiveText(_state.value)</span>
+<span class="fc" id="L484">        super.onCleared()</span>
+<span class="fc" id="L485">    }</span>
+
+    /** Foreground-bound verification closes before the separate authorized assertion operation starts. */
+
+    private fun startPendingForegroundPrompt() {
+<span class="fc" id="L490">        cancelActiveSystemPrompt()</span>
+<span class="fc" id="L491">        pendingPromptGeneration += 1</span>
+<span class="fc" id="L492">        val promptGeneration = pendingPromptGeneration</span>
+<span class="fc" id="L493">        pendingPromptAuthorized = false</span>
+<span class="pc bpc" id="L494" title="1 of 2 branches missed.">        pendingForegroundJob?.cancel(CancellationException(&quot;Authentication prompt was replaced&quot;))</span>
+<span class="fc" id="L495">        pendingForegroundJob = null</span>
+<span class="fc bfc" id="L496" title="All 2 branches covered.">        if (pendingDeferred == null) return</span>
+<span class="fc" id="L497">        pendingForegroundJob =</span>
+<span class="pc bpc" id="L498" title="1 of 2 branches missed.">            CoroutineScope(viewModelScope.coroutineContext + requireNotNull(pendingRequestJob)).launch {</span>
+<span class="fc" id="L499">                try {</span>
+<span class="pc" id="L500">                    masterSeedProvider.withSessionOwner(</span>
+<span class="fc" id="L501">                        initialize = false,</span>
+<span class="fc" id="L502">                        ownerKind = MasterSeedOwnerKind.FOREGROUND,</span>
+                    ) {
+<span class="pc" id="L504">                        awaitCancellation()</span>
+                    }
+<span class="fc" id="L506">                } catch (cancellation: CancellationException) {</span>
+<span class="pc bpc" id="L507" title="1 of 4 branches missed.">                    if (promptGeneration != pendingPromptGeneration || pendingPromptAuthorized) {</span>
+<span class="fc" id="L508">                        throw cancellation</span>
+                    }
+<span class="fc" id="L510">                    cancelActiveSystemPrompt()</span>
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">                    pendingRequestJob?.cancel(cancellation)</span>
+<span class="fc" id="L512">                    finishUserInteraction()</span>
+<span class="fc" id="L513">                    val response = pendingDeferred</span>
+<span class="fc" id="L514">                    pendingDeferred = null</span>
+<span class="fc" id="L515">                    pendingUserInteractionCompleted = null</span>
+<span class="fc" id="L516">                    clearOwnedPendingOptions()</span>
+<span class="fc" id="L517">                    uiEventBus.clearAuthenticationRequest(response)</span>
+<span class="fc" id="L518">                    completeResponse(</span>
+<span class="fc" id="L519">                        response,</span>
+<span class="fc" id="L520">                        Outcome.Error(DomainError.OperationCanceled(&quot;Authentication prompt left the foreground&quot;)),</span>
+                    )
+<span class="fc" id="L522">                    setState(AuthenticationState.Cancelled)</span>
+                }
+<span class="fc" id="L524">            }</span>
+<span class="fc" id="L525">    }</span>
+
+    private fun finishPendingForegroundPrompt(authorized: Boolean) {
+<span class="fc" id="L528">        cancelActiveSystemPrompt()</span>
+<span class="fc" id="L529">        pendingPromptGeneration += 1</span>
+<span class="fc" id="L530">        pendingPromptAuthorized = authorized</span>
+<span class="fc bfc" id="L531" title="All 2 branches covered.">        pendingForegroundJob?.cancel(CancellationException(&quot;Authentication prompt ownership ended&quot;))</span>
+<span class="fc" id="L532">        pendingForegroundJob = null</span>
+<span class="fc" id="L533">    }</span>
+
+    private fun cancelActiveSystemPrompt() {
+<span class="fc bfc" id="L536" title="All 2 branches covered.">        activeVerificationPromptId?.let { _effects.trySend(AuthenticationEffect.CancelSystemPrompt(it)) }</span>
+<span class="fc" id="L537">        activeVerificationPromptId = null</span>
+<span class="fc" id="L538">    }</span>
+
+    /** Checks both the admission generation and the generation bound to the authorized owner. */
+<span class="fc" id="L541">    private fun requireCurrentWallet(</span>
+        expected: Long,
+<span class="fc" id="L543">        ownerGeneration: Long = expected,</span>
+    ) {
+<span class="pc bpc" id="L545" title="1 of 4 branches missed.">        if (ownerGeneration != expected || !masterSeedProvider.isSessionGenerationCurrent(expected)) {</span>
+<span class="fc" id="L546">            throw CancellationException(&quot;Wallet session ended before request authorization&quot;)</span>
+        }
+<span class="fc" id="L548">    }</span>
+
+    private fun isLiveRequest(generation: Long): Boolean =
+<span class="pc bpc" id="L551" title="3 of 14 branches missed.">        generation == requestGeneration &amp;&amp; pendingRequestJob?.isActive == true &amp;&amp; pendingDeferred?.isActive != false</span>
+
+    private fun terminateRequest(
+        generation: Long,
+        request: CompletableJob,
+    ) {
+<span class="fc bfc" id="L557" title="All 4 branches covered.">        if (generation != requestGeneration || pendingRequestJob !== request) return</span>
+<span class="fc" id="L558">        val response = pendingDeferred</span>
+<span class="fc" id="L559">        pendingRequestJob = null</span>
+<span class="fc" id="L560">        finishUserInteraction()</span>
+<span class="fc" id="L561">        finishPendingForegroundPrompt(authorized = false)</span>
+<span class="fc" id="L562">        ceremonyJob = null</span>
+<span class="fc" id="L563">        clearOwnedPendingOptions()</span>
+<span class="fc" id="L564">        pendingDeferred = null</span>
+<span class="fc" id="L565">        pendingUserInteractionCompleted = null</span>
+<span class="fc" id="L566">        uiEventBus.clearAuthenticationRequest(response)</span>
+<span class="fc" id="L567">        setState(AuthenticationState.Cancelled)</span>
+<span class="fc" id="L568">        _effects.trySend(AuthenticationEffect.NavigateBack)</span>
+<span class="fc" id="L569">    }</span>
+
+    /** Marks presenter-owned completion before synchronous deferred listeners can run. */
+    private fun completeResponse(
+        response: CompletableDeferred&lt;Outcome&lt;AssertionObject, DomainError&gt;&gt;?,
+        result: Outcome&lt;AssertionObject, DomainError&gt;,
+    ): Boolean {
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        responseCompletionOwned?.set(true)</span>
+<span class="fc bfc" id="L577" title="All 2 branches covered.">        val completed = response?.complete(result) ?: true</span>
+<span class="fc bfc" id="L578" title="All 2 branches covered.">        if (!completed) {</span>
+<span class="pc bpc" id="L579" title="1 of 2 branches missed.">            pendingRequestJob?.let { request -&gt;</span>
+<span class="fc" id="L580">                request.cancel(CancellationException(&quot;Authentication response already ended&quot;))</span>
+<span class="fc" id="L581">                terminateRequest(requestGeneration, request)</span>
+<span class="fc" id="L582">            }</span>
+        }
+<span class="fc" id="L584">        return completed</span>
+    }
+
+    private fun finishUserInteraction() {
+<span class="fc bfc" id="L588" title="All 2 branches covered.">        pendingUserInteractionCompleted?.complete(Unit)</span>
+<span class="fc" id="L589">    }</span>
+
+    /** Erases a presenter-created options copy while leaving the CTAP-owned source request untouched. */
+    private fun clearOwnedPendingOptions() {
+<span class="pc bpc" id="L593" title="1 of 4 branches missed.">        if (ownsPendingOptions) pendingOptions?.eraseSensitiveText()</span>
+<span class="fc" id="L594">        pendingOptions = null</span>
+<span class="fc" id="L595">        ownsPendingOptions = false</span>
+<span class="fc" id="L596">    }</span>
+
+    private fun setState(next: AuthenticationState) {
+<span class="fc bfc" id="L599" title="All 2 branches covered.">        if (_state.value !== next) eraseStateSensitiveText(_state.value)</span>
+<span class="fc" id="L600">        _state.value = next</span>
+<span class="fc" id="L601">    }</span>
+
+    private fun eraseStateSensitiveText(state: AuthenticationState) {
+<span class="fc" id="L604">        when (state) {</span>
+<span class="fc bfc" id="L605" title="All 2 branches covered.">            is AuthenticationState.AwaitingUserConsent -&gt; state.eraseSensitiveText()</span>
+<span class="pc bpc" id="L606" title="1 of 2 branches missed.">            is AuthenticationState.SelectingCredential -&gt; state.rpId.erase()</span>
+<span class="fc bfc" id="L607" title="All 2 branches covered.">            AuthenticationState.AwaitingUserVerification,</span>
+<span class="fc bfc" id="L608" title="All 2 branches covered.">            AuthenticationState.Cancelled,</span>
+<span class="fc bfc" id="L609" title="All 2 branches covered.">            AuthenticationState.Idle,</span>
+<span class="fc bfc" id="L610" title="All 2 branches covered.">            AuthenticationState.Processing,</span>
+<span class="pc bpc" id="L611" title="1 of 2 branches missed.">            is AuthenticationState.Error,</span>
+<span class="nc" id="L612">            is AuthenticationState.Success,</span>
+<span class="fc" id="L613">            -&gt; Unit</span>
+        }
+<span class="fc" id="L615">    }</span>
+
+<span class="fc" id="L617">    private suspend fun emit(effect: AuthenticationEffect) = _effects.send(effect)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

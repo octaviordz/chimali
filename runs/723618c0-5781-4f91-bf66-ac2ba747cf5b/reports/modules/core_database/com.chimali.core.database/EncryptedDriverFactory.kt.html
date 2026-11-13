@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EncryptedDriverFactory.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">database</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.database</a> &gt; <span class="el_source">EncryptedDriverFactory.kt</span></div><h1>EncryptedDriverFactory.kt</h1><pre class="source lang-java linenums">package com.chimali.core.database
+
+import android.content.Context
+import android.database.sqlite.SQLiteException
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import co.touchlab.kermit.Logger
+import com.chimali.core.security.api.MasterSeedProvider
+import io.toxicity.sqlite.mc.driver.SQLiteMCDriver
+import io.toxicity.sqlite.mc.driver.config.databasesDir
+import io.toxicity.sqlite.mc.driver.config.encryption.Key
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.runBlocking
+
+private const val PBKDF2_BLOCK_COUNTER_BYTES = 4
+private const val KEY_LENGTH_BYTES_PER_BIT = 8
+
+/**
+ * Centrally manages SQLite3MultipleCiphers database encryption for all feature databases (Constitution §I.4).
+ * Uses ChaCha20-Poly1305 as the preferred default cipher.
+ * Clears owned key buffers in finally blocks (Constitution §I.5 and ES-V.5); provider-owned copies
+ * may remain outside this class's control.
+ *
+ * Traceability:
+ * @see FR-MC-010 Migrate SQLCipher to SQLite3MultipleCiphers
+ * @see FR-MC-020 ChaCha20-Poly1305 default cipher
+ * @see FR-MC-030 PBKDF2-HMAC-SHA512 key derivation
+ * @see FR-MC-040 SQLiteMCDriver configuration
+ * @see Constitution ES-III.1 Rigorous Traceability
+ * @see Constitution ES-III.2 Determinism &amp; Predictable Execution
+ * @see Constitution ES-III.4 Separation of Concerns (Partitioning)
+ * @see Constitution ES-III.5 Fail-Safe Error Handling &amp; Graceful Degradation
+ */
+<span class="fc" id="L36">class EncryptedDriverFactory(</span>
+<span class="fc" id="L37">    private val context: Context,</span>
+<span class="fc" id="L38">    private val masterSeedProvider: MasterSeedProvider,</span>
+) {
+    /**
+     * Derives a stable 256-bit database encryption key from the 32-byte wallet root PRK
+     * using PBKDF2-HMAC-SHA512 with 2048 iterations (Constitution §I.4, ES-III.1).
+     *
+     * Adheres to ES-III.2: static constant reuse for salt and hex characters to avoid
+     * dynamic allocation in hot paths; deterministic bounded iteration over seed length.
+     * Clears owned key buffers in finally blocks (Constitution §I.5 and ES-V.5).
+     *
+     * @see FR-MC-030
+     */
+    fun deriveDatabaseKey(seed: ByteArray): ByteArray {
+<span class="fc bfc" id="L51" title="All 4 branches covered.">        require(seed.size == WALLET_ROOT_PRK_LENGTH_BYTES) { &quot;Wallet root PRK must be exactly 32 bytes&quot; }</span>
+
+<span class="fc" id="L53">        val hexPassword = ByteArray(seed.size * HEX_CHARS_PER_BYTE)</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        for (i in seed.indices) {</span>
+<span class="fc" id="L55">            val v = seed[i].toInt() and HEX_RADIX_MASK</span>
+<span class="fc" id="L56">            val baseIdx = i * HEX_CHARS_PER_BYTE</span>
+<span class="fc" id="L57">            hexPassword[baseIdx] = HEX_CHARS[v ushr HEX_SHIFT_BITS].code.toByte()</span>
+<span class="fc" id="L58">            hexPassword[baseIdx + 1] = HEX_CHARS[v and HEX_CHAR_MASK].code.toByte()</span>
+        }
+
+<span class="fc" id="L61">        val block = ByteArray(DB_PBE_SALT_BYTES.size + PBKDF2_BLOCK_COUNTER_BYTES)</span>
+<span class="fc" id="L62">        DB_PBE_SALT_BYTES.copyInto(block)</span>
+<span class="fc" id="L63">        block[block.lastIndex] = 1</span>
+<span class="fc" id="L64">        var u: ByteArray? = null</span>
+<span class="fc" id="L65">        var derived: ByteArray? = null</span>
+<span class="fc" id="L66">        var completed = false</span>
+<span class="fc" id="L67">        try {</span>
+<span class="fc" id="L68">            val mac = Mac.getInstance(&quot;HmacSHA512&quot;)</span>
+<span class="fc" id="L69">            mac.init(SecretKeySpec(hexPassword, &quot;HmacSHA512&quot;))</span>
+<span class="fc" id="L70">            val first = mac.doFinal(block)</span>
+<span class="fc" id="L71">            u = first</span>
+<span class="fc" id="L72">            derived = first.copyOf(DB_KEY_LENGTH_BITS / KEY_LENGTH_BYTES_PER_BIT)</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">            repeat(PBKDF2_ITERATIONS - 1) {</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">                val previous = requireNotNull(u)</span>
+<span class="fc" id="L75">                val next = mac.doFinal(previous)</span>
+<span class="fc" id="L76">                previous.fill(0)</span>
+<span class="fc" id="L77">                u = next</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">                val output = requireNotNull(derived)</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">                for (i in output.indices) output[i] = (output[i].toInt() xor next[i].toInt()).toByte()</span>
+<span class="fc" id="L80">            }</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">            return requireNotNull(derived).also {</span>
+<span class="fc" id="L82">                derived = null</span>
+<span class="fc" id="L83">                completed = true</span>
+<span class="fc" id="L84">            }</span>
+        } finally {
+<span class="pc bnc" id="L86" title="All 4 branches missed.">            if (!completed) derived?.fill(0)</span>
+<span class="pc" id="L87">            hexPassword.fill(0)</span>
+<span class="pc" id="L88">            block.fill(0)</span>
+<span class="pc bpc" id="L89" title="3 of 4 branches missed.">            u?.fill(0)</span>
+        }
+    }
+
+    /**
+     * Creates an encrypted SqlDriver using SQLite3MultipleCiphers with ChaCha20-Poly1305 (Constitution §I.4).
+     * The owned derived-key buffer is cleared after driver construction (Constitution §I.5 and ES-V.5);
+     * provider-owned copies may remain outside this class's control.
+     *
+     * Existing database files are preserved when opening fails. The caller receives the open error
+     * and can decide how to recover without this factory deleting user data or SQLite sidecars.
+     *
+     * @see FR-MC-020
+     * @see FR-MC-040
+     */
+    fun createDriver(
+        schema: SqlSchema&lt;QueryResult.Value&lt;Unit&gt;&gt;,
+        name: String,
+    ): SqlDriver =
+<span class="fc" id="L108">        runBlocking {</span>
+<span class="fc" id="L109">            masterSeedProvider.withSessionOwner { _ -&gt;</span>
+<span class="fc" id="L110">                val seed =</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">                    masterSeedProvider.getMasterSeed()</span>
+<span class="fc" id="L112">                        ?: error(&quot;Master seed not initialized. Database cannot be opened.&quot;)</span>
+
+                fun openDriver(): SqlDriver {
+<span class="fc" id="L115">                    val derivedKey = deriveDatabaseKey(seed)</span>
+<span class="fc" id="L116">                    try {</span>
+<span class="fc" id="L117">                        val rawKey = Key.raw(key = derivedKey, salt = DB_SALT_BYTES, fillKey = true)</span>
+<span class="fc" id="L118">                        return SQLiteMCDriver</span>
+<span class="fc" id="L119">                            .Factory(dbName = name, schema = schema) {</span>
+<span class="fc" id="L120">                                filesystem(context.databasesDir())</span>
+<span class="fc" id="L121">                            }.createBlocking(rawKey)</span>
+                    } finally {
+<span class="fc" id="L123">                        derivedKey.fill(0)</span>
+                    }
+                }
+
+<span class="fc" id="L127">                try {</span>
+<span class="fc" id="L128">                    return@withSessionOwner openDriver()</span>
+                } finally {
+<span class="fc" id="L130">                    seed.fill(0)</span>
+                }
+<span class="fc" id="L132">            }</span>
+<span class="fc" id="L133">        }</span>
+
+    /**
+     * Performs a physical PRAGMA integrity_check on the encrypted database file to ensure
+     * encryption is sound and data is uncorrupted.
+     *
+     * Applies the fail-safe boundary by containing database exceptions and closing driver resources:
+     * All database exceptions are trapped and logged, returning false safely without leaking
+     * driver resources.
+     *
+     * @see FR-MC-080
+     */
+    fun verifyIntegrity(name: String): Boolean {
+<span class="fc" id="L146">        val dbFile = context.getDatabasePath(name)</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        if (!dbFile.exists()) return false</span>
+
+<span class="fc" id="L149">        var driver: SqlDriver? = null</span>
+<span class="fc" id="L150">        try {</span>
+            // Re-create the driver to open the database file and run the query
+<span class="nc" id="L152">            driver = createDriver(VaultDatabase.Schema, name)</span>
+<span class="nc" id="L153">            return driver</span>
+<span class="nc" id="L154">                .executeQuery(</span>
+<span class="nc" id="L155">                    identifier = null,</span>
+<span class="nc" id="L156">                    sql = &quot;PRAGMA integrity_check&quot;,</span>
+                    mapper = { cursor -&gt;
+<span class="nc" id="L158">                        val hasRow = cursor.next().value</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                        val result = if (hasRow) cursor.getString(0) else null</span>
+<span class="nc bnc" id="L160" title="All 4 branches missed.">                        QueryResult.Value(result?.equals(&quot;ok&quot;, ignoreCase = true) == true)</span>
+                    },
+<span class="nc" id="L162">                    parameters = 0,</span>
+<span class="nc" id="L163">                ).value</span>
+<span class="nc" id="L164">        } catch (e: SQLiteException) {</span>
+<span class="nc" id="L165">            Logger.w { &quot;Database integrity check failed (${e::class.simpleName})&quot; }</span>
+<span class="nc" id="L166">            return false</span>
+<span class="fc" id="L167">        } catch (e: IllegalStateException) {</span>
+<span class="fc" id="L168">            Logger.w { &quot;Database integrity check failed (${e::class.simpleName})&quot; }</span>
+<span class="fc" id="L169">            return false</span>
+<span class="nc" id="L170">        } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L171">            Logger.w { &quot;Database integrity check failed (${e::class.simpleName})&quot; }</span>
+<span class="nc" id="L172">            return false</span>
+        } finally {
+<span class="fc" id="L174">            try {</span>
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">                driver?.close()</span>
+<span class="nc" id="L176">            } catch (ignored: SQLiteException) {</span>
+<span class="nc" id="L177">            } catch (ignored: IllegalStateException) {</span>
+<span class="pc" id="L178">            } catch (ignored: IllegalArgumentException) {</span>
+            }
+        }
+    }
+
+    companion object {
+        private const val HEX_RADIX_MASK = 0xFF
+        private const val HEX_SHIFT_BITS = 4
+        private const val HEX_CHAR_MASK = 0x0F
+        private const val HEX_CHARS_PER_BYTE = 2
+        private const val WALLET_ROOT_PRK_LENGTH_BYTES = 32
+        private const val PBKDF2_ITERATIONS = 2048
+        private const val DB_KEY_LENGTH_BITS = 256
+<span class="fc" id="L191">        private val HEX_CHARS = &quot;0123456789abcdef&quot;.toCharArray()</span>
+<span class="fc" id="L192">        private val DB_PBE_SALT_BYTES = &quot;chimali_db_salt&quot;.toByteArray(Charsets.UTF_8)</span>
+<span class="fc" id="L193">        private val DB_SALT_BYTES = &quot;chimali_db_salt&quot;.toByteArray(Charsets.UTF_8).copyOf(16)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

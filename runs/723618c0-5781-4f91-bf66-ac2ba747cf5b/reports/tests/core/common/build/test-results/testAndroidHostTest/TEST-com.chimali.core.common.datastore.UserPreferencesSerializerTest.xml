@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.chimali.core.common.datastore.UserPreferencesSerializerTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-13T19:30:05.793Z" hostname="LOQ15IRX10-3" time="0.035">
+  <properties/>
+  <testcase name="testTransportRoundTripSerialization()" classname="com.chimali.core.common.datastore.UserPreferencesSerializerTest" time="0.019"/>
+  <testcase name="testUnrelatedFieldPreservation()" classname="com.chimali.core.common.datastore.UserPreferencesSerializerTest" time="0.004"/>
+  <testcase name="testSerializationAndDeserialization()" classname="com.chimali.core.common.datastore.UserPreferencesSerializerTest" time="0.004"/>
+  <testcase name="testDefaultValue()" classname="com.chimali.core.common.datastore.UserPreferencesSerializerTest" time="0.001"/>
+  <testcase name="testLosslessUnknownTransportSerialization()" classname="com.chimali.core.common.datastore.UserPreferencesSerializerTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

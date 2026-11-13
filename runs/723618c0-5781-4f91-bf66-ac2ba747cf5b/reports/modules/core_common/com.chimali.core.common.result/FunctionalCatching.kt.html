@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FunctionalCatching.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">common</a> &gt; <a href="index.source.html" class="el_package">com.chimali.core.common.result</a> &gt; <span class="el_source">FunctionalCatching.kt</span></div><h1>FunctionalCatching.kt</h1><pre class="source lang-java linenums">/**
+ * Utility functions for safely wrapping operations in [Outcome] without using
+ * generic `catch (e: Exception)` blocks (which violate the Detekt `TooGenericExceptionCaught` rule).
+ *
+ * ## Coroutine Safety
+ *
+ * All variants in this file explicitly rethrow [CancellationException] so that Kotlin's
+ * structured concurrency is not broken. Catching [CancellationException] causes coroutines
+ * to hang and leak memory (FR-005 compliance).
+ *
+ * ## Usage
+ *
+ * These utilities are for scenarios where a third-party API throws undocumented runtime
+ * exceptions and catching a specific set is infeasible. For all other cases, prefer
+ * explicit `try-catch` with specific exception types at the repository boundary.
+ *
+ * ```kotlin
+ * // For truly unknown APIs (use sparingly)
+ * val result: Outcome&lt;String, DomainError&gt; = runCatchingOutcome(
+ *     onError = { e -&gt; DomainError.UnknownError(&quot;Unexpected failure&quot;, e) }
+ * ) {
+ *     undocumentedApi.doSomething()
+ * }
+ * ```
+ */
+package com.chimali.core.common.result
+
+import kotlinx.coroutines.CancellationException
+
+/**
+ * Executes [block] and wraps the result in an [Outcome].
+ *
+ * - On success: returns [Outcome.Success] with the block's return value.
+ * - On [CancellationException]: **always rethrows** to preserve structured concurrency.
+ * - On any other [Throwable]: maps via [onError] and returns [Outcome.Error].
+ *
+ * ### Architectural Decision: @Suppress(&quot;TooGenericExceptionCaught&quot;)
+ * We catch [Throwable] here to provide a safe boundary for third-party or platform APIs
+ * that might throw undocumented runtime exceptions. This is the **only** layer where
+ * generic catching is permitted, ensuring that the rest of the business logic remains
+ * crash-safe and adheres to strict static analysis.
+ *
+ * **Important**: [CancellationException] is NOT caught or wrapped.
+ *
+ * @param onError Maps the caught [Throwable] to a specific [DomainError] subtype.
+ *                The throwable passed to [onError] is never a [CancellationException].
+ */
+@Suppress(&quot;TooGenericExceptionCaught&quot;)
+inline fun &lt;D, E : DomainError&gt; runCatchingOutcome(
+    onError: (Throwable) -&gt; E,
+    block: () -&gt; D,
+): Outcome&lt;D, E&gt; =
+<span class="nc" id="L53">    try {</span>
+<span class="nc" id="L54">        Outcome.Success(block())</span>
+<span class="nc" id="L55">    } catch (cancellation: CancellationException) {</span>
+<span class="nc" id="L56">        throw cancellation</span>
+<span class="nc" id="L57">    } catch (throwable: Throwable) {</span>
+<span class="nc" id="L58">        Outcome.Error(onError(throwable))</span>
+<span class="nc" id="L59">    }</span>
+
+/**
+ * Executes [block] and wraps the result in an [Outcome.Success], or returns
+ * [Outcome.Error] with a [DomainError.UnknownError] if any non-cancellation
+ * [Throwable] is caught.
+ *
+ * This version is **suspend-aware** and safe for use in coroutines.
+ *
+ * ### Architectural Decision: @Suppress(&quot;TooGenericExceptionCaught&quot;)
+ * Generic [Throwable] is caught and wrapped into a [DomainError.UnknownError] to prevent
+ * unhandled crashes at the boundary of external or legacy code. By using this helper,
+ * we avoid polluting the rest of the codebase with `@Suppress` annotations.
+ *
+ * **Important**: [CancellationException] is NOT caught or wrapped.
+ */
+@Suppress(&quot;TooGenericExceptionCaught&quot;)
+<span class="nc" id="L76">suspend inline fun &lt;D&gt; functionalCatching(</span>
+<span class="nc" id="L77">    errorMessage: String = &quot;An unexpected error occurred&quot;,</span>
+    crossinline block: suspend () -&gt; D,
+): Outcome&lt;D, DomainError.UnknownError&gt; =
+<span class="nc" id="L80">    try {</span>
+<span class="nc" id="L81">        Outcome.Success(block())</span>
+<span class="nc" id="L82">    } catch (cancellation: CancellationException) {</span>
+<span class="nc" id="L83">        throw cancellation</span>
+<span class="nc" id="L84">    } catch (throwable: Throwable) {</span>
+<span class="nc" id="L85">        Outcome.Error(DomainError.UnknownError(errorMessage, throwable))</span>
+<span class="nc" id="L86">    }</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

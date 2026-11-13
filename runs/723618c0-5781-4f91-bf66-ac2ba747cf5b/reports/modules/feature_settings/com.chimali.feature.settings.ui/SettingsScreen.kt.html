@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingsScreen.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">settings</a> &gt; <a href="index.source.html" class="el_package">com.chimali.feature.settings.ui</a> &gt; <span class="el_source">SettingsScreen.kt</span></div><h1>SettingsScreen.kt</h1><pre class="source lang-java linenums">package com.chimali.feature.settings.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.chimali.core.ui.theme.LegibilityType
+import com.chimali.feature.settings.R
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    vaultEnabled: Boolean,
+    passkeyEnabled: Boolean,
+    onRetakeOnboarding: () -&gt; Unit,
+    onBack: () -&gt; Unit,
+<span class="fc bfc" id="L40" title="All 2 branches covered.">    modifier: Modifier = Modifier,</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">    bluetoothTransportSettings: BluetoothTransportSettingsUiState? = null,</span>
+<span class="pc bfc" id="L42" title="All 2 branches covered.">    onSelectTransport: (String) -&gt; Unit = {},</span>
+<span class="pc bfc" id="L43" title="All 2 branches covered.">    onRetryTransportSettings: () -&gt; Unit = {},</span>
+<span class="pc" id="L44">    onCancelPendingTransportChange: () -&gt; Unit = {},</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">) {</span>
+<span class="fc" id="L46">    val selectionLabels = settingsSelectionLabels(vaultEnabled, passkeyEnabled)</span>
+<span class="fc" id="L47">    Scaffold(</span>
+<span class="fc" id="L48">        modifier = modifier,</span>
+<span class="fc" id="L49">        topBar = {</span>
+<span class="fc" id="L50">            TopAppBar(title = { Text(&quot;Settings&quot;, modifier = Modifier.semantics { heading() }) })</span>
+<span class="fc" id="L51">        },</span>
+<span class="fc" id="L52">    ) { padding -&gt;</span>
+<span class="fc" id="L53">        Column(</span>
+            modifier =
+<span class="fc" id="L55">                Modifier</span>
+<span class="fc" id="L56">                    .fillMaxSize()</span>
+<span class="fc" id="L57">                    .padding(padding)</span>
+<span class="fc" id="L58">                    .verticalScroll(rememberScrollState())</span>
+<span class="fc" id="L59">                    .padding(24.dp),</span>
+<span class="fc" id="L60">            verticalArrangement = Arrangement.spacedBy(16.dp),</span>
+        ) {
+<span class="fc" id="L62">            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {</span>
+<span class="fc" id="L63">                Column(</span>
+<span class="fc" id="L64">                    modifier = Modifier.fillMaxWidth().padding(16.dp),</span>
+<span class="fc" id="L65">                    verticalArrangement = Arrangement.spacedBy(6.dp),</span>
+                ) {
+<span class="fc" id="L67">                    Text(</span>
+<span class="fc" id="L68">                        text = &quot;Current selection&quot;,</span>
+<span class="fc" id="L69">                        style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L70">                        fontFamily = LegibilityType.AtkinsonFontFamily,</span>
+                    )
+<span class="fc" id="L72">                    Text(text = selectionLabels.vault)</span>
+<span class="fc" id="L73">                    Text(text = selectionLabels.passkey)</span>
+<span class="fc" id="L74">                }</span>
+<span class="fc" id="L75">            }</span>
+
+<span class="fc bfc" id="L77" title="All 4 branches covered.">            if (passkeyEnabled &amp;&amp; bluetoothTransportSettings != null) {</span>
+<span class="fc" id="L78">                BluetoothTransportSettingsCard(</span>
+<span class="fc" id="L79">                    state = bluetoothTransportSettings,</span>
+<span class="fc" id="L80">                    onSelectTransport = onSelectTransport,</span>
+<span class="fc" id="L81">                    onRetry = onRetryTransportSettings,</span>
+<span class="fc" id="L82">                    onCancelPendingChange = onCancelPendingTransportChange,</span>
+                )
+<span class="fc" id="L84">            }</span>
+
+<span class="fc" id="L86">            Text(</span>
+<span class="fc" id="L87">                text = &quot;You can restart the onboarding flow to change which features Chimali uses by default.&quot;,</span>
+<span class="fc" id="L88">                style = MaterialTheme.typography.bodyMedium,</span>
+            )
+
+<span class="fc" id="L91">            Column(</span>
+<span class="fc" id="L92">                modifier = Modifier.fillMaxWidth(),</span>
+<span class="fc" id="L93">                horizontalAlignment = Alignment.End,</span>
+<span class="fc" id="L94">                verticalArrangement = Arrangement.spacedBy(12.dp),</span>
+            ) {
+<span class="fc" id="L96">                OutlinedButton(onClick = onBack) {</span>
+<span class="fc" id="L97">                    Text(&quot;Back&quot;)</span>
+<span class="fc" id="L98">                }</span>
+<span class="fc" id="L99">                Button(onClick = onRetakeOnboarding) {</span>
+<span class="fc" id="L100">                    Text(&quot;Re-take Onboarding&quot;)</span>
+<span class="fc" id="L101">                }</span>
+<span class="fc" id="L102">            }</span>
+<span class="fc" id="L103">        }</span>
+<span class="fc" id="L104">    }</span>
+<span class="fc" id="L105">}</span>
+
+@Composable
+private fun BluetoothTransportSettingsCard(
+    state: BluetoothTransportSettingsUiState,
+    onSelectTransport: (String) -&gt; Unit,
+    onRetry: () -&gt; Unit,
+    onCancelPendingChange: () -&gt; Unit,
+<span class="fc" id="L113">) {</span>
+<span class="fc" id="L114">    val interactionEnabled =</span>
+<span class="pc bpc" id="L115" title="2 of 8 branches missed.">        !state.isLoading &amp;&amp; !state.isSaving &amp;&amp; state.readError == null &amp;&amp; state.processChoiceResolved</span>
+<span class="fc" id="L116">    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {</span>
+<span class="fc" id="L117">        Column(</span>
+<span class="fc" id="L118">            modifier = Modifier.fillMaxWidth().padding(16.dp),</span>
+<span class="fc" id="L119">            verticalArrangement = Arrangement.spacedBy(8.dp),</span>
+        ) {
+<span class="fc" id="L121">            Text(</span>
+<span class="fc" id="L122">                text = stringResource(R.string.bluetooth_transport_heading),</span>
+<span class="fc" id="L123">                style = MaterialTheme.typography.titleMedium,</span>
+<span class="fc" id="L124">                modifier = Modifier.semantics { heading() },</span>
+            )
+<span class="fc" id="L126">            Text(stringResource(R.string.bluetooth_transport_intro))</span>
+<span class="fc" id="L127">            TransportRadioOption(</span>
+<span class="fc" id="L128">                label = stringResource(R.string.bluetooth_transport_ble),</span>
+<span class="fc" id="L129">                code = &quot;fido_ble&quot;,</span>
+<span class="fc" id="L130">                selectedCode = state.savedTransportCode,</span>
+<span class="fc" id="L131">                enabled = interactionEnabled,</span>
+<span class="fc" id="L132">                onSelect = onSelectTransport,</span>
+            )
+<span class="fc" id="L134">            TransportRadioOption(</span>
+<span class="fc" id="L135">                label = stringResource(R.string.bluetooth_transport_classic),</span>
+<span class="fc" id="L136">                code = &quot;classic_hid&quot;,</span>
+<span class="fc" id="L137">                selectedCode = state.savedTransportCode,</span>
+<span class="fc" id="L138">                enabled = interactionEnabled,</span>
+<span class="fc" id="L139">                onSelect = onSelectTransport,</span>
+            )
+<span class="fc bfc" id="L141" title="All 2 branches covered.">            if (state.isLoading) Text(stringResource(R.string.bluetooth_transport_loading))</span>
+<span class="fc" id="L142">            val processStatus =</span>
+<span class="fc" id="L143">                when {</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">                    state.processTransportCode == null -&gt;</span>
+<span class="fc" id="L145">                        stringResource(R.string.bluetooth_transport_process_unresolved)</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                    state.availabilityCode == &quot;ready&quot; -&gt; {</span>
+<span class="fc" id="L147">                        val processLabel = processTransportLabel(state.processTransportCode)</span>
+<span class="fc" id="L148">                        stringResource(R.string.bluetooth_transport_active_prefix, processLabel)</span>
+                    }
+<span class="fc" id="L150">                    else -&gt; {</span>
+<span class="fc" id="L151">                        val processLabel = processTransportLabel(state.processTransportCode)</span>
+<span class="fc" id="L152">                        stringResource(R.string.bluetooth_transport_selected_prefix, processLabel)</span>
+                    }
+                }
+<span class="fc" id="L155">            Text(processStatus)</span>
+<span class="fc" id="L156">            Text(availabilityString(state.availabilityCode))</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">            if (state.restartRequired) {</span>
+<span class="fc" id="L158">                Text(stringResource(R.string.bluetooth_transport_restart_required))</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">                OutlinedButton(onClick = onCancelPendingChange, enabled = !state.isSaving) {</span>
+<span class="fc" id="L160">                    Text(stringResource(R.string.bluetooth_transport_cancel_pending))</span>
+<span class="fc" id="L161">                }</span>
+<span class="fc" id="L162">            }</span>
+<span class="fc bfc" id="L163" title="All 2 branches covered.">            state.readError?.let { errorCode -&gt;</span>
+<span class="fc" id="L164">                Text(readErrorString(errorCode), color = MaterialTheme.colorScheme.error)</span>
+<span class="fc" id="L165">                Button(onClick = onRetry) { Text(stringResource(R.string.bluetooth_transport_retry)) }</span>
+<span class="fc" id="L166">            }</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">            state.saveError?.let { errorCode -&gt;</span>
+<span class="fc" id="L168">                Text(saveErrorString(errorCode), color = MaterialTheme.colorScheme.error)</span>
+<span class="fc" id="L169">            }</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            if (state.isSaving) Text(stringResource(R.string.bluetooth_transport_saving))</span>
+<span class="fc" id="L171">        }</span>
+<span class="fc" id="L172">    }</span>
+<span class="fc" id="L173">}</span>
+
+@Composable
+private fun processTransportLabel(code: String): String =
+<span class="fc" id="L177">    when (code) {</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        &quot;fido_ble&quot; -&gt; stringResource(R.string.bluetooth_transport_active_ble)</span>
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        &quot;classic_hid&quot; -&gt; stringResource(R.string.bluetooth_transport_active_classic)</span>
+<span class="nc" id="L180">        else -&gt; stringResource(R.string.bluetooth_transport_active_unknown)</span>
+    }
+
+@Composable
+private fun TransportRadioOption(
+    label: String,
+    code: String,
+    selectedCode: String?,
+    enabled: Boolean,
+    onSelect: (String) -&gt; Unit,
+<span class="fc" id="L190">) {</span>
+<span class="fc" id="L191">    val selected = selectedCode == code</span>
+<span class="fc" id="L192">    Row(</span>
+        modifier =
+<span class="fc" id="L194">            Modifier</span>
+<span class="fc" id="L195">                .fillMaxWidth()</span>
+<span class="fc" id="L196">                .selectable(</span>
+<span class="fc" id="L197">                    selected = selected,</span>
+<span class="fc" id="L198">                    enabled = enabled,</span>
+<span class="fc" id="L199">                    role = Role.RadioButton,</span>
+<span class="pc bpc" id="L200" title="2 of 4 branches missed.">                    onClick = { onSelect(code) },</span>
+<span class="fc" id="L201">                ).padding(vertical = 4.dp),</span>
+<span class="fc" id="L202">        verticalAlignment = Alignment.CenterVertically,</span>
+    ) {
+<span class="fc" id="L204">        RadioButton(selected = selected, onClick = null, enabled = enabled)</span>
+<span class="fc" id="L205">        Text(label, modifier = Modifier.padding(start = 8.dp))</span>
+<span class="fc" id="L206">    }</span>
+<span class="fc" id="L207">}</span>
+
+@Composable
+private fun availabilityString(code: String): String =
+<span class="fc" id="L211">    stringResource(</span>
+<span class="pc bpc" id="L212" title="6 of 12 branches missed.">        when (code) {</span>
+<span class="fc" id="L213">            &quot;loading&quot; -&gt; R.string.bluetooth_transport_status_loading</span>
+<span class="fc" id="L214">            &quot;selected_not_started&quot; -&gt; R.string.bluetooth_transport_status_selected_not_started</span>
+<span class="fc" id="L215">            &quot;starting&quot; -&gt; R.string.bluetooth_transport_status_starting</span>
+<span class="fc" id="L216">            &quot;ready&quot; -&gt; R.string.bluetooth_transport_status_ready</span>
+<span class="fc" id="L217">            &quot;preference_read_failed&quot; -&gt; R.string.bluetooth_transport_status_read_failed</span>
+<span class="nc" id="L218">            &quot;invalid_preference&quot; -&gt; R.string.bluetooth_transport_status_invalid</span>
+<span class="nc" id="L219">            &quot;initialization_timeout&quot; -&gt; R.string.bluetooth_transport_status_timeout</span>
+<span class="fc" id="L220">            &quot;unsupported&quot; -&gt; R.string.bluetooth_transport_status_unsupported</span>
+<span class="nc" id="L221">            &quot;permission_required&quot; -&gt; R.string.bluetooth_transport_status_permission</span>
+<span class="nc" id="L222">            &quot;bluetooth_off&quot; -&gt; R.string.bluetooth_transport_status_off</span>
+<span class="nc" id="L223">            &quot;startup_failed&quot; -&gt; R.string.bluetooth_transport_status_start_failed</span>
+<span class="pc" id="L224">            else -&gt; R.string.bluetooth_transport_status_loading</span>
+        },
+    )
+
+@Composable
+private fun readErrorString(code: String): String =
+<span class="fc" id="L230">    stringResource(</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">        if (code == &quot;invalid_preference&quot;) {</span>
+<span class="nc" id="L232">            R.string.bluetooth_transport_invalid_error</span>
+        } else {
+<span class="fc" id="L234">            R.string.bluetooth_transport_read_error</span>
+        },
+    )
+
+@Composable
+private fun saveErrorString(code: String): String =
+<span class="fc" id="L240">    stringResource(</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">        if (code == &quot;invalid_input&quot;) {</span>
+<span class="nc" id="L242">            R.string.bluetooth_transport_input_error</span>
+        } else {
+<span class="fc" id="L244">            R.string.bluetooth_transport_write_error</span>
+        },
+    )
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

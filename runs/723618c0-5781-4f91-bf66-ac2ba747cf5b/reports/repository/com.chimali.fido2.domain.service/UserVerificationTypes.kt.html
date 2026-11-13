@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserVerificationTypes.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.domain.service</a> &gt; <span class="el_source">UserVerificationTypes.kt</span></div><h1>UserVerificationTypes.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.domain.service
+
+import kotlinx.datetime.Instant
+
+/**
+ * Data class representing user verification availability.
+ */
+<span class="fc" id="L8">data class UserVerificationAvailability(</span>
+<span class="fc" id="L9">    val isBiometricAvailable: Boolean,</span>
+<span class="fc" id="L10">    val isPinAvailable: Boolean,</span>
+<span class="pc" id="L11">    val isDeviceLockAvailable: Boolean,</span>
+<span class="pc" id="L12">    val supportedBiometricTypes: List&lt;BiometricType&gt;,</span>
+<span class="pc" id="L13">    val maxPinLength: Int,</span>
+<span class="pc" id="L14">    val minPinLength: Int,</span>
+<span class="pc" id="L15">    val biometricStrength: BiometricStrength,</span>
+) {
+    /**
+     * Checks if any verification method is available.
+     */
+<span class="nc bnc" id="L20" title="All 6 branches missed.">    fun hasAnyVerificationMethod(): Boolean = isBiometricAvailable || isPinAvailable || isDeviceLockAvailable</span>
+
+    /**
+     * Returns the best available verification method.
+     */
+    fun getBestAvailableMethod(): VerificationMethod =
+<span class="fc" id="L26">        when {</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">            isBiometricAvailable -&gt; VerificationMethod.BIOMETRIC</span>
+<span class="fc bfc" id="L28" title="All 2 branches covered.">            isPinAvailable -&gt; VerificationMethod.PIN</span>
+<span class="pc bpc" id="L29" title="1 of 2 branches missed.">            isDeviceLockAvailable -&gt; VerificationMethod.DEVICE_LOCK</span>
+<span class="fc" id="L30">            else -&gt; VerificationMethod.NONE</span>
+<span class="fc" id="L31">        }</span>
+}
+
+/**
+ * Data class representing biometric verification result.
+ */
+<span class="nc" id="L37">data class BiometricVerificationResult(</span>
+<span class="nc" id="L38">    val isSuccess: Boolean,</span>
+<span class="nc" id="L39">    val biometricType: BiometricType,</span>
+<span class="nc" id="L40">    val confidence: Float,</span>
+<span class="nc" id="L41">    val timestamp: Instant,</span>
+<span class="nc" id="L42">    val errorMessage: String?,</span>
+) {
+    companion object {
+        const val BIOMETRIC_CONFIDENCE_THRESHOLD = 0.7f
+    }
+
+    /**
+     * Checks if verification was successful.
+     */
+<span class="nc" id="L51">    fun isSuccessful(): Boolean = isSuccess</span>
+
+    /**
+     * Checks if confidence level is sufficient.
+     */
+<span class="nc bnc" id="L56" title="All 2 branches missed.">    fun hasHighConfidence(): Boolean = confidence &gt;= BIOMETRIC_CONFIDENCE_THRESHOLD</span>
+}
+
+/**
+ * Data class representing PIN verification result.
+ */
+<span class="nc" id="L62">data class PinVerificationResult(</span>
+<span class="nc" id="L63">    val isSuccess: Boolean,</span>
+<span class="nc" id="L64">    val attemptsRemaining: Int,</span>
+<span class="nc" id="L65">    val isLocked: Boolean,</span>
+<span class="nc" id="L66">    val timestamp: Instant,</span>
+<span class="nc" id="L67">    val errorMessage: String?,</span>
+) {
+    /**
+     * Checks if verification was successful.
+     */
+<span class="nc" id="L72">    fun isSuccessful(): Boolean = isSuccess</span>
+
+    /**
+     * Checks if PIN attempts are exhausted.
+     */
+<span class="nc bnc" id="L77" title="All 2 branches missed.">    fun isAttemptsExhausted(): Boolean = attemptsRemaining &lt;= 0</span>
+
+    /**
+     * Checks if PIN is temporarily locked.
+     */
+<span class="nc" id="L82">    fun isTemporarilyLocked(): Boolean = isLocked</span>
+}
+
+/**
+ * Data class representing combined verification result.
+ */
+<span class="nc" id="L88">data class CombinedVerificationResult(</span>
+<span class="nc" id="L89">    val isSuccess: Boolean,</span>
+<span class="nc" id="L90">    val biometricResult: BiometricVerificationResult?,</span>
+<span class="nc" id="L91">    val pinResult: PinVerificationResult?,</span>
+<span class="nc" id="L92">    val verificationMethod: VerificationMethod,</span>
+<span class="nc" id="L93">    val timestamp: Instant,</span>
+) {
+    /**
+     * Checks if verification was successful.
+     */
+<span class="nc" id="L98">    fun isSuccessful(): Boolean = isSuccess</span>
+
+    /**
+     * Returns the successful verification method.
+     */
+    fun getSuccessfulMethod(): VerificationMethod =
+<span class="nc" id="L104">        when {</span>
+<span class="nc bnc" id="L105" title="All 6 branches missed.">            biometricResult?.isSuccessful() == true -&gt; VerificationMethod.BIOMETRIC</span>
+<span class="nc bnc" id="L106" title="All 6 branches missed.">            pinResult?.isSuccessful() == true -&gt; VerificationMethod.PIN</span>
+<span class="nc" id="L107">            else -&gt; VerificationMethod.NONE</span>
+<span class="nc" id="L108">        }</span>
+}
+
+/**
+ * Data class representing device lock verification result.
+ */
+<span class="nc" id="L114">data class DeviceLockVerificationResult(</span>
+<span class="nc" id="L115">    val isSuccess: Boolean,</span>
+<span class="nc" id="L116">    val timestamp: Instant,</span>
+<span class="nc" id="L117">    val errorMessage: String?,</span>
+) {
+    /**
+     * Checks if verification was successful.
+     */
+<span class="nc" id="L122">    fun isSuccessful(): Boolean = isSuccess</span>
+}
+
+/**
+ * Data class representing biometric enrollment status.
+ */
+<span class="nc" id="L128">data class BiometricEnrollmentStatus(</span>
+<span class="nc" id="L129">    val isEnrolled: Boolean,</span>
+<span class="nc" id="L130">    val enrolledTypes: List&lt;BiometricType&gt;,</span>
+<span class="nc" id="L131">    val enrollmentStrength: BiometricStrength,</span>
+<span class="nc" id="L132">    val lastUpdated: Instant,</span>
+) {
+    /**
+     * Checks if any biometric is enrolled.
+     */
+<span class="nc bnc" id="L137" title="All 6 branches missed.">    fun hasAnyEnrollment(): Boolean = isEnrolled &amp;&amp; enrolledTypes.isNotEmpty()</span>
+
+    /**
+     * Returns the strongest enrolled biometric type.
+     */
+<span class="nc" id="L142">    fun getStrongestType(): BiometricType? = enrolledTypes.maxByOrNull { it.level }</span>
+}
+
+/**
+ * Data class representing PIN configuration.
+ */
+<span class="nc" id="L148">data class PinConfiguration(</span>
+<span class="nc" id="L149">    val minLength: Int,</span>
+<span class="nc" id="L150">    val maxLength: Int,</span>
+<span class="nc" id="L151">    val isComplexityRequired: Boolean,</span>
+<span class="nc" id="L152">    val allowedSpecialChars: String?,</span>
+<span class="nc" id="L153">    val maxAttempts: Int,</span>
+<span class="nc" id="L154">    val lockoutDuration: Long,</span>
+) {
+    /**
+     * Validates a PIN against this configuration.
+     */
+    fun validatePin(pin: String): Boolean {
+<span class="nc bnc" id="L160" title="All 4 branches missed.">        if (pin.length &lt; minLength || pin.length &gt; maxLength) return false</span>
+<span class="nc bnc" id="L161" title="All 4 branches missed.">        if (isComplexityRequired &amp;&amp; !meetsComplexityRequirements(pin)) return false</span>
+<span class="nc" id="L162">        return true</span>
+    }
+
+    /**
+     * Checks if PIN meets complexity requirements.
+     */
+    private fun meetsComplexityRequirements(pin: String): Boolean {
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (!isComplexityRequired) return true</span>
+
+<span class="nc" id="L171">        val hasLetter = pin.any { it.isLetter() }</span>
+<span class="nc" id="L172">        val hasDigit = pin.any { it.isDigit() }</span>
+<span class="nc" id="L173">        val hasSpecial =</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            allowedSpecialChars?.let { chars -&gt;</span>
+<span class="nc" id="L175">                pin.any { it in chars }</span>
+<span class="nc" id="L176">            } ?: false</span>
+
+<span class="nc bnc" id="L178" title="All 6 branches missed.">        return hasLetter &amp;&amp; hasDigit &amp;&amp; (hasSpecial || true)</span>
+    }
+}
+
+/**
+ * Enumeration of verification methods.
+ */
+enum class VerificationMethod {
+<span class="fc" id="L186">    NONE,</span>
+<span class="fc" id="L187">    BIOMETRIC,</span>
+<span class="fc" id="L188">    PIN,</span>
+<span class="fc" id="L189">    DEVICE_LOCK,</span>
+<span class="fc" id="L190">    BIOMETRIC_AND_PIN,</span>
+}
+
+/**
+ * Enumeration of biometric types.
+ */
+<span class="fc" id="L196">enum class BiometricType(</span>
+<span class="pc" id="L197">    val level: Int,</span>
+) {
+<span class="fc" id="L199">    NONE(0),</span>
+<span class="fc" id="L200">    FINGERPRINT(1),</span>
+<span class="fc" id="L201">    FACE(2),</span>
+<span class="fc" id="L202">    IRIS(3),</span>
+<span class="fc" id="L203">    VOICE(4),</span>
+    ;
+
+    companion object {
+        fun fromString(type: String): BiometricType =
+<span class="nc bnc" id="L208" title="All 5 branches missed.">            when (type.lowercase()) {</span>
+<span class="nc" id="L209">                &quot;fingerprint&quot; -&gt; FINGERPRINT</span>
+<span class="nc" id="L210">                &quot;face&quot; -&gt; FACE</span>
+<span class="nc" id="L211">                &quot;iris&quot; -&gt; IRIS</span>
+<span class="nc" id="L212">                &quot;voice&quot; -&gt; VOICE</span>
+<span class="nc" id="L213">                else -&gt; NONE</span>
+<span class="nc" id="L214">            }</span>
+    }
+}
+
+/**
+ * Enumeration of biometric strength levels.
+ */
+<span class="fc" id="L221">enum class BiometricStrength(</span>
+<span class="pc" id="L222">    val level: Int,</span>
+) {
+<span class="fc" id="L224">    WEAK(1),</span>
+<span class="fc" id="L225">    MEDIUM(2),</span>
+<span class="fc" id="L226">    STRONG(3),</span>
+<span class="fc" id="L227">    VERY_STRONG(4),</span>
+}
+
+/**
+ * Enumeration of user verification requirements.
+ */
+enum class UserVerificationRequirement {
+<span class="fc" id="L234">    NOT_REQUIRED,</span>
+<span class="fc" id="L235">    PREFERRED,</span>
+<span class="fc" id="L236">    REQUIRED,</span>
+<span class="fc" id="L237">    DISCOURAGED,</span>
+}
+
+/**
+ * Enumeration of verification context.
+ */
+enum class VerificationContext {
+<span class="fc" id="L244">    CREDENTIAL_CREATION,</span>
+<span class="fc" id="L245">    AUTHENTICATION,</span>
+<span class="fc" id="L246">    CREDENTIAL_DELETION,</span>
+<span class="fc" id="L247">    CREDENTIAL_UPDATE,</span>
+}
+
+/**
+ * Enumeration of verification states.
+ */
+enum class VerificationState {
+<span class="nc" id="L254">    IDLE,</span>
+<span class="nc" id="L255">    BIOMETRIC_PENDING,</span>
+<span class="nc" id="L256">    PIN_PENDING,</span>
+<span class="nc" id="L257">    DEVICE_LOCK_PENDING,</span>
+<span class="nc" id="L258">    COMBINED_PENDING,</span>
+<span class="nc" id="L259">    ERROR,</span>
+<span class="nc" id="L260">    CANCELLED,</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

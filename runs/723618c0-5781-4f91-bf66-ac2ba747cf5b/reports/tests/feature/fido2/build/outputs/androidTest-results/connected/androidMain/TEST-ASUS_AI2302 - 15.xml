@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="57" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-13T19:29:00" hostname="localhost">
+  <testsuite name="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" tests="2" failures="0" errors="0" skipped="0" time="4.324" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="persistentCeremoniesRecoverForEverySupportedSignatureAlgorithm" classname="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" time="3.458" />
+    <testcase name="p256RegistrationAndAssertionRecoverFromEncryptedEventAndProjectionStores" classname="com.chimali.fido2.data.crypto.CredentialPersistenceCeremonyTest" time="0.866" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" tests="3" failures="0" errors="0" skipped="0" time="0.004" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="cleanSyntheticRestartFixture" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.001" />
+    <testcase name="recoverAndSignAfterOperatingSystemProcessRestart" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.002" />
+    <testcase name="prepareSyntheticCredentialForRestartRecovery" classname="com.chimali.fido2.data.crypto.CredentialProcessRestartTest" time="0.001" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" tests="7" failures="0" errors="0" skipped="0" time="2.319" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="foregroundOwnerCanEndWhileAuthenticatorOwnerKeepsWalletSessionAlive" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.138" />
+    <testcase name="replacingEncryptedWalletFencesAdmittedAndroidProviderOwner" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.197" />
+    <testcase name="androidProvidersGenerateAndVerifyAllSupportedCredentialSignatures" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.736" />
+    <testcase name="encryptedProjectionReplacementRollsBackEarlierDeletionWhenInsertFails" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.294" />
+    <testcase name="severeMemoryTrimLevelsFenceWalletOwnersAndPermitEncryptedReconstruction" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.367" />
+    <testcase name="emptyEncryptedRecoveryStoreInitializesAndReconstructsTheSameWalletAndDatabase" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.435" />
+    <testcase name="generationFenceDiscardsSynchronousP256DerivationResult" classname="com.chimali.fido2.data.crypto.LocalProfileLifecycleTest" time="0.152" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" tests="6" failures="0" errors="0" skipped="0" time="2.360" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="legacyValueTakesPrecedenceAndMigrationPreservesUnrelatedPreferences" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.458" />
+    <testcase name="concurrentCurrentValueLookupsReturnTheStoredValue" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.331" />
+    <testcase name="concurrentLegacyMigrationPreservesTheValueAndRemovesTheLegacyKey" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.392" />
+    <testcase name="unavailableLegacyPreferencesFallBackToTheCurrentDataStoreValue" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.327" />
+    <testcase name="defaultAndCurrentValuesRemainStableAcrossRepositoryInstances" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.544" />
+    <testcase name="failedMigrationWriteLeavesLegacyValueAvailableForRetry" classname="com.chimali.fido2.data.repository.Fido2SettingsRepositoryTest" time="0.308" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.transport.BluetoothHidTransportDisconnectDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.170" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="hidDisconnectCancelsPendingAuthenticationAndErasesTheProductionWalletOwner" classname="com.chimali.fido2.data.transport.BluetoothHidTransportDisconnectDeviceTest" time="0.170" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.transport.FidoBleSecurityDeviceTest" tests="4" failures="0" errors="0" skipped="0" time="1.501" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="controlPointAndNotificationConfigurationRequireMitmEncryption" classname="com.chimali.fido2.data.transport.FidoBleSecurityDeviceTest" time="0.004" />
+    <testcase name="androidGattHostRegistersBothServicesBeforeReportingReady" classname="com.chimali.fido2.data.transport.FidoBleSecurityDeviceTest" time="0.136" />
+    <testcase name="deviceInformationServiceExposesGenericReadableProductCharacteristics" classname="com.chimali.fido2.data.transport.FidoBleSecurityDeviceTest" time="0.004" />
+    <testcase name="pairingFailureRejectsControlPointWriteBeforePacketAdmission" classname="com.chimali.fido2.data.transport.FidoBleSecurityDeviceTest" time="1.357" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.data.transport.NordicBleLegacyAdvertisingDeviceTest" tests="1" failures="0" errors="0" skipped="0" time="0.064" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="connectableLegacyAdvertisingStartsOnApi28Plus" classname="com.chimali.fido2.data.transport.NordicBleLegacyAdvertisingDeviceTest" time="0.064" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.domain.service.impl.UserVerificationServiceDeviceTest" tests="2" failures="0" errors="0" skipped="0" time="0.006" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="fidoPromptConfigurationBuildsForThisAndroidVersion" classname="com.chimali.fido2.domain.service.impl.UserVerificationServiceDeviceTest" time="0.001" />
+    <testcase name="deviceCredentialAvailabilityMatchesAndroidPlatformSupport" classname="com.chimali.fido2.domain.service.impl.UserVerificationServiceDeviceTest" time="0.005" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidMeasurementReportTest" tests="5" failures="0" errors="0" skipped="0" time="0.063" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="performanceFailureAndIncompleteEvidenceRemainVisibleTogether" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.018" />
+    <testcase name="thresholdEqualityIsDeviceFailAndRetainsMeasurements" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.014" />
+    <testcase name="orphanedOperationAssessmentMakesReportIncomplete" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.002" />
+    <testcase name="missingContinuityEvidenceRemainsIncomplete" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.014" />
+    <testcase name="deviceReportPassesOnlyWhenEveryOccurrenceIsBelowBudget" classname="com.chimali.fido2.performance.AndroidMeasurementReportTest" time="0.015" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidSimulatedLatencyAssessmentTest" tests="1" failures="0" errors="0" skipped="0" time="9.636" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="runAndroidSimulatedAssessmentAndPersistSyntheticEvidence" classname="com.chimali.fido2.performance.AndroidSimulatedLatencyAssessmentTest" time="9.636" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.performance.AndroidTimingAssessmentTest" tests="4" failures="0" errors="0" skipped="0" time="0.002" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="realPrimaryAndElapsedRealtimeClocksProduceRetainedDeltas" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.000" />
+    <testcase name="overlappingExclusionsAreSubtractedOnlyOnce" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.000" />
+    <testcase name="boundaryDivergenceIsValidAndUnavailableSourceIsIncomplete" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.002" />
+    <testcase name="divergenceBeyondFiveMillisecondsIsIncompleteInEitherDirection" classname="com.chimali.fido2.performance.AndroidTimingAssessmentTest" time="0.000" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" tests="9" failures="0" errors="0" skipped="0" time="10.682" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="pairedDeviceWithoutAliasUsesFallbackNameAndIconClass" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.427" />
+    <testcase name="transportButtonUsesStartAndStopLabelsAndInvokesToggle" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.668" />
+    <testcase name="emptyPairedDeviceListHidesTheDevicesHeading" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="0.895" />
+    <testcase name="pairedDeviceRowsRenderNamesAndInvokeEditAndConnectActions" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.293" />
+    <testcase name="pairingRecoveryDialogExposesBluetoothSettingsAndRetryActions" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.261" />
+    <testcase name="pairedDeviceIconFallbackAndWearableClassesAreRendered" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.197" />
+    <testcase name="statusIndicatorRendersEveryConnectionStateAndAdvertisingMode" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.452" />
+    <testcase name="pairingHelpButtonInvokesItsAccessibleAction" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="1.009" />
+    <testcase name="pairingHelpIsAvailableWhenBleIsIdleAdvertisingOrErrored" classname="com.chimali.fido2.presentation.ui.AuthenticatorDashboardComponentsTest" time="0.480" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" tests="6" failures="0" errors="0" skipped="0" time="30.155" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="masterSeedScreenRevealsAfterAuthenticationAndErasesOnDisposal" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="1.977" />
+    <testcase name="manualRecoveryDisablesImeLearningAutofillAndExtractedText" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="3.411" />
+    <testcase name="mnemonicGridItemsHaveMergedDescendants" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="1.364" />
+    <testcase name="qrHideAndClearUseExplicitUserActions" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="1.764" />
+    <testcase name="devToolsTitlesHaveHeadingRole" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="1.065" />
+    <testcase name="manualRecoveryTransfersOneMutablePhraseBuffer" classname="com.chimali.fido2.presentation.ui.DevelopmentToolsScreenTest" time="20.574" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.presentation.ui.TransportSettingsDuringCeremonyTest" tests="2" failures="0" errors="0" skipped="0" time="1.488" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="registrationConsentOpensTransportSettingsWithoutConfirmingOrCancelling" classname="com.chimali.fido2.presentation.ui.TransportSettingsDuringCeremonyTest" time="0.575" />
+    <testcase name="authenticationConsentOpensTransportSettingsWithoutConfirmingOrCancelling" classname="com.chimali.fido2.presentation.ui.TransportSettingsDuringCeremonyTest" time="0.913" />
+  </testsuite>
+  <testsuite name="com.chimali.fido2.service.FidoBleLifecycleDeviceTest" tests="4" failures="0" errors="0" skipped="0" time="0.359" timestamp="2026-11-13T19:29:00" hostname="localhost">
+    <properties>
+      <property name="device" value="R7AIB7002901AZ3" />
+    </properties>
+    <testcase name="serviceIsPrivateAndDeclaresConnectedDeviceForegroundType" classname="com.chimali.fido2.service.FidoBleLifecycleDeviceTest" time="0.004" />
+    <testcase name="repeatedStartKeepsForegroundNotificationAndStopCleansTransport" classname="com.chimali.fido2.service.FidoBleLifecycleDeviceTest" time="0.281" />
+    <testcase name="retryAfterFailedStartupConnectsAgainAndRestoresForegroundNotification" classname="com.chimali.fido2.service.FidoBleLifecycleDeviceTest" time="0.027" />
+    <testcase name="actionlessServiceStartReactivatesSelectedTransportForStickyRecovery" classname="com.chimali.fido2.service.FidoBleLifecycleDeviceTest" time="0.047" />
+  </testsuite>
+</testsuites>

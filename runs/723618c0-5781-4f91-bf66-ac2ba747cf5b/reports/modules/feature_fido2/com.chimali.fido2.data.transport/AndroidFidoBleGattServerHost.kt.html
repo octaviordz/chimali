@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AndroidFidoBleGattServerHost.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">AndroidFidoBleGattServerHost.kt</span></div><h1>AndroidFidoBleGattServerHost.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattServer
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
+import android.content.Context
+import android.os.Build
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Owns the Android GATT server and registers the FIDO service before advertising starts. */
+@Req(&quot;FR-BLE-010&quot;, &quot;FR-BLE-020&quot;, &quot;FR-BLE-070&quot;, &quot;TR-BLE-010&quot;, &quot;TR-BLE-040&quot;)
+interface BleGattServerHost {
+    suspend fun start(
+        onPacketReceived: (ByteArray) -&gt; Unit,
+        onNotificationSent: (BluetoothDevice, Int) -&gt; Unit,
+        onConnectionStateChanged: (BluetoothDevice, Int, Int) -&gt; Unit,
+        onAuthenticationFailure: (BluetoothDevice) -&gt; Unit,
+    ): Result&lt;Unit&gt;
+
+    fun stop()
+}
+
+<span class="nc" id="L34">private data class PendingLegacyNotification(</span>
+<span class="nc" id="L35">    val deviceAddress: String,</span>
+<span class="nc" id="L36">    val characteristic: BluetoothGattCharacteristic,</span>
+<span class="nc" id="L37">    val value: ByteArray,</span>
+)
+
+/** Android public-API GATT server host used by the selected BLE transport. */
+<span class="fc" id="L41">@Req(&quot;FR-BLE-010&quot;, &quot;FR-BLE-020&quot;, &quot;FR-BLE-070&quot;, &quot;TR-BLE-010&quot;, &quot;TR-BLE-040&quot;)</span>
+<span class="fc" id="L42">class AndroidFidoBleGattServerHost(</span>
+<span class="fc" id="L43">    private val context: Context,</span>
+<span class="fc" id="L44">    private val sessionOwner: BleSessionOwner,</span>
+) : BleGattServerHost,
+    GattResponseSender {
+    private var gattServer: BluetoothGattServer? = null
+    private var registered = false
+<span class="fc" id="L49">    private val serviceRegistrations = ConcurrentHashMap&lt;UUID, CompletableDeferred&lt;Int&gt;&gt;()</span>
+<span class="pc" id="L50">    private var notificationSentListener: (BluetoothDevice, Int) -&gt; Unit = { _, _ -&gt; }</span>
+<span class="pc" id="L51">    private var connectionStateListener: (BluetoothDevice, Int, Int) -&gt; Unit = { _, _, _ -&gt; }</span>
+<span class="pc" id="L52">    private var authenticationFailureListener: (BluetoothDevice) -&gt; Unit = {}</span>
+<span class="fc" id="L53">    private val legacyNotificationLock = Any()</span>
+    private var legacyNotificationValue: PendingLegacyNotification? = null
+<span class="fc" id="L55">    private val callback by lazy {</span>
+<span class="fc" id="L56">        FidoBleGattServer(</span>
+<span class="fc" id="L57">            sessionOwner = sessionOwner,</span>
+<span class="fc" id="L58">            responseSender = this,</span>
+<span class="fc" id="L59">            onGattServiceAdded = { uuid, status -&gt;</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">                serviceRegistrations[uuid]?.complete(status)</span>
+<span class="fc" id="L61">            },</span>
+<span class="fc" id="L62">            notificationSentListener = { device, status -&gt;</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                if (status != BluetoothGatt.GATT_SUCCESS) {</span>
+<span class="nc" id="L64">                    Logger.w { &quot;AndroidFidoBleGattServerHost: GATT notification callback failed status=$status&quot; }</span>
+                }
+<span class="nc" id="L66">                releaseLegacyNotificationValue(expectedDeviceAddress = device.address)</span>
+<span class="nc" id="L67">                notificationSentListener(device, status)</span>
+<span class="nc" id="L68">            },</span>
+<span class="fc" id="L69">            onConnectionStateChanged = { device, status, state -&gt;</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                if (state == BluetoothProfile.STATE_DISCONNECTED) {</span>
+<span class="nc" id="L71">                    releaseLegacyNotificationValue(expectedDeviceAddress = device.address)</span>
+                }
+<span class="nc" id="L73">                connectionStateListener(device, status, state)</span>
+<span class="nc" id="L74">            },</span>
+<span class="pc bnc" id="L75" title="All 2 branches missed.">            onConnectionRejected = { device -&gt; gattServer?.cancelConnection(device) },</span>
+<span class="fc" id="L76">            onAuthenticationFailure = { device -&gt;</span>
+<span class="nc" id="L77">                releaseLegacyNotificationValue(expectedDeviceAddress = device.address)</span>
+<span class="nc" id="L78">                authenticationFailureListener(device)</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                gattServer?.cancelConnection(device)</span>
+<span class="nc" id="L80">            },</span>
+<span class="fc" id="L81">        )</span>
+    }
+<span class="fc" id="L83">    private val service by lazy { callback.buildFidoGattService() }</span>
+<span class="fc" id="L84">    private val deviceInformationService by lazy { callback.buildDeviceInformationService() }</span>
+    val statusCharacteristic: BluetoothGattCharacteristic
+        get() {
+<span class="nc" id="L87">            service</span>
+<span class="nc" id="L88">            return callback.statusCharacteristic</span>
+        }
+
+    override suspend fun start(
+        onPacketReceived: (ByteArray) -&gt; Unit,
+        onNotificationSent: (BluetoothDevice, Int) -&gt; Unit,
+        onConnectionStateChanged: (BluetoothDevice, Int, Int) -&gt; Unit,
+        onAuthenticationFailure: (BluetoothDevice) -&gt; Unit,
+    ): Result&lt;Unit&gt; {
+<span class="pc bpc" id="L97" title="3 of 4 branches missed.">        if (registered &amp;&amp; gattServer != null) return Result.success(Unit)</span>
+
+<span class="fc" id="L99">        return try {</span>
+<span class="fc" id="L100">            notificationSentListener = onNotificationSent</span>
+<span class="fc" id="L101">            connectionStateListener = onConnectionStateChanged</span>
+<span class="fc" id="L102">            authenticationFailureListener = onAuthenticationFailure</span>
+<span class="fc" id="L103">            callback.onPacketReceivedListener = onPacketReceived</span>
+<span class="fc" id="L104">            val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager</span>
+<span class="fc" id="L105">            val server =</span>
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">                manager.openGattServer(context, callback)</span>
+<span class="nc" id="L107">                    ?: error(&quot;Android did not provide a Bluetooth GATT server&quot;)</span>
+<span class="fc" id="L108">            gattServer = server</span>
+<span class="fc" id="L109">            registerService(server, service)</span>
+<span class="fc" id="L110">            registerService(server, deviceInformationService)</span>
+<span class="fc" id="L111">            registered = true</span>
+<span class="fc" id="L112">            Result.success(Unit)</span>
+<span class="nc" id="L113">        } catch (failure: CancellationException) {</span>
+<span class="nc" id="L114">            stop()</span>
+<span class="nc" id="L115">            throw failure</span>
+<span class="nc" id="L116">        } catch (failure: TimeoutException) {</span>
+<span class="nc" id="L117">            startupFailure(failure)</span>
+<span class="nc" id="L118">        } catch (failure: SecurityException) {</span>
+<span class="nc" id="L119">            startupFailure(failure)</span>
+<span class="nc" id="L120">        } catch (failure: IllegalStateException) {</span>
+<span class="pc" id="L121">            startupFailure(failure)</span>
+        }
+    }
+
+    private suspend fun registerService(
+        server: BluetoothGattServer,
+        service: android.bluetooth.BluetoothGattService,
+    ) {
+<span class="fc" id="L129">        val serviceReady = CompletableDeferred&lt;Int&gt;()</span>
+<span class="pc bpc" id="L130" title="2 of 4 branches missed.">        check(serviceRegistrations.putIfAbsent(service.uuid, serviceReady) == null) {</span>
+<span class="nc" id="L131">            &quot;GATT service registration is already pending for ${service.uuid}&quot;</span>
+        }
+<span class="fc" id="L133">        try {</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            check(server.addService(service)) {</span>
+<span class="nc" id="L135">                &quot;Android rejected GATT service registration for ${service.uuid}&quot;</span>
+            }
+<span class="fc" id="L137">            val status =</span>
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">                withTimeoutOrNull(SERVICE_REGISTRATION_TIMEOUT_MS) { serviceReady.await() }</span>
+<span class="nc" id="L139">                    ?: throw TimeoutException(&quot;GATT service registration timed out for ${service.uuid}&quot;)</span>
+<span class="pc bpc" id="L140" title="2 of 4 branches missed.">            check(status == BluetoothGatt.GATT_SUCCESS) {</span>
+<span class="nc" id="L141">                &quot;GATT service registration failed for ${service.uuid} with status $status&quot;</span>
+            }
+        } finally {
+<span class="fc" id="L144">            serviceRegistrations.remove(service.uuid, serviceReady)</span>
+        }
+<span class="fc" id="L146">    }</span>
+
+    private fun startupFailure(failure: Exception): Result&lt;Unit&gt; {
+<span class="nc" id="L149">        stop()</span>
+<span class="nc" id="L150">        Logger.e(failure) { &quot;AndroidFidoBleGattServerHost: GATT server startup failed&quot; }</span>
+<span class="nc" id="L151">        return Result.failure(failure)</span>
+    }
+
+    override fun sendResponse(
+        device: BluetoothDevice,
+        requestId: Int,
+        status: Int,
+        offset: Int,
+        value: ByteArray?,
+<span class="nc bnc" id="L160" title="All 2 branches missed.">    ): Boolean = gattServer?.sendResponse(device, requestId, status, offset, value) ?: false</span>
+
+    override fun notifyCharacteristicChanged(
+        device: BluetoothDevice,
+        characteristic: BluetoothGattCharacteristic,
+        confirm: Boolean,
+        value: ByteArray,
+    ): Boolean {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        val server = gattServer ?: return false</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.TIRAMISU) {</span>
+<span class="nc" id="L170">            val status = server.notifyCharacteristicChanged(device, characteristic, confirm, value)</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            if (status != BluetoothStatusCodes.SUCCESS) {</span>
+<span class="nc" id="L172">                Logger.w { &quot;AndroidFidoBleGattServerHost: GATT notification initiation failed status=$status&quot; }</span>
+            }
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            return status == BluetoothStatusCodes.SUCCESS</span>
+        }
+
+<span class="nc" id="L177">        val ownedValue = value.copyOf()</span>
+<span class="nc" id="L178">        synchronized(legacyNotificationLock) {</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">            if (legacyNotificationValue != null) {</span>
+<span class="nc" id="L180">                ownedValue.fill(0)</span>
+<span class="nc" id="L181">                Logger.w { &quot;AndroidFidoBleGattServerHost: Legacy GATT notification already pending&quot; }</span>
+<span class="nc" id="L182">                return false</span>
+            }
+<span class="nc" id="L184">            legacyNotificationValue = PendingLegacyNotification(device.address, characteristic, ownedValue)</span>
+            @Suppress(&quot;DEPRECATION&quot;)
+<span class="nc" id="L186">            characteristic.value = ownedValue</span>
+<span class="nc" id="L187">        }</span>
+
+<span class="nc" id="L189">        var initiated = false</span>
+<span class="nc" id="L190">        try {</span>
+            @Suppress(&quot;DEPRECATION&quot;)
+<span class="nc" id="L192">            initiated = server.notifyCharacteristicChanged(device, characteristic, confirm)</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">            if (!initiated) {</span>
+<span class="nc" id="L194">                Logger.w { &quot;AndroidFidoBleGattServerHost: Legacy GATT notification initiation was rejected&quot; }</span>
+            }
+<span class="nc" id="L196">            return initiated</span>
+        } finally {
+<span class="nc bnc" id="L198" title="All 2 branches missed.">            if (!initiated) {</span>
+<span class="nc" id="L199">                releaseLegacyNotificationValue(</span>
+<span class="nc" id="L200">                    expectedDeviceAddress = device.address,</span>
+<span class="nc" id="L201">                    expectedCharacteristic = characteristic,</span>
+<span class="nc" id="L202">                    expectedValue = ownedValue,</span>
+                )
+            }
+        }
+    }
+
+<span class="fc" id="L208">    private fun releaseLegacyNotificationValue(</span>
+<span class="fc" id="L209">        expectedDeviceAddress: String? = null,</span>
+<span class="fc" id="L210">        expectedCharacteristic: BluetoothGattCharacteristic? = null,</span>
+<span class="fc" id="L211">        expectedValue: ByteArray? = null,</span>
+    ) {
+<span class="nc" id="L213">        val retained =</span>
+<span class="pc" id="L214">            synchronized(legacyNotificationLock) {</span>
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">                val pending = legacyNotificationValue ?: return</span>
+<span class="nc bnc" id="L216" title="All 4 branches missed.">                val sameDevice = expectedDeviceAddress == null || pending.deviceAddress == expectedDeviceAddress</span>
+<span class="nc" id="L217">                val sameCharacteristic =</span>
+<span class="nc bnc" id="L218" title="All 4 branches missed.">                    expectedCharacteristic == null || pending.characteristic === expectedCharacteristic</span>
+<span class="nc bnc" id="L219" title="All 4 branches missed.">                val sameValue = expectedValue == null || pending.value === expectedValue</span>
+<span class="nc bnc" id="L220" title="All 6 branches missed.">                if (!sameDevice || !sameCharacteristic || !sameValue) {</span>
+<span class="nc" id="L221">                    return</span>
+                }
+<span class="nc" id="L223">                legacyNotificationValue = null</span>
+<span class="nc" id="L224">                pending</span>
+            }
+<span class="nc" id="L226">        retained.value.fill(0)</span>
+        @Suppress(&quot;DEPRECATION&quot;)
+<span class="nc" id="L228">        retained.characteristic.value = null</span>
+<span class="nc" id="L229">    }</span>
+
+    override fun stop() {
+<span class="fc" id="L232">        val server = gattServer</span>
+<span class="fc" id="L233">        gattServer = null</span>
+<span class="fc" id="L234">        registered = false</span>
+<span class="pc" id="L235">        serviceRegistrations.values.forEach { it.cancel() }</span>
+<span class="fc" id="L236">        serviceRegistrations.clear()</span>
+<span class="pc" id="L237">        notificationSentListener = { _, _ -&gt; }</span>
+<span class="pc" id="L238">        connectionStateListener = { _, _, _ -&gt; }</span>
+<span class="fc" id="L239">        try {</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            server?.clearServices()</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">            server?.close()</span>
+<span class="nc" id="L242">        } catch (failure: SecurityException) {</span>
+<span class="nc" id="L243">            Logger.w(failure) { &quot;AndroidFidoBleGattServerHost: Permission lost during GATT cleanup&quot; }</span>
+        } finally {
+<span class="fc" id="L245">            releaseLegacyNotificationValue()</span>
+        }
+<span class="fc" id="L247">    }</span>
+
+    private companion object {
+        const val SERVICE_REGISTRATION_TIMEOUT_MS = 5_000L
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

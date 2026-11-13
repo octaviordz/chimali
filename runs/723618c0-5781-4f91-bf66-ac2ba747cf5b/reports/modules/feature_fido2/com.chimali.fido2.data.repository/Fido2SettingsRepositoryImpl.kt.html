@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fido2SettingsRepositoryImpl.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.repository</a> &gt; <span class="el_source">Fido2SettingsRepositoryImpl.kt</span></div><h1>Fido2SettingsRepositoryImpl.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.repository
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.core.content.edit
+import androidx.datastore.core.DataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.core.common.datastore.UserPreferences
+import com.chimali.fido2.domain.repository.BluetoothTransportMode
+import com.chimali.fido2.domain.repository.Fido2SettingsRepository
+import com.chimali.fido2.domain.repository.TransportPreference
+import com.chimali.fido2.domain.repository.TransportPreferenceResult
+import com.chimali.fido2.domain.repository.TransportSaveResult
+import com.chimali.fido2.util.performance.PerformanceTrace
+import java.io.IOException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.koin.core.annotation.Single
+
+private const val PREFS_FILE_NAME = &quot;fido2_settings&quot;
+
+/**
+ * Persisted implementation of [Fido2SettingsRepository] backed by Proto DataStore.
+ *
+ * This ensures that critical authenticator limits are stored securely and persist
+ * across application restarts.
+ *
+ * Migration: On first launch after upgrade, max credential count stored in legacy
+ * EncryptedSharedPreferences is automatically migrated to Proto DataStore.
+ */
+<span class="fc" id="L38">@Single</span>
+<span class="fc" id="L39">class Fido2SettingsRepositoryImpl(</span>
+<span class="fc" id="L40">    private val context: Context,</span>
+<span class="fc" id="L41">    private val dataStore: DataStore&lt;UserPreferences&gt;,</span>
+) : Fido2SettingsRepository {
+<span class="fc" id="L43">    private val legacyPrefsMutex = Mutex()</span>
+<span class="fc" id="L44">    private val legacyMigrationMutex = Mutex()</span>
+
+    @Volatile
+    private var cachedLegacyPrefs: SharedPreferences? = null
+
+    companion object {
+        private const val KEY_MAX_CREDENTIALS = &quot;max_credential_count&quot;
+        private const val DEFAULT_STORAGE_LIMIT = 1000
+        private const val DATA_STORE_FIRST_SECTION = &quot;Fido2.SettingsLookup.DataStoreFirst&quot;
+        private const val LEGACY_PREFS_OPEN_SECTION = &quot;Fido2.SettingsLookup.LegacyPrefsOpen&quot;
+        private const val LEGACY_PREFS_CACHE_SECTION = &quot;Fido2.SettingsLookup.LegacyPrefsCache&quot;
+        private const val DATA_STORE_REFRESH_SECTION = &quot;Fido2.SettingsLookup.DataStoreRefresh&quot;
+        private const val LEGACY_MASTER_KEY_SECTION = &quot;Fido2.SettingsLookup.LegacyMasterKey&quot;
+        private const val LEGACY_PREFS_CREATE_SECTION = &quot;Fido2.SettingsLookup.LegacyPrefsCreate&quot;
+        private const val LEGACY_CONTAINS_SECTION = &quot;Fido2.SettingsLookup.LegacyContains&quot;
+        private const val LEGACY_READ_SECTION = &quot;Fido2.SettingsLookup.LegacyRead&quot;
+        private const val MIGRATION_WRITE_SECTION = &quot;Fido2.SettingsLookup.MigrationWrite&quot;
+        private const val LEGACY_REMOVAL_SECTION = &quot;Fido2.SettingsLookup.LegacyRemoval&quot;
+        private const val DATA_STORE_VALUE_SECTION = &quot;Fido2.SettingsLookup.DataStoreValue&quot;
+        private const val DEFAULT_WRITE_SECTION = &quot;Fido2.SettingsLookup.DefaultWrite&quot;
+    }
+
+<span class="fc" id="L66">    override suspend fun getMaxCredentialCount(): Int {</span>
+<span class="fc" id="L67">        val prefs =</span>
+<span class="fc" id="L68">            PerformanceTrace.section(DATA_STORE_FIRST_SECTION) {</span>
+<span class="fc" id="L69">                dataStore.data.first()</span>
+            }
+
+        // 1. If already migrated or max_credential_count has been set, return it
+        // We use maxCredentialCount &gt; 0 as a sign it's set, or if migration is completed.
+        // But since maxCredentialCount defaults to 0 in protobuf, we need to check if it's not 0 or migration is done.
+        // Actually, if it's 0 and migration is done, it could legitimately be 0 (though default is 1000).
+        // Let's check if migration has completed (even if from another repository like WalletMasterSeedProvider).
+        // Wait, UserPreferences is shared. If WalletMasterSeedProvider ran first, migration_completed is true!
+        // This is a subtle bug: if Wallet runs first, migrationCompleted=true, but Fido2Settings hasn't migrated!
+        // To fix this, we should check if FIDO2 settings were migrated.
+        // We can check if legacy preferences exist instead.
+
+<span class="fc" id="L82">        var openedLegacyPrefs: SharedPreferences? = null</span>
+<span class="fc" id="L83">        try {</span>
+<span class="fc" id="L84">            val legacyPrefs =</span>
+<span class="fc" id="L85">                PerformanceTrace</span>
+<span class="fc" id="L86">                    .section(LEGACY_PREFS_OPEN_SECTION) {</span>
+<span class="fc" id="L87">                        openEncryptedPrefs()</span>
+<span class="fc" id="L88">                    }.also { openedLegacyPrefs = it }</span>
+<span class="fc" id="L89">            val hasLegacyCount =</span>
+<span class="fc" id="L90">                PerformanceTrace.section(LEGACY_CONTAINS_SECTION) {</span>
+<span class="fc" id="L91">                    legacyPrefs.contains(KEY_MAX_CREDENTIALS)</span>
+                }
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            if (hasLegacyCount) {</span>
+<span class="fc" id="L94">                return legacyMigrationMutex.withLock {</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">                    if (legacyPrefs.contains(KEY_MAX_CREDENTIALS)) {</span>
+<span class="fc" id="L96">                        val legacyCount =</span>
+<span class="fc" id="L97">                            PerformanceTrace.section(LEGACY_READ_SECTION) {</span>
+<span class="fc" id="L98">                                legacyPrefs.getInt(KEY_MAX_CREDENTIALS, DEFAULT_STORAGE_LIMIT)</span>
+                            }
+<span class="fc" id="L100">                        Logger.i {</span>
+<span class="fc" id="L101">                            &quot;Migrating max_credential_count from legacy EncryptedSharedPreferences to Proto DataStore&quot;</span>
+                        }
+
+<span class="fc" id="L104">                        PerformanceTrace.section(MIGRATION_WRITE_SECTION) {</span>
+<span class="fc" id="L105">                            dataStore.updateData { currentPrefs -&gt;</span>
+<span class="fc" id="L106">                                currentPrefs.copy(maxCredentialCount = legacyCount)</span>
+<span class="fc" id="L107">                            }</span>
+                        }
+
+<span class="fc" id="L110">                        PerformanceTrace.section(LEGACY_REMOVAL_SECTION) {</span>
+<span class="fc" id="L111">                            legacyPrefs.edit(commit = true) {</span>
+<span class="fc" id="L112">                                remove(KEY_MAX_CREDENTIALS)</span>
+<span class="fc" id="L113">                            }</span>
+<span class="fc" id="L114">                        }</span>
+<span class="fc" id="L115">                        Logger.i { &quot;Migration of max_credential_count completed successfully, legacy key cleared&quot; }</span>
+<span class="fc" id="L116">                        legacyCount</span>
+                    } else {
+                        // Another lookup may have completed migration after this call's first read.
+<span class="fc" id="L119">                        currentCountOrDefault(dataStore.data.first())</span>
+<span class="fc" id="L120">                    }</span>
+                }
+            }
+<span class="nc" id="L123">        } catch (e: java.security.GeneralSecurityException) {</span>
+<span class="nc" id="L124">            invalidateLegacyPrefsCache(openedLegacyPrefs)</span>
+<span class="nc" id="L125">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+<span class="fc" id="L126">        } catch (e: java.io.IOException) {</span>
+<span class="fc" id="L127">            invalidateLegacyPrefsCache(openedLegacyPrefs)</span>
+<span class="fc" id="L128">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+<span class="fc" id="L129">        } catch (e: SecurityException) {</span>
+<span class="fc" id="L130">            invalidateLegacyPrefsCache(openedLegacyPrefs)</span>
+<span class="fc" id="L131">            Logger.e(e) { &quot;Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing&quot; }</span>
+        }
+
+        // If not in legacy or already migrated, check DataStore
+        // The default in Proto is 0, but our application default is 1000
+<span class="fc" id="L136">        val latestPrefs =</span>
+<span class="fc" id="L137">            PerformanceTrace.section(DATA_STORE_REFRESH_SECTION) {</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">                if (prefs.maxCredentialCount &lt;= 0) dataStore.data.first() else prefs</span>
+            }
+<span class="fc" id="L140">        return currentCountOrDefault(latestPrefs)</span>
+    }
+
+    private suspend fun currentCountOrDefault(prefs: UserPreferences): Int {
+<span class="fc" id="L144">        val count =</span>
+<span class="fc" id="L145">            PerformanceTrace.section(DATA_STORE_VALUE_SECTION) {</span>
+<span class="fc" id="L146">                prefs.maxCredentialCount</span>
+            }
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        return if (count &lt;= 0) {</span>
+            // Write default to DataStore if it's 0 so it's consistent
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">            if (count == 0) {</span>
+<span class="fc" id="L151">                PerformanceTrace.section(DEFAULT_WRITE_SECTION) {</span>
+<span class="fc" id="L152">                    dataStore.updateData { it.copy(maxCredentialCount = DEFAULT_STORAGE_LIMIT) }</span>
+                }
+            }
+<span class="fc" id="L155">            DEFAULT_STORAGE_LIMIT</span>
+        } else {
+<span class="fc" id="L157">            count</span>
+        }
+    }
+
+    override suspend fun setMaxCredentialCount(count: Int) {
+<span class="pc" id="L162">        dataStore.updateData { prefs -&gt;</span>
+<span class="fc" id="L163">            prefs.copy(maxCredentialCount = count)</span>
+        }
+<span class="nc" id="L165">    }</span>
+
+<span class="fc" id="L167">    private val transportSaveMutex = Mutex()</span>
+
+    @Req(&quot;FR-BT-SEL-010&quot;, &quot;TR-BT-SEL-010&quot;)
+    override fun observeTransportPreference(): Flow&lt;TransportPreferenceResult&gt; =
+<span class="nc" id="L171">        dataStore.data</span>
+<span class="nc" id="L172">            .map { prefs -&gt;</span>
+<span class="nc" id="L173">                mapPrefsToTransportPreferenceResult(prefs)</span>
+<span class="nc" id="L174">            }.catch { error -&gt;</span>
+<span class="nc" id="L175">                emit(TransportPreferenceResult.ReadError(error))</span>
+<span class="nc" id="L176">            }</span>
+
+    @Req(&quot;FR-BT-SEL-010&quot;, &quot;TR-BT-SEL-010&quot;)
+<span class="fc" id="L179">    override suspend fun getTransportPreference(): TransportPreferenceResult =</span>
+<span class="fc" id="L180">        try {</span>
+<span class="fc" id="L181">            val prefs = dataStore.data.first()</span>
+<span class="fc" id="L182">            mapPrefsToTransportPreferenceResult(prefs)</span>
+<span class="nc" id="L183">        } catch (e: CancellationException) {</span>
+<span class="nc" id="L184">            throw e</span>
+<span class="fc" id="L185">        } catch (e: IOException) {</span>
+<span class="fc" id="L186">            TransportPreferenceResult.ReadError(e)</span>
+<span class="fc" id="L187">        }</span>
+
+    private fun mapPrefsToTransportPreferenceResult(prefs: UserPreferences): TransportPreferenceResult {
+<span class="fc" id="L190">        val raw = prefs.bluetoothTransport</span>
+<span class="fc" id="L191">        val mode =</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">            BluetoothTransportMode.fromWire(raw)</span>
+<span class="fc" id="L193">                ?: return TransportPreferenceResult.InvalidPreference(raw)</span>
+<span class="fc" id="L194">        val timestamp = maxOf(0L, prefs.bluetoothTransportSelectedAtEpochMillis)</span>
+<span class="fc" id="L195">        return TransportPreferenceResult.Success(TransportPreference(mode, timestamp))</span>
+    }
+
+    @Req(&quot;FR-BT-SEL-020&quot;, &quot;TR-BT-SEL-010&quot;)
+<span class="fc" id="L199">    override suspend fun saveTransportPreference(</span>
+        transportCode: String,
+        epochMillis: Long,
+    ): TransportSaveResult {
+<span class="fc" id="L203">        val mode =</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">            BluetoothTransportMode.fromWire(transportCode)</span>
+<span class="fc" id="L205">                ?: return TransportSaveResult.InvalidInput(transportCode)</span>
+
+<span class="fc" id="L207">        val validTimestamp = maxOf(0L, epochMillis)</span>
+
+<span class="fc" id="L209">        return transportSaveMutex.withLock {</span>
+<span class="fc" id="L210">            try {</span>
+<span class="fc" id="L211">                val currentPrefs = dataStore.data.first()</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                if (currentPrefs.bluetoothTransport == transportCode) {</span>
+<span class="fc" id="L213">                    val currentTimestamp = maxOf(0L, currentPrefs.bluetoothTransportSelectedAtEpochMillis)</span>
+<span class="fc" id="L214">                    return@withLock TransportSaveResult.Success(</span>
+<span class="fc" id="L215">                        preference = TransportPreference(mode, currentTimestamp),</span>
+<span class="fc" id="L216">                        isNoOp = true,</span>
+                    )
+                }
+
+<span class="fc" id="L220">                dataStore.updateData { existing -&gt;</span>
+<span class="fc" id="L221">                    existing.copy(</span>
+<span class="fc" id="L222">                        bluetoothTransport = transportCode,</span>
+<span class="fc" id="L223">                        bluetoothTransportSelectedAtEpochMillis = validTimestamp,</span>
+<span class="fc" id="L224">                    )</span>
+                }
+<span class="fc" id="L226">                TransportSaveResult.Success(</span>
+<span class="fc" id="L227">                    preference = TransportPreference(mode, validTimestamp),</span>
+<span class="fc" id="L228">                    isNoOp = false,</span>
+                )
+<span class="nc" id="L230">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L231">                throw e</span>
+<span class="fc" id="L232">            } catch (e: IOException) {</span>
+<span class="fc" id="L233">                Logger.e(e) { &quot;Failed to update transport preference to $transportCode&quot; }</span>
+<span class="fc" id="L234">                TransportSaveResult.WriteError(e)</span>
+<span class="fc" id="L235">            }</span>
+        }
+    }
+
+    private suspend fun openEncryptedPrefs(): SharedPreferences =
+<span class="fc" id="L240">        PerformanceTrace.section(LEGACY_PREFS_CACHE_SECTION) {</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">            cachedLegacyPrefs?.let { return@section it }</span>
+<span class="fc" id="L242">            legacyPrefsMutex.withLock {</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">                cachedLegacyPrefs?.let { return@withLock it }</span>
+<span class="fc" id="L244">                val masterKeyAlias =</span>
+<span class="fc" id="L245">                    PerformanceTrace.section(LEGACY_MASTER_KEY_SECTION) {</span>
+<span class="fc" id="L246">                        androidx.security.crypto.MasterKeys.getOrCreate(</span>
+<span class="fc" id="L247">                            androidx.security.crypto.MasterKeys.AES256_GCM_SPEC,</span>
+<span class="fc" id="L248">                        )</span>
+                    }
+<span class="fc" id="L250">                val createdPrefs =</span>
+<span class="fc" id="L251">                    PerformanceTrace.section(LEGACY_PREFS_CREATE_SECTION) {</span>
+<span class="fc" id="L252">                        EncryptedSharedPreferences.create(</span>
+<span class="fc" id="L253">                            PREFS_FILE_NAME,</span>
+<span class="fc" id="L254">                            masterKeyAlias,</span>
+<span class="fc" id="L255">                            context,</span>
+<span class="fc" id="L256">                            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,</span>
+<span class="fc" id="L257">                            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,</span>
+<span class="fc" id="L258">                        )</span>
+                    }
+<span class="fc" id="L260">                cachedLegacyPrefs = createdPrefs</span>
+<span class="fc" id="L261">                createdPrefs</span>
+<span class="fc" id="L262">            }</span>
+<span class="fc" id="L263">        }</span>
+
+    private suspend fun invalidateLegacyPrefsCache(prefs: SharedPreferences?) {
+<span class="fc bfc" id="L266" title="All 2 branches covered.">        if (prefs == null) return</span>
+<span class="fc" id="L267">        legacyPrefsMutex.withLock {</span>
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">            if (cachedLegacyPrefs === prefs) cachedLegacyPrefs = null</span>
+<span class="fc" id="L269">        }</span>
+<span class="fc" id="L270">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

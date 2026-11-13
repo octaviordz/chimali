@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FidoBleFraming.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">FidoBleFraming.kt</span></div><h1>FidoBleFraming.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+
+/**
+ * Encapsulates standard FIDO Bluetooth Low Energy (BLE) framing, packet fragmentation,
+ * sequence validation, and characteristic UUIDs conforming to FIDO CTAP 2.2 §11.4.
+ */
+@Req(&quot;TR-BLE-010&quot;, &quot;TR-BLE-020&quot;, &quot;FR-BLE-010&quot;, &quot;FR-BLE-020&quot;, &quot;FR-BLE-050&quot;)
+internal object FidoBleFraming {
+    /** Standard FIDO BLE Service UUID (16-bit 0xFFFD). */
+<span class="fc" id="L13">    val FIDO_SERVICE_UUID: UUID = UUID.fromString(&quot;0000FFFD-0000-1000-8000-00805F9B34FB&quot;)</span>
+
+    /** FIDO Control Point characteristic UUID (Write/Write Request). */
+<span class="fc" id="L16">    val CONTROL_POINT_CHARACTERISTIC_UUID: UUID = UUID.fromString(&quot;F1D0FFF1-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+
+    /** FIDO Status characteristic UUID (Notify). */
+<span class="fc" id="L19">    val STATUS_CHARACTERISTIC_UUID: UUID = UUID.fromString(&quot;F1D0FFF2-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+
+    /** FIDO Control Point Length characteristic UUID (Read). */
+<span class="fc" id="L22">    val CONTROL_POINT_LENGTH_CHARACTERISTIC_UUID: UUID = UUID.fromString(&quot;F1D0FFF3-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+
+    /** FIDO Service Revision Bitfield characteristic UUID (Read/Write). */
+<span class="fc" id="L25">    val REVISION_BITFIELD_CHARACTERISTIC_UUID: UUID = UUID.fromString(&quot;F1D0FFF4-DEAA-ECEE-B42F-C9BA7ED623BB&quot;)</span>
+
+    /** Client Characteristic Configuration Descriptor UUID (0x2902). */
+<span class="pc" id="L28">    val CCCD_UUID: UUID = UUID.fromString(&quot;00002902-0000-1000-8000-00805F9B34FB&quot;)</span>
+
+    /** Standard FIDO2 protocol revision bit (Byte 0, bit 5: 0x20). */
+    const val REVISION_FIDO2: Byte = 0x20.toByte()
+
+    // ── Command codes ──────────────────────────────────────────────────────────
+    const val CMD_PING: Byte = 0x81.toByte()
+    const val CMD_KEEPALIVE: Byte = 0x82.toByte()
+    const val CMD_MSG: Byte = 0x83.toByte()
+    const val CMD_CANCEL: Byte = 0xBE.toByte()
+    const val CMD_ERROR: Byte = 0xBF.toByte()
+
+    // ── Keepalive statuses ─────────────────────────────────────────────────────
+    const val STATUS_PROCESSING: Byte = 0x01.toByte()
+    const val STATUS_UPNEEDED: Byte = 0x02.toByte()
+
+    // ── Framing error codes ────────────────────────────────────────────────────
+    const val ERR_INVALID_CMD: Byte = 0x01.toByte()
+    const val ERR_INVALID_PAR: Byte = 0x02.toByte()
+    const val ERR_INVALID_LEN: Byte = 0x03.toByte()
+    const val ERR_INVALID_SEQ: Byte = 0x04.toByte()
+    const val ERR_REQ_TIMEOUT: Byte = 0x05.toByte()
+    const val ERR_BUSY: Byte = 0x06.toByte()
+    const val ERR_OTHER: Byte = 0x7F.toByte()
+
+    private const val MIN_ATT_MTU = 23
+    private const val ATT_HEADER_OVERHEAD = 3
+    private const val MIN_WRITE_CAPACITY = 20
+    private const val MAX_WRITE_CAPACITY = 512
+    private const val INIT_HEADER_SIZE = 3
+    private const val CONT_HEADER_SIZE = 1
+    private const val INIT_COMMAND_FLAG_MASK = 0x80
+    private const val BYTE_MASK = 0xFF
+    private const val BYTE_SHIFT = 8
+    private const val SEQUENCE_MASK = 0x7F
+    private const val MAX_WIRE_LENGTH = 65535
+
+    /**
+     * Calculates the supported maximum Control Point single-write size in the inclusive range 20–512 bytes.
+     */
+    @Req(&quot;FR-BLE-020&quot;, &quot;TR-BLE-020&quot;)
+<span class="nc" id="L69">    fun calculateWriteCapacity(</span>
+        attMtu: Int,
+<span class="nc" id="L71">        maxPlatformCapacity: Int = MAX_WRITE_CAPACITY,</span>
+    ): Int {
+<span class="fc bfc" id="L73" title="All 4 branches covered.">        require(attMtu &gt;= MIN_ATT_MTU) { &quot;ATT MTU must be at least $MIN_ATT_MTU, but was $attMtu&quot; }</span>
+<span class="fc" id="L74">        val capacity = minOf(MAX_WRITE_CAPACITY, minOf(attMtu - ATT_HEADER_OVERHEAD, maxPlatformCapacity))</span>
+<span class="pc bpc" id="L75" title="2 of 4 branches missed.">        require(capacity &gt;= MIN_WRITE_CAPACITY) { &quot;Calculated capacity $capacity below minimum $MIN_WRITE_CAPACITY&quot; }</span>
+<span class="fc" id="L76">        return capacity</span>
+    }
+
+    /**
+     * Calculates notification capacity bounded by ATT MTU minus 3 and the platform supported capacity.
+     */
+    @Req(&quot;FR-BLE-020&quot;, &quot;TR-BLE-020&quot;)
+<span class="nc" id="L83">    fun calculateNotifyCapacity(</span>
+        attMtu: Int,
+<span class="nc" id="L85">        maxPlatformCapacity: Int = MAX_WRITE_CAPACITY,</span>
+    ): Int {
+<span class="pc bpc" id="L87" title="2 of 4 branches missed.">        require(attMtu &gt;= MIN_ATT_MTU) { &quot;ATT MTU must be at least $MIN_ATT_MTU, but was $attMtu&quot; }</span>
+<span class="fc" id="L88">        val capacity = minOf(attMtu - ATT_HEADER_OVERHEAD, maxPlatformCapacity)</span>
+<span class="fc bfc" id="L89" title="All 4 branches covered.">        require(capacity &gt;= INIT_HEADER_SIZE + 1) { &quot;Notification capacity $capacity cannot fit a BLE error response&quot; }</span>
+<span class="fc" id="L90">        return capacity</span>
+    }
+
+    /**
+     * Returns the next sequence number wrapping modulo 128 (0x00..0x7F).
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+<span class="fc" id="L97">    fun nextSequence(currentSeq: Int): Int = (currentSeq + 1) and SEQUENCE_MASK</span>
+
+    /**
+     * Encodes a FIDO BLE initialization frame.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun encodeInitializationFrame(
+        command: Byte,
+        totalLength: Int,
+        data: ByteArray,
+        offset: Int,
+        chunkSize: Int,
+    ): ByteArray {
+<span class="fc" id="L110">        val frame = ByteArray(INIT_HEADER_SIZE + chunkSize)</span>
+<span class="fc" id="L111">        frame[0] = command</span>
+<span class="fc" id="L112">        frame[1] = ((totalLength shr BYTE_SHIFT) and BYTE_MASK).toByte()</span>
+<span class="fc" id="L113">        frame[2] = (totalLength and BYTE_MASK).toByte()</span>
+<span class="fc" id="L114">        System.arraycopy(data, offset, frame, INIT_HEADER_SIZE, chunkSize)</span>
+<span class="fc" id="L115">        return frame</span>
+    }
+
+    /**
+     * Encodes a FIDO BLE continuation frame.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun encodeContinuationFrame(
+        sequence: Int,
+        data: ByteArray,
+        offset: Int,
+        chunkSize: Int,
+    ): ByteArray {
+<span class="fc" id="L128">        val frame = ByteArray(CONT_HEADER_SIZE + chunkSize)</span>
+<span class="fc" id="L129">        frame[0] = (sequence and SEQUENCE_MASK).toByte()</span>
+<span class="fc" id="L130">        System.arraycopy(data, offset, frame, CONT_HEADER_SIZE, chunkSize)</span>
+<span class="fc" id="L131">        return frame</span>
+    }
+
+    /**
+     * Encodes a single-packet error response (Command 0xBF, length 1, error code).
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+<span class="fc" id="L138">    fun encodeErrorFrame(errorCode: Byte): ByteArray = byteArrayOf(CMD_ERROR, 0x00.toByte(), 0x01.toByte(), errorCode)</span>
+
+    /**
+     * Encodes a periodic keepalive frame (Command 0x82, 0x00, 0x01, Status).
+     */
+    @Req(&quot;FR-BLE-060&quot;, &quot;TR-BLE-040&quot;)
+<span class="fc" id="L144">    fun encodeKeepaliveFrame(status: Byte): ByteArray = byteArrayOf(CMD_KEEPALIVE, 0x00.toByte(), 0x01.toByte(), status)</span>
+
+    /**
+     * Fragments a response payload into a list of initialization and continuation frames.
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun fragmentResponse(
+        command: Byte,
+        payload: ByteArray,
+        notifyCapacity: Int,
+    ): List&lt;ByteArray&gt; {
+<span class="fc" id="L155">        val totalLength = payload.size</span>
+<span class="fc" id="L156">        val frames = mutableListOf&lt;ByteArray&gt;()</span>
+
+<span class="fc" id="L158">        val firstChunkSize = minOf(totalLength, notifyCapacity - INIT_HEADER_SIZE)</span>
+<span class="fc" id="L159">        frames.add(</span>
+<span class="fc" id="L160">            encodeInitializationFrame(</span>
+<span class="fc" id="L161">                command = command,</span>
+<span class="fc" id="L162">                totalLength = totalLength,</span>
+<span class="fc" id="L163">                data = payload,</span>
+<span class="fc" id="L164">                offset = 0,</span>
+<span class="fc" id="L165">                chunkSize = firstChunkSize,</span>
+            ),
+        )
+
+<span class="fc" id="L169">        var sentBytes = firstChunkSize</span>
+<span class="fc" id="L170">        var seq = 0</span>
+
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        while (sentBytes &lt; totalLength) {</span>
+<span class="fc" id="L173">            val chunkSize = minOf(totalLength - sentBytes, notifyCapacity - CONT_HEADER_SIZE)</span>
+<span class="fc" id="L174">            frames.add(</span>
+<span class="fc" id="L175">                encodeContinuationFrame(</span>
+<span class="fc" id="L176">                    sequence = seq,</span>
+<span class="fc" id="L177">                    data = payload,</span>
+<span class="fc" id="L178">                    offset = sentBytes,</span>
+<span class="fc" id="L179">                    chunkSize = chunkSize,</span>
+                ),
+            )
+<span class="fc" id="L182">            sentBytes += chunkSize</span>
+<span class="fc" id="L183">            seq = nextSequence(seq)</span>
+        }
+
+<span class="fc" id="L186">        return frames</span>
+    }
+
+    /**
+     * Convenience alias for [fragmentResponse].
+     */
+    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+    fun frameResponse(
+        command: Byte,
+        payload: ByteArray,
+        maxFragmentSize: Int,
+<span class="fc" id="L197">    ): List&lt;ByteArray&gt; = fragmentResponse(command, payload, maxFragmentSize)</span>
+
+    /**
+     * Result of feeding a frame into [RequestAssembler].
+     */
+    sealed interface FeedResult {
+<span class="fc" id="L203">        data class Complete(</span>
+<span class="fc" id="L204">            val command: Byte,</span>
+<span class="fc" id="L205">            val payload: ByteArray,</span>
+        ) : FeedResult
+
+<span class="fc" id="L208">        data class InProgress(</span>
+<span class="pc" id="L209">            val received: Int,</span>
+<span class="pc" id="L210">            val total: Int,</span>
+        ) : FeedResult
+
+<span class="fc" id="L213">        data class Error(</span>
+<span class="fc" id="L214">            val errorCode: Byte,</span>
+        ) : FeedResult
+    }
+
+    /**
+     * State machine for reassembling fragmented FIDO BLE request packets.
+     */
+<span class="fc" id="L221">    @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)</span>
+<span class="fc" id="L222">    class RequestAssembler(</span>
+<span class="pc" id="L223">        val maxMsgSize: Int,</span>
+    ) {
+<span class="fc" id="L225">        init {</span>
+<span class="pc bpc" id="L226" title="3 of 6 branches missed.">            require(maxMsgSize in 1..MAX_WIRE_LENGTH) {</span>
+<span class="nc" id="L227">                &quot;maxMsgSize must be positive and &lt;= $MAX_WIRE_LENGTH, but was $maxMsgSize&quot;</span>
+            }
+<span class="fc" id="L229">        }</span>
+
+        private var currentCommand: Byte = 0
+        private var declaredLength = 0
+        private var receivedBytes = 0
+        private var expectedSequence = 0
+        private var buffer: ByteArray? = null
+
+        val isAssembling: Boolean
+<span class="fc bfc" id="L238" title="All 2 branches covered.">            get() = buffer != null</span>
+
+        /**
+         * Feeds a single packet into the assembler.
+         */
+        @Req(&quot;FR-BLE-050&quot;, &quot;TR-BLE-020&quot;)
+        fun feed(frame: ByteArray): FeedResult {
+<span class="pc bpc" id="L245" title="2 of 4 branches missed.">            if (frame.isEmpty()) {</span>
+<span class="nc" id="L246">                reset()</span>
+<span class="nc" id="L247">                return FeedResult.Error(ERR_INVALID_PAR)</span>
+            }
+
+<span class="fc" id="L250">            val firstByte = frame[0].toInt() and BYTE_MASK</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">            val isInitFrame = (firstByte and INIT_COMMAND_FLAG_MASK) != 0</span>
+
+<span class="fc bfc" id="L253" title="All 2 branches covered.">            return if (isInitFrame) {</span>
+<span class="fc" id="L254">                handleInitialization(frame, firstByte.toByte())</span>
+            } else {
+<span class="fc" id="L256">                handleContinuation(frame, firstByte)</span>
+            }
+        }
+
+        private fun handleInitialization(
+            frame: ByteArray,
+            cmd: Byte,
+        ): FeedResult {
+<span class="fc bfc" id="L264" title="All 2 branches covered.">            if (frame.size &lt; INIT_HEADER_SIZE) {</span>
+<span class="fc" id="L265">                reset()</span>
+<span class="fc" id="L266">                return FeedResult.Error(ERR_INVALID_LEN)</span>
+            }
+
+<span class="fc" id="L269">            val len =</span>
+<span class="fc" id="L270">                ((frame[1].toInt() and BYTE_MASK) shl BYTE_SHIFT) or</span>
+<span class="fc" id="L271">                    (frame[2].toInt() and BYTE_MASK)</span>
+<span class="pc bpc" id="L272" title="1 of 4 branches missed.">            if (len &gt; maxMsgSize || len &gt; MAX_WIRE_LENGTH) {</span>
+<span class="fc" id="L273">                reset()</span>
+<span class="fc" id="L274">                return FeedResult.Error(ERR_INVALID_LEN)</span>
+            }
+
+            // Zero existing buffer before reassignment
+<span class="fc" id="L278">            reset()</span>
+
+<span class="fc" id="L280">            currentCommand = cmd</span>
+<span class="fc" id="L281">            declaredLength = len</span>
+<span class="fc" id="L282">            val dataInFrame = frame.size - INIT_HEADER_SIZE</span>
+
+<span class="fc bfc" id="L284" title="All 2 branches covered.">            if (dataInFrame &gt; len) {</span>
+<span class="fc" id="L285">                reset()</span>
+<span class="fc" id="L286">                return FeedResult.Error(ERR_INVALID_LEN)</span>
+            }
+
+<span class="fc" id="L289">            val newBuffer = ByteArray(len)</span>
+<span class="fc" id="L290">            System.arraycopy(frame, INIT_HEADER_SIZE, newBuffer, 0, dataInFrame)</span>
+<span class="fc" id="L291">            buffer = newBuffer</span>
+<span class="fc" id="L292">            receivedBytes = dataInFrame</span>
+<span class="fc" id="L293">            expectedSequence = 0</span>
+
+<span class="fc bfc" id="L295" title="All 2 branches covered.">            return if (receivedBytes == declaredLength) {</span>
+<span class="fc" id="L296">                val completePayload = newBuffer</span>
+<span class="fc" id="L297">                buffer = null</span>
+<span class="fc" id="L298">                FeedResult.Complete(currentCommand, completePayload)</span>
+            } else {
+<span class="fc" id="L300">                FeedResult.InProgress(receivedBytes, declaredLength)</span>
+            }
+        }
+
+        private fun handleContinuation(
+            frame: ByteArray,
+            seq: Int,
+        ): FeedResult {
+<span class="fc bfc" id="L308" title="All 2 branches covered.">            val buf = buffer ?: return FeedResult.Error(ERR_INVALID_SEQ)</span>
+
+<span class="fc bfc" id="L310" title="All 2 branches covered.">            if (seq != expectedSequence) {</span>
+<span class="fc" id="L311">                reset()</span>
+<span class="fc" id="L312">                return FeedResult.Error(ERR_INVALID_SEQ)</span>
+            }
+
+<span class="fc" id="L315">            val dataInFrame = frame.size - CONT_HEADER_SIZE</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">            if (receivedBytes + dataInFrame &gt; declaredLength) {</span>
+<span class="fc" id="L317">                reset()</span>
+<span class="fc" id="L318">                return FeedResult.Error(ERR_INVALID_LEN)</span>
+            }
+
+<span class="fc" id="L321">            System.arraycopy(frame, CONT_HEADER_SIZE, buf, receivedBytes, dataInFrame)</span>
+<span class="fc" id="L322">            receivedBytes += dataInFrame</span>
+<span class="fc" id="L323">            expectedSequence = nextSequence(expectedSequence)</span>
+
+<span class="fc bfc" id="L325" title="All 2 branches covered.">            return if (receivedBytes == declaredLength) {</span>
+<span class="fc" id="L326">                val completePayload = buf</span>
+<span class="fc" id="L327">                buffer = null</span>
+<span class="fc" id="L328">                FeedResult.Complete(currentCommand, completePayload)</span>
+            } else {
+<span class="fc" id="L330">                FeedResult.InProgress(receivedBytes, declaredLength)</span>
+            }
+        }
+
+        /**
+         * Clears and securely zeroes active reassembly buffers.
+         */
+        @Req(&quot;NFR-SEC-030&quot;, &quot;FR-BLE-050&quot;)
+        fun reset() {
+<span class="fc bfc" id="L339" title="All 2 branches covered.">            buffer?.fill(0)</span>
+<span class="fc" id="L340">            buffer = null</span>
+<span class="fc" id="L341">            receivedBytes = 0</span>
+<span class="fc" id="L342">            declaredLength = 0</span>
+<span class="fc" id="L343">            expectedSequence = 0</span>
+<span class="fc" id="L344">            currentCommand = 0</span>
+<span class="fc" id="L345">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

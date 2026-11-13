@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PerformanceTrace.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Chimali</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.util.performance</a> &gt; <span class="el_source">PerformanceTrace.kt</span></div><h1>PerformanceTrace.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.util.performance
+
+import android.os.Build
+import android.os.Trace
+import com.chimali.core.common.annotation.Req
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+
+/** Adds low-overhead, secret-free async sections to Android system traces. */
+internal object PerformanceTrace {
+<span class="fc" id="L13">    private val nextCookie = AtomicInteger(1)</span>
+
+    @Req(&quot;NFR-PERF-030&quot;, &quot;TR-AUTH-031&quot;)
+<span class="pc" id="L16">    suspend fun &lt;T&gt; section(</span>
+        name: String,
+        block: suspend () -&gt; T,
+    ): T {
+<span class="fc" id="L20">        val cookie =</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">            if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q) {</span>
+<span class="fc" id="L22">                nextCookie.getAndIncrement().also { Trace.beginAsyncSection(name, it) }</span>
+            } else {
+<span class="fc" id="L24">                null</span>
+            }
+<span class="fc" id="L26">        val operationContext =</span>
+<span class="pc bpc" id="L27" title="1 of 6 branches missed.">            if (name == LOOKUP_SECTION &amp;&amp; Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.Q &amp;&amp; Trace.isEnabled()) {</span>
+<span class="nc" id="L28">                currentCoroutineContext()[Fido2OperationTraceContext]</span>
+            } else {
+<span class="fc" id="L30">                null</span>
+            }
+<span class="fc" id="L32">        try {</span>
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">            if (operationContext == null) return block()</span>
+
+<span class="nc bnc" id="L35" title="All 2 branches missed.">            val lookupCookie = cookie ?: return block()</span>
+<span class="nc" id="L36">            val mapped = operationContext.correlation.recordLookupCookie(lookupCookie)</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">            AndroidLookupTraceEventSink.mapping(operationContext, lookupCookie, mapped)</span>
+<span class="nc" id="L38">            val lifecycle = CoroutineTraceLifecycle(operationContext, nextCookie, AndroidLookupTraceEventSink)</span>
+<span class="nc" id="L39">            var outcome = &quot;returned&quot;</span>
+<span class="nc" id="L40">            try {</span>
+<span class="nc" id="L41">                val result = runCatching { withContext(lifecycle) { block() } }</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                result.exceptionOrNull()?.let { failure -&gt;</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">                    outcome = if (failure is CancellationException) &quot;cancelled&quot; else &quot;failed&quot;</span>
+<span class="nc" id="L44">                }</span>
+<span class="nc" id="L45">                return result.getOrThrow()</span>
+            } finally {
+                // Capture outcome before the finally escapes so the deferred callback uses the
+                // correct value even if outcome is mutated by exception handling afterward.
+<span class="nc" id="L49">                val capturedOutcome = outcome</span>
+<span class="nc bnc" id="L50" title="All 3 branches missed.">                when (</span>
+<span class="nc" id="L51">                    operationContext.correlation.recordTerminal {</span>
+                        // Deferred path: invoked by the last endSegment call after all
+                        // restoreThreadContext calls complete. Emits the terminal diagnostic
+                        // in the correct ordering without extending the measured lookup.
+<span class="nc" id="L55">                        AndroidLookupTraceEventSink.terminal(</span>
+<span class="nc" id="L56">                            operationContext,</span>
+<span class="nc" id="L57">                            capturedOutcome,</span>
+<span class="nc" id="L58">                            valid = true,</span>
+<span class="nc" id="L59">                            complete = operationContext.correlation.isComplete(),</span>
+                        )
+<span class="nc" id="L61">                    }</span>
+                ) {
+                    LookupTraceCorrelation.TerminalResult.IMMEDIATE -&gt;
+<span class="nc" id="L64">                        AndroidLookupTraceEventSink.terminal(</span>
+<span class="nc" id="L65">                            operationContext,</span>
+<span class="nc" id="L66">                            outcome,</span>
+<span class="nc" id="L67">                            valid = true,</span>
+<span class="nc" id="L68">                            complete = operationContext.correlation.isComplete(),</span>
+                        )
+                    LookupTraceCorrelation.TerminalResult.DEFERRED -&gt; {
+                        // Terminal emission delegated to the pending callback in endSegment.
+                    }
+                    LookupTraceCorrelation.TerminalResult.REJECTED -&gt;
+                        // No mapping or duplicate terminal: emit valid=false so the diagnostic
+                        // log records the rejection.
+<span class="nc" id="L76">                        AndroidLookupTraceEventSink.terminal(</span>
+<span class="nc" id="L77">                            operationContext,</span>
+<span class="nc" id="L78">                            outcome,</span>
+<span class="nc" id="L79">                            valid = false,</span>
+<span class="nc" id="L80">                            complete = false,</span>
+                        )
+                }
+            }
+        } finally {
+<span class="pc bfc" id="L85" title="All 2 branches covered.">            if (cookie != null) Trace.endAsyncSection(name, cookie)</span>
+        }
+    }
+
+    private const val LOOKUP_SECTION = &quot;Fido2.Registration.SettingsLookup&quot;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

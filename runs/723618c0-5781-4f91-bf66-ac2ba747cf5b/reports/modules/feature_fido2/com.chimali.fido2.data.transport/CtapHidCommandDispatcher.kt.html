@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CtapHidCommandDispatcher.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">fido2</a> &gt; <a href="index.source.html" class="el_package">com.chimali.fido2.data.transport</a> &gt; <span class="el_source">CtapHidCommandDispatcher.kt</span></div><h1>CtapHidCommandDispatcher.kt</h1><pre class="source lang-java linenums">package com.chimali.fido2.data.transport
+
+import co.touchlab.kermit.Logger
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.bluetooth.CTAPHID_CANCEL
+import com.chimali.fido2.bluetooth.CTAPHID_CBOR
+import com.chimali.fido2.bluetooth.CTAPHID_INIT
+import com.chimali.fido2.bluetooth.CTAPHID_MSG
+import com.chimali.fido2.bluetooth.CTAPHID_PING
+import com.chimali.fido2.bluetooth.CtapHidMessage
+import com.chimali.fido2.bluetooth.HidReportParser
+import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
+import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
+
+/** Dispatches non-CBOR CTAPHID commands and transfers CBOR messages to their bounded request owner. */
+<span class="fc" id="L18">internal class CtapHidCommandDispatcher(</span>
+<span class="fc" id="L19">    private val hidReportParser: HidReportParser,</span>
+<span class="fc" id="L20">    private val responseBuilder: Ctap2ResponseBuilder,</span>
+<span class="fc" id="L21">    private val getAssertionHandler: Ctap2GetAssertionHandler,</span>
+<span class="fc" id="L22">    private val authenticatorInfoProvider: AuthenticatorInfoProvider,</span>
+<span class="fc" id="L23">    private val cborRequestOwner: CtapHidRequestOwner,</span>
+<span class="fc" id="L24">    private val u2fApduCommandHandler: U2fApduCommandHandler,</span>
+<span class="fc" id="L25">    private val isCurrentSession: (Long) -&gt; Boolean,</span>
+<span class="fc" id="L26">    private val isChannelRegistered: (ByteArray, Long) -&gt; Boolean,</span>
+<span class="fc" id="L27">    private val allocateCid: (Long) -&gt; ByteArray?,</span>
+<span class="fc" id="L28">    private val sendPackets: (List&lt;ByteArray&gt;, Long) -&gt; Unit,</span>
+) {
+    /** Dispatches one parsed message and erases its payload unless a CBOR owner accepts it. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun dispatch(
+        message: CtapHidMessage,
+        sessionGeneration: Long,
+    ) {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        if (!isCurrentSession(sessionGeneration)) {</span>
+<span class="fc" id="L37">            message.payload.fill(0)</span>
+<span class="fc" id="L38">            return</span>
+        }
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (message.command != CTAPHID_INIT &amp;&amp;</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">            !isChannelRegistered(message.channelId, sessionGeneration)</span>
+        ) {
+<span class="fc" id="L43">            try {</span>
+<span class="fc" id="L44">                sendPackets(</span>
+<span class="fc" id="L45">                    responseBuilder.hidErrorResponse(message.channelId, ERR_INVALID_CHANNEL),</span>
+<span class="fc" id="L46">                    sessionGeneration,</span>
+                )
+            } finally {
+<span class="fc" id="L49">                message.payload.fill(0)</span>
+            }
+<span class="fc" id="L51">            return</span>
+        }
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (message.command == CTAPHID_CBOR) {</span>
+<span class="fc" id="L54">            var transferred = false</span>
+<span class="fc" id="L55">            try {</span>
+<span class="fc" id="L56">                cborRequestOwner.dispatch(message, sessionGeneration)</span>
+<span class="fc" id="L57">                transferred = true</span>
+            } finally {
+<span class="pc bnc" id="L59" title="All 2 branches missed.">                if (!transferred) message.payload.fill(0)</span>
+<span class="fc" id="L60">            }</span>
+<span class="fc" id="L61">            return</span>
+        }
+
+<span class="fc" id="L64">        try {</span>
+<span class="pc bpc" id="L65" title="1 of 5 branches missed.">            when (message.command) {</span>
+<span class="fc" id="L66">                CTAPHID_INIT -&gt; handleInit(message, sessionGeneration)</span>
+<span class="fc" id="L67">                CTAPHID_MSG -&gt; u2fApduCommandHandler.handle(message, sessionGeneration)</span>
+                CTAPHID_PING -&gt;
+<span class="fc" id="L69">                    sendPackets(</span>
+<span class="fc" id="L70">                        hidReportParser.encodeResponse(</span>
+<span class="fc" id="L71">                            CtapHidMessage(message.channelId, CTAPHID_PING, message.payload),</span>
+                        ),
+<span class="fc" id="L73">                        sessionGeneration,</span>
+                    )
+<span class="fc" id="L75">                CTAPHID_CANCEL -&gt; cborRequestOwner.cancel(message.channelId, sessionGeneration)</span>
+                else -&gt; {
+<span class="nc" id="L77">                    Logger.w { &quot;Unknown CTAPHID command 0x${message.command.toString(HEX_RADIX)}&quot; }</span>
+<span class="nc" id="L78">                    sendPackets(responseBuilder.hidErrorResponse(message.channelId, ERR_INVALID_CMD), sessionGeneration)</span>
+                }
+            }
+        } finally {
+<span class="fc" id="L82">            message.payload.fill(0)</span>
+        }
+<span class="fc" id="L84">    }</span>
+
+    private fun handleInit(
+        message: CtapHidMessage,
+        sessionGeneration: Long,
+    ) {
+<span class="pc bpc" id="L90" title="3 of 6 branches missed.">        val nonce = message.payload.takeIf { it.size &gt;= NONCE_SIZE }?.copyOfRange(0, NONCE_SIZE)</span>
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">        if (nonce == null) {</span>
+<span class="nc" id="L92">            sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_LEN), sessionGeneration)</span>
+<span class="nc" id="L93">            return</span>
+        }
+<span class="fc" id="L95">        try {</span>
+<span class="fc" id="L96">            val cid = allocateCid(sessionGeneration)</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">            if (cid == null) {</span>
+<span class="nc" id="L98">                sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_CHANNEL_BUSY), sessionGeneration)</span>
+<span class="nc" id="L99">                return</span>
+            }
+<span class="fc" id="L101">            Logger.i { &quot;CTAPHID_INIT: assigned CID=${cid.toHex()}&quot; }</span>
+<span class="fc" id="L102">            val response = hidReportParser.buildInitResponse(nonce, cid)</span>
+<span class="fc" id="L103">            sendPackets(hidReportParser.encodeResponse(response), sessionGeneration)</span>
+        } finally {
+<span class="fc" id="L105">            nonce.fill(0)</span>
+        }
+<span class="fc" id="L107">    }</span>
+
+    /** Builds the owned assertion response by stripping and erasing the borrowed CTAP command byte. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+<span class="fc" id="L111">    suspend fun handleGetAssertion(message: CtapHidMessage): List&lt;ByteArray&gt; {</span>
+<span class="fc" id="L112">        val requestBytes = message.payload.copyOfRange(1, message.payload.size)</span>
+<span class="fc" id="L113">        return try {</span>
+<span class="fc" id="L114">            getAssertionHandler.handle(message.channelId, requestBytes)</span>
+        } finally {
+<span class="fc" id="L116">            requestBytes.fill(0)</span>
+        }
+    }
+
+    /** Produces the current authenticator capability response with the established CTAP error mapping. */
+    @Req(&quot;NFR-SEC-041&quot;, &quot;TR-AUTH-031&quot;)
+    suspend fun handleGetInfo(cid: ByteArray): List&lt;ByteArray&gt; =
+<span class="fc" id="L123">        try {</span>
+<span class="fc" id="L124">            val info = authenticatorInfoProvider.getAuthenticatorInfo()</span>
+<span class="fc" id="L125">            val packets = responseBuilder.getInfoResponse(cid, info)</span>
+<span class="pc bpc" id="L126" title="2 of 4 branches missed.">            if (packets.isNotEmpty()) {</span>
+<span class="fc" id="L127">                val hex = packets.first().joinToString(&quot;&quot;) { packetByte -&gt; &quot;%02x&quot;.format(packetByte) }</span>
+<span class="fc" id="L128">                Logger.d { &quot;GetInfo response packet[0] hex: $hex&quot; }</span>
+            }
+<span class="fc" id="L130">            packets</span>
+<span class="nc" id="L131">        } catch (failure: Fido2Exception) {</span>
+<span class="nc" id="L132">            Logger.e(failure) { &quot;GetInfo failed: ${failure.message}&quot; }</span>
+<span class="pc" id="L133">            responseBuilder.errorResponse(cid, GET_INFO_FAILURE_STATUS)</span>
+<span class="fc" id="L134">        }</span>
+
+<span class="fc" id="L136">    private fun ByteArray.toHex(): String = joinToString(&quot;&quot;) { &quot;%02x&quot;.format(it) }</span>
+
+    private companion object {
+        /** Existing CTAP2 status emitted when GetInfo raises a FIDO2 exception. */
+        const val GET_INFO_FAILURE_STATUS: Byte = 0x30
+        const val ERR_INVALID_CMD: Byte = 0x01
+        const val ERR_INVALID_LEN: Byte = 0x03
+        const val ERR_CHANNEL_BUSY: Byte = 0x06
+        const val ERR_INVALID_CHANNEL: Byte = 0x0B
+        const val NONCE_SIZE = 8
+        const val HEX_RADIX = 16
+<span class="pc" id="L147">        val BROADCAST_CID = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
