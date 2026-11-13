@@ -22,4 +22,4 @@ Profile 04 attributes most of one observed settings lookup to `EncryptedSharedPr
 - [Feature 062 implementation evidence](../../specs/062-fido2-performance-investigation/implementation-evidence.md)
 - Historical findings and provenance from the original backlog are preserved in [Feature 062 implementation evidence](../../specs/062-fido2-performance-investigation/implementation-evidence.md), §11.1.
 
-The separate [warm registration reliability investigation](fido2-warm-registration-security-key-failure.md) remains independent.
+The separate [warm registration reliability investigation](fido2-warm-registration-security-key-failure.md) remains independent. The failed lower-overhead calibration exploration is tracked in the [calibration parser-health follow-up](fido2-calibration-parser-health.md); it does not invalidate the completed comparison or establish a lower timing allowance.
