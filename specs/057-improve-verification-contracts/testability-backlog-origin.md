@@ -1,3 +1,5 @@
+> Historical origin record, relocated on 2026-11-13. Statuses and source observations below describe the earlier backlog. Active work is tracked by dedicated backlog files linked from [the follow-up index](follow-ups.md); documentary approval is recorded in [the corrected-package review](corrected-package-review.md).
+
 # Backlog: Constitution Testability & Conciseness Improvements
 
 **Status**: Policy & Verification Contracts Delivered and Adopted (Constitution 4.1.0) — Runtime Backlog Open

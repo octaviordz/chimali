@@ -6,7 +6,7 @@
 
 **Status**: Draft — Constitution and Related Documentation Only
 
-**Input**: User description: "Based on the backlog document create a specification using speckit specify" — [Constitution Testability & Conciseness Improvements](../../docs/backlog/constitution-testability-improvements.md), revised 2026-10-23. Scope clarified as constitution changes plus synchronized supporting documentation, without code changes or test execution.
+**Input**: User description: "Based on the backlog document create a specification using speckit specify" — [Constitution Testability & Conciseness Improvements](testability-backlog-origin.md), revised 2026-10-23. Scope clarified as constitution changes plus synchronized supporting documentation, without code changes or test execution.
 
 ## Clarifications
 
