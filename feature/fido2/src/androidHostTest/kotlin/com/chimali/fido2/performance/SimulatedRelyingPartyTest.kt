@@ -1,17 +1,18 @@
 package com.chimali.fido2.performance
 
 import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.AttestationObject
 import com.chimali.fido2.domain.model.AttestationStatement
 import com.chimali.fido2.domain.model.AuthenticatorData
 import com.chimali.fido2.domain.model.ClientData
+import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
-import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -69,11 +70,10 @@ class SimulatedRelyingPartyTest {
         signer.update(request.clientDataHash)
         val response =
             AssertionObject(
-                credential = null,
+                credential = PublicKeyCredentialDescriptor.create(id = CredentialId.fromByteArray(credentialId)),
                 authData = assertionAuthData,
                 signature = signer.sign(),
                 user = null,
-                credentialId = Base64.getUrlEncoder().withoutPadding().encodeToString(credentialId),
             )
 
         assertTrue(relyingParty.verifyAssertion(request, verifiedCredential, response).verified)

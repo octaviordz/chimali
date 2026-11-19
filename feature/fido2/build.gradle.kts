@@ -182,6 +182,8 @@ kotlin {
         // androidDeviceTest: on-device instrumented tests
         getByName("androidDeviceTest") {
             kotlin.srcDir(sharedAndroidTestSources)
+            // Keep the legacy Android instrumentation sources in the active KMP device-test target.
+            kotlin.srcDir("src/androidTest/kotlin")
             dependencies {
                 implementation(libs.androidx.test.ext.junit)
                 implementation(libs.androidx.test.runner)

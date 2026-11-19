@@ -1,0 +1,5 @@
+# FIDO credential migration test fixture cleanup
+
+`Fido2DatabaseCredentialMigrationTest` creates a legacy synthetic credential row in in-memory SQLite, verifies the migration, then inserts a second test credential. Its `finally` block now zeros selected SQL row byte arrays, expected comparison bytes, DAO metadata outputs, public-key encoding and credential input arrays; erases the inserted credential’s mutable RP/user/credential owners; clears metadata and public-key MockK stubs/call history; and closes the in-memory driver. The migration test no longer generates an unused real EC private key: the DAO receives a mocked public key with a synthetic encoding. Its metadata mock emits fixed binary markers instead of materializing RP/user text into token bytes.
+
+Validation: the focused class passes 1 test; the full FIDO Android host suite passes 1,304 tests across 171 XML reports with zero failures, errors, or skips. `:feature:fido2:ktlintCheck` passes. This is synthetic host and in-memory schema evidence only; it does not certify SQLite page clearing, persistent database behavior, provider/native copies, heap reachability or physical-device behavior.

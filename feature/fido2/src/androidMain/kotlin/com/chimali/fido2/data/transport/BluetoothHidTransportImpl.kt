@@ -1,12 +1,12 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
-import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.getOrThrow
 import com.chimali.core.common.result.isFailure
-import com.chimali.core.common.result.onFailure
 import com.chimali.core.events.Fido2Event
 import com.chimali.core.events.Fido2EventBus
 import com.chimali.core.security.api.MasterSeedOwnerKind
@@ -25,9 +25,11 @@ import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
 import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.util.performance.BaselineMeasurements
+import com.chimali.fido2.util.performance.LatencyOperation
 import com.chimali.fido2.util.performance.LatencyProfiler
 import com.chimali.fido2.util.performance.PerformanceTrace
 import java.security.SecureRandom
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -238,12 +240,12 @@ class BluetoothHidTransportImpl(
             Logger.i("BluetoothHidTransport connected and advertising")
             Result.success(Unit)
         } catch (e: Fido2Exception) {
-            Logger.e { "connect() failed with Fido2Exception: ${e.message}" }
-            hidWrapper.reportError(e.message ?: "HID connection failed")
+            Logger.e { "Bluetooth HID transport connection failed" }
+            hidWrapper.reportError("HID connection failed")
             Result.failure(e)
-        } catch (e: IllegalStateException) {
-            Logger.e(e) { "connect() unexpected failure: ${e.message}" }
-            val msg = "Failed to start HID transport: ${e.message}"
+        } catch (_: IllegalStateException) {
+            Logger.e { "Bluetooth HID transport could not start" }
+            val msg = "Failed to start HID transport"
             hidWrapper.reportError(msg)
             Result.failure(Fido2Exception.TransportException(msg))
         }
@@ -252,25 +254,25 @@ class BluetoothHidTransportImpl(
     @Req("FR-HID-010", "FR-VAL-020")
     override suspend fun connectDevice(macAddress: String): Result<Unit> =
         try {
-            Logger.i { "connectDevice($macAddress) called" }
+            Logger.i { "Bluetooth HID host connection requested" }
             if (hidWrapper.connectionState.value is HidConnectionState.Idle) {
-                Logger.i { "Transport is Idle; starting transport before connecting to device $macAddress" }
+                Logger.i { "Bluetooth HID transport is idle; starting before host connection" }
                 connect().getOrThrow()
             }
             val initiated = hidWrapper.connect(macAddress)
             if (initiated) {
                 Result.success(Unit)
             } else {
-                Result.failure(Fido2Exception.BluetoothException("Failed to initiate connection to $macAddress"))
+                Result.failure(Fido2Exception.BluetoothException("Failed to initiate Bluetooth HID host connection"))
             }
         } catch (e: Fido2Exception) {
-            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Logger.e { "Bluetooth HID host connection failed" }
             Result.failure(e)
         } catch (e: IllegalStateException) {
-            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Logger.e { "Bluetooth HID host connection failed" }
             Result.failure(e)
         } catch (e: IllegalArgumentException) {
-            Logger.e(e) { "connectDevice($macAddress) failed: ${e.message}" }
+            Logger.e { "Bluetooth HID host connection request was invalid" }
             Result.failure(e)
         }
 
@@ -294,9 +296,9 @@ class BluetoothHidTransportImpl(
             hidReportParser.reset()
             Logger.i { "BluetoothHidTransport disconnected" }
             Result.success(Unit)
-        } catch (e: IllegalStateException) {
-            Logger.e(e) { "disconnect() failed: ${e.message}" }
-            Result.failure(Fido2Exception.TransportException("Disconnect error: ${e.message}"))
+        } catch (_: IllegalStateException) {
+            Logger.e { "Bluetooth HID transport disconnect failed" }
+            Result.failure(Fido2Exception.TransportException("Transport disconnect failed"))
         }
 
     // ── Connection state observation (T054) ───────────────────────────────────
@@ -351,15 +353,18 @@ class BluetoothHidTransportImpl(
                 .onEach { state ->
                     when (state) {
                         is HidConnectionState.Connected -> {
-                            Logger.i { "Host connected: ${state.device.address}" }
+                            Logger.i { "Bluetooth HID host connected" }
                             // Best-effort user-verification availability cache warm-up. This is
                             // asynchronous and does not guarantee the cache is populated before
                             // a ceremony begins; signing remains software-derived.
                             scope.launch(workerDispatcher) {
-                                runCatching { userVerificationService.getUserVerificationAvailability() }
-                                    .onFailure { e ->
-                                        Logger.w { "BiometricManager pre-warm failed (non-fatal): ${e.message}" }
-                                    }
+                                try {
+                                    userVerificationService.getUserVerificationAvailability()
+                                } catch (cancellation: CancellationException) {
+                                    throw cancellation
+                                } catch (_: Exception) {
+                                    Logger.w { "Biometric availability pre-warm failed" }
+                                }
                             }
                             // Transport is now ready for CTAPHID_INIT from the host
                         }
@@ -370,7 +375,7 @@ class BluetoothHidTransportImpl(
                             Logger.d { "HID transport idle" }
                         }
                         is HidConnectionState.Error -> {
-                            Logger.e { "HID connection error: ${state.message}" }
+                            Logger.e { "Bluetooth HID connection entered an error state" }
                         }
                         else -> { /* Connecting — nothing to do */ }
                     }
@@ -421,7 +426,7 @@ class BluetoothHidTransportImpl(
 
     /** Borrows one receive-loop-owned report; a completed message is transferred to dispatch. */
     @Req("FR-HID-010", "FR-VAL-020")
-    private suspend fun processReport(
+    internal suspend fun processReport(
         report: ByteArray,
         sessionGeneration: Long,
     ) {
@@ -431,7 +436,7 @@ class BluetoothHidTransportImpl(
                 hidReportParser.processReport(report)
             }
         if (result.isFailure) {
-            Logger.e { "Report parse error: ${result.exceptionOrNull()?.message}" }
+            Logger.e { "Bluetooth HID report parsing failed" }
             // Can't identify CID from a broken packet; send broadcast error
             sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_INVALID_SEQ), sessionGeneration)
             return
@@ -442,7 +447,7 @@ class BluetoothHidTransportImpl(
 
         Logger.d {
             "CTAPHID cmd=0x${message.command.toString(HEX_RADIX).uppercase()} " +
-                "cid=${message.channelId.toHex()} payloadLen=${message.payload.size}"
+                "payloadLen=${message.payload.size}"
         }
 
         var ownershipTransferred = false
@@ -456,9 +461,9 @@ class BluetoothHidTransportImpl(
             // receiver alive when its transport coroutine itself is still active; disconnect
             // cancellation must continue propagating and terminate the receiver.
             currentCoroutineContext().ensureActive()
-            Logger.i(cancellation) { "Discarded CTAPHID work after its wallet owner was fenced" }
+            Logger.i { "Discarded CTAPHID work after its wallet owner was fenced" }
         } finally {
-            if (!ownershipTransferred) message.payload.fill(0)
+            if (!ownershipTransferred) message.clearMemory()
         }
     }
 
@@ -499,18 +504,18 @@ class BluetoothHidTransportImpl(
         }
 
         val ctapCommand = payload[0].toInt() and BYTE_MASK
-        val operationLabel =
+        val latencyOperation =
             when (ctapCommand) {
-                CMD_MAKE_CREDENTIAL -> "MakeCredential"
-                CMD_GET_ASSERTION -> "GetAssertion"
-                CMD_GET_INFO -> "GetInfo"
-                else -> "CTAP2_0x${ctapCommand.toString(HEX_RADIX)}"
+                CMD_MAKE_CREDENTIAL -> LatencyOperation.MAKE_CREDENTIAL
+                CMD_GET_ASSERTION -> LatencyOperation.GET_ASSERTION
+                CMD_GET_INFO -> LatencyOperation.GET_INFO
+                else -> LatencyOperation.OTHER
             }
         // NFR-PERF-030: Start timing the request through outbound HID response handoff.
-        LatencyProfiler.start(operationLabel)
-        if (operationLabel == "MakeCredential") BaselineMeasurements.start(operationLabel)
+        LatencyProfiler.start(latencyOperation)
+        if (latencyOperation == LatencyOperation.MAKE_CREDENTIAL) BaselineMeasurements.start(latencyOperation)
         Logger.d {
-            "CTAP2 command=0x${ctapCommand.toString(HEX_RADIX)} on CID=${cid.toHex()}"
+            "CTAP2 command=0x${ctapCommand.toString(HEX_RADIX)}"
         }
 
         // ── Periodic keepalive loop ────────────────────────────────────────────
@@ -555,7 +560,7 @@ class BluetoothHidTransportImpl(
                             when (ctapCommand) {
                                 CMD_MAKE_CREDENTIAL -> {
                                     // authenticatorMakeCredential — CTAP2 registration
-                                    val operationTraceContext = BaselineMeasurements.traceContext(operationLabel)
+                                    val operationTraceContext = BaselineMeasurements.traceContext(latencyOperation)
                                     val dispatch: suspend () -> List<ByteArray> = {
                                         masterSeedProvider.withSessionOwner(
                                             ownerKind = MasterSeedOwnerKind.AUTHENTICATOR,
@@ -608,8 +613,8 @@ class BluetoothHidTransportImpl(
                     }
                 }
             // Capture CTAP processing separately from response queueing and report pacing.
-            BaselineMeasurements.processingComplete(operationLabel)
-            BaselineMeasurements.trackResponse(operationLabel, packets)
+            BaselineMeasurements.processingComplete(latencyOperation)
+            BaselineMeasurements.trackResponse(latencyOperation, packets)
             if (!isCurrentSession(requestSessionGeneration)) return
             // Wait until the final response report has been handed to the Bluetooth HID
             // wrapper so NFR-PERF-030 includes transport-queue wait and report pacing.
@@ -622,7 +627,7 @@ class BluetoothHidTransportImpl(
             // The queue handoff completes before this owner releases and erases them.
             responsePackets?.forEach { it.fill(0) }
             // User-interaction time remains excluded from the measured system latency.
-            LatencyProfiler.end(operationLabel, responseHandedOff)
+            LatencyProfiler.end(latencyOperation, responseHandedOff)
         }
     }
 
@@ -635,7 +640,7 @@ class BluetoothHidTransportImpl(
                     try {
                         state.device.name
                     } catch (e: SecurityException) {
-                        Logger.w(e) { "BluetoothHidTransport: Failed to get device name" }
+                        Logger.w { "Bluetooth HID host name unavailable" }
                         null
                     }
                 } else {
@@ -648,7 +653,7 @@ class BluetoothHidTransportImpl(
                     try {
                         state.device.bluetoothClass?.deviceClass
                     } catch (e: SecurityException) {
-                        Logger.w(e) { "BluetoothHidTransport: Failed to get bluetooth class" }
+                        Logger.w { "Bluetooth HID host class unavailable" }
                         null
                     }
                 } else {
@@ -656,7 +661,7 @@ class BluetoothHidTransportImpl(
                     state.device.bluetoothClass?.deviceClass
                 }
 
-            Logger.d { "FIDO2 Operation succeeded for host: $name ($mac), Class: $devClass" }
+            Logger.d { "FIDO2 operation completed for connected host" }
             fido2EventBus.publish(
                 Fido2Event.InteractionSuccessful(
                     hostDeviceAddress = mac,
@@ -730,8 +735,6 @@ class BluetoothHidTransportImpl(
     /** Returns the wrapper's current host generation for transport lifecycle assertions. */
     @Req("FR-HID-010", "FR-VAL-020")
     internal fun sessionGenerationForTest(): Long = hidWrapper.sessionGeneration()
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     /** Expose connection state for observing by the presentation layer. */
     override val connectionState: StateFlow<Fido2ConnectionState> =

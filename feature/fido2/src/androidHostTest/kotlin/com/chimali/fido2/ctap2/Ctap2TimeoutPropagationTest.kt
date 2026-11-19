@@ -6,7 +6,9 @@ import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
 import com.chimali.fido2.domain.model.PublicKeyCredentialUserEntity
+import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 /**
@@ -21,13 +23,40 @@ import kotlin.test.assertEquals
  */
 class Ctap2TimeoutPropagationTest {
     private val rp = PublicKeyCredentialRpEntity.create(RpId("example.com"), "Example")
+    private val userIdBytes = "user123".encodeToByteArray()
     private val user =
         PublicKeyCredentialUserEntity.create(
-            UserId.fromByteArray("user123".encodeToByteArray()),
+            UserId.fromByteArray(userIdBytes),
             "testuser",
             "Test User",
         )
     private val challenge = ByteArray(32) { it.toByte() }
+    private val clientDataHash = ByteArray(32) { it.toByte() }
+    private val assertionOptions = mutableListOf<GetAssertionOptions>()
+
+    @AfterTest
+    fun tearDown() {
+        challenge.fill(0)
+        clientDataHash.fill(0)
+        userIdBytes.fill(0)
+        rp.eraseSensitiveText()
+        user.eraseSensitiveText()
+        assertionOptions.forEach(GetAssertionOptions::eraseSensitiveText)
+        assertionOptions.clear()
+    }
+
+    @Test
+    fun teardown_erases_synthetic_request_buffers() {
+        val retainedChallenge = challenge
+        val retainedHash = clientDataHash
+        val retainedUserId = userIdBytes
+
+        tearDown()
+
+        assertContentEquals(ByteArray(retainedChallenge.size), retainedChallenge)
+        assertContentEquals(ByteArray(retainedHash.size), retainedHash)
+        assertContentEquals(ByteArray(retainedUserId.size), retainedUserId)
+    }
 
     // ── MakeCredentialOptions ─────────────────────────────────────────────────
 
@@ -106,11 +135,12 @@ class Ctap2TimeoutPropagationTest {
     fun getAssertion_inRangeHint_passedThroughUnchanged() {
         val inRangeHint = 90_000L
         val options =
-            GetAssertionOptions.create(
-                rpId = RpId("example.com"),
-                clientDataHash = ByteArray(32),
-                timeout = inRangeHint,
-            )
+            GetAssertionOptions
+                .create(
+                    rpId = RpId("example.com"),
+                    clientDataHash = clientDataHash,
+                    timeout = inRangeHint,
+                ).also(assertionOptions::add)
         assertEquals(
             inRangeHint,
             options.getSafeTimeout(),
@@ -121,11 +151,12 @@ class Ctap2TimeoutPropagationTest {
     @Test
     fun getAssertion_nullHint_returnsDefault() {
         val options =
-            GetAssertionOptions.create(
-                rpId = RpId("example.com"),
-                clientDataHash = ByteArray(32),
-                timeout = null,
-            )
+            GetAssertionOptions
+                .create(
+                    rpId = RpId("example.com"),
+                    clientDataHash = clientDataHash,
+                    timeout = null,
+                ).also(assertionOptions::add)
         assertEquals(GetAssertionOptions.DEFAULT_TIMEOUT_MS, options.getSafeTimeout())
     }
 }

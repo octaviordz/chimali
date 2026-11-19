@@ -90,15 +90,20 @@ sealed interface AuthenticationState {
     data class SelectingCredential(
         val rpId: SensitiveCredentialText,
         val credentials: List<PasskeyCredential>,
-    ) : AuthenticationState
+    ) : AuthenticationState {
+        /** Erases the state-owned RP and credential text owners when the chooser state ends. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun eraseSensitiveText() {
+            rpId.erase()
+            credentials.forEach(PasskeyCredential::eraseSensitiveText)
+        }
+    }
 
     data object AwaitingUserVerification : AuthenticationState
 
     data object Processing : AuthenticationState
 
-    data class Success(
-        val assertion: AssertionObject,
-    ) : AuthenticationState
+    data object Success : AuthenticationState
 
     data class Error(
         val message: String,
@@ -121,9 +126,7 @@ sealed interface AuthenticationEffect {
         val promptId: Long,
     ) : AuthenticationEffect
 
-    data class NavigateToSuccess(
-        val assertion: AssertionObject,
-    ) : AuthenticationEffect
+    data object NavigateToSuccess : AuthenticationEffect
 
     data object NavigateBack : AuthenticationEffect
 
@@ -262,13 +265,17 @@ class AuthenticationPromptViewModel(
             val availability = userVerificationService.getUserVerificationAvailability()
             if (!isLiveRequest(generation)) return@launch
             setState(
-                AuthenticationState.AwaitingUserConsent(
-                    rpId = options.copyRpIdOwner(),
-                    // RP name resolved from repo in a future pass
-                    rpName = options.copyRpIdOwner(),
-                    availableMethod = availability.getBestAvailableMethod(),
-                    credentialCount = options.allowCredentials?.size ?: 0,
-                ),
+                withSensitiveTextOwnerCopies(
+                    ownerFactories = listOf(options::copyRpIdOwner, options::copyRpIdOwner),
+                ) { owners ->
+                    AuthenticationState.AwaitingUserConsent(
+                        rpId = owners[0],
+                        // RP name resolved from repo in a future pass
+                        rpName = owners[1],
+                        availableMethod = availability.getBestAvailableMethod(),
+                        credentialCount = options.allowCredentials?.size ?: 0,
+                    )
+                },
             )
 
             // Fix F — Fallback auto-confirm for UV=NONE capability.
@@ -325,7 +332,7 @@ class AuthenticationPromptViewModel(
         setState(AuthenticationState.AwaitingUserVerification)
         viewModelScope.launch {
             val promptTitle = "Sign in"
-            val promptSubtitle = options.rpId.value
+            val promptSubtitle = options.rpIdForTextBoundary()
             if (activeVerificationPromptId == promptId &&
                 _state.value == AuthenticationState.AwaitingUserVerification
             ) {
@@ -428,8 +435,8 @@ class AuthenticationPromptViewModel(
                             return@launch
                         }
                         uiEventBus.clearAuthenticationRequest(responseDeferred)
-                        setState(AuthenticationState.Success(assertion))
-                        emit(AuthenticationEffect.NavigateToSuccess(assertion))
+                        setState(AuthenticationState.Success)
+                        emit(AuthenticationEffect.NavigateToSuccess)
                         clearOwnedPendingOptions()
                         pendingDeferred = null
                         pendingUserInteractionCompleted = null
@@ -481,6 +488,7 @@ class AuthenticationPromptViewModel(
         ceremonyJob = null
         finishPendingForegroundPrompt(authorized = false)
         eraseStateSensitiveText(_state.value)
+        _effects.cancel()
         super.onCleared()
     }
 
@@ -603,7 +611,7 @@ class AuthenticationPromptViewModel(
     private fun eraseStateSensitiveText(state: AuthenticationState) {
         when (state) {
             is AuthenticationState.AwaitingUserConsent -> state.eraseSensitiveText()
-            is AuthenticationState.SelectingCredential -> state.rpId.erase()
+            is AuthenticationState.SelectingCredential -> state.eraseSensitiveText()
             AuthenticationState.AwaitingUserVerification,
             AuthenticationState.Cancelled,
             AuthenticationState.Idle,

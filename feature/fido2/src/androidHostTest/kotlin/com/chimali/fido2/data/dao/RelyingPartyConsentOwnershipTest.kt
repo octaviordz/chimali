@@ -8,6 +8,7 @@ import com.chimali.core.domain.model.RelyingParty
 import com.chimali.core.domain.model.SensitiveText
 import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.database.RelyingPartyQueries
 import com.chimali.fido2.data.database.UserConsentRecordQueries
@@ -20,11 +21,20 @@ import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 
 class RelyingPartyConsentOwnershipTest {
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `unreferenced statistics API does not expose mutable relying party row buffers`() {
+        assertFalse(
+            RelyingPartyDao::class.java.methods.any { method -> method.name == "getRelyingPartyStatistics" },
+        )
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `actual RP and consent BLOB round trips preserve Unicode and erase consumed row buffers`() =
@@ -36,7 +46,15 @@ class RelyingPartyConsentOwnershipTest {
             every { service.encryptRelyingPartyMetadata(any(), any()) } returns byteArrayOf(7)
             every { service.getRpIdIndex(match { it.contentEquals(RP) }) } returns byteArrayOf(3, 4)
             val rp = RelyingParty.fromOwnedText(SensitiveText.copyOf(RP), SensitiveText.copyOf("München Web"))
-            val consent = UserConsentRecord.fromText("consent", ConsentOperationType.AUTHENTICATION, rp.idText)
+            val consent =
+                UserConsentRecord.create(
+                    id = "consent",
+                    operationType = ConsentOperationType.AUTHENTICATION,
+                    rpId = RpId(RP),
+                    ipAddress = "203.0.113.17",
+                    userAgent = "synthetic-agent-marker",
+                    deviceId = "synthetic-device-marker",
+                )
             try {
                 val dao = RelyingPartyDao(database, TimeProvider(), service)
                 dao.insertOrUpdateRelyingParty(rp)
@@ -49,6 +67,9 @@ class RelyingPartyConsentOwnershipTest {
                     assertTrue(mapped.nameText.contentEquals("München Web"))
                     UserConsentRecordDao(database, service).insertConsent(consent)
                     val consentRow = database.userConsentRecordQueries.select_by_id("consent").executeAsOne()
+                    assertEquals(null, consentRow.ip_address)
+                    assertEquals(null, consentRow.user_agent)
+                    assertEquals(null, consentRow.device_id)
                     val hydratedConsent = consentRow.toDomainModel()
                     try {
                         assertTrue(consentRow.rp_id.all { it == 0.toByte() })

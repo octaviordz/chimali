@@ -41,18 +41,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.chimali.fido2.domain.model.PairedDevice
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,27 +64,33 @@ fun PairedDevicesSection(
     onPendingRemove: (PairedDevice) -> Unit,
     onUndoRemove: (String) -> Unit,
     onCommitRemove: (String) -> Unit,
-    removalEvents: Flow<PairedDevice>,
+    removalEvents: Flow<String>,
     modifier: Modifier = Modifier,
     onDeviceClick: ((PairedDevice) -> Unit)? = null,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    // Collect removal events to show the Undo snackbar
     LaunchedEffect(removalEvents, onUndoRemove, onCommitRemove) {
-        removalEvents.collect { device ->
-            scope.launch {
-                val result =
-                    snackbarHostState.showSnackbar(
-                        message = "\"${device.alias ?: device.name ?: "Device"}\" removed",
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Long,
-                    )
-                if (result == SnackbarResult.ActionPerformed) {
-                    onUndoRemove(device.macAddress)
-                } else {
-                    onCommitRemove(device.macAddress)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            removalEvents.collect { macAddress ->
+                try {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = "Device removed",
+                            actionLabel = "Undo",
+                            duration = SnackbarDuration.Long,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        onUndoRemove(macAddress)
+                    } else {
+                        onCommitRemove(macAddress)
+                    }
+                } catch (cancelled: CancellationException) {
+                    // If the screen stops or leaves composition during the undo window, restore
+                    // the device instead of retaining an unfinishable pending-delete owner.
+                    onUndoRemove(macAddress)
+                    throw cancelled
                 }
             }
         }

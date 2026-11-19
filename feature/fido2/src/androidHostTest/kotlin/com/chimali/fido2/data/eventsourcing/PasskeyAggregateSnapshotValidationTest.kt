@@ -8,6 +8,7 @@ import com.chimali.core.domain.eventsourcing.passkey.PasskeyState
 import com.chimali.core.domain.model.CredentialKeyDescriptor
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -47,45 +48,58 @@ class PasskeyAggregateSnapshotValidationTest {
                     PasskeyState().copy(coseAlgorithm = CredentialKeyDescriptor.COSE_ES256),
                     PasskeyState().copy(derivationProfile = CredentialKeyDescriptor.P256_PROFILE),
                 )
+            val registeredEvents = mutableListOf<PasskeyEvent.Registered>()
+            val replayEvents = mutableListOf<PasskeyEvent.Registered>()
+            try {
+                partialStates.forEach { invalidSnapshotState ->
+                    val registered = registeredEvent().also(registeredEvents::add)
+                    val replayEvent = registered.copyOwnedForTest().also(replayEvents::add)
+                    coEvery { snapshotRepository.getLatest<PasskeyState>(EventKind.PASSKEY, aggregateId) } returns
+                        Result.success(
+                            Snapshot(
+                                aggregateId,
+                                invalidSnapshotState.sequenceNumber,
+                                invalidSnapshotState,
+                                registered.timestamp,
+                            ),
+                        )
+                    coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
+                        Result.success(listOf(replayEvent))
 
-            partialStates.forEach { invalidSnapshotState ->
-                val registered = registeredEvent()
-                coEvery { snapshotRepository.getLatest<PasskeyState>(EventKind.PASSKEY, aggregateId) } returns
-                    Result.success(
-                        Snapshot(
-                            aggregateId,
-                            invalidSnapshotState.sequenceNumber,
-                            invalidSnapshotState,
-                            registered.timestamp,
-                        ),
-                    )
-                coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
-                    Result.success(listOf(registered.copyOwnedForTest()))
-
-                val restored = service.getState(aggregateId).getOrThrow()
-
-                try {
-                    assertEquals(1L, restored.sequenceNumber)
-                    assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, restored.coseAlgorithm)
-                    assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, restored.derivationProfile)
-                    assertContentEquals(CharArray(invalidSnapshotState.rpId.size), invalidSnapshotState.rpId)
-                    assertContentEquals(CharArray(invalidSnapshotState.userId.size), invalidSnapshotState.userId)
-                    assertContentEquals(CharArray(invalidSnapshotState.userName.size), invalidSnapshotState.userName)
-                    assertContentEquals(
-                        CharArray(invalidSnapshotState.userDisplayName.size),
-                        invalidSnapshotState.userDisplayName,
-                    )
-                } finally {
-                    restored.eraseSensitiveMetadata()
-                    registered.eraseSensitiveMetadata()
+                    val restored = service.getState(aggregateId).getOrThrow()
+                    try {
+                        assertEquals(1L, restored.sequenceNumber)
+                        assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, restored.coseAlgorithm)
+                        assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, restored.derivationProfile)
+                        assertContentEquals(CharArray(invalidSnapshotState.rpId.size), invalidSnapshotState.rpId)
+                        assertContentEquals(CharArray(invalidSnapshotState.userId.size), invalidSnapshotState.userId)
+                        assertContentEquals(
+                            CharArray(invalidSnapshotState.userName.size),
+                            invalidSnapshotState.userName,
+                        )
+                        assertContentEquals(
+                            CharArray(invalidSnapshotState.userDisplayName.size),
+                            invalidSnapshotState.userDisplayName,
+                        )
+                        assertContentEquals(
+                            ByteArray(invalidSnapshotState.credentialId.size),
+                            invalidSnapshotState.credentialId,
+                        )
+                    } finally {
+                        restored.eraseSensitiveMetadata()
+                    }
                 }
-            }
-
-            coVerify(exactly = partialStates.size) {
-                eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any())
-            }
-            coVerify(exactly = 0) {
-                eventStoreRepository.getEventsFrom(EventKind.PASSKEY, aggregateId, any())
+                coVerify(exactly = partialStates.size) {
+                    eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any())
+                }
+                coVerify(exactly = 0) {
+                    eventStoreRepository.getEventsFrom(EventKind.PASSKEY, aggregateId, any())
+                }
+            } finally {
+                partialStates.forEach(PasskeyState::eraseSensitiveMetadata)
+                registeredEvents.forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+                replayEvents.forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+                clearMocks(eventStoreRepository, snapshotRepository, answers = true, recordedCalls = true)
             }
         }
 

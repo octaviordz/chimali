@@ -7,6 +7,7 @@ import com.chimali.core.domain.time.TimeProvider
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.testing.testCredentialIdFromLabel
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Nested
 
 @Req("NFR-SEC-041")
 class UserConsentRecordTest {
+    private val ownedConsentRecords = mutableListOf<UserConsentRecord>()
     private lateinit var testTimestamp: Instant
     private var testRpId: RpId = RpId("https://placeholder.com")
     private var testCredentialId: CredentialId = testCredentialIdFromLabel("cGxhY2Vob2xkZXIAY0d4aFkyVm9iMnhrWlhJ")
@@ -41,6 +43,66 @@ class UserConsentRecordTest {
             testDeviceId = "device_12345"
         }
 
+    @AfterTest
+    fun tearDown() {
+        ownedConsentRecords.forEach(UserConsentRecord::eraseSensitiveText)
+        ownedConsentRecords.clear()
+        testRpId = RpId("https://placeholder.com")
+        testCredentialId = testCredentialIdFromLabel("cGxhY2Vob2xkZXIAY0d4aFkyVm9iMnhrWlhJ")
+        testIpAddress = ""
+        testUserAgent = ""
+        testDeviceId = ""
+    }
+
+    private fun newTrackedConsentRecord(
+        id: String,
+        operationType: ConsentOperationType,
+        rpId: RpId,
+        credentialId: CredentialId?,
+        timestamp: Instant,
+        isBiometricUsed: Boolean,
+        isPinUsed: Boolean,
+        ipAddress: String?,
+        userAgent: String?,
+        deviceId: String?,
+    ): UserConsentRecord =
+        com.chimali.core.domain.model
+            .UserConsentRecord(
+                id = id,
+                operationType = operationType,
+                rpId = rpId,
+                credentialId = credentialId,
+                timestamp = timestamp,
+                isBiometricUsed = isBiometricUsed,
+                isPinUsed = isPinUsed,
+                ipAddress = ipAddress,
+                userAgent = userAgent,
+                deviceId = deviceId,
+            ).also(ownedConsentRecords::add)
+
+    @Test
+    fun `teardown erases owned relying party text`() =
+        runTest {
+            val record =
+                newTrackedConsentRecord(
+                    id = "synthetic-consent-id",
+                    operationType = ConsentOperationType.AUTHENTICATION,
+                    rpId = testRpId,
+                    credentialId = null,
+                    timestamp = testTimestamp,
+                    isBiometricUsed = false,
+                    isPinUsed = false,
+                    ipAddress = null,
+                    userAgent = null,
+                    deviceId = null,
+                )
+            val borrowedRpOwner = record.rpIdText
+
+            tearDown()
+
+            assertTrue((0 until borrowedRpOwner.length).all { borrowedRpOwner[it] == '\u0000' })
+        }
+
     private companion object {
         private const val INVALID_CRED_ID_SIZE_1024 = 1024
         private const val RECENT_THRESHOLD_5 = 5
@@ -57,7 +119,7 @@ class UserConsentRecordTest {
         fun `should create valid consent record with all fields`() =
             runTest {
                 val consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -73,7 +135,7 @@ class UserConsentRecordTest {
                 assertNotNull(consent)
                 assertEquals("dGVzdF9pZA", consent.id)
                 assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
-                assertEquals(testRpId, consent.rpId)
+                assertTrue(consent.rpIdText.contentEquals(testRpId.value))
                 assertEquals(testCredentialId, consent.credentialId)
                 assertEquals(testTimestamp, consent.timestamp)
                 assertTrue(consent.isBiometricUsed)
@@ -88,7 +150,7 @@ class UserConsentRecordTest {
         fun `should create valid consent record with minimal fields`() =
             runTest {
                 val consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.AUTHENTICATION,
                         rpId = testRpId,
@@ -104,7 +166,7 @@ class UserConsentRecordTest {
                 assertNotNull(consent)
                 assertEquals("dGVzdF9pZA", consent.id)
                 assertEquals(ConsentOperationType.AUTHENTICATION, consent.operationType)
-                assertEquals(testRpId, consent.rpId)
+                assertTrue(consent.rpIdText.contentEquals(testRpId.value))
                 assertNull(consent.credentialId)
                 assertEquals(testTimestamp, consent.timestamp)
                 assertFalse(consent.isBiometricUsed)
@@ -119,7 +181,7 @@ class UserConsentRecordTest {
         fun `should throw exception when id is blank`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -139,7 +201,7 @@ class UserConsentRecordTest {
         fun `should throw exception when rp id is blank`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = RpId(""),
@@ -159,7 +221,7 @@ class UserConsentRecordTest {
         fun `should throw exception when rp id is invalid`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = RpId("ftp://invalid-rp-id"),
@@ -180,7 +242,7 @@ class UserConsentRecordTest {
             runTest {
                 val futureTimestamp = TimeProvider().now() + 120.seconds
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -200,7 +262,7 @@ class UserConsentRecordTest {
         fun `should throw exception when credential id is blank`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -220,7 +282,7 @@ class UserConsentRecordTest {
         fun `should throw exception when credential id exceeds maximum length`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -240,7 +302,7 @@ class UserConsentRecordTest {
         fun `should throw exception when ip address is invalid`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -260,7 +322,7 @@ class UserConsentRecordTest {
         fun `should throw exception when user agent is blank`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -280,7 +342,7 @@ class UserConsentRecordTest {
         fun `should throw exception when device id is blank`() =
             runTest {
                 assertFailsWith<IllegalArgumentException> {
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -303,7 +365,7 @@ class UserConsentRecordTest {
                 // method for silent/implicit consent scenarios. This tests that such
                 // records can be created successfully.
                 val consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -327,7 +389,7 @@ class UserConsentRecordTest {
         fun setUp() =
             runTest {
                 consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -407,16 +469,6 @@ class UserConsentRecordTest {
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
-        fun `should return safe credential id`() =
-            runTest {
-                assertEquals(testCredentialId.encoded, consent.getSafeCredentialId())
-
-                val consentWithoutCredential = consent.copy(credentialId = null)
-                assertEquals("N/A", consentWithoutCredential.getSafeCredentialId())
-            }
-
-        /** @see NFR-SEC-041 and TR-AUTH-031 */
-        @Test
         fun `should correctly identify registration consent`() =
             runTest {
                 assertTrue(consent.isRegistrationConsent())
@@ -457,7 +509,7 @@ class UserConsentRecordTest {
 
                 assertNotNull(consent)
                 assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
-                assertEquals(testRpId, consent.rpId)
+                assertTrue(consent.rpIdText.contentEquals(testRpId.value))
                 assertEquals(testCredentialId, consent.credentialId)
                 assertTrue(consent.isBiometricUsed)
                 assertFalse(consent.isPinUsed)
@@ -483,7 +535,7 @@ class UserConsentRecordTest {
 
                 assertNotNull(consent)
                 assertEquals(ConsentOperationType.AUTHENTICATION, consent.operationType)
-                assertEquals(testRpId, consent.rpId)
+                assertTrue(consent.rpIdText.contentEquals(testRpId.value))
                 assertNull(consent.credentialId)
                 assertFalse(consent.isBiometricUsed)
                 assertTrue(consent.isPinUsed)
@@ -521,7 +573,7 @@ class UserConsentRecordTest {
 
                 validIpAddresses.forEach { ip ->
                     val consent =
-                        UserConsentRecord(
+                        newTrackedConsentRecord(
                             id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
@@ -553,7 +605,7 @@ class UserConsentRecordTest {
 
                 validIpAddresses.forEach { ip ->
                     val consent =
-                        UserConsentRecord(
+                        newTrackedConsentRecord(
                             id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
@@ -589,7 +641,7 @@ class UserConsentRecordTest {
 
                 invalidIpAddresses.forEach { ip ->
                     assertFailsWith<IllegalArgumentException> {
-                        UserConsentRecord(
+                        newTrackedConsentRecord(
                             id = "dGVzdF9pZA",
                             operationType = ConsentOperationType.REGISTRATION,
                             rpId = testRpId,
@@ -617,7 +669,7 @@ class UserConsentRecordTest {
                 val maxDeviceId = "a".repeat(MAX_DEVICE_ID_LEN_64)
 
                 val consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,
@@ -651,7 +703,7 @@ class UserConsentRecordTest {
 
                 operationTypes.forEach { operationType ->
                     val consent =
-                        UserConsentRecord(
+                        newTrackedConsentRecord(
                             id = "dGVzdF9pZA",
                             operationType = operationType,
                             rpId = testRpId,
@@ -674,7 +726,7 @@ class UserConsentRecordTest {
         fun `should handle combined biometric and pin consent`() =
             runTest {
                 val consent =
-                    UserConsentRecord(
+                    newTrackedConsentRecord(
                         id = "dGVzdF9pZA",
                         operationType = ConsentOperationType.REGISTRATION,
                         rpId = testRpId,

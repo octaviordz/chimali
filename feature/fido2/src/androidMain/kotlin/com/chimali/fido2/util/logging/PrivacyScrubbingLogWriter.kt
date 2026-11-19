@@ -16,11 +16,11 @@ class PrivacyScrubbingLogWriter(
         throwable: Throwable?,
     ) {
         val safeThrowable =
-            throwable?.let { original ->
-                Throwable(original::class.qualifiedName ?: "Throwable").apply {
-                    stackTrace = original.stackTrace
+            throwable?.let {
+                Throwable("[throwable details omitted]").apply {
+                    stackTrace = emptyArray()
                 }
             }
-        delegate.log(severity, PrivacyLogScrubber.scrub(message), tag, safeThrowable)
+        delegate.log(severity, PrivacyLogScrubber.scrub(message), "Fido2", safeThrowable)
     }
 }

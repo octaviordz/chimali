@@ -4,6 +4,9 @@ import kotlinx.datetime.Instant
 
 /**
  * Base interface for all domain events in the event sourcing architecture.
+ *
+ * Implementations must keep identifying and payload fields out of generic diagnostic formatting. Event fields remain
+ * available to serialization and explicit application logic; their presence here does not authorize logging them.
  */
 interface DomainEvent {
     /**

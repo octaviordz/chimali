@@ -5,17 +5,14 @@ import com.chimali.core.domain.valueobject.RpId
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 /**
  * Domain model representing a FIDO2 Relying Party (RP).
  * This entity represents the service/website that requests authentication.
  */
-@Serializable
 class RelyingParty private constructor(
-    @SerialName("id") private val idOwner: SensitiveText,
-    @SerialName("name") private val nameOwner: SensitiveText,
+    private val idOwner: SensitiveText,
+    private val nameOwner: SensitiveText,
     val iconUrl: String?,
     val credentialCount: Int,
     val createdAt: Instant,
@@ -40,12 +37,6 @@ class RelyingParty private constructor(
         lastUsedAt,
         isBlocked,
     )
-
-    /** Compatibility/rendering RP value; internal operations borrow idText instead. */
-    val id: RpId get() = RpId(idOwner.toBoundaryString())
-
-    /** Compatibility/rendering name; internal operations borrow nameText instead. */
-    val name: String get() = nameOwner.toBoundaryString()
 
     /** Borrows the live RP owner; callers must neither erase nor retain it beyond this model. */
     val idText: SensitiveText get() = idOwner
@@ -79,16 +70,42 @@ class RelyingParty private constructor(
         createdAt: Instant = this.createdAt,
         lastUsedAt: Instant? = this.lastUsedAt,
         isBlocked: Boolean = this.isBlocked,
-    ): RelyingParty =
-        RelyingParty(
-            SensitiveText.copyOf(id?.value ?: idOwner),
-            SensitiveText.copyOf(name ?: nameOwner),
-            iconUrl,
-            credentialCount,
-            createdAt,
-            lastUsedAt,
-            isBlocked,
-        )
+    ): RelyingParty = copyWithOwnerFactory(id, name, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)
+
+    /** Stages both copied owners until the new RP model has accepted custody. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun copyWithOwnerFactory(
+        id: RpId? = null,
+        name: String? = null,
+        iconUrl: String? = this.iconUrl,
+        credentialCount: Int = this.credentialCount,
+        createdAt: Instant = this.createdAt,
+        lastUsedAt: Instant? = this.lastUsedAt,
+        isBlocked: Boolean = this.isBlocked,
+        ownerFactory: (CharSequence) -> SensitiveText = SensitiveText::copyOf,
+    ): RelyingParty {
+        var copiedId: SensitiveText? = null
+        var copiedName: SensitiveText? = null
+        try {
+            copiedId = ownerFactory(id?.value ?: idOwner)
+            copiedName = ownerFactory(name ?: nameOwner)
+            return fromOwnedText(
+                requireNotNull(copiedId),
+                requireNotNull(copiedName),
+                iconUrl,
+                credentialCount,
+                createdAt,
+                lastUsedAt,
+                isBlocked,
+            ).also {
+                copiedId = null
+                copiedName = null
+            }
+        } finally {
+            copiedId?.erase()
+            copiedName?.erase()
+        }
+    }
 
     /** Compares model metadata by value without creating plaintext Strings. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -169,26 +186,43 @@ class RelyingParty private constructor(
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getDomain(): String {
-        val value = id.value
-        val schemeIndex = value.indexOf("://")
-        if (schemeIndex == -1) return value
-
-        val afterScheme = value.substring(schemeIndex + SCHEME_PREFIX_LENGTH)
-        val slashIndex = afterScheme.indexOf('/')
-        return if (slashIndex == -1) afterScheme else afterScheme.substring(0, slashIndex)
+        // Explicit display boundary; internal matching and persistence borrow idText instead.
+        val domain = domainTextView()
+        return buildString(domain.length) { for (index in 0 until domain.length) append(domain[index]) }
     }
 
     /**
      * Checks if this RP is trusted based on criteria.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun isTrusted(trustedDomains: Set<String>): Boolean = trustedDomains.contains(getDomain())
+    fun isTrusted(trustedDomains: Set<String>): Boolean {
+        val domain = domainTextView()
+        return trustedDomains.any { candidate ->
+            candidate.length == domain.length && (0 until domain.length).all { candidate[it] == domain[it] }
+        }
+    }
+
+    private fun domainTextView(): CharSequence {
+        var schemeIndex = -1
+        for (index in 0 until (idOwner.length - 2).coerceAtLeast(0)) {
+            if (idOwner[index] == ':' && idOwner[index + 1] == '/' && idOwner[index + 2] == '/') {
+                schemeIndex = index
+                break
+            }
+        }
+        if (schemeIndex < 0) return idOwner
+
+        val authorityStart = schemeIndex + SCHEME_PREFIX_LENGTH
+        var authorityEnd = authorityStart
+        while (authorityEnd < idOwner.length && idOwner[authorityEnd] != '/') authorityEnd++
+        return idOwner.subSequence(authorityStart, authorityEnd)
+    }
 
     /**
      * Returns a safe name for display.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getSafeName(): String = name.ifBlank { getDomain() }
+    fun getSafeName(): String = nameOwner.toBoundaryString().ifBlank { getDomain() }
 
     /**
      * Creates a copy with updated credential count.
@@ -240,7 +274,28 @@ class RelyingParty private constructor(
             createdAt: Instant = Clock.System.now(),
             lastUsedAt: Instant? = null,
             isBlocked: Boolean = false,
-        ): RelyingParty = RelyingParty(id, name, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)
+        ): RelyingParty =
+            fromOwnedTextWithFactory(id, name) { ownedId, ownedName ->
+                RelyingParty(ownedId, ownedName, iconUrl, credentialCount, createdAt, lastUsedAt, isBlocked)
+            }
+
+        /** Consumes both text owners unless construction returns a model that owns them. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun fromOwnedTextWithFactory(
+            id: SensitiveText,
+            name: SensitiveText,
+            modelFactory: (SensitiveText, SensitiveText) -> RelyingParty,
+        ): RelyingParty {
+            var transferred = false
+            try {
+                return modelFactory(id, name).also { transferred = true }
+            } finally {
+                if (!transferred) {
+                    id.erase()
+                    name.erase()
+                }
+            }
+        }
 
         /**
          * Creates a new RelyingParty with validation.

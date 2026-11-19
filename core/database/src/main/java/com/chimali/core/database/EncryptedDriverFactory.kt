@@ -138,10 +138,12 @@ class EncryptedDriverFactory(
      *
      * Applies the fail-safe boundary by containing database exceptions and closing driver resources:
      * All database exceptions are trapped and logged, returning false safely without leaking
-     * driver resources.
+     * driver resources. Close failures intentionally remain silent because provider and driver details
+     * are not user-safe.
      *
      * @see FR-MC-080
      */
+    @Suppress("SwallowedException")
     fun verifyIntegrity(name: String): Boolean {
         val dbFile = context.getDatabasePath(name)
         if (!dbFile.exists()) return false
@@ -162,13 +164,13 @@ class EncryptedDriverFactory(
                     parameters = 0,
                 ).value
         } catch (e: SQLiteException) {
-            Logger.w { "Database integrity check failed (${e::class.simpleName})" }
+            Logger.w { "Database integrity check failed" }
             return false
         } catch (e: IllegalStateException) {
-            Logger.w { "Database integrity check failed (${e::class.simpleName})" }
+            Logger.w { "Database integrity check failed" }
             return false
         } catch (e: IllegalArgumentException) {
-            Logger.w { "Database integrity check failed (${e::class.simpleName})" }
+            Logger.w { "Database integrity check failed" }
             return false
         } finally {
             try {

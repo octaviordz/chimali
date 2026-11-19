@@ -105,10 +105,19 @@ class RequiredRegistrationVerificationIntegrationTest {
             }
             every { crypto.decodePublicKey(any(), any()) } returns key
             every { codec.encodeCosePublicKeyFromJavaKey(key) } returns byteArrayOf(0xA0.toByte())
-            val signedData = slot<ByteArray>()
-            coEvery { crypto.sign(any(), capture(signedData), any()) } returns Outcome.Success(byteArrayOf(1, 2, 3))
+            // The signer borrows ceremony data that the use case erases after signing. Retain
+            // only the protocol flag needed by this assertion instead of aliasing that owner.
+            val signedFlags = mutableListOf<Byte>()
+            coEvery { crypto.sign(any(), any(), any()) } coAnswers {
+                signedFlags += secondArg<ByteArray>()[32]
+                Outcome.Success(byteArrayOf(1, 2, 3))
+            }
             val encodedResponse = slot<Map<String, Any>>()
-            every { codec.encodeToFido2Format(capture(encodedResponse)) } returns byteArrayOf(0x55)
+            val serializedAuthData = mutableListOf<ByteArray>()
+            every { codec.encodeToFido2Format(capture(encodedResponse)) } answers {
+                serializedAuthData += (firstArg<Map<String, Any>>().getValue("2") as ByteArray).copyOf()
+                byteArrayOf(0x55)
+            }
             val offeredAlgorithms = algorithmsFor(mode)
             every { codec.decodeFromFido2Format(any()) } returns
                 mapOf(
@@ -120,7 +129,7 @@ class RequiredRegistrationVerificationIntegrationTest {
                 )
             val parser =
                 mockk<HidReportParser> {
-                    every { encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+                    every { encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
                 }
             val lock = mockk<CeremonyLock>(relaxed = true) { every { tryLock() } returns true }
             val useCase =
@@ -181,8 +190,8 @@ class RequiredRegistrationVerificationIntegrationTest {
                 }
                 if (succeeds) {
                     val expectedFlags = if (mode == "required-success") 0x45 else 0x41
-                    assertEquals(expectedFlags.toByte(), signedData.captured[32])
-                    assertEquals(expectedFlags.toByte(), (encodedResponse.captured.getValue("2") as ByteArray)[32])
+                    assertEquals(expectedFlags.toByte(), signedFlags.single())
+                    assertEquals(expectedFlags.toByte(), serializedAuthData.single()[32])
                     runCurrent()
                     val uiCredential = (presenter.state.value as RegistrationState.Success).credential
                     advanceUntilIdle()
@@ -196,6 +205,7 @@ class RequiredRegistrationVerificationIntegrationTest {
                     assertTrue(uiCredential.userDisplayName.copyCharacters().all { it == '\u0000' })
                 }
             } finally {
+                serializedAuthData.forEach { it.fill(0) }
                 presenter.handleIntent(RegistrationIntent.CancelRegistration)
                 runCurrent()
                 Dispatchers.resetMain()

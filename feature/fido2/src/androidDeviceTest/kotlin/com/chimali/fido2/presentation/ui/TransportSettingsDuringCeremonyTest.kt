@@ -27,30 +27,35 @@ class TransportSettingsDuringCeremonyTest {
         var settingsOpened = false
         var confirmed = false
         var cancelled = false
-
-        composeTestRule.setContent {
-            AuthenticationPromptContent(
-                state =
-                    AuthenticationState.AwaitingUserConsent(
-                        rpId = sensitiveText("https://example.com"),
-                        rpName = sensitiveText("Example"),
-                        availableMethod = VerificationMethod.BIOMETRIC,
-                        credentialCount = 1,
-                    ),
-                onConfirm = { confirmed = true },
-                onCancel = { cancelled = true },
-                onSelectCredential = {},
-                onRetry = {},
-                onOpenSettings = { settingsOpened = true },
+        val state =
+            AuthenticationState.AwaitingUserConsent(
+                rpId = sensitiveText("https://example.com"),
+                rpName = sensitiveText("Example"),
+                availableMethod = VerificationMethod.BIOMETRIC,
+                credentialCount = 1,
             )
+
+        try {
+            composeTestRule.setContent {
+                AuthenticationPromptContent(
+                    state = state,
+                    onConfirm = { confirmed = true },
+                    onCancel = { cancelled = true },
+                    onSelectCredential = {},
+                    onRetry = {},
+                    onOpenSettings = { settingsOpened = true },
+                )
+            }
+
+            composeTestRule.onNodeWithContentDescription("Open transport settings").performClick()
+
+            assertTrue(settingsOpened)
+            assertFalse(confirmed)
+            assertFalse(cancelled)
+            composeTestRule.onNodeWithText("Sign in with Passkey").assertIsDisplayed()
+        } finally {
+            composeTestRule.runOnIdle { state.eraseSensitiveText() }
         }
-
-        composeTestRule.onNodeWithContentDescription("Open transport settings").performClick()
-
-        assertTrue(settingsOpened)
-        assertFalse(confirmed)
-        assertFalse(cancelled)
-        composeTestRule.onNodeWithText("Sign in with Passkey").assertIsDisplayed()
     }
 
     @Test
@@ -58,30 +63,35 @@ class TransportSettingsDuringCeremonyTest {
         var settingsOpened = false
         var confirmed = false
         var cancelled = false
-
-        composeTestRule.setContent {
-            RegistrationPromptContent(
-                state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = sensitiveText("example.com"),
-                        rpName = sensitiveText("Example"),
-                        userName = sensitiveText("user@example.com"),
-                        userDisplayName = sensitiveText("User"),
-                        availableMethod = VerificationMethod.NONE,
-                    ),
-                onConfirm = { confirmed = true },
-                onCancel = { cancelled = true },
-                onRetry = {},
-                onOpenSettings = { settingsOpened = true },
+        val state =
+            RegistrationState.AwaitingUserConsent(
+                rpId = sensitiveText("example.com"),
+                rpName = sensitiveText("Example"),
+                userName = sensitiveText("user@example.com"),
+                userDisplayName = sensitiveText("User"),
+                availableMethod = VerificationMethod.NONE,
             )
+
+        try {
+            composeTestRule.setContent {
+                RegistrationPromptContent(
+                    state = state,
+                    onConfirm = { confirmed = true },
+                    onCancel = { cancelled = true },
+                    onRetry = {},
+                    onOpenSettings = { settingsOpened = true },
+                )
+            }
+
+            composeTestRule.onNodeWithContentDescription("Open transport settings").performClick()
+
+            assertTrue(settingsOpened)
+            assertFalse(confirmed)
+            assertFalse(cancelled)
+            composeTestRule.onNodeWithContentDescription("Confirm registration button").assertIsDisplayed()
+        } finally {
+            composeTestRule.runOnIdle { state.eraseSensitiveText() }
         }
-
-        composeTestRule.onNodeWithContentDescription("Open transport settings").performClick()
-
-        assertTrue(settingsOpened)
-        assertFalse(confirmed)
-        assertFalse(cancelled)
-        composeTestRule.onNodeWithContentDescription("Confirm registration button").assertIsDisplayed()
     }
 
     private fun sensitiveText(value: String): SensitiveCredentialText {

@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import android.bluetooth.BluetoothAdapter
@@ -235,7 +237,7 @@ class ProcessTransportSelection(
                             }
                         }
                     } catch (e: IOException) {
-                        Logger.e(e) { "ProcessTransportSelection: Unable to read saved transport preference" }
+                        Logger.e { "ProcessTransportSelection: Unable to read saved transport preference" }
                         _state.value =
                             _state.value.copy(
                                 availability =
@@ -405,7 +407,7 @@ class ProcessTransportSelection(
                 return result
             }
             val timeout = TimeoutException("Selected transport startup exceeded $activationTimeoutMs ms")
-            Logger.w(timeout) { "ProcessTransportSelection: Selected transport startup timed out" }
+            Logger.w { "ProcessTransportSelection: Selected transport startup timed out" }
             _state.value =
                 _state.value.copy(
                     availability =
@@ -426,7 +428,7 @@ class ProcessTransportSelection(
             currentAttempt.complete(Result.failure(e))
             throw e
         } catch (e: Exception) {
-            Logger.e(e) { "ProcessTransportSelection: Selected transport failed to start" }
+            Logger.e { "ProcessTransportSelection: Selected transport failed to start" }
             _state.value =
                 _state.value.copy(
                     availability =
@@ -456,10 +458,10 @@ class ProcessTransportSelection(
         withContext(NonCancellable) {
             try {
                 transport.disconnect().onFailure { failure ->
-                    Logger.e(failure) { "ProcessTransportSelection: Transport cleanup reported failure" }
+                    Logger.e { "ProcessTransportSelection: Transport cleanup reported failure" }
                 }
             } catch (failure: Exception) {
-                Logger.e(failure) { "ProcessTransportSelection: Transport cleanup threw during activation failure" }
+                Logger.e { "ProcessTransportSelection: Transport cleanup threw during activation failure" }
             }
         }
     }

@@ -128,7 +128,7 @@ class GetAssertionUseCaseTest {
         algorithm: Int = PasskeyCredential.COSE_ES256,
         credentialId: CredentialId = testCredentialIdFromLabel(id),
     ): CredentialSummary =
-        CredentialSummary(
+        CredentialSummary.fromRpId(
             id = id,
             rpId = testRpId,
             credentialId = credentialId,
@@ -148,7 +148,7 @@ class GetAssertionUseCaseTest {
             val marker = "synthetic-private-rp"
             val options = createOptions().copy(rpId = RpId("$marker.example.com"))
             coEvery {
-                credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(options.rpId.value) })
+                credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(options.rpIdText) })
             } returns
                 Outcome.Success(emptyList())
             CapturedDiagnostics().use { logs ->
@@ -213,7 +213,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery { credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_6) } returns
                 Outcome.Success(Unit)
@@ -236,7 +236,7 @@ class GetAssertionUseCaseTest {
     fun `headless assertion reuses the candidate snapshot used for fast path selection`() =
         runTest {
             val summary = createSummary("headless-prefetched")
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery { credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_6) } returns
                 Outcome.Success(Unit)
@@ -245,7 +245,7 @@ class GetAssertionUseCaseTest {
 
             assertTrue(result.isSuccess)
             coVerify(exactly = 0) { credentialRepository.getCredentialSummariesForRpText(any()) }
-            coVerify(exactly = 1) { selectCredentialUseCase(listOf(summary), any()) }
+            coVerify(exactly = 1) { selectCredentialUseCase(listOf(summary)) }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -258,7 +258,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(protectedSummary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(protectedSummary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(protectedSummary)
             coEvery {
                 credentialRepository.getSignCount(protectedSummary.credentialId)
             } returns Outcome.Success(SIGN_COUNT_5)
@@ -273,7 +273,7 @@ class GetAssertionUseCaseTest {
             assertEquals(listOf(protectedSummary), potentialCandidates)
             assertTrue(headlessResult.isFailure)
             assertTrue(verifiedResult.isSuccess)
-            coVerify(exactly = 1) { selectCredentialUseCase(listOf(protectedSummary), any()) }
+            coVerify(exactly = 1) { selectCredentialUseCase(listOf(protectedSummary)) }
             coVerify(exactly = 2) {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             }
@@ -293,7 +293,7 @@ class GetAssertionUseCaseTest {
             val result = useCase.invokeHeadless(createOptions(), listOf(invalidSummary))
 
             assertIs<DomainError.ValidationError>(assertIs<Outcome.Error<*>>(result).error)
-            coVerify(exactly = 0) { selectCredentialUseCase(any(), any()) }
+            coVerify(exactly = 0) { selectCredentialUseCase(any()) }
             coVerify(exactly = 0) { cryptoService.sign(any(), any(), any()) }
         }
 
@@ -321,7 +321,7 @@ class GetAssertionUseCaseTest {
             coEvery {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns Outcome.Success(listOf(s1, s2))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(s1)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(s1)
             coEvery { credentialRepository.getSignCount(s1.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery {
                 credentialRepository.updateSignCount(s1.credentialId, SIGN_COUNT_6)
@@ -329,7 +329,7 @@ class GetAssertionUseCaseTest {
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
-            coVerify { selectCredentialUseCase(any(), any()) }
+            coVerify { selectCredentialUseCase(any()) }
 
             if (result.isSuccess) {
                 val assertion = result.getOrThrow()
@@ -351,7 +351,7 @@ class GetAssertionUseCaseTest {
             coEvery {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns Outcome.Success(listOf(first, selected, last))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(selected)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(selected)
             coEvery { credentialRepository.getSignCount(selected.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery {
                 credentialRepository.updateSignCount(selected.credentialId, SIGN_COUNT_6)
@@ -391,7 +391,7 @@ class GetAssertionUseCaseTest {
             coEvery {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns Outcome.Success(listOf(s1))
-            coEvery { selectCredentialUseCase(any(), any()) } returns
+            coEvery { selectCredentialUseCase(any()) } returns
                 Outcome.Error(DomainError.NotFound("No eligible credential"))
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
@@ -413,7 +413,7 @@ class GetAssertionUseCaseTest {
             coEvery {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns Outcome.Success(listOf(s1))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(s1)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(s1)
             coEvery { credentialRepository.getSignCount(s1.credentialId) } returns Outcome.Success(SIGN_COUNT_10)
             coEvery {
                 credentialRepository.updateSignCount(s1.credentialId, SIGN_COUNT_11)
@@ -430,6 +430,33 @@ class GetAssertionUseCaseTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `sign count persistence diagnostic omits error details and type`() =
+        runTest {
+            val summary = createSummary("sign-count-persistence-error")
+            val errorMarker = "synthetic-private-counter-write-marker"
+            coEvery {
+                credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
+            } returns Outcome.Success(listOf(summary))
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
+            coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_10)
+            coEvery {
+                credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_11)
+            } returns Outcome.Error(DomainError.DatabaseError(errorMarker, IllegalStateException(errorMarker)))
+
+            CapturedDiagnostics().use { diagnostics ->
+                val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+
+                val error = assertIs<DomainError.DatabaseError>(assertIs<Outcome.Error<*>>(result).error)
+                assertEquals("Unable to persist credential signing counter", error.message)
+                assertNull(error.cause)
+                assertTrue(diagnostics.containsMessage("Failed to persist assertion sign count"))
+                diagnostics.assertNoSensitiveValues(errorMarker, "DatabaseError")
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `last representable authenticator counter is encoded as unsigned big endian`() =
         runTest {
             val summary = createSummary("last-authenticator-counter")
@@ -438,7 +465,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery {
                 credentialRepository.getSignCount(summary.credentialId)
             } returns Outcome.Success(MAX_AUTHENTICATOR_COUNTER - 1)
@@ -446,7 +473,8 @@ class GetAssertionUseCaseTest {
                 credentialRepository.updateSignCount(summary.credentialId, MAX_AUTHENTICATOR_COUNTER)
             } returns Outcome.Success(Unit)
             coEvery { cryptoService.sign(any(), any(), any()) } coAnswers {
-                capturedSignedPayload = secondArg()
+                // The use case erases its temporary signing input after the crypto call.
+                capturedSignedPayload = secondArg<ByteArray>().copyOf()
                 Outcome.Success(fakeSignature)
             }
 
@@ -475,7 +503,7 @@ class GetAssertionUseCaseTest {
                     credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
                 } returns
                     Outcome.Success(listOf(summary))
-                coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+                coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
                 coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(counter)
 
                 val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
@@ -500,7 +528,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery { credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_6) } returns
                 Outcome.Error(DomainError.DatabaseError(exceptionMarker, IllegalStateException(exceptionMarker)))
@@ -525,7 +553,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery { credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_6) } throws
                 CancellationException("synthetic counter write cancellation")
@@ -559,7 +587,7 @@ class GetAssertionUseCaseTest {
                     credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
                 } returns
                     Outcome.Success(listOf(summary))
-                coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+                coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
                 coEvery { credentialRepository.getSignCount(summary.credentialId) } returns
                     Outcome.Success(SIGN_COUNT_5)
                 coEvery { credentialRepository.updateSignCount(summary.credentialId, SIGN_COUNT_6) } returns
@@ -592,7 +620,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(invalidSummary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(invalidSummary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(invalidSummary)
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
@@ -613,7 +641,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns
                 Outcome.Error(
                     DomainError.DatabaseError(
@@ -636,24 +664,58 @@ class GetAssertionUseCaseTest {
     fun `returns failure when cryptoService signing fails`() =
         runTest {
             val s1 = createSummary("cred1")
+            var observedRpIdHash: ByteArray? = null
+            var observedAuthData: ByteArray? = null
+            var observedSigningInput: ByteArray? = null
+            useCase.onRpIdHashCreatedForTest = { observedRpIdHash = it }
+            useCase.onAuthDataCreatedForTest = { observedAuthData = it }
             coEvery {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns Outcome.Success(listOf(s1))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(s1)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(s1)
             coEvery { credentialRepository.getSignCount(s1.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
-            coEvery { cryptoService.sign(any(), any(), any()) } returns
+            coEvery { cryptoService.sign(any(), any(), any()) } coAnswers {
+                observedSigningInput = secondArg()
                 Outcome.Error(
                     DomainError.CryptoError(
                         "Master seed unavailable",
                         Fido2Exception.SigningFailed("Master seed unavailable"),
                     ),
                 )
+            }
 
             val result = useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
 
             assertTrue(result.isFailure)
+            assertContentEquals(ByteArray(requireNotNull(observedRpIdHash).size), observedRpIdHash)
+            assertContentEquals(ByteArray(requireNotNull(observedAuthData).size), observedAuthData)
+            assertContentEquals(ByteArray(requireNotNull(observedSigningInput).size), observedSigningInput)
             coVerify(exactly = 0) { credentialRepository.getCredentialById(s1.credentialId) }
             coVerify(exactly = 0) { credentialRepository.updateSignCount(s1.credentialId, any()) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `RP ID hash is erased when its observer fails`() =
+        runTest {
+            val summary = createSummary("hash-observer-failure")
+            var observedHash: ByteArray? = null
+            useCase.onRpIdHashCreatedForTest = {
+                observedHash = it
+                error("synthetic observer failure")
+            }
+            coEvery {
+                credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
+            } returns Outcome.Success(listOf(summary))
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
+
+            assertFailsWith<IllegalStateException> {
+                useCase(createOptions(uv = UserVerificationRequirement.DISCOURAGED))
+            }
+
+            assertContentEquals(ByteArray(requireNotNull(observedHash).size), observedHash)
+            coVerify(exactly = 0) { credentialRepository.getSignCount(summary.credentialId) }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -668,7 +730,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(selected))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(selected)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(selected)
             coEvery { credentialRepository.getSignCount(selected.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery {
                 cryptoService.sign(
@@ -699,7 +761,7 @@ class GetAssertionUseCaseTest {
                 credentialRepository.getCredentialSummariesForRpText(match { it.contentEquals(testRpId.value) })
             } returns
                 Outcome.Success(listOf(summary))
-            coEvery { selectCredentialUseCase(any(), any()) } returns Outcome.Success(summary)
+            coEvery { selectCredentialUseCase(any()) } returns Outcome.Success(summary)
             coEvery { credentialRepository.getSignCount(summary.credentialId) } returns Outcome.Success(SIGN_COUNT_5)
             coEvery { cryptoService.sign(any(), any(), any()) } throws CancellationException("synthetic cancellation")
 

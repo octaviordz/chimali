@@ -33,6 +33,22 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private const val MNEMONIC_WORD_COUNT = 24
 
+@Req("FR-008", "FR-009")
+@Suppress("FunctionParameterNaming", "UnusedParameter")
+internal fun reportMnemonicCameraBindFailure(
+    _failure: Exception,
+    onError: (String) -> Unit,
+) {
+    Logger.e { "Camera bind failed" }
+    onError("Camera error")
+}
+
+@Req("FR-008", "FR-009")
+@Suppress("FunctionParameterNaming", "UnusedParameter")
+internal fun logMnemonicCameraReleaseFailure(_failure: Exception) {
+    Logger.e { "Failed to unbind camera on release" }
+}
+
 /**
  * T146f — A CameraX-based QR code scanner composable.
  *
@@ -126,9 +142,8 @@ fun MnemonicQrScanner(
                             preview,
                             imageAnalysis,
                         )
-                    } catch (exc: Exception) {
-                        Logger.e(exc) { "Camera bind failed" }
-                        onError("Camera error: ${exc.message}")
+                    } catch (failure: Exception) {
+                        reportMnemonicCameraBindFailure(failure, onError)
                     }
                 }, ContextCompat.getMainExecutor(ctx))
                 previewView
@@ -139,8 +154,8 @@ fun MnemonicQrScanner(
                 try {
                     val cameraProvider = ProcessCameraProvider.getInstance(context).get()
                     cameraProvider.unbindAll()
-                } catch (e: Exception) {
-                    Logger.e(e) { "Failed to unbind camera on release" }
+                } catch (failure: Exception) {
+                    logMnemonicCameraReleaseFailure(failure)
                 }
             },
         )
@@ -190,11 +205,13 @@ private fun processImageProxy(
     scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
     onResult: (String) -> Unit,
 ) {
-    val mediaImage = imageProxy.image ?: return imageProxy.close()
-    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-    scanner
-        .process(image)
-        .addOnSuccessListener { barcodes ->
-            barcodes.firstOrNull()?.rawValue?.let { onResult(it) }
-        }.addOnCompleteListener { imageProxy.close() }
+    withMnemonicFrameRelease(releaseFrame = imageProxy::close) { onComplete ->
+        val mediaImage = imageProxy.image ?: return@withMnemonicFrameRelease onComplete()
+        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        val scanTask = scanner.process(image)
+        scanTask.addOnCompleteListener { onComplete() }
+        scanTask.addOnSuccessListener { barcodes ->
+            barcodes.firstOrNull()?.rawValue?.let(onResult)
+        }
+    }
 }

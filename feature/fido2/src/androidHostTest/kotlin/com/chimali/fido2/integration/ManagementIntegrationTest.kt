@@ -1,5 +1,6 @@
 package com.chimali.fido2.integration
 
+import androidx.lifecycle.ViewModelStore
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialKeyDescriptor
@@ -48,6 +49,7 @@ class ManagementIntegrationTest {
     private lateinit var repository: CredentialRepository
     private lateinit var viewModel: CredentialManagementViewModel
     private val credentials = MutableStateFlow<List<PasskeyCredential>>(emptyList())
+    private val syntheticCredentialOwners = mutableListOf<PasskeyCredential>()
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -106,6 +108,13 @@ class ManagementIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        ViewModelStore().apply {
+            put("management", viewModel)
+            clear()
+        }
+        syntheticCredentialOwners.forEach(PasskeyCredential::eraseSensitiveText)
+        syntheticCredentialOwners.clear()
+        credentials.value = emptyList()
         io.mockk.clearMocks(repository)
         Dispatchers.resetMain()
     }
@@ -129,7 +138,7 @@ class ManagementIntegrationTest {
             aaguid = ByteArray(AAGUID_SIZE_16),
             credentialId = credId.toByteArray(),
             derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
-        )
+        ).also(syntheticCredentialOwners::add)
     }
 
     // ── Credential Loading ───────────────────────────────────────────────────

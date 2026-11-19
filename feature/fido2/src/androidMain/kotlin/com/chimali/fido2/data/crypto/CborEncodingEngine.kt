@@ -11,6 +11,7 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 internal class CborEncodingEngine(
     private val onIntermediateBufferErased: ((ByteArray) -> Unit)?,
     private val onTemporaryTextBytesErased: ((ByteArray) -> Unit)?,
+    private val beforeEncodedMapKeyAdmission: ((ByteArray) -> Unit)?,
 ) {
     private companion object {
         private const val MAJOR_TYPE_UNSIGNED_INT = 0
@@ -295,7 +296,17 @@ internal class CborEncodingEngine(
     ) {
         val entries = mutableListOf<EncodedMapEntry>()
         try {
-            map.entries.forEach { entry -> entries += EncodedMapEntry(encodeMapKey(entry.key), entry.value) }
+            map.entries.forEach { entry ->
+                val keyBytes = encodeMapKey(entry.key)
+                var admitted = false
+                try {
+                    beforeEncodedMapKeyAdmission?.invoke(keyBytes)
+                    entries.add(EncodedMapEntry(keyBytes, entry.value))
+                    admitted = true
+                } finally {
+                    if (!admitted) keyBytes.fill(0)
+                }
+            }
             entries.sortWith { left, right -> compareCanonicalKeys(left.keyBytes, right.keyBytes) }
             entries.zipWithNext().forEach { (left, right) ->
                 require(!left.keyBytes.contentEquals(right.keyBytes)) { "CBOR map contains duplicate encoded keys" }
@@ -311,17 +322,21 @@ internal class CborEncodingEngine(
     }
 
     private fun encodeMapKey(key: Any?): ByteArray {
-        val output = ByteArrayOutputStream()
-        when (key) {
-            is String -> {
-                val numeric = key.toLongOrNull()
-                if (numeric == null) writeValue(output, key) else writeInteger(output, numeric)
+        val output = CborCodec.ErasableByteArrayOutputStream(onIntermediateBufferErased)
+        try {
+            when (key) {
+                is String -> {
+                    val numeric = key.toLongOrNull()
+                    if (numeric == null) writeValue(output, key) else writeInteger(output, numeric)
+                }
+                is Long -> writeInteger(output, key)
+                is Int -> writeInteger(output, key.toLong())
+                else -> throw IllegalArgumentException("CBOR map keys must be text or integer values")
             }
-            is Long -> writeInteger(output, key)
-            is Int -> writeInteger(output, key.toLong())
-            else -> throw IllegalArgumentException("CBOR map keys must be text or integer values")
+            return output.toByteArray()
+        } finally {
+            output.erase()
         }
-        return output.toByteArray()
     }
 
     private fun writeInteger(

@@ -35,13 +35,18 @@ class HdkKeyPair(
                     publicKey.contentEquals(other.publicKey)
             )
 
-    /** Returns a content-derived collection hash; it is not a cryptographic digest. */
+    /** Secret bytes do not contribute to a generic collection hash. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    override fun hashCode(): Int = 31 * privateKey.contentHashCode() + publicKey.contentHashCode()
+    override fun hashCode(): Int = COLLECTION_HASH
+
+    /** Generic formatting must not expose a value derived from the private scalar. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "HdkKeyPair([redacted])"
 
     private companion object {
         const val PRIVATE_KEY_BYTES = 32
         const val PUBLIC_KEY_BYTES = 65
+        const val COLLECTION_HASH = 31
     }
 }
 
@@ -71,13 +76,18 @@ class HdkChild(
         this === other ||
             (other is HdkChild && publicKey.contentEquals(other.publicKey) && factor.contentEquals(other.factor))
 
-    /** Returns a content-derived collection hash; it is not a cryptographic digest. */
+    /** Secret factor bytes do not contribute to a generic collection hash. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    override fun hashCode(): Int = 31 * publicKey.contentHashCode() + factor.contentHashCode()
+    override fun hashCode(): Int = COLLECTION_HASH
+
+    /** Generic formatting must not expose a value derived from the child factor. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "HdkChild([redacted])"
 
     private companion object {
         const val PUBLIC_KEY_BYTES = 65
         const val FACTOR_BYTES = 32
+        const val COLLECTION_HASH = 31
     }
 }
 

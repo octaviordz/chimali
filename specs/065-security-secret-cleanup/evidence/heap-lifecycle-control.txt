@@ -1,0 +1,13 @@
+Command: adb -s emulator-5554 shell am instrument -w -e class com.chimali.LeakCanaryMnemonicOwnerTest com.chimali.shrunk.test/androidx.test.runner.AndroidJUnitRunner
+Device: emulator-5554 (API 35 Android ATD x86_64)
+Synthetic mnemonic lifecycle control; clipboard adapter is a no-op fake.
+Exit code: 0
+
+
+com.chimali.LeakCanaryMnemonicOwnerTest:.
+
+Time: 1.345
+
+OK (1 test)
+
+

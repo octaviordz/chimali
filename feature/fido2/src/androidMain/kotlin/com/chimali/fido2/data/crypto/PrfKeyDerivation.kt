@@ -58,7 +58,7 @@ class PrfKeyDerivation(
                 credentialId = credentialId,
                 extensionData = salt,
             )?.also { output ->
-                Logger.d(TAG) { "PRF derive: ${output.size} bytes for credentialId=$credentialId" }
+                Logger.d(TAG) { "PRF output derived" }
             }
     }
 
@@ -85,7 +85,7 @@ class PrfKeyDerivation(
         val output1 = derive(input.salt1, credentialId)
         if (output1 == null) {
             // T049: Missing hmac-secret capability — omit PRF without failing the ceremony.
-            Logger.w(TAG) { "PRF: salt1 derivation failed for credentialId=$credentialId; omitting PRF from response" }
+            Logger.w(TAG) { "PRF output unavailable; optional extension omitted" }
             return null
         }
 
@@ -98,7 +98,7 @@ class PrfKeyDerivation(
                     if (out == null) {
                         Logger.w(
                             TAG,
-                        ) { "PRF: salt2 derivation failed for credentialId=$credentialId; omitting output2" }
+                        ) { "PRF second output unavailable; omitting optional output" }
                     }
                     out
                 }

@@ -7,9 +7,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** @see NFR-SEC-041 and TR-AUTH-031 */
 class CredentialProtectionPolicyTest {
+    private fun credentialIdFromTestBytes(value: Byte): CredentialId {
+        val bytes = ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { value }
+        return try {
+            CredentialId.fromByteArray(bytes)
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
@@ -34,10 +44,10 @@ class CredentialProtectionPolicyTest {
             assertEquals(policy, CredentialProtectionPolicy.fromExtensions(mapOf("credProtect" to policy.toLong())))
             assertEquals(policy, CredentialProtectionPolicy.fromPersisted(policy.toLong()))
             val summary =
-                CredentialSummary(
+                CredentialSummary.fromRpId(
                     id = "credential-$policy",
                     rpId = RpId("example.com"),
-                    credentialId = CredentialId.fromByteArray(ByteArray(16) { policy.toByte() }),
+                    credentialId = credentialIdFromTestBytes(policy.toByte()),
                     lastUsedAt = kotlinx.datetime.Instant.fromEpochMilliseconds(0),
                     coseAlgorithm = -7,
                     derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
@@ -64,10 +74,10 @@ class CredentialProtectionPolicyTest {
                 CredentialProtectionPolicy.fromExtensions(mapOf("credProtect" to raw))
             }
             assertFailsWith<IllegalArgumentException> {
-                CredentialSummary(
+                CredentialSummary.fromRpId(
                     id = "invalid-policy",
                     rpId = RpId("example.com"),
-                    credentialId = CredentialId.fromByteArray(ByteArray(16)),
+                    credentialId = credentialIdFromTestBytes(0),
                     lastUsedAt = kotlinx.datetime.Instant.fromEpochMilliseconds(0),
                     coseAlgorithm = -7,
                     derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
@@ -81,5 +91,27 @@ class CredentialProtectionPolicyTest {
                 CredentialProtectionPolicy.fromExtensions(mapOf("credProtect" to raw))
             }
         }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `failed summary construction erases the staged RP owner`() {
+        val owner = SensitiveText.copyOf("example.com")
+
+        assertFailsWith<IllegalArgumentException> {
+            CredentialSummary.fromOwnedText(
+                id = "invalid-policy",
+                rpIdOwner = owner,
+                credentialId = credentialIdFromTestBytes(0),
+                lastUsedAt = kotlinx.datetime.Instant.fromEpochMilliseconds(0),
+                coseAlgorithm = -7,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                storedPublicKeyEncoding = byteArrayOf(1),
+                credProtectPolicy = 0,
+            )
+        }
+
+        assertTrue(owner.all { it == '\u0000' })
     }
 }

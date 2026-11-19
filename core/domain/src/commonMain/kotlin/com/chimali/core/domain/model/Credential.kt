@@ -20,4 +20,6 @@ data class Credential(
     val lastModified: Instant,
     val lastUsed: Instant?,
     val isFavorite: Boolean,
-) : DomainModel
+) : DomainModel {
+    override fun toString(): String = "Credential([redacted])"
+}

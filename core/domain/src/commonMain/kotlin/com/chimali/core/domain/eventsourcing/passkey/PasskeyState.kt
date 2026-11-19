@@ -62,6 +62,7 @@ data class PasskeyState(
         userId.fill('\u0000')
         userName.fill('\u0000')
         userDisplayName.fill('\u0000')
+        credentialId.fill(0)
     }
 
     /** Compares state fields by value; mutable arrays use content equality. */

@@ -18,23 +18,32 @@ import kotlinx.coroutines.flow.Flow
  * Provides abstract methods for credential storage and retrieval operations.
  */
 interface CredentialRepository {
-    /** Borrows mutable RP text for metadata-only lookup; each returned summary transfers to the caller. */
+    /**
+     * Borrows [rpId] for this call's duration and does not retain it. The caller owns each returned
+     * summary and must call [CredentialSummary.eraseSensitiveText] after its final borrower
+     * completes. Failures transfer no summaries.
+     */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialSummariesForRpText(rpId: CharSequence): Outcome<List<CredentialSummary>, DomainError>
 
-    /** Borrows RP/user text for creation validation without retaining either input. */
+    /** Borrows RP/user text for creation validation without retaining either input or returning an owner. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun validateCredentialCreationForText(
         rpId: CharSequence,
         userId: CharSequence,
     ): Outcome<Unit, DomainError>
 
-    /** Borrows an RP identifier and transfers any reconstructed mutable model to the caller. */
+    /**
+     * Borrows [rpId] for this call's duration without retaining it. Any reconstructed mutable
+     * model transfers to the caller, which must erase its sensitive text after the final borrower.
+     */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getRelyingPartyForText(rpId: CharSequence): RelyingParty?
 
     /**
      * Saves a new passkey credential to storage.
+     *
+     * Borrows the credential through completion; the caller retains its terminal erasure duty.
      *
      * @param credential The credential to save
      * @return Outcome indicating success or failure
@@ -46,13 +55,18 @@ interface CredentialRepository {
      * Retrieves a credential by its ID.
      *
      * @param credentialId The ID of the credential to retrieve
-     * @return The credential if found, null otherwise
+     * @return A caller-owned credential if found, null otherwise. Erase its sensitive text after
+     * its final borrower completes.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential?
 
     /**
-     * Retrieves all credentials for a specific relying party.
+     * Retrieves credentials for one relying party as a cold flow.
+     *
+     * Each accepted emission transfers a mutable credential to the collector, which must erase it
+     * after its final borrower completes. If downstream rejects an emission, the producer remains
+     * responsible for erasing that credential.
      *
      * @param rpId The ID of the relying party
      * @return Flow of credentials for the RP
@@ -61,7 +75,11 @@ interface CredentialRepository {
     fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential>
 
     /**
-     * Retrieves all credentials for a specific user.
+     * Retrieves credentials for one user as a cold flow.
+     *
+     * Each accepted emission transfers a mutable credential to the collector, which must erase it
+     * after its final borrower completes. If downstream rejects an emission, the producer remains
+     * responsible for erasing that credential.
      *
      * @param userId The ID of the user
      * @return Flow of credentials for the user
@@ -71,6 +89,10 @@ interface CredentialRepository {
 
     /**
      * Retrieves all credentials stored in the system.
+     *
+     * Each emitted mutable credential transfers to the collector when emission succeeds. The
+     * collector must erase it after its final borrower completes. If emission fails, the producer
+     * remains responsible for erasing the credential it could not transfer.
      *
      * @return Flow of all credentials
      */
@@ -82,7 +104,8 @@ interface CredentialRepository {
      *
      * @param limit Maximum number of credentials to return
      * @param offset Number of credentials to skip
-     * @return Outcome containing list of credentials for the requested page
+     * @return Outcome containing a caller-owned page on success; each credential must be erased
+     * after its final borrower completes. Errors transfer no credential owner.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getPagedCredentials(
@@ -96,7 +119,8 @@ interface CredentialRepository {
      * @param rpId The ID of the relying party
      * @param limit Maximum number of credentials to return
      * @param offset Number of credentials to skip
-     * @return Outcome containing list of credentials for the requested page
+     * @return Outcome containing a caller-owned page on success; each credential must be erased
+     * after its final borrower completes. Errors transfer no credential owner.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getPagedCredentialsByRpId(
@@ -150,7 +174,11 @@ interface CredentialRepository {
     ): Boolean
 
     /**
-     * Retrieves credentials that are expired.
+     * Retrieves expired credentials as a cold flow.
+     *
+     * Each accepted emission transfers a mutable credential to the collector, which must erase it
+     * after its final borrower completes. If downstream rejects an emission, the producer remains
+     * responsible for erasing that credential.
      *
      * @param maxAgeDays Maximum age in days before considering as expired
      * @return Flow of expired credentials
@@ -168,7 +196,11 @@ interface CredentialRepository {
     suspend fun getCredentialCountByRpId(rpId: RpId): Int
 
     /**
-     * Retrieves credentials that haven't been used recently.
+     * Retrieves credentials that haven't been used recently as a cold flow.
+     *
+     * Each accepted emission transfers a mutable credential to the collector, which must erase it
+     * after its final borrower completes. If downstream rejects an emission, the producer remains
+     * responsible for erasing that credential.
      *
      * @param days Number of days to consider as "recent"
      * @return Flow of recently unused credentials
@@ -176,7 +208,12 @@ interface CredentialRepository {
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getRecentlyUnusedCredentials(days: Long = 30): Flow<PasskeyCredential>
 
-    /** Borrows an erasable query owner while collecting matching credentials; the caller retains ownership. */
+    /**
+     * Returns a cold flow and borrows [query] for its full collection lifetime. The caller must
+     * keep the query valid until collection completes, then erase it. Each accepted credential
+     * emission transfers to the collector for erasure after its final borrower; a rejected
+     * emission remains the producer's cleanup responsibility.
+     */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun searchCredentials(query: SensitiveCredentialText): Flow<PasskeyCredential>
 
@@ -194,7 +231,11 @@ interface CredentialRepository {
     ): Outcome<Unit, DomainError>
 
     /**
-     * Retrieves credentials that require user verification.
+     * Retrieves credentials that require user verification as a cold flow.
+     *
+     * Each accepted emission transfers a mutable credential to the collector, which must erase it
+     * after its final borrower completes. If downstream rejects an emission, the producer remains
+     * responsible for erasing that credential.
      *
      * @return Flow of credentials requiring user verification
      */
@@ -204,7 +245,8 @@ interface CredentialRepository {
     /**
      * T156b — Saves a new relying party or updates an existing one.
      *
-     * Borrows the RP model until this call completes; the caller retains terminal erasure responsibility.
+     * Borrows [rp] until this call completes without retaining its mutable text; the caller retains
+     * terminal erasure responsibility.
      * @param rp The relying party to save
      * @return Outcome indicating success or failure
      */
@@ -212,8 +254,9 @@ interface CredentialRepository {
     suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError>
 
     /**
-     * Updates relying-party metadata. The callback borrows the current model for the duration
-     * of the call; its returned model transfers to the repository and is erased when the call ends.
+     * Updates relying-party metadata. The callback borrows the current model for its invocation
+     * and must not retain it. Its returned model transfers to the repository and is erased when
+     * the call ends; the callback must not retain that returned owner either.
      *
      * @param rpId The ID of the relying party
      * @param update Function to update the RP entity
@@ -229,7 +272,8 @@ interface CredentialRepository {
      * Retrieves relying party information.
      *
      * @param rpId The ID of the relying party
-     * @return The relying party if found, null otherwise
+     * @return A caller-owned relying party if found, null otherwise. Erase its sensitive text
+     * after its final borrower completes.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getRelyingParty(rpId: RpId): RelyingParty?
@@ -237,7 +281,8 @@ interface CredentialRepository {
     /**
      * Saves user consent record.
      *
-     * Borrows the consent until completion; persistence must not retain its mutable RP owner.
+     * Borrows [consent] until completion without retaining its mutable text; the caller retains
+     * terminal erasure responsibility after the call completes.
      * @param consent The consent record to save
      * @return Outcome indicating success or failure
      */
@@ -245,7 +290,12 @@ interface CredentialRepository {
     suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError>
 
     /**
-     * Retrieves recent user consent records.
+     * Retrieves recent user consent records as a cold flow.
+     *
+     * Each accepted mutable record transfers to the collector, which must call
+     * [UserConsentRecord.eraseSensitiveText] after its final borrower completes. If downstream
+     * rejects an emission, the producer remains responsible for erasing that record. Immutable
+     * optional metadata fields retain ordinary runtime-managed String lifetime.
      *
      * @param rpId Optional filter by relying party ID
      * @param limit Maximum number of records to retrieve
@@ -283,7 +333,8 @@ interface CredentialRepository {
      * Used by GetAssertionUseCase for synchronous candidate resolution.
      *
      * @param rpId The ID of the relying party
-     * @return Outcome containing list of matching credentials
+     * @return A caller-owned credential list on success; erase each credential after its final
+     * borrower completes. Errors transfer no credential owner.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError>
@@ -297,7 +348,8 @@ interface CredentialRepository {
      * [getCredentialById] once to hydrate only the winner with its derived public key.
      *
      * @param rpId  The relying party identifier to filter by.
-     * @return Outcome containing a list of summaries (empty list on DB error).
+     * @return A caller-owned list on success; erase each summary's sensitive RP text after its
+     * final borrower completes. Errors transfer no summary owner.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialSummariesForRp(rpId: RpId): Outcome<List<CredentialSummary>, DomainError>
@@ -317,7 +369,8 @@ interface CredentialRepository {
      *
      * @param credentialIds Set of credential IDs to look up
      * @param rpId          Optional RP filter for additional scoping
-     * @return Outcome containing list of matching credentials
+     * @return A caller-owned list on success; erase each credential after its final borrower
+     * completes. Errors transfer no credential owner.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialsByIds(
@@ -351,15 +404,6 @@ interface CredentialRepository {
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun resetAuthenticator(): Outcome<Unit, DomainError>
-
-    /**
-     * Updates the custom label or note for a specific credential.
-     */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend fun updateLabel(
-        credentialId: CredentialId,
-        label: String?,
-    ): Outcome<Unit, DomainError>
 }
 
 /**

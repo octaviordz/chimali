@@ -32,6 +32,7 @@ import kotlinx.coroutines.test.runTest
 /** Exercises the generated SQLDelight schema and the production DAO bindings against real SQLite. */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 class CredentialAuditSchemaTest {
+    @Suppress("LongMethod") // This single test verifies the multi-table timestamp contract end to end.
     @Test
     fun `fresh credential RP and consent rows have audit times and advance them on updates`() =
         runTest {
@@ -99,10 +100,12 @@ class CredentialAuditSchemaTest {
             val timeProvider = mockk<TimeProvider>()
             every { timeProvider.now() } answers { currentTime }
             val metadata = mockk<CredentialMetadataProtectionService>()
+            val encryptedCredentialMetadata = byteArrayOf(1, 2)
             every { metadata.getRpIdIndex(any()) } answers { "rp-index".encodeToByteArray() }
             every { metadata.getUserIdIndex(any()) } answers { "user-index".encodeToByteArray() }
-            every { metadata.encryptCredentialMetadata(any(), any()) } returns byteArrayOf(1, 2)
-            every { metadata.encryptRelyingPartyMetadata(any(), any()) } returns byteArrayOf(3, 4)
+            every { metadata.encryptCredentialMetadata(any(), any()) } returns encryptedCredentialMetadata
+            val encryptedRelyingPartyMetadata = byteArrayOf(3, 4)
+            every { metadata.encryptRelyingPartyMetadata(any(), any()) } returns encryptedRelyingPartyMetadata
             every { metadata.decryptCredentialMetadata(any(), any()) } throws SecurityException("synthetic unavailable")
 
             val now = currentTime
@@ -158,20 +161,30 @@ class CredentialAuditSchemaTest {
 
             try {
                 RelyingPartyDao(database, timeProvider, metadata).insertOrUpdateRelyingParty(rp)
+                assertTrue(
+                    encryptedRelyingPartyMetadata.all { it == 0.toByte() },
+                    "The DAO must erase the encrypted relying-party metadata buffer after SQLDelight consumes it",
+                )
                 UserConsentRecordDao(database, metadata).insertConsent(consent)
                 val passkeyDao = PasskeyCredentialDao(database, timeProvider, metadata)
                 passkeyDao.insertCredential(credential)
+                assertTrue(
+                    encryptedCredentialMetadata.all { it == 0.toByte() },
+                    "The DAO must erase the encrypted metadata buffer after SQLDelight consumes it",
+                )
 
                 val initialRp =
                     requireNotNull(
                         database.relyingPartyQueries.select_by_id(RP.encodeToByteArray()).executeAsOneOrNull(),
                     )
                 val initialConsent = database.userConsentRecordQueries.select_by_id(consent.id).executeAsOne()
+                assertTrue(initialRp.encrypted_metadata!!.contentEquals(byteArrayOf(3, 4)))
                 val initialCredential =
                     database.passkeyCredentialQueries
                         .select_by_id(
                             credentialId.encoded,
                         ).executeAsOne()
+                assertTrue(initialCredential.encrypted_metadata.contentEquals(byteArrayOf(1, 2)))
                 assertTrue(initialRp.updated_at >= requireNotNull(initialRp.last_used_at))
                 assertEquals(now.toEpochMilliseconds(), initialConsent.created_at)
                 assertEquals(initialConsent.timestamp, initialConsent.created_at)

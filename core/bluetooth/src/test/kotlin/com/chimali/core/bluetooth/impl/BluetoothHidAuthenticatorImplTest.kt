@@ -5,12 +5,17 @@ import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.bluetooth.api.AuthenticatorState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -64,5 +69,49 @@ class BluetoothHidAuthenticatorImplTest {
         authenticator.onServiceDisconnected(BluetoothProfile.HID_DEVICE)
         authenticator.startAdvertising()
         assertEquals(AuthenticatorState.IDLE, authenticator.state.value)
+    }
+
+    @Test
+    fun `permission failure diagnostics omit platform exception details`() {
+        val marker = "synthetic-private-bluetooth-permission-detail"
+        val records = mutableListOf<String>()
+        val originalWriters = Logger.config.logWriterList
+        val originalSeverity = Logger.config.minSeverity
+        val writer =
+            object : LogWriter() {
+                override fun log(
+                    severity: Severity,
+                    message: String,
+                    tag: String,
+                    throwable: Throwable?,
+                ) {
+                    records.add(message)
+                    throwable?.let { records.add(it.stackTraceToString()) }
+                }
+            }
+
+        try {
+            Logger.setMinSeverity(Severity.Verbose)
+            Logger.setLogWriters(listOf(writer))
+
+            every { context.getSystemService(Context.BLUETOOTH_SERVICE) } throws SecurityException(marker)
+            BluetoothHidAuthenticatorImpl(context)
+
+            every { adapter.getProfileProxy(context, any(), BluetoothProfile.HID_DEVICE) } throws
+                SecurityException(marker)
+            BluetoothHidAuthenticatorImpl(context)
+
+            every { adapter.getProfileProxy(context, any(), BluetoothProfile.HID_DEVICE) } returns true
+            every { hidDevice.registerApp(any(), any(), any(), any(), any()) } throws SecurityException(marker)
+            val authenticator = BluetoothHidAuthenticatorImpl(context)
+            authenticator.onServiceConnected(BluetoothProfile.HID_DEVICE, hidDevice)
+            authenticator.startAdvertising()
+
+            assertTrue(records.size >= 2)
+            assertFalse(records.any { marker in it })
+        } finally {
+            Logger.setLogWriters(originalWriters)
+            Logger.setMinSeverity(originalSeverity)
+        }
     }
 }

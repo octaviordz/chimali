@@ -45,6 +45,7 @@ import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.WalletMasterSeedProvider
 import com.chimali.fido2.domain.coordinator.PairedDeviceEventCoordinator
+import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.model.AuthenticatorSelectionCriteria
 import com.chimali.fido2.domain.model.MakeCredentialOptions
 import com.chimali.fido2.domain.model.MakeCredentialResult
@@ -69,6 +70,7 @@ import com.chimali.fido2.presentation.viewmodel.RegistrationEffect
 import com.chimali.fido2.presentation.viewmodel.RegistrationIntent
 import com.chimali.fido2.presentation.viewmodel.RegistrationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.RegistrationState
+import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -281,6 +283,10 @@ internal abstract class BluetoothHidTransportLifecycleTestSupport {
 
         fun transportSessionGeneration(): Long = transport.sessionGenerationForTest()
 
+        fun setConnectionStateForTest(state: HidConnectionState) {
+            wrapperState.value = state
+        }
+
         fun startAdvertising() {
             val callback = wrapper.field("hidCallback") as BluetoothHidDevice.Callback
             callback.onAppStatusChanged(null, true)
@@ -353,6 +359,9 @@ internal abstract class BluetoothHidTransportLifecycleTestSupport {
                 )
             coEvery { verification.getUserVerificationAvailability() } coAnswers {
                 availabilityCalls++
+                if (phase == "warmup-cancel") {
+                    throw kotlinx.coroutines.CancellationException("synthetic availability warm-up cancellation")
+                }
                 if (phase == "availability" || (phase == "confirmation" && availabilityCalls > 1)) {
                     try {
                         awaitCancellation()
@@ -527,6 +536,58 @@ internal abstract class BluetoothHidTransportLifecycleTestSupport {
 }
 
 internal class BluetoothHidTransportLifecycleTest : BluetoothHidTransportLifecycleTestSupport() {
+    @Test
+    @Req("NFR-SEC-030", "FR-008", "FR-009")
+    fun `connection failure state uses a fixed message instead of provider details`() =
+        runTest {
+            withFixture("connection-error") { fixture ->
+                val marker = "synthetic-provider-rp-connection-marker"
+                coEvery { fixture.wrapper.initialize() } throws Fido2Exception.TransportException(marker)
+
+                val result = fixture.transport.connect()
+
+                assertTrue(result.isFailure)
+                verify(exactly = 1) { fixture.wrapper.reportError("HID connection failed") }
+
+                coEvery { fixture.wrapper.initialize() } throws IllegalStateException(marker)
+                val stateFailure = fixture.transport.connect()
+                assertEquals("Failed to start HID transport", stateFailure.exceptionOrNull()?.message)
+                verify(exactly = 1) { fixture.wrapper.reportError("Failed to start HID transport") }
+            }
+        }
+
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    fun `connect device diagnostics omit attempted peer address`() =
+        runTest {
+            withFixture("candidates") { fixture ->
+                val diagnostics = CapturedDiagnostics()
+                val marker = "02:AA:BB:CC:DD:EE"
+                try {
+                    fixture.transport.connectDevice(marker)
+                    assertTrue(diagnostics.size > 0)
+                    diagnostics.assertNoSensitiveValues(marker)
+                } finally {
+                    diagnostics.close()
+                }
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020", "NFR-SEC-041")
+    fun `availability warm-up cancellation is not logged as an ordinary failure`() =
+        runTest {
+            withFixture("warmup-cancel") { fixture ->
+                CapturedDiagnostics().use { diagnostics ->
+                    fixture.setConnectionStateForTest(HidConnectionState.Connected(mockk(relaxed = true)))
+                    runCurrent()
+
+                    assertFalse(diagnostics.containsMessage("Biometric availability pre-warm failed"))
+                }
+            }
+        }
+
     /** @see NFR-SEC-041 */
     @ParameterizedTest
     @CsvSource("Idle,false", "Advertising,false", "Connected,true")
@@ -575,6 +636,56 @@ internal class BluetoothHidTransportLifecycleTest : BluetoothHidTransportLifecyc
      * @see FR-HID-010
      * @see FR-VAL-020
      */
+    @Test
+    @Req("FR-HID-010", "FR-VAL-020")
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `wallet-fenced cancellation diagnostic omits exception details`() =
+        runTest {
+            withFixture("candidates") { fixture ->
+                val marker = "synthetic-private-wallet-fence-cancellation"
+                var parsedMessage: CtapHidMessage? = null
+                fixture.transport.onCompletedMessageForTest = { parsedMessage = it }
+                fixture.transport.nextCidBytes = { throw kotlinx.coroutines.CancellationException(marker) }
+
+                CapturedDiagnostics().use { diagnostics ->
+                    fixture.transport.processReport(
+                        initRequestReport(ByteArray(8) { it.toByte() }),
+                        fixture.transportSessionGeneration(),
+                    )
+
+                    assertTrue(diagnostics.size > 0, "The caught fenced cancellation must emit its diagnostic")
+                    diagnostics.assertNoSensitiveValues(marker)
+                }
+                assertTrue(requireNotNull(parsedMessage).payload.all { it == 0.toByte() })
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `completed HID report diagnostics omit the channel identifier`() =
+        runTest {
+            withFixture("candidates") { fixture ->
+                val markerCid = byteArrayOf(0x21, 0x43, 0x65, 0x07)
+                val marker = "21436507"
+                try {
+                    fixture.transport.registerChannelForTest(markerCid)
+                    CapturedDiagnostics().use { diagnostics ->
+                        fixture.transport.processReport(
+                            requestReport(markerCid, CTAPHID_CBOR, byteArrayOf(0x04, 0xA0.toByte())),
+                            fixture.transportSessionGeneration(),
+                        )
+
+                        assertTrue(diagnostics.size > 0, "The completed report must emit an operation diagnostic")
+                        diagnostics.assertNoSensitiveValues(marker)
+                    }
+                } finally {
+                    markerCid.fill(0)
+                }
+            }
+        }
+
     @Test
     @Req("FR-HID-010", "FR-VAL-020")
     fun `unallocated CIDs and stale session results are rejected before wallet ownership`() =

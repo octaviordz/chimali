@@ -20,6 +20,8 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -150,6 +152,58 @@ class FidoBleFramingTest {
     }
 
     @Test
+    fun `partial initialization frame is erased when payload copy fails`() {
+        val payload = byteArrayOf(0x11, 0x22)
+        var partial: ByteArray? = null
+        FidoBleFraming.beforeResponseFrameCopyForTest = { frame ->
+            partial = frame
+            error("synthetic initialization-frame copy failure")
+        }
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                FidoBleFraming.encodeInitializationFrame(
+                    command = CMD_MSG,
+                    totalLength = payload.size,
+                    data = payload,
+                    offset = 0,
+                    chunkSize = payload.size,
+                )
+            }
+
+            assertTrue(requireNotNull(partial).all { it == 0.toByte() })
+            assertContentEquals(byteArrayOf(0x11, 0x22), payload)
+        } finally {
+            FidoBleFraming.beforeResponseFrameCopyForTest = null
+        }
+    }
+
+    @Test
+    fun `response frame admission failure erases current and previously staged frames`() {
+        val payload = ByteArray(100) { it.toByte() }
+        val original = payload.copyOf()
+        val staged = mutableListOf<ByteArray>()
+        FidoBleFraming.beforeResponseFrameAdmissionForTest = { frame ->
+            staged += frame
+            if (staged.size == 2) error("synthetic BLE frame admission failure")
+        }
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                FidoBleFraming.fragmentResponse(CMD_MSG, payload, notifyCapacity = 30)
+            }
+
+            assertEquals(2, staged.size)
+            assertTrue(staged.all { frame -> frame.all { it == 0.toByte() } })
+            assertContentEquals(original, payload)
+        } finally {
+            FidoBleFraming.beforeResponseFrameAdmissionForTest = null
+            payload.fill(0)
+            original.fill(0)
+        }
+    }
+
+    @Test
     fun `request reassembly accepts valid multi-packet request and rejects out of order sequences`() {
         val maxMsgSize = 1024
         val assembler = FidoBleFraming.RequestAssembler(maxMsgSize = maxMsgSize)
@@ -174,6 +228,58 @@ class FidoBleFramingTest {
         val result = assembler.feed(oversizeInit)
         assertTrue(result is FidoBleFraming.FeedResult.Error)
         assertEquals(ERR_INVALID_LEN, result.errorCode)
+    }
+
+    @Test
+    fun `reset erases partial request buffer without mutating borrowed frame`() {
+        val assembler = FidoBleFraming.RequestAssembler(maxMsgSize = 8)
+        val frame = byteArrayOf(CMD_MSG, 0x00, 0x06, 0x51, 0x62)
+        val originalFrame = frame.copyOf()
+
+        assertTrue(assembler.feed(frame) is FidoBleFraming.FeedResult.InProgress)
+        val ownedBuffer = pendingBuffer(assembler)
+        assertNotSame(frame, ownedBuffer)
+
+        assembler.reset()
+
+        assertTrue(ownedBuffer.all { it == 0.toByte() }, "Reset must erase the partial protocol payload")
+        assertFalse(assembler.isAssembling)
+        assertContentEquals(originalFrame, frame, "The input frame remains borrowed")
+    }
+
+    @Test
+    fun `sequence error erases partial request buffer`() {
+        val assembler = FidoBleFraming.RequestAssembler(maxMsgSize = 8)
+        assertTrue(assembler.feed(byteArrayOf(CMD_MSG, 0x00, 0x06, 0x51, 0x62)) is FidoBleFraming.FeedResult.InProgress)
+        val ownedBuffer = pendingBuffer(assembler)
+
+        val result = assembler.feed(byteArrayOf(0x01, 0x71))
+
+        assertTrue(result is FidoBleFraming.FeedResult.Error)
+        assertEquals(ERR_INVALID_SEQ, result.errorCode)
+        assertTrue(ownedBuffer.all { it == 0.toByte() }, "Protocol error must erase the partial payload")
+        assertFalse(assembler.isAssembling)
+    }
+
+    @Test
+    fun `completed payload transfers to caller and survives assembler reset`() {
+        val assembler = FidoBleFraming.RequestAssembler(maxMsgSize = 8)
+        assembler.feed(byteArrayOf(CMD_MSG, 0x00, 0x04, 0x51, 0x62))
+
+        val result = assembler.feed(byteArrayOf(0x00, 0x71, 0x82.toByte()))
+        assertTrue(result is FidoBleFraming.FeedResult.Complete)
+        val transferredPayload = result.payload
+
+        assembler.reset()
+
+        assertContentEquals(byteArrayOf(0x51, 0x62, 0x71, 0x82.toByte()), transferredPayload)
+        assertFalse(assembler.isAssembling)
+    }
+
+    private fun pendingBuffer(assembler: FidoBleFraming.RequestAssembler): ByteArray {
+        val field = assembler.javaClass.getDeclaredField("buffer")
+        field.isAccessible = true
+        return requireNotNull(field.get(assembler) as ByteArray?)
     }
 
     @Test

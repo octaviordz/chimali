@@ -14,6 +14,7 @@ import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,8 +30,16 @@ class VaultMetadataBufferOwnershipTest {
             for (failure in listOf(null, IllegalStateException("synthetic"), CancellationException("synthetic"))) {
                 Fixture().use { fixture ->
                     fixture.crypto.failure = failure
-                    val result = runCatching { fixture.snapshots.save(EventKind.VAULT_ENTRY, snapshot).getOrThrow() }
-                    if (failure == null) assertTrue(result.isSuccess) else assertSame(failure, result.exceptionOrNull())
+                    val result = runCatching { fixture.snapshots.save(EventKind.VAULT_ENTRY, snapshot) }
+                    if (failure == null) {
+                        assertTrue(result.getOrThrow().isSuccess)
+                    } else if (failure is CancellationException) {
+                        assertSame(failure, result.exceptionOrNull())
+                    } else {
+                        val returned = result.getOrThrow().exceptionOrNull()
+                        assertEquals("Vault snapshot save failed", returned?.message)
+                        assertNull(returned?.cause)
+                    }
                     assertNotNull(fixture.crypto.plaintext)
                     assertErased(fixture.crypto.plaintext!!)
                     assertErased(fixture.key)
@@ -57,7 +66,10 @@ class VaultMetadataBufferOwnershipTest {
                                 .contentEquals("synthetic title".toCharArray()),
                         )
                     } else {
-                        assertTrue(result.isFailure)
+                        assertTrue(result.isSuccess)
+                        val failure = result.getOrThrow().exceptionOrNull()
+                        assertEquals("Vault snapshot serialization failed", failure?.message)
+                        assertNull(failure?.cause)
                     }
                     assertErased(bytes)
                     assertErased(fixture.key)
@@ -74,7 +86,14 @@ class VaultMetadataBufferOwnershipTest {
                     fixture.crypto.failure = failure
                     val result =
                         runCatching { fixture.snapshots.getLatest<VaultState>(EventKind.VAULT_ENTRY, "aggregate") }
-                    assertSame(failure, result.exceptionOrNull())
+                    if (failure is CancellationException) {
+                        assertSame(failure, result.exceptionOrNull())
+                    } else {
+                        assertTrue(result.isSuccess)
+                        val sanitized = result.getOrThrow().exceptionOrNull()
+                        assertEquals("Vault snapshot load failed", sanitized?.message)
+                        assertNull(sanitized?.cause)
+                    }
                     assertErased(fixture.key)
                 }
             }
@@ -110,8 +129,16 @@ class VaultMetadataBufferOwnershipTest {
                             byteArrayOf(9),
                             "identity",
                         )
-                    val result = runCatching { repository.append(EventKind.VAULT_ENTRY, listOf(event)).getOrThrow() }
-                    if (failure == null) assertTrue(result.isSuccess) else assertSame(failure, result.exceptionOrNull())
+                    val result = runCatching { repository.append(EventKind.VAULT_ENTRY, listOf(event)) }
+                    if (failure == null) {
+                        assertTrue(result.getOrThrow().isSuccess)
+                    } else if (failure is CancellationException) {
+                        assertSame(failure, result.exceptionOrNull())
+                    } else {
+                        val sanitized = result.getOrThrow().exceptionOrNull()
+                        assertEquals("Vault event operation failed", sanitized?.message)
+                        assertNull(sanitized?.cause)
+                    }
                     assertNotNull(fixture.crypto.plaintext)
                     assertErased(fixture.crypto.plaintext!!)
                     assertErased(fixture.key)

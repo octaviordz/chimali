@@ -17,6 +17,8 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -176,6 +178,7 @@ class VaultAggregateServiceImplTest {
         runTest {
             val commandPayload = byteArrayOf(0x31, 0x32)
             val command = VaultCommand.Create(aggregateId, "type", "title", commandPayload, "identity")
+            val marker = "SYNTHETIC-VAULT-DB-ERROR-MARKER"
             val appendedEvents = mutableListOf<VaultEvent.Created>()
             val payloadsSeenAtAppend = mutableListOf<List<Byte>>()
 
@@ -188,13 +191,19 @@ class VaultAggregateServiceImplTest {
                 val event = secondArg<List<VaultEvent>>().single() as VaultEvent.Created
                 appendedEvents += event
                 payloadsSeenAtAppend += event.payload.toList()
-                Result.failure(RuntimeException("Database lock"))
+                Result.failure(RuntimeException("Database lock $marker"))
             }
 
             val result = service.execute(aggregateId, command)
 
             assertTrue(result.isFailure)
-            assertEquals("Database lock", result.exceptionOrNull()?.message)
+            val returnedFailure = result.exceptionOrNull()
+            assertEquals(
+                "Aggregate command execution failed after retries",
+                returnedFailure?.message,
+            )
+            assertNull(returnedFailure?.cause)
+            assertFalse(returnedFailure?.message?.contains(marker) == true)
             coVerify(exactly = 3) { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) }
             assertEquals(List(3) { listOf<Byte>(0x31, 0x32) }, payloadsSeenAtAppend)
             assertTrue(command.title.all { it == '\u0000' })
@@ -287,15 +296,81 @@ class VaultAggregateServiceImplTest {
     fun `execute returns early failure when getState fails`() =
         runTest {
             val command = VaultCommand.Create(aggregateId, "type", "title", byteArrayOf(1), "identity")
+            val causeMarker = IllegalStateException("synthetic read cause marker")
+            val readFailure = IllegalStateException("synthetic read failure marker", causeMarker)
 
             coEvery {
                 eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any())
-            } returns Result.failure(RuntimeException("Read failure"))
+            } returns Result.failure(readFailure)
 
             val result = service.execute(aggregateId, command)
 
             assertTrue(result.isFailure)
-            assertEquals("Read failure", result.exceptionOrNull()?.message)
+            assertEquals("Vault aggregate event retrieval failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
+            assertFalse(result.exceptionOrNull() === readFailure)
+            assertFalse(result.exceptionOrNull()?.message?.contains("synthetic") == true)
+        }
+
+    // Requirement: NFR-ARCH-050 (Snapshot replay failure propagation)
+    @Req("NFR-ARCH-050", "NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `getState snapshot replay failure discards repository cause and clears snapshot state`() =
+        runTest {
+            val snapshotState =
+                VaultState(
+                    id = aggregateId,
+                    type = "login",
+                    title = "synthetic title",
+                    payload = byteArrayOf(1, 2, 3),
+                    identityId = "synthetic identity",
+                    sequenceNumber = 1L,
+                )
+            val snapshot =
+                Snapshot(
+                    aggregateId = aggregateId,
+                    sequenceNumber = 1L,
+                    state = snapshotState,
+                    timestamp =
+                        kotlinx.datetime.Clock.System
+                            .now(),
+                )
+            val causeMarker = IllegalStateException("synthetic replay cause marker")
+            val replayFailure = IllegalStateException("synthetic replay failure marker", causeMarker)
+            coEvery {
+                snapshotRepository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId)
+            } returns Result.success(snapshot)
+            coEvery {
+                eventStoreRepository.getEventsFrom(EventKind.VAULT_ENTRY, aggregateId, 1L)
+            } returns Result.failure(replayFailure)
+
+            val result = service.getState(aggregateId)
+
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate event retrieval failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
+            assertTrue(snapshotState.title.all { it == '\u0000' })
+            assertTrue(snapshotState.payload.all { it == 0.toByte() })
+        }
+
+    // Requirement: NFR-ARCH-050 (Cancellation is not a repository failure)
+    @Req("NFR-ARCH-050", "NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `getState propagates cancellation represented as repository failure result`() =
+        runTest {
+            val cancellation = kotlinx.coroutines.CancellationException("synthetic read cancellation")
+            coEvery { snapshotRepository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId) } returns
+                Result.failure(cancellation)
+
+            var propagated = false
+            try {
+                service.getState(aggregateId)
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                propagated = true
+            }
+
+            assertTrue(propagated)
+            coVerify(exactly = 0) { eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any()) }
         }
 
     // Requirement: NFR-ARCH-050 (Snapshot generation at interval threshold)
@@ -350,15 +425,19 @@ class VaultAggregateServiceImplTest {
             coEvery { eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, any()) } returns
                 Result.success(listOf(initialEvent))
             coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } returns Result.success(Unit)
+            val snapshotCause = IllegalStateException("synthetic snapshot cause marker")
             coEvery { snapshotRepository.save(EventKind.VAULT_ENTRY, any<Snapshot<VaultState>>()) } coAnswers {
                 snapshotState = secondArg<Snapshot<VaultState>>().state
-                error("snapshot failed")
+                throw IllegalStateException("synthetic snapshot exception marker", snapshotCause)
             }
 
             val command = VaultCommand.Update(aggregateId, "new title", null)
-            val failure = runCatching { service.execute(aggregateId, command) }.exceptionOrNull()
+            val result = service.execute(aggregateId, command)
 
-            assertTrue(failure is IllegalStateException)
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate command execution failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
+            assertFalse(result.exceptionOrNull()?.message?.contains("synthetic") == true)
             assertTrue(snapshotState.title.all { it == '\u0000' })
             assertTrue(snapshotState.payload.all { it == 0.toByte() })
             assertTrue(initialEvent.title.all { it == '\u0000' })
@@ -452,13 +531,16 @@ class VaultAggregateServiceImplTest {
                         ),
                     ),
                 )
+            val appendCause = IllegalStateException("synthetic append cause marker")
             coEvery { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) } throws
-                IllegalStateException("append failed")
+                IllegalStateException("synthetic append exception marker", appendCause)
             val command = VaultCommand.Create(aggregateId, "type", "command title", byteArrayOf(4, 5), "identity")
 
-            val failure = runCatching { service.execute(aggregateId, command) }.exceptionOrNull()
+            val result = service.execute(aggregateId, command)
 
-            assertTrue(failure is IllegalStateException)
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate command execution failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
             assertTrue(states.isNotEmpty())
             assertTrue(states.all { it.title.all { char -> char == '\u0000' } })
             assertTrue(states.all { it.payload.all { byte -> byte == 0.toByte() } })
@@ -501,9 +583,11 @@ class VaultAggregateServiceImplTest {
                 )
             val command = VaultCommand.Create(aggregateId, "type", "command title", byteArrayOf(4, 5), "identity")
 
-            val failure = runCatching { service.execute(aggregateId, command) }.exceptionOrNull()
+            val result = service.execute(aggregateId, command)
 
-            assertTrue(failure is IllegalArgumentException)
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate command execution failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
             assertTrue(observedState.title.all { it == '\u0000' })
             assertTrue(observedState.payload.all { it == 0.toByte() })
             assertTrue(command.title.all { it == '\u0000' })

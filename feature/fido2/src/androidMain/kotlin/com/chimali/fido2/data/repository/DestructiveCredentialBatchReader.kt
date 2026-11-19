@@ -46,12 +46,12 @@ internal class DestructiveCredentialBatchReader(
                 source.first()
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (failure: android.database.SQLException) {
+            } catch (_: android.database.SQLException) {
                 Logger.e { "CredentialRepository: Failed to enumerate destructive credential batch" }
-                return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED, failure))
-            } catch (failure: java.sql.SQLException) {
+                return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED))
+            } catch (_: java.sql.SQLException) {
                 Logger.e { "CredentialRepository: Failed to enumerate destructive credential batch" }
-                return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED, failure))
+                return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED))
             } catch (_: MetadataLookupKeyUnavailableException) {
                 Logger.e { "CredentialRepository: Destructive credential lookup key unavailable" }
                 return Outcome.Error(DomainError.StorageError(LOOKUP_KEY_UNAVAILABLE))
@@ -70,7 +70,7 @@ internal class DestructiveCredentialBatchReader(
                     }
                     is Outcome.Error -> {
                         Logger.e { "CredentialRepository: Invalid record in destructive credential batch" }
-                        return Outcome.Error(DomainError.ValidationError(INVALID_RECORDS, mapped.error.cause))
+                        return Outcome.Error(DomainError.ValidationError(INVALID_RECORDS))
                     }
                 }
             }
@@ -78,12 +78,12 @@ internal class DestructiveCredentialBatchReader(
             return Outcome.Success(credentials)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: android.database.SQLException) {
+        } catch (_: android.database.SQLException) {
             Logger.e { "CredentialRepository: Failed to hydrate destructive credential batch" }
-            return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED, failure))
-        } catch (failure: java.sql.SQLException) {
+            return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED))
+        } catch (_: java.sql.SQLException) {
             Logger.e { "CredentialRepository: Failed to hydrate destructive credential batch" }
-            return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED, failure))
+            return Outcome.Error(DomainError.DatabaseError(ENUMERATION_FAILED))
         } finally {
             rows.forEach(PasskeyCredentialEntity::eraseSensitiveMetadata)
             if (!transferred) credentials.forEach(PasskeyCredential::eraseSensitiveText)

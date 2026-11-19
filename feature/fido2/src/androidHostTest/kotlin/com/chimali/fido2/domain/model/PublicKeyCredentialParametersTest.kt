@@ -1,7 +1,6 @@
 package com.chimali.fido2.domain.model
 
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -99,7 +98,17 @@ class PublicKeyCredentialParametersTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `algorithm classification and optional salt helpers cover supported families`() {
+    fun `obsolete salt buffer API is absent from algorithm metadata`() {
+        val fields = PublicKeyCredentialParameters::class.java.declaredFields.map { it.name }
+        val methods = PublicKeyCredentialParameters::class.java.declaredMethods.map { it.name }
+
+        assertTrue("salt" !in fields)
+        assertTrue(methods.none { it.contains("SafeSalt") })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `algorithm classification covers supported families`() {
         val edDsa = PublicKeyCredentialParameters.createEdDsa()
         val rsa = PublicKeyCredentialParameters.createRS256()
         val mlDsa = PublicKeyCredentialParameters.createMlDsa65()
@@ -113,11 +122,6 @@ class PublicKeyCredentialParametersTest {
         assertEquals("Edwards Curve", edDsa.getAlgorithmFamily())
         assertEquals("Unknown", mlDsa.getAlgorithmFamily())
         assertEquals("N/A", mlDsa.getCurveName())
-        assertEquals(16, mlDsa.getSafeSalt().size)
-        assertContentEquals(
-            byteArrayOf(1, 2),
-            PublicKeyCredentialParameters.create(salt = byteArrayOf(1, 2)).getSafeSalt(),
-        )
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -130,17 +134,13 @@ class PublicKeyCredentialParametersTest {
         assertFailsWith<IllegalArgumentException> { PublicKeyCredentialParameters.create(algorithm = "ES384") }
         assertFailsWith<IllegalArgumentException> { PublicKeyCredentialParameters.create(curve = "P-192") }
         assertFailsWith<IllegalArgumentException> { PublicKeyCredentialParameters.create(keyType = "EC") }
-        assertFailsWith<IllegalArgumentException> { PublicKeyCredentialParameters.create(salt = byteArrayOf()) }
-        assertFailsWith<IllegalArgumentException> {
-            PublicKeyCredentialParameters.create(salt = ByteArray(PublicKeyCredentialParameters.MAX_SALT_SIZE + 1))
-        }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `equality compares scalar fields and salt contents`() {
-        val original = PublicKeyCredentialParameters.create(salt = byteArrayOf(1, 2))
-        val equal = PublicKeyCredentialParameters.create(salt = byteArrayOf(1, 2))
+    fun `equality compares algorithm metadata`() {
+        val original = PublicKeyCredentialParameters.create()
+        val equal = PublicKeyCredentialParameters.create()
 
         assertEquals(original, original)
         assertEquals(original, equal)
@@ -151,7 +151,5 @@ class PublicKeyCredentialParametersTest {
         )
         assertNotEquals(original, PublicKeyCredentialParameters.create(curve = "P-384"))
         assertNotEquals(original, PublicKeyCredentialParameters.create(keyType = "OKP"))
-        assertNotEquals(original, PublicKeyCredentialParameters.create(salt = byteArrayOf(2, 1)))
-        assertNotEquals(original, PublicKeyCredentialParameters.create(salt = null))
     }
 }

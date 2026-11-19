@@ -66,10 +66,11 @@ class RelyingPartyDao(
     ) {
         val idBytes = rp.idText.toOwnedUtf8()
         var nameBytes: ByteArray? = null
+        var encryptedMetadata: ByteArray? = null
         try {
             val ownedName = rp.nameText.toOwnedUtf8()
             nameBytes = ownedName
-            val encrypted = metadataProtectionService.encryptRelyingPartyMetadata(rp.idText)
+            encryptedMetadata = metadataProtectionService.encryptRelyingPartyMetadata(rp.idText)
             if (insert) {
                 database.transaction {
                     val existingCreation =
@@ -96,7 +97,7 @@ class RelyingPartyDao(
                         icon_url = rp.iconUrl,
                         is_blocked = if (rp.isBlocked) 1L else 0L,
                         name = ownedName,
-                        encrypted_metadata = encrypted,
+                        encrypted_metadata = requireNotNull(encryptedMetadata),
                     )
                 }
             } else {
@@ -107,12 +108,13 @@ class RelyingPartyDao(
                     icon_url = rp.iconUrl,
                     is_blocked = if (rp.isBlocked) 1L else 0L,
                     name = ownedName,
-                    encrypted_metadata = encrypted,
+                    encrypted_metadata = requireNotNull(encryptedMetadata),
                 )
             }
         } finally {
             idBytes.fill(0)
             nameBytes?.fill(0)
+            encryptedMetadata?.fill(0)
         }
     }
 
@@ -207,6 +209,15 @@ class RelyingPartyDao(
     suspend fun deleteRelyingParty(rpId: RpId) {
         withRpIdBytes(rpId.value) { rpIdBytes ->
             database.relyingPartyQueries.delete_by_id(id = rpIdBytes)
+        }
+    }
+
+    /** Deletes consent and relying-party metadata together during authenticator reset. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    suspend fun clearAuthenticatorMetadata() {
+        database.transaction {
+            database.fido2DatabaseQueries.delete_all_user_consent_records()
+            database.fido2DatabaseQueries.delete_all_relying_parties()
         }
     }
 
@@ -435,62 +446,4 @@ class RelyingPartyDao(
             .changes()
             .executeAsOne()
             .toInt()
-
-    companion object {
-        private const val DEFAULT_TOP_RPS_LIMIT = 10L
-    }
-
-    /**
-     * Retrieves relying party statistics.
-     */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend fun getRelyingPartyStatistics(): RelyingPartyStatistics {
-        val total = countAllRelyingParties()
-        val withCredentials = countRelyingPartiesWithCredentials()
-        val blocked = countBlockedRelyingParties()
-        val topRps =
-            database.relyingPartyQueries
-                .get_top_relying_parties(limit = DEFAULT_TOP_RPS_LIMIT)
-                .executeAsList()
-
-        return RelyingPartyStatistics(
-            totalRelyingParties = total.toInt(),
-            relyingPartiesWithCredentials = withCredentials.toInt(),
-            blockedRelyingParties = blocked.toInt(),
-            topRelyingParties =
-                topRps.map {
-                    TopRelyingParty(
-                        id = it.id,
-                        name = it.name,
-                        credentialCount = it.credential_count,
-                    )
-                },
-        )
-    }
-
-    /**
-     * Data class for relying party statistics.
-     */
-    data class RelyingPartyStatistics(
-        val totalRelyingParties: Int,
-        val relyingPartiesWithCredentials: Int,
-        val blockedRelyingParties: Int,
-        val topRelyingParties: List<TopRelyingParty>,
-    )
-
-    /**
-     * Data class for top relying party information.
-     */
-    data class TopRelyingParty(
-        val id: ByteArray,
-        val name: ByteArray,
-        val credentialCount: Long,
-    ) {
-        /** Erases the metadata transferred by the statistics query; callers release the complete result batch. */
-        @Req("NFR-SEC-041", "TR-AUTH-031")
-        fun eraseSensitiveText() {
-            id.fill(0)
-            name.fill(0)
-        }
-    }
 }

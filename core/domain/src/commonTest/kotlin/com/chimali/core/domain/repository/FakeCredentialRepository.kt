@@ -8,6 +8,11 @@ import com.chimali.core.domain.valueobject.CredentialId
 class FakeCredentialRepository : CredentialRepository {
     private val credentials = mutableMapOf<CredentialId, Credential>()
 
+    /** Drops test-held credential references; immutable field values cannot be explicitly erased. */
+    fun clear() {
+        credentials.clear()
+    }
+
     override suspend fun getAllCredentials(): Result<List<Credential>> = Result.success(credentials.values.toList())
 
     override suspend fun getCredentialById(id: CredentialId): Result<Credential> {

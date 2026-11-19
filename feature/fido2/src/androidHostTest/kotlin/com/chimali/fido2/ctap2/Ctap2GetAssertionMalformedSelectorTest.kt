@@ -11,19 +11,42 @@ import com.chimali.fido2.domain.model.UserVerificationRequirement
 import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 @Req("NFR-SEC-041", "TR-AUTH-031")
 class Ctap2GetAssertionMalformedSelectorTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
+
+    private fun own(buffer: ByteArray): ByteArray {
+        ownedBuffers += buffer
+        return buffer
+    }
+
+    private fun ownValue(value: Any?) {
+        when (value) {
+            is ByteArray -> own(value)
+            is Map<*, *> ->
+                value.forEach { (key, entry) ->
+                    ownValue(key)
+                    ownValue(entry)
+                }
+            is Iterable<*> -> value.forEach(::ownValue)
+        }
+    }
+
     private val codec = CborCodec()
     private val parser = mockk<HidReportParser>()
     private val ui = mockk<Fido2UiEventBus>(relaxed = true)
@@ -39,22 +62,49 @@ class Ctap2GetAssertionMalformedSelectorTest {
             useCase,
             lock,
         )
-    private val cid = byteArrayOf(1, 2, 3, 4)
+    private val cid = own(byteArrayOf(1, 2, 3, 4))
 
-    private suspend fun send(parameters: Map<String, Any>): Byte =
-        handler.handle(cid, codec.encodeToFido2Format(parameters)).single().first()
+    @BeforeTest
+    fun setUp() {
+        codec.onDecodedByteStringForTest = null
+    }
+
+    @AfterTest
+    fun tearDown() {
+        codec.onDecodedByteStringForTest = null
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
+        clearMocks(parser, ui, useCase, lock)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesOwnedSelectorBuffers() {
+        val fixture = own(byteArrayOf(0x2A))
+
+        tearDown()
+
+        assertTrue(fixture.all { it == 0.toByte() })
+    }
+
+    private suspend fun send(parameters: Map<String, Any>): Byte {
+        ownValue(parameters)
+        val requestBytes = own(codec.encodeToFido2Format(parameters))
+        val response = handler.handle(cid, requestBytes)
+        response.forEach(::own)
+        return response.single().first()
+    }
 
     private fun request(vararg entries: Pair<String, Any>): Map<String, Any> =
-        mapOf("1" to "example.com", "2" to ByteArray(32)) + entries
+        mapOf("1" to "example.com", "2" to own(ByteArray(32))) + entries
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `malformed present allow list and UV option reject before candidate lookup`() =
         runTest {
             every { lock.tryLock() } returns true
-            every { parser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { parser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             val decodedIds = mutableListOf<ByteArray>()
-            codec.onDecodedByteStringForTest = decodedIds::add
+            codec.onDecodedByteStringForTest = { decodedIds += own(it) }
             val malformedAllowLists: List<Any> =
                 listOf(
                     CborCodec.SimpleValue.NULL,
@@ -92,7 +142,7 @@ class Ctap2GetAssertionMalformedSelectorTest {
     fun `valid absent empty and byte-string selectors preserve their distinct meanings`() =
         runTest {
             every { lock.tryLock() } returns true
-            every { parser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { parser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             val optionSlot = slot<GetAssertionOptions>()
             coEvery { useCase.findCandidateSummaries(capture(optionSlot)) } returns emptyList()
 
@@ -100,7 +150,7 @@ class Ctap2GetAssertionMalformedSelectorTest {
             assertEquals(null, optionSlot.captured.allowCredentials)
             assertEquals(0x2E.toByte(), send(request("3" to emptyList<Any>())))
             assertEquals(emptyList(), optionSlot.captured.allowCredentials)
-            val credentialBytes = ByteArray(16) { it.toByte() }
+            val credentialBytes = own(ByteArray(16) { it.toByte() })
             assertEquals(
                 0x2E.toByte(),
                 send(request("3" to listOf(mapOf("id" to credentialBytes)))),

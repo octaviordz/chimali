@@ -67,9 +67,9 @@ class PairedDeviceRepositoryImpl(
                 name = device.name ?: existing?.name,
             )
             Outcome.Success(Unit)
-        } catch (e: android.database.SQLException) {
-            Logger.e(e) { "Failed to save device (database error): ${device.macAddress}" }
-            Outcome.Error(DomainError.DatabaseError("Failed to save device", e))
+        } catch (_: android.database.SQLException) {
+            Logger.e { "Failed to save paired device" }
+            Outcome.Error(DomainError.DatabaseError("Failed to save device"))
         }
 
     override suspend fun updateAlias(
@@ -79,17 +79,17 @@ class PairedDeviceRepositoryImpl(
         try {
             database.pairedDeviceQueries.update_alias(alias, macAddress)
             Outcome.Success(Unit)
-        } catch (e: android.database.SQLException) {
-            Logger.e(e) { "Failed to update alias for device (database error): $macAddress" }
-            Outcome.Error(DomainError.DatabaseError("Failed to update alias", e))
+        } catch (_: android.database.SQLException) {
+            Logger.e { "Failed to update paired device alias" }
+            Outcome.Error(DomainError.DatabaseError("Failed to update alias"))
         }
 
     override suspend fun deleteDevice(macAddress: String): Outcome<Unit, DomainError> =
         try {
             database.pairedDeviceQueries.delete_by_address(macAddress)
             Outcome.Success(Unit)
-        } catch (e: android.database.SQLException) {
-            Logger.e(e) { "Failed to delete device (database error): $macAddress" }
-            Outcome.Error(DomainError.DatabaseError("Failed to delete device", e))
+        } catch (_: android.database.SQLException) {
+            Logger.e { "Failed to delete paired device" }
+            Outcome.Error(DomainError.DatabaseError("Failed to delete device"))
         }
 }

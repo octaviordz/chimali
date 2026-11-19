@@ -2,8 +2,10 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.model.PrfExtensionInput
+import com.chimali.fido2.testing.CapturedDiagnostics
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -32,6 +34,14 @@ class PrfKeyDerivationTest {
     private val credentialId = "test-credential-id"
     private val fakeOutput32 = ByteArray(32) { 0xAB.toByte() }
     private val fakeOutput32b = ByteArray(32) { 0xCD.toByte() }
+
+    @AfterTest
+    fun eraseSyntheticSaltAndOutputFixtures() {
+        salt1.fill(0)
+        salt2.fill(0)
+        fakeOutput32.fill(0)
+        fakeOutput32b.fill(0)
+    }
 
     // ── derive() ─────────────────────────────────────────────────────────────
 
@@ -86,6 +96,23 @@ class PrfKeyDerivationTest {
             val result = prfKeyDerivation.derive(salt1, credentialId)
 
             assertNull(result, "derive() must return null when master seed is unavailable (T049)")
+        }
+
+    @Test
+    fun `derive and deriveAll diagnostics omit credential identifiers`() =
+        runTest {
+            val deriveMarker = "synthetic-derive-private-credential-id"
+            val deriveAllMarker = "synthetic-derive-all-private-credential-id"
+            coEvery { mockHmacProcessor.process(deriveMarker, salt1) } returns fakeOutput32
+            coEvery { mockHmacProcessor.process(deriveAllMarker, salt1) } returns fakeOutput32b
+            val diagnostics = CapturedDiagnostics()
+            try {
+                assertNotNull(prfKeyDerivation.derive(salt1, deriveMarker))
+                assertNotNull(prfKeyDerivation.deriveAll(PrfExtensionInput.single(salt1), deriveAllMarker))
+                diagnostics.assertNoSensitiveValues(deriveMarker, deriveAllMarker)
+            } finally {
+                diagnostics.close()
+            }
         }
 
     // ── deriveAll() ─────────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException", "UnusedParameter")
+
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
@@ -321,7 +323,7 @@ class BleNotificationWriter(
         scheduledGeneration: Long,
         failure: RuntimeException,
     ) {
-        Logger.e(failure) { "BleNotificationWriter: GATT notification initiation failed" }
+        Logger.e { "BleNotificationWriter: GATT notification initiation failed" }
         val shouldStall =
             synchronized(lock) {
                 if (operationGeneration != scheduledGeneration ||
@@ -342,6 +344,6 @@ class BleNotificationWriter(
         success: Boolean,
     ) {
         runCatching { callback(success) }
-            .onFailure { failure -> Logger.e(failure) { "BleNotificationWriter: Delivery callback failed" } }
+            .onFailure { Logger.e { "BleNotificationWriter: Delivery callback failed" } }
     }
 }

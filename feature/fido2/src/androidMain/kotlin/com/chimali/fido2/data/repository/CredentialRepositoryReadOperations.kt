@@ -15,6 +15,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import com.chimali.fido2.data.dao.PasskeyCredentialDao
+import com.chimali.fido2.data.database.Passkey_credential as PasskeyCredentialEntity
 import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
 import com.chimali.fido2.data.mapper.toDomainModel
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
@@ -49,13 +50,14 @@ internal class CredentialRepositoryReadOperations(
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? {
-        return try {
-            val entity = passkeyCredentialDao.getCredentialById(credentialId) ?: return null
-            entity.toDomainModel(publicKeyDecoder, metadataProtectionService).getOrNull()
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get credential by ID" }
-            null
-        }
+        val entity =
+            try {
+                passkeyCredentialDao.getCredentialById(credentialId)
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Failed to get credential by ID" }
+                return null
+            } ?: return null
+        return entity.toDomainModel(publicKeyDecoder, metadataProtectionService).getOrNull()
     }
 
     /**
@@ -66,21 +68,21 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsByRpId(rpId: RpId): Flow<PasskeyCredential> =
         flow {
-            try {
-                val entities = passkeyCredentialDao.getCredentialsByRpText(rpId.value).first()
-                try {
-                    entities.forEach { entity ->
-                        entity
-                            .toDomainModel(
-                                publicKeyDecoder,
-                                metadataProtectionService,
-                            ).onSuccess { emitOwnedCredential(it) }
-                    }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get credentials by RP ID") {
+                    passkeyCredentialDao.getCredentialsByRpText(rpId.value).first()
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get credentials by RP ID" }
+                    ?: return@flow
+            try {
+                entities.forEach { entity ->
+                    entity
+                        .toDomainModel(
+                            publicKeyDecoder,
+                            metadataProtectionService,
+                        ).onSuccess { emitOwnedCredential(it) }
+                }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -92,21 +94,21 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsByUserId(userId: UserId): Flow<PasskeyCredential> =
         flow {
-            try {
-                val entities = passkeyCredentialDao.getCredentialsByUserId(userId).first()
-                try {
-                    entities.forEach { entity ->
-                        entity
-                            .toDomainModel(
-                                publicKeyDecoder,
-                                metadataProtectionService,
-                            ).onSuccess { emitOwnedCredential(it) }
-                    }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get credentials by user ID") {
+                    passkeyCredentialDao.getCredentialsByUserId(userId).first()
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get credentials by user ID" }
+                    ?: return@flow
+            try {
+                entities.forEach { entity ->
+                    entity
+                        .toDomainModel(
+                            publicKeyDecoder,
+                            metadataProtectionService,
+                        ).onSuccess { emitOwnedCredential(it) }
+                }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -118,19 +120,18 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getAllCredentials(): Flow<PasskeyCredential> =
         flow {
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get all credentials") {
+                    passkeyCredentialDao.getAllCredentials().first()
+                } ?: return@flow
             try {
-                val entities = passkeyCredentialDao.getAllCredentials().first()
-                try {
-                    entities.forEach { entity ->
-                        entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess {
-                            emitOwnedCredential(it)
-                        }
+                entities.forEach { entity ->
+                    entity.toDomainModel(publicKeyDecoder, metadataProtectionService).onSuccess {
+                        emitOwnedCredential(it)
                     }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get all credentials" }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -143,93 +144,109 @@ internal class CredentialRepositoryReadOperations(
     suspend fun getPagedCredentials(
         limit: Long,
         offset: Long,
-    ): Outcome<List<PasskeyCredential>, DomainError> =
-        try {
-            val entities = passkeyCredentialDao.getPagedCredentials(limit, offset)
-            val validCredentials = mutableListOf<PasskeyCredential>()
-            var transferred = false
+    ): Outcome<List<PasskeyCredential>, DomainError> {
+        val entities =
             try {
-                for (entity in entities) {
-                    entity
-                        .toDomainModel(publicKeyDecoder, metadataProtectionService)
-                        .onSuccess { validCredentials.add(it) }
-                        .onFailure { Logger.w { "Skipping malformed credential metadata" } }
-                }
-                transferred = true
-                Outcome.Success(validCredentials)
-            } finally {
-                entities.forEach { it.eraseSensitiveMetadata() }
-                if (!transferred) validCredentials.forEach(PasskeyCredential::eraseSensitiveText)
+                passkeyCredentialDao.getPagedCredentials(limit, offset)
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Failed to get paged credentials" }
+                return Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
             }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get paged credentials" }
-            Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
+        val validCredentials = mutableListOf<PasskeyCredential>()
+        var transferred = false
+        try {
+            for (entity in entities) {
+                entity
+                    .toDomainModel(publicKeyDecoder, metadataProtectionService)
+                    .onSuccess { validCredentials.admitCredential(it) }
+                    .onFailure { Logger.w { "Skipping malformed credential metadata" } }
+            }
+            val result =
+                createOwnedBatchResult(validCredentials, PasskeyCredential::eraseSensitiveText) {
+                    Outcome.Success(it)
+                }
+            transferred = true
+            return result
+        } finally {
+            entities.forEach { it.eraseSensitiveMetadata() }
+            if (!transferred) validCredentials.forEach(PasskeyCredential::eraseSensitiveText)
         }
+    }
 
     /**
      * Hydrates one RP-scoped page, skipping malformed rows and transferring the successful list
      * to the caller. Source rows are always erased and partial models are erased on failure; SQL
-     * errors return a database error. The caller owns successful credentials until erased.
+     * errors from acquisition return a database error.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getPagedCredentialsByRpId(
         rpId: RpId,
         limit: Long,
         offset: Long,
-    ): Outcome<List<PasskeyCredential>, DomainError> =
-        try {
-            val entities = passkeyCredentialDao.getPagedCredentialsByRpId(rpId, limit, offset)
-            val validCredentials = mutableListOf<PasskeyCredential>()
-            var transferred = false
+    ): Outcome<List<PasskeyCredential>, DomainError> {
+        val entities =
             try {
-                for (entity in entities) {
-                    entity
-                        .toDomainModel(publicKeyDecoder, metadataProtectionService)
-                        .onSuccess { validCredentials.add(it) }
-                        .onFailure { Logger.w { "Skipping malformed credential metadata" } }
-                }
-                transferred = true
-                Outcome.Success(validCredentials)
-            } finally {
-                entities.forEach { it.eraseSensitiveMetadata() }
-                if (!transferred) validCredentials.forEach(PasskeyCredential::eraseSensitiveText)
+                passkeyCredentialDao.getPagedCredentialsByRpId(rpId, limit, offset)
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Failed to get paged credentials for RP" }
+                return Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
             }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get paged credentials for RP" }
-            Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
+        val validCredentials = mutableListOf<PasskeyCredential>()
+        var transferred = false
+        try {
+            for (entity in entities) {
+                entity
+                    .toDomainModel(publicKeyDecoder, metadataProtectionService)
+                    .onSuccess { validCredentials.admitCredential(it) }
+                    .onFailure { Logger.w { "Skipping malformed credential metadata" } }
+            }
+            val result =
+                createOwnedBatchResult(validCredentials, PasskeyCredential::eraseSensitiveText) {
+                    Outcome.Success(it)
+                }
+            transferred = true
+            return result
+        } finally {
+            entities.forEach { it.eraseSensitiveMetadata() }
+            if (!transferred) validCredentials.forEach(PasskeyCredential::eraseSensitiveText)
         }
+    }
 
     /**
      * Returns owned full credential models for an RP, erasing source rows and any partial models
-     * on failure. Malformed rows are skipped; SQL failure preserves this API's empty-success
-     * fallback. This full hydration path is separate from metadata-only assertion candidate reads.
+     * on failure. Malformed rows are skipped; SQL acquisition failure preserves empty success.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError> =
-        try {
-            val entities = passkeyCredentialDao.getCredentialsByRpText(rpId.value).first()
-            val credentials = mutableListOf<PasskeyCredential>()
-            var transferred = false
+    suspend fun getCredentialsForRp(rpId: RpId): Outcome<List<PasskeyCredential>, DomainError> {
+        val entities =
             try {
-                // This API returns full domain models, so each row is reconstructed with its
-                // registered public-key metadata. GetAssertionUseCase uses the separate summary
-                // query below and does not call this hydration path for candidate selection.
-                entities.forEach { entity ->
-                    when (val result = entity.toDomainModel(publicKeyDecoder, metadataProtectionService)) {
-                        is Outcome.Success -> credentials += result.data
-                        is Outcome.Error -> Unit
-                    }
-                }
-                transferred = true
-                Outcome.Success(credentials)
-            } finally {
-                entities.forEach { it.eraseSensitiveMetadata() }
-                if (!transferred) credentials.forEach(PasskeyCredential::eraseSensitiveText)
+                passkeyCredentialDao.getCredentialsByRpText(rpId.value).first()
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Failed to get credentials for RP" }
+                return Outcome.Success(emptyList())
             }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get credentials for RP" }
-            Outcome.Success(emptyList())
+        val credentials = mutableListOf<PasskeyCredential>()
+        var transferred = false
+        try {
+            // This API returns full domain models, so each row is reconstructed with its
+            // registered public-key metadata. Assertion selection uses the separate summary read.
+            entities.forEach { entity ->
+                when (val result = entity.toDomainModel(publicKeyDecoder, metadataProtectionService)) {
+                    is Outcome.Success -> credentials.admitCredential(result.data)
+                    is Outcome.Error -> Unit
+                }
+            }
+            val result =
+                createOwnedBatchResult(credentials, PasskeyCredential::eraseSensitiveText) {
+                    Outcome.Success(it)
+                }
+            transferred = true
+            return result
+        } finally {
+            entities.forEach { it.eraseSensitiveMetadata() }
+            if (!transferred) credentials.forEach(PasskeyCredential::eraseSensitiveText)
         }
+    }
 
     /**
      * Reads metadata-only assertion candidates for an RP without key derivation. Successful
@@ -248,60 +265,49 @@ internal class CredentialRepositoryReadOperations(
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun getCredentialSummariesForRpText(rpId: CharSequence): Outcome<List<CredentialSummary>, DomainError> =
-        try {
-            // Pure DB read — no HDK derivation at all. This is the fast path used
-            // by GetAssertionUseCase to list candidates for selection without incurring
-            // key-derivation cost for every stored credential.
-            val entities = passkeyCredentialDao.getCredentialsByRpText(rpId).first()
+        run {
+            // Keep the empty-result fallback scoped to SQLDelight acquisition. Mapping and the
+            // ownership observer below must not convert a consumer/callback failure into success.
+            val entities =
+                try {
+                    passkeyCredentialDao.getCredentialsByRpText(rpId).first()
+                } catch (_: android.database.SQLException) {
+                    Logger.e { "CredentialRepository: Failed to get credential summaries for RP" }
+                    return@run Outcome.Success(emptyList())
+                } catch (_: IllegalArgumentException) {
+                    // Preserve the DAO's malformed-query fallback while keeping mapping and
+                    // observer failures outside this acquisition boundary.
+                    Logger.w { "CredentialRepository: Rejected malformed credential summary query" }
+                    return@run Outcome.Error(
+                        DomainError.ValidationError("Malformed credential summary metadata"),
+                    )
+                }
             val summaries = mutableListOf<CredentialSummary>()
             var transferred = false
             try {
-                entities.forEach { entity ->
-                    require(entity.cose_algorithm == entity.cose_algorithm.toInt().toLong()) {
-                        "Invalid persisted algorithm value"
-                    }
-                    val credentialId = CredentialId.fromEncoded(entity.credential_id)
-                    require(CredentialId.fromEncoded(entity.id).matchesCredentialId(credentialId)) {
-                        "Inconsistent stored credential identity"
-                    }
-                    CredentialKeyDescriptor(
-                        credentialId = credentialId,
-                        coseAlgorithm = entity.cose_algorithm.toInt(),
-                        derivationProfile = entity.derivation_profile,
-                    )
+                for (entity in entities) {
                     val summary =
-                        CredentialSummary.fromText(
-                            id = entity.id,
-                            rpId = rpId,
-                            credentialId = credentialId,
-                            lastUsedAt =
-                                Instant.fromEpochMilliseconds(
-                                    entity.last_used_at
-                                        ?: entity.created_at,
-                                ),
-                            coseAlgorithm = entity.cose_algorithm.toInt(),
-                            derivationProfile = entity.derivation_profile,
-                            storedPublicKeyEncoding =
-                                java.util.Base64
-                                    .getDecoder()
-                                    .decode(entity.public_key),
-                            credProtectPolicy = CredentialProtectionPolicy.fromPersisted(entity.cred_protect_policy),
-                        )
-                    summaries += summary
+                        try {
+                            entity.toCredentialSummary(rpId)
+                        } catch (_: IllegalArgumentException) {
+                            Logger.w { "CredentialRepository: Rejected malformed credential summary" }
+                            return@run Outcome.Error(
+                                DomainError.ValidationError("Malformed credential summary metadata"),
+                            )
+                        }
+                    summaries.admitCredentialSummary(summary)
                     onSummaryCreated(summary)
                 }
+                val result =
+                    createOwnedBatchResult(summaries, CredentialSummary::eraseSensitiveText) {
+                        Outcome.Success(it)
+                    }
                 transferred = true
-                Outcome.Success(summaries)
+                result
             } finally {
                 entities.forEach { it.eraseSensitiveMetadata() }
                 if (!transferred) summaries.forEach(CredentialSummary::eraseSensitiveText)
             }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get credential summaries for RP" }
-            Outcome.Success(emptyList())
-        } catch (_: IllegalArgumentException) {
-            Logger.w { "CredentialRepository: Rejected malformed credential summary" }
-            Outcome.Error(DomainError.ValidationError("Malformed credential summary metadata"))
         }
 
     /**
@@ -313,22 +319,22 @@ internal class CredentialRepositoryReadOperations(
     suspend fun getCredentialsByIds(
         credentialIds: Set<CredentialId>,
         rpId: RpId?,
-    ): Outcome<List<PasskeyCredential>, DomainError> =
+    ): Outcome<List<PasskeyCredential>, DomainError> {
+        val credentials = mutableListOf<PasskeyCredential>()
+        var transferred = false
         try {
-            val credentials = mutableListOf<PasskeyCredential>()
-            var transferred = false
-            try {
-                credentialIds.forEach { id -> getCredentialById(id)?.let(credentials::add) }
-                rpId?.let { filterCredentialsForRelyingParty(credentials, it) }
-                transferred = true
-                Outcome.Success(credentials)
-            } finally {
-                if (!transferred) credentials.forEach(PasskeyCredential::eraseSensitiveText)
-            }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to get credentials by IDs" }
-            Outcome.Success(emptyList())
+            credentialIds.forEach { id -> getCredentialById(id)?.let(credentials::admitCredential) }
+            rpId?.let { filterCredentialsForRelyingParty(credentials, it) }
+            val result =
+                createOwnedBatchResult(credentials, PasskeyCredential::eraseSensitiveText) {
+                    Outcome.Success(it)
+                }
+            transferred = true
+            return result
+        } finally {
+            if (!transferred) credentials.forEach(PasskeyCredential::eraseSensitiveText)
         }
+    }
 
     /** Erases credentials filtered from an owned result batch before it is returned. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -374,28 +380,27 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun searchCredentials(query: SensitiveCredentialText): Flow<PasskeyCredential> =
         flow {
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Credential search failed") {
+                    passkeyCredentialDao.getAllCredentials().first()
+                } ?: return@flow
             try {
-                val entities = passkeyCredentialDao.getAllCredentials().first()
-                try {
-                    entities.forEach { entity ->
-                        entity
-                            .toDomainModel(publicKeyDecoder, metadataProtectionService)
-                            .getOrNull()
-                            ?.let { credential ->
-                                if (credential.userName.containsIgnoreCase(query) ||
-                                    credential.userDisplayName.containsIgnoreCase(query)
-                                ) {
-                                    emitOwnedCredential(credential)
-                                } else {
-                                    credential.eraseSensitiveText()
-                                }
+                entities.forEach { entity ->
+                    entity
+                        .toDomainModel(publicKeyDecoder, metadataProtectionService)
+                        .getOrNull()
+                        ?.let { credential ->
+                            if (credential.userName.containsIgnoreCase(query) ||
+                                credential.userDisplayName.containsIgnoreCase(query)
+                            ) {
+                                emitOwnedCredential(credential)
+                            } else {
+                                credential.eraseSensitiveText()
                             }
-                    }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
+                        }
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Credential search failed" }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -407,29 +412,28 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getRecentlyUnusedCredentials(days: Long): Flow<PasskeyCredential> =
         flow {
+            val cutoff = timeProvider.now() - days.days
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get recently unused credentials") {
+                    passkeyCredentialDao.getAllCredentials().first()
+                } ?: return@flow
             try {
-                val cutoff = timeProvider.now() - days.days
-                val entities = passkeyCredentialDao.getAllCredentials().first()
-                try {
-                    entities
-                        .filter { entity ->
-                            val lastUsed =
-                                entity.last_used_at
-                                    ?.let { Instant.fromEpochMilliseconds(it) }
-                                    ?: Instant.fromEpochMilliseconds(entity.created_at)
-                            lastUsed < cutoff
-                        }.forEach { entity ->
-                            entity
-                                .toDomainModel(
-                                    publicKeyDecoder,
-                                    metadataProtectionService,
-                                ).onSuccess { emitOwnedCredential(it) }
-                        }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
-                }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get recently unused credentials" }
+                entities
+                    .filter { entity ->
+                        val lastUsed =
+                            entity.last_used_at
+                                ?.let { Instant.fromEpochMilliseconds(it) }
+                                ?: Instant.fromEpochMilliseconds(entity.created_at)
+                        lastUsed < cutoff
+                    }.forEach { entity ->
+                        entity
+                            .toDomainModel(
+                                publicKeyDecoder,
+                                metadataProtectionService,
+                            ).onSuccess { emitOwnedCredential(it) }
+                    }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -442,21 +446,20 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> =
         flow {
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get credentials requiring UV") {
+                    passkeyCredentialDao.getAllCredentials().first()
+                } ?: return@flow
             try {
-                val entities = passkeyCredentialDao.getAllCredentials().first()
-                try {
-                    entities.filter { it.cred_protect_policy == CRED_PROTECT_UV_REQUIRED }.forEach { entity ->
-                        entity
-                            .toDomainModel(
-                                publicKeyDecoder,
-                                metadataProtectionService,
-                            ).onSuccess { emitOwnedCredential(it) }
-                    }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
+                entities.filter { it.cred_protect_policy == CRED_PROTECT_UV_REQUIRED }.forEach { entity ->
+                    entity
+                        .toDomainModel(
+                            publicKeyDecoder,
+                            metadataProtectionService,
+                        ).onSuccess { emitOwnedCredential(it) }
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get credentials requiring UV" }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 
@@ -469,25 +472,109 @@ internal class CredentialRepositoryReadOperations(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getExpiredCredentials(maxAgeDays: Long): Flow<PasskeyCredential> =
         flow {
+            val cutoff = timeProvider.now() - maxAgeDays.days
+            val entities =
+                loadCredentialRowsOrNull("CredentialRepository: Failed to get expired credentials") {
+                    passkeyCredentialDao.getAllCredentials().first()
+                } ?: return@flow
             try {
-                val cutoff = timeProvider.now() - maxAgeDays.days
-                val entities = passkeyCredentialDao.getAllCredentials().first()
-                try {
-                    entities.filter { Instant.fromEpochMilliseconds(it.created_at) < cutoff }.forEach { entity ->
-                        entity
-                            .toDomainModel(
-                                publicKeyDecoder,
-                                metadataProtectionService,
-                            ).onSuccess { emitOwnedCredential(it) }
-                    }
-                } finally {
-                    entities.forEach { it.eraseSensitiveMetadata() }
+                entities.filter { Instant.fromEpochMilliseconds(it.created_at) < cutoff }.forEach { entity ->
+                    entity
+                        .toDomainModel(
+                            publicKeyDecoder,
+                            metadataProtectionService,
+                        ).onSuccess { emitOwnedCredential(it) }
                 }
-            } catch (_: android.database.SQLException) {
-                Logger.e { "CredentialRepository: Failed to get expired credentials" }
+            } finally {
+                entities.forEach { it.eraseSensitiveMetadata() }
             }
         }
 }
+
+/** Maps one persisted row to an independently owned metadata-only summary. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+private fun PasskeyCredentialEntity.toCredentialSummary(rpId: CharSequence): CredentialSummary {
+    require(cose_algorithm == cose_algorithm.toInt().toLong()) { "Invalid persisted algorithm value" }
+    val credentialId = CredentialId.fromEncoded(credential_id)
+    require(CredentialId.fromEncoded(id).matchesCredentialId(credentialId)) {
+        "Inconsistent stored credential identity"
+    }
+    CredentialKeyDescriptor(
+        credentialId = credentialId,
+        coseAlgorithm = cose_algorithm.toInt(),
+        derivationProfile = derivation_profile,
+    )
+    return CredentialSummary.fromText(
+        id = id,
+        rpId = rpId,
+        credentialId = credentialId,
+        lastUsedAt = Instant.fromEpochMilliseconds(last_used_at ?: created_at),
+        coseAlgorithm = cose_algorithm.toInt(),
+        derivationProfile = derivation_profile,
+        storedPublicKeyEncoding =
+            java.util.Base64
+                .getDecoder()
+                .decode(public_key),
+        credProtectPolicy = CredentialProtectionPolicy.fromPersisted(cred_protect_policy),
+    )
+}
+
+/** Retains a newly hydrated credential only after the local result batch accepts it. */
+internal fun MutableList<PasskeyCredential>.admitCredential(
+    credential: PasskeyCredential,
+    admit: () -> Boolean = { add(credential) },
+) {
+    var admitted = false
+    try {
+        check(admit()) { "Credential batch admission failed" }
+        admitted = true
+    } finally {
+        if (!admitted) credential.eraseSensitiveText()
+    }
+}
+
+/** Retains a newly hydrated summary only after the local result batch accepts it. */
+internal fun MutableList<CredentialSummary>.admitCredentialSummary(
+    summary: CredentialSummary,
+    admit: () -> Boolean = { add(summary) },
+) {
+    var admitted = false
+    try {
+        check(admit()) { "Credential-summary batch admission failed" }
+        admitted = true
+    } finally {
+        if (!admitted) summary.eraseSensitiveText()
+    }
+}
+
+/** Keeps an owned batch local until its caller-visible result wrapper has been constructed. */
+internal fun <T, R> createOwnedBatchResult(
+    batch: List<T>,
+    erase: (T) -> Unit,
+    createResult: (List<T>) -> R,
+): R {
+    var transferred = false
+    try {
+        val result = createResult(batch)
+        transferred = true
+        return result
+    } finally {
+        if (!transferred) batch.forEach(erase)
+    }
+}
+
+/** Restricts database-error handling to row acquisition so downstream failures still propagate. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+private suspend fun loadCredentialRowsOrNull(
+    failureMessage: String,
+    load: suspend () -> List<PasskeyCredentialEntity>,
+): List<PasskeyCredentialEntity>? =
+    try {
+        load()
+    } catch (_: android.database.SQLException) {
+        Logger.e { failureMessage }
+        null
+    }
 
 /** Transfers a hydrated credential only after downstream accepts it. */
 @Req("NFR-SEC-041", "TR-AUTH-031")

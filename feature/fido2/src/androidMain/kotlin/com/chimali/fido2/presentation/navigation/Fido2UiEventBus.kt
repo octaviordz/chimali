@@ -49,10 +49,14 @@ class Fido2UiEventBus {
     fun dispatch(event: Fido2UiEvent) {
         when (event) {
             is Fido2UiEvent.RegistrationRequested -> {
-                if (!event.deferred.isActive) return
+                if (!event.deferred.isActive) {
+                    event.releaseOptionsIfUnclaimed()
+                    return
+                }
                 registrationRequest.value = event
                 event.deferred.invokeOnCompletion {
                     clearRegistrationRequest(event.deferred)
+                    event.releaseOptionsIfUnclaimed()
                     event.userInteractionCompleted.complete(Unit)
                 }
                 if (!event.deferred.isActive) return
@@ -94,7 +98,50 @@ sealed interface Fido2UiEvent {
         val deferred: CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>,
         val userInteractionCompleted: CompletableDeferred<Unit> = CompletableDeferred(),
     ) : Fido2UiEvent {
+        private val optionsLock = Any()
+        private var optionsClaimed = false
+        private var optionsReleased = false
+
         internal var traceContext: Fido2OperationTraceContext? = null
+
+        /** Transfers event-owned options to one presenter/registration owner. */
+        internal fun claimOptions(): MakeCredentialOptions? =
+            synchronized(optionsLock) {
+                if (optionsClaimed || optionsReleased) {
+                    null
+                } else {
+                    optionsClaimed = true
+                    options
+                }
+            }
+
+        /** Releases options only when no presenter has claimed their ownership. */
+        internal fun releaseOptionsIfUnclaimed() {
+            val release =
+                synchronized(optionsLock) {
+                    if (optionsClaimed || optionsReleased) {
+                        false
+                    } else {
+                        optionsReleased = true
+                        true
+                    }
+                }
+            if (release) options.eraseSensitiveText()
+        }
+
+        /** Releases options after the claiming registration ViewModel and its children finish. */
+        internal fun releaseClaimedOptions() {
+            val release =
+                synchronized(optionsLock) {
+                    if (!optionsClaimed || optionsReleased) {
+                        false
+                    } else {
+                        optionsReleased = true
+                        true
+                    }
+                }
+            if (release) options.eraseSensitiveText()
+        }
     }
 
     data class AuthenticationRequested(

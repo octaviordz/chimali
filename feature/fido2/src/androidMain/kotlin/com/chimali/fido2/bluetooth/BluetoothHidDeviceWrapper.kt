@@ -1,4 +1,4 @@
-@file:Suppress("MissingPermission")
+@file:Suppress("SwallowedException", "MissingPermission")
 
 package com.chimali.fido2.bluetooth
 
@@ -229,7 +229,7 @@ class BluetoothHidDeviceWrapper(
      * Logs a diagnostic snapshot of the HID profile state.
      * Called at every significant lifecycle point for visibility.
      */
-    private fun logDiagnosticSnapshot(tag: String) = callbackCoordinator.logDiagnosticSnapshot(tag)
+    private fun logDiagnosticSnapshot() = callbackCoordinator.logDiagnosticSnapshot()
 
     private val callbackCoordinator =
         BluetoothHidCallbackCoordinator(
@@ -296,14 +296,14 @@ class BluetoothHidDeviceWrapper(
      * and notifies the transport layer.
      */
     private fun acceptConnectedDevice(device: BluetoothDevice) {
-        Logger.i { "Accepting connection from ${device.address}" }
+        Logger.i { "Accepting connection from paired device" }
         synchronized(sessionLock) {
             advanceSessionGeneration()
             discardQueuedIncomingReports()
             connectedDevice = device
             publishSessionState(HidConnectionState.Connected(device))
         }
-        logDiagnosticSnapshot("DEVICE_ACCEPTED")
+        logDiagnosticSnapshot()
 
         // "?"? WORKAROUND: Prevent Windows 11 5-second HID timeout "?"?
         // Windows 11 will aggressively disconnect Bluetooth HID peripherals exactly 5 seconds
@@ -333,7 +333,7 @@ class BluetoothHidDeviceWrapper(
      */
     @Req("FR-HID-010", "FR-HID-020")
     suspend fun initialize(): Result<Unit> {
-        Logger.d { "initialize() called. Current hidDevice: $hidDevice" }
+        Logger.d { "initialize() called" }
         if (hidDevice != null) return Result.success(Unit)
 
         // Register adapter-state receiver for BT hardware toggle and bond-state changes.
@@ -373,8 +373,7 @@ class BluetoothHidDeviceWrapper(
                     suspendCancellableCoroutine { cont ->
                         callbackCoordinator.initContinuation = cont
                         try {
-                            val adapterState = bluetoothAdapter?.state
-                            Logger.d { "Bluetooth adapter state before getProfileProxy: $adapterState (STATE_ON=12)" }
+                            Logger.d { "Checking Bluetooth adapter before requesting the HID profile" }
                             Logger.d { "Calling getProfileProxy for HID_DEVICE..." }
                             val isSuccess =
                                 bluetoothAdapter?.getProfileProxy(
@@ -432,7 +431,7 @@ class BluetoothHidDeviceWrapper(
 
                 else -> {
                     lastException = result.exceptionOrNull() as? Exception
-                    Logger.w { "initialize() failed on attempt $attempt: ${lastException?.message}" }
+                    Logger.w { "initialize() failed on attempt $attempt: operation failure" }
                     // If it's a permission error, don't retry — user action needed
                     if (lastException is Fido2Exception.BluetoothPermissionDenied) {
                         return Result.failure(lastException)
@@ -478,7 +477,7 @@ class BluetoothHidDeviceWrapper(
 
         for (attempt in 1..maxRetries) {
             Logger.d { "registerApp attempt $attempt/$maxRetries" }
-            logDiagnosticSnapshot("PRE_REGISTER_$attempt")
+            logDiagnosticSnapshot()
 
             // ── Step 0: Ensure Bluetooth is ON ──
             // If the user just clicked "Allow" on the system prompt, the state might
@@ -499,7 +498,7 @@ class BluetoothHidDeviceWrapper(
                         }
 
                         if (bluetoothState != BluetoothAdapter.STATE_ON) {
-                            Logger.w { "Bluetooth is not ON (current state: $bluetoothState), cannot register HID app" }
+                            Logger.w { "Bluetooth adapter is not ready to register the HID app" }
                             cont.resume(
                                 Result.failure(
                                     Fido2Exception.BluetoothException(
@@ -519,10 +518,10 @@ class BluetoothHidDeviceWrapper(
                             val isUnregistrationSuccessful = hid.unregisterApp()
                             Logger.d { "unregisterApp() result: $isUnregistrationSuccessful" }
                         } catch (e: IllegalStateException) {
-                            Logger.w(e) { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
+                            Logger.w { "unregisterApp() threw (non-fatal, proceeding with registerApp)" }
                         }
 
-                        logDiagnosticSnapshot("POST_UNREGISTER_$attempt")
+                        logDiagnosticSnapshot()
 
                         // ── Step 2: Register with fresh callback ──
                         val sdpSubclass = BluetoothHidDevice.SUBCLASS1_COMBO
@@ -553,7 +552,7 @@ class BluetoothHidDeviceWrapper(
                                 Logger.i { "registerApp() framework return value: $isCallSuccessful" }
                                 isCallSuccessful
                             } catch (e: SecurityException) {
-                                Logger.e(e) { "SecurityException in registerApp" }
+                                Logger.e { "SecurityException in registerApp" }
                                 cont.resume(
                                     Result.failure(
                                         Fido2Exception.BluetoothPermissionDenied(
@@ -564,18 +563,18 @@ class BluetoothHidDeviceWrapper(
                                 )
                                 return@suspendCancellableCoroutine
                             } catch (e: IllegalStateException) {
-                                Logger.e(e) { "Unexpected IllegalStateException in registerApp" }
+                                Logger.e { "Unexpected IllegalStateException in registerApp" }
                                 cont.resume(
                                     Result.failure(
                                         Fido2Exception.BluetoothException(
-                                            "Unexpected error during app registration: ${e.message}",
+                                            "Unexpected error during app registration: operation failure",
                                         ),
                                     ),
                                 )
                                 return@suspendCancellableCoroutine
                             }
 
-                        logDiagnosticSnapshot("POST_REGISTER_CALL_$attempt")
+                        logDiagnosticSnapshot()
 
                         if (!registerResult) {
                             // registerApp() returned false — the request was not accepted by the
@@ -595,19 +594,19 @@ class BluetoothHidDeviceWrapper(
             when {
                 result?.isSuccess == true -> {
                     Logger.i { "registerApp() succeeded on attempt $attempt" }
-                    logDiagnosticSnapshot("REGISTER_SUCCESS")
+                    logDiagnosticSnapshot()
                     callbackCoordinator.checkExistingConnectionsWhileAdvertising()
                     return Result.success(Unit)
                 }
                 result == null -> {
                     Logger.e { "registerApp timed out after ${cfg.registerTimeout} on attempt $attempt" }
                     lastException = Fido2Exception.BluetoothException("HID registration timed out")
-                    logDiagnosticSnapshot("REGISTER_TIMEOUT_$attempt")
+                    logDiagnosticSnapshot()
                 }
                 else -> {
                     lastException = result.exceptionOrNull() as? Exception
-                    Logger.w { "registerApp failure on attempt $attempt: ${lastException?.message}" }
-                    logDiagnosticSnapshot("REGISTER_FAILURE_$attempt")
+                    Logger.w { "registerApp failure on attempt $attempt: operation failure" }
+                    logDiagnosticSnapshot()
                 }
             }
 
@@ -639,18 +638,18 @@ class BluetoothHidDeviceWrapper(
             return false
         }
         if (device.bondState != BluetoothDevice.BOND_BONDED) {
-            Logger.w { "connect: device ${device.address} is not bonded (bondState=${device.bondState})" }
+            Logger.w { "connect: paired device is not bonded" }
             return false
         }
         return try {
             val initiated = hid.connect(device)
-            Logger.i { "connect(${device.address}) initiated: $initiated" }
+            Logger.i { "connect(paired device) initiated: $initiated" }
             initiated
         } catch (e: SecurityException) {
-            Logger.e(e) { "connect: Bluetooth permission denied for ${device.address}" }
+            Logger.e { "connect: Bluetooth permission denied for paired device" }
             false
         } catch (e: IllegalStateException) {
-            Logger.e(e) { "connect: Bluetooth not available for ${device.address} — ${e.message}" }
+            Logger.e { "connect: Bluetooth not available for paired device — operation failure" }
             false
         }
     }
@@ -669,7 +668,7 @@ class BluetoothHidDeviceWrapper(
             try {
                 adapter.getRemoteDevice(macAddress)
             } catch (e: IllegalArgumentException) {
-                Logger.e(e) { "connect: invalid Bluetooth MAC address: $macAddress" }
+                Logger.e { "connect: invalid Bluetooth MAC address" }
                 null
             } ?: return false
 
@@ -706,13 +705,13 @@ class BluetoothHidDeviceWrapper(
     @Req("FR-HID-010", "FR-HID-020")
     fun unregisterApp() {
         Logger.d("unregisterApp() called")
-        logDiagnosticSnapshot("PRE_UNREGISTER")
+        logDiagnosticSnapshot()
         proactiveConnectJob?.cancel()
         proactiveConnectJob = null
         try {
             hidDevice?.unregisterApp()
         } catch (e: SecurityException) {
-            Logger.e(e) { "unregisterApp: Bluetooth permission denied" }
+            Logger.e { "unregisterApp: Bluetooth permission denied" }
         }
         synchronized(sessionLock) {
             advanceSessionGeneration()
@@ -721,7 +720,7 @@ class BluetoothHidDeviceWrapper(
             discardQueuedIncomingReports()
             publishSessionState(HidConnectionState.Idle)
         }
-        logDiagnosticSnapshot("POST_UNREGISTER")
+        logDiagnosticSnapshot()
     }
 
     /** Releases the profile proxy. Should be called from Application.onTerminate. */
@@ -734,13 +733,13 @@ class BluetoothHidDeviceWrapper(
         unregisterApp()
         if (isReceiverRegistered) {
             runCatching { context.unregisterReceiver(callbackCoordinator.bluetoothStateReceiver) }
-                .onFailure { Logger.w { "close: failed to unregister BT state receiver: ${it.message}" } }
+                .onFailure { Logger.w { "close: failed to unregister BT state receiver: system operation failed" } }
             isReceiverRegistered = false
         }
         try {
             hidDevice?.let { bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, it) }
         } catch (e: SecurityException) {
-            Logger.e(e) { "close: Bluetooth permission denied" }
+            Logger.e { "close: Bluetooth permission denied" }
         }
         hidDevice = null
         discardQueuedIncomingReports()

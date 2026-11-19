@@ -5,10 +5,21 @@ import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import java.util.Base64
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 
 class MakeCredentialOptionsTest {
     private val rp = PublicKeyCredentialRpEntity.create(RpId("example.com"), "Example")
@@ -19,6 +30,13 @@ class MakeCredentialOptionsTest {
             "Test User",
         )
     private val challenge = ByteArray(32) { it.toByte() }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `request RP entity exposes no immutable identifier compatibility getter`() {
+        assertFalse(PublicKeyCredentialRpEntity::class.java.declaredMethods.any { it.name == "getId" })
+    }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -142,6 +160,98 @@ class MakeCredentialOptionsTest {
             )
         }
     }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `malformed base64 challenge does not retain decoder failure`() {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                MakeCredentialOptions.fromBase64Challenge(
+                    rp = rp,
+                    user = user,
+                    challengeBase64 = "synthetic-challenge-marker%%",
+                    selectedAlgId = -7,
+                )
+            }
+
+        assertEquals("Invalid base64 challenge", failure.message)
+        assertNull(failure.cause)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decoded base64 challenge is erased when construction does not transfer ownership`() {
+        val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
+        var failedChallenge: ByteArray? = null
+
+        assertFailsWith<IllegalArgumentException> {
+            MakeCredentialOptions.withDecodedBase64Challenge(encoded) { decoded ->
+                failedChallenge = decoded
+                throw IllegalArgumentException("synthetic option validation failure")
+            }
+        }
+
+        assertContentEquals(ByteArray(challenge.size), failedChallenge)
+
+        val transferred = MakeCredentialOptions.withDecodedBase64Challenge(encoded) { it }
+        assertContentEquals(challenge, transferred)
+        transferred.fill(0)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `independent owner copy erases without changing the source options`() {
+        val source = options()
+        val ownedCopy = source.copyWithIndependentSensitiveOwners()
+
+        ownedCopy.eraseSensitiveText()
+
+        assertContentEquals(challenge, source.challenge)
+        assertTrue(source.challenge.any { it != 0.toByte() })
+        assertEquals("testuser", source.user.name)
+        assertEquals("Example", source.rp.name)
+        assertTrue(ownedCopy.challenge.all { it == 0.toByte() })
+        assertTrue(ownedCopy.user.name.all { it == '\u0000' })
+        assertTrue(ownedCopy.rp.name.all { it == '\u0000' })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `eraseAfter waits for canceled request children to finish`() =
+        runTest {
+            val options = options()
+            val request = Job()
+            val childStarted = CompletableDeferred<Unit>()
+            val finishCleanup = CompletableDeferred<Unit>()
+            val child =
+                CoroutineScope(coroutineContext + request).launch {
+                    try {
+                        childStarted.complete(Unit)
+                        awaitCancellation()
+                    } finally {
+                        withContext(NonCancellable) { finishCleanup.await() }
+                    }
+                }
+            childStarted.await()
+
+            request.cancel()
+            options.eraseAfter(request)
+
+            assertEquals("testuser", options.user.name, "admitted child must retain its input while unwinding")
+            assertTrue(options.challenge.any { it != 0.toByte() })
+
+            finishCleanup.complete(Unit)
+            child.join()
+            request.join()
+
+            assertTrue(options.challenge.all { it == 0.toByte() })
+            assertTrue(options.user.name.all { it == '\u0000' })
+            assertTrue(options.rp.name.all { it == '\u0000' })
+        }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")

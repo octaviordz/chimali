@@ -18,7 +18,6 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -28,6 +27,7 @@ import kotlinx.datetime.Instant
  * Unit tests for PasskeyAggregateServiceImpl.
  */
 @Req("NFR-SEC-041", "TR-AUTH-031")
+@Suppress("LargeClass") // Scenarios share one aggregate fixture and assert history/replay invariants.
 class PasskeyAggregateServiceImplTest {
     private val eventStoreRepository = mockk<EventStoreRepository>()
     private val snapshotRepository =
@@ -37,6 +37,49 @@ class PasskeyAggregateServiceImplTest {
         }
     private val service = PasskeyAggregateServiceImpl(eventStoreRepository, snapshotRepository)
     private val aggregateId = UUID.randomUUID().toString()
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `event replay failure discards provider exception and cause`() =
+        runTest {
+            val causeMarker = IllegalStateException("synthetic provider cause marker")
+            val retrievalFailure = IllegalStateException("synthetic event retrieval marker", causeMarker)
+            coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
+                Result.failure(retrievalFailure)
+
+            val result = service.getState(aggregateId)
+
+            assertTrue(result.isFailure)
+            assertEquals("Passkey aggregate retrieval failed", result.exceptionOrNull()?.message)
+            assertEquals(null, result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== retrievalFailure)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `event replay cancellation result propagates`() =
+        runTest {
+            val cancellation = CancellationException("synthetic event replay cancellation")
+            coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
+                Result.failure(cancellation)
+
+            assertFailsWith<CancellationException> { service.getState(aggregateId) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `snapshot lookup cancellation result propagates`() =
+        runTest {
+            val cancellation = CancellationException("synthetic snapshot lookup cancellation")
+            coEvery { snapshotRepository.getLatest<PasskeyState>(EventKind.PASSKEY, aggregateId) } returns
+                Result.failure(cancellation)
+
+            assertFailsWith<CancellationException> { service.getState(aggregateId) }
+            io.mockk.coVerify(exactly = 0) { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) }
+        }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -153,6 +196,28 @@ class PasskeyAggregateServiceImplTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `append retry exhaustion discards provider exception and cause`() =
+        runTest {
+            val registered = registeredEvent()
+            val causeMarker = IllegalStateException("synthetic provider cause marker")
+            val appendFailure = IllegalStateException("synthetic append failure marker", causeMarker)
+            coEvery { eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, any()) } returns
+                Result.success(listOf(registered.copyOwnedForTest()))
+            coEvery { eventStoreRepository.append(EventKind.PASSKEY, any()) } returns Result.failure(appendFailure)
+
+            val result = service.execute(aggregateId, PasskeyCommand.Delete(aggregateId))
+
+            assertTrue(result.isFailure)
+            assertEquals("Passkey aggregate command execution failed after retries", result.exceptionOrNull()?.message)
+            assertEquals(null, result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== appendFailure)
+            io.mockk.coVerify(exactly = 3) { eventStoreRepository.append(EventKind.PASSKEY, any()) }
+            registered.eraseSensitiveMetadata()
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `execute should retry on optimistic concurrency failure`() =
         runTest {
             val command = PasskeyCommand.Delete(aggregateId)
@@ -211,6 +276,7 @@ class PasskeyAggregateServiceImplTest {
                     coseAlgorithm = CredentialKeyDescriptor.COSE_ML_DSA_65,
                     derivationProfile = CredentialKeyDescriptor.MLDSA65_PROFILE,
                 )
+            val expectedCredentialId = registered.credentialId.copyOf()
             val authenticated =
                 PasskeyEvent.Authenticated(
                     aggregateId = aggregateId,
@@ -243,7 +309,8 @@ class PasskeyAggregateServiceImplTest {
             assertEquals(replayed, fromSnapshot)
             assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, fromSnapshot.coseAlgorithm)
             assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, fromSnapshot.derivationProfile)
-            assertTrue(fromSnapshot.credentialId.contentEquals(registered.credentialId))
+            assertTrue(fromSnapshot.credentialId.contentEquals(expectedCredentialId))
+            assertContentEquals(ByteArray(registered.credentialId.size), registered.credentialId)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -312,6 +379,7 @@ class PasskeyAggregateServiceImplTest {
                         Result.success(completeHistory)
                     coEvery { eventStoreRepository.getEventsFrom(EventKind.PASSKEY, aggregateId, 1L) } returns
                         Result.success(suffix)
+                    val expectedCredentialId = registered.credentialId.copyOf()
 
                     val restored = service.getState(aggregateId).getOrThrow()
 
@@ -319,7 +387,7 @@ class PasskeyAggregateServiceImplTest {
                         assertEquals(if (hasSuffix) 2L else 1L, restored.sequenceNumber)
                         assertEquals(CredentialKeyDescriptor.COSE_ML_DSA_65, restored.coseAlgorithm)
                         assertEquals(CredentialKeyDescriptor.MLDSA65_PROFILE, restored.derivationProfile)
-                        assertContentEquals(registered.credentialId, restored.credentialId)
+                        assertContentEquals(expectedCredentialId, restored.credentialId)
                         assertContentEquals(CharArray(invalidSnapshotState.rpId.size), invalidSnapshotState.rpId)
                         assertContentEquals(CharArray(invalidSnapshotState.userId.size), invalidSnapshotState.userId)
                         assertContentEquals(
@@ -586,7 +654,9 @@ class PasskeyAggregateServiceImplTest {
             val result = service.execute(aggregateId, PasskeyCommand.Authenticate(aggregateId, newSignCount = 19L))
 
             assertTrue(result.isFailure)
-            assertSame(snapshotFailure, result.exceptionOrNull())
+            assertEquals("Passkey aggregate snapshot save failed", result.exceptionOrNull()?.message)
+            assertEquals(null, result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== snapshotFailure)
             assertEquals(1, appendedEvents?.size)
             assertEquals(20L, appendedEvents?.single()?.sequenceNumber)
             io.mockk.coVerify(exactly = 1) { eventStoreRepository.append(EventKind.PASSKEY, any()) }
@@ -611,7 +681,9 @@ class PasskeyAggregateServiceImplTest {
             val result = service.execute(aggregateId, PasskeyCommand.Delete(aggregateId))
 
             assertTrue(result.isFailure)
-            assertSame(appendFailure, result.exceptionOrNull())
+            assertEquals("Passkey aggregate command execution failed", result.exceptionOrNull()?.message)
+            assertEquals(null, result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== appendFailure)
             io.mockk.coVerify(exactly = 1) { eventStoreRepository.append(EventKind.PASSKEY, any()) }
         }
 

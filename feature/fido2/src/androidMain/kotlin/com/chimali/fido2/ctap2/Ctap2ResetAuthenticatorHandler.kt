@@ -7,8 +7,10 @@ import com.chimali.fido2.domain.usecase.ResetAuthenticatorUseCase
 import org.koin.core.annotation.Single
 
 /**
- * T117 — CTAP2 authenticatorReset (0x07) handler.
- * Performs a master reset of the authenticator, clearing all credentials and settings.
+ * Maps a repository reset result to the CTAP2 authenticatorReset response.
+ *
+ * This handler is not connected to the production CTAPHID command switch. It must not be routed until
+ * CTAP-required user-presence and power-up-window checks are implemented for the selected transport.
  */
 @Single
 class Ctap2ResetAuthenticatorHandler(

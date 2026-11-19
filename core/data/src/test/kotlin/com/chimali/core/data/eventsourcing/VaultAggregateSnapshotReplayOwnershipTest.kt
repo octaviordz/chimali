@@ -16,6 +16,7 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -200,7 +201,9 @@ class VaultAggregateSnapshotReplayOwnershipTest {
 
             val result = service.getState(aggregateId)
 
-            assertTrue(result.exceptionOrNull() === failure)
+            assertEquals("Vault aggregate event retrieval failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== failure)
             assertTrue(snapshotState.title.all { it == '\u0000' })
             assertTrue(snapshotState.payload.all { it == 0.toByte() })
             coVerify(exactly = 0) { eventStoreRepository.append(EventKind.VAULT_ENTRY, any()) }
@@ -296,15 +299,11 @@ class VaultAggregateSnapshotReplayOwnershipTest {
             coEvery { eventStoreRepository.getEventsFrom(EventKind.VAULT_ENTRY, aggregateId, 2L) } returns
                 Result.success(listOf(first, second))
 
-            var propagated: Throwable? = null
-            try {
-                replayService.getState(aggregateId)
-            } catch (failure: Throwable) {
-                propagated = failure
-            }
+            val result = replayService.getState(aggregateId)
 
-            assertTrue(propagated is IllegalStateException)
-            assertEquals("replay interrupted", propagated?.message)
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate event retrieval failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
             assertTrue(snapshotState.title.all { it == '\u0000' })
             assertTrue(snapshotState.payload.all { it == 0.toByte() })
             assertTrue(first.title!!.all { it == '\u0000' })
@@ -352,14 +351,11 @@ class VaultAggregateSnapshotReplayOwnershipTest {
             coEvery { eventStoreRepository.getEventsFrom(EventKind.VAULT_ENTRY, aggregateId, 2L) } returns
                 Result.success(listOf(unsupportedEvent, laterEvent))
 
-            var propagated: Throwable? = null
-            try {
-                service.getState(aggregateId)
-            } catch (failure: Throwable) {
-                propagated = failure
-            }
+            val result = service.getState(aggregateId)
 
-            assertTrue(propagated is ClassCastException)
+            assertTrue(result.isFailure)
+            assertEquals("Vault aggregate event retrieval failed", result.exceptionOrNull()?.message)
+            assertNull(result.exceptionOrNull()?.cause)
             assertTrue(snapshotState.title.all { it == '\u0000' })
             assertTrue(snapshotState.payload.all { it == 0.toByte() })
             assertTrue(laterEvent.title!!.all { it == '\u0000' })

@@ -12,6 +12,7 @@ import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.domain.repository.SnapshotRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Instant
 import org.koin.core.annotation.Single
 
@@ -40,10 +41,25 @@ class VaultAggregateServiceImpl(
     override suspend fun getState(
         aggregateId: String,
         asOf: Instant?,
+    ): Result<VaultState> =
+        try {
+            getStateOwned(aggregateId, asOf)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            Result.failure(VaultAggregateRetrievalException())
+        }
+
+    private suspend fun getStateOwned(
+        aggregateId: String,
+        asOf: Instant?,
     ): Result<VaultState> {
         // Try to load from snapshot if we're looking for the latest state
         if (asOf == null) {
             val snapshotResult = snapshotRepository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId)
+            snapshotResult.exceptionOrNull()?.let { failure ->
+                if (failure is CancellationException) throw failure
+            }
             val snapshot = snapshotResult.getOrNull()
 
             if (snapshot != null) {
@@ -58,7 +74,7 @@ class VaultAggregateServiceImpl(
                     val replayResult =
                         eventsResult.fold(
                             onSuccess = { events -> Result.success(evolveOwned(snapshot.state, events)) },
-                            onFailure = { failure -> Result.failure(failure) },
+                            onFailure = { failure -> retrievalFailure(failure) },
                         )
                     replaySucceeded = replayResult.isSuccess
                     return replayResult
@@ -71,9 +87,10 @@ class VaultAggregateServiceImpl(
         }
 
         // Fallback to full history
-        return eventStoreRepository
-            .getEvents(EventKind.VAULT_ENTRY, aggregateId, asOf)
-            .map { events -> evolveOwned(decider.initialState, events) }
+        return eventStoreRepository.getEvents(EventKind.VAULT_ENTRY, aggregateId, asOf).fold(
+            onSuccess = { events -> Result.success(evolveOwned(decider.initialState, events)) },
+            onFailure = { failure -> retrievalFailure(failure) },
+        )
     }
 
     /**
@@ -89,8 +106,6 @@ class VaultAggregateServiceImpl(
         command: VaultCommand,
     ): Result<VaultState> =
         try {
-            var lastResult: Result<Unit>? = null
-
             repeat(MAX_RETRIES) {
                 val currentStateResult = getState(aggregateId)
                 if (currentStateResult.isFailure) return currentStateResult
@@ -108,7 +123,9 @@ class VaultAggregateServiceImpl(
 
                     val appendResult: Result<Unit> = eventStoreRepository.append(EventKind.VAULT_ENTRY, events)
                     if (appendResult.isFailure) {
-                        lastResult = appendResult
+                        appendResult.exceptionOrNull()?.let { failure ->
+                            if (failure is CancellationException) throw failure
+                        }
                         return@repeat
                     }
 
@@ -120,17 +137,21 @@ class VaultAggregateServiceImpl(
 
                     // Check if we should take a snapshot (threshold: 20 events)
                     if (ownedState.sequenceNumber % SNAPSHOT_THRESHOLD == 0L) {
-                        snapshotRepository.save(
-                            EventKind.VAULT_ENTRY,
-                            Snapshot(
-                                aggregateId = aggregateId,
-                                sequenceNumber = ownedState.sequenceNumber,
-                                state = ownedState,
-                                timestamp =
-                                    kotlinx.datetime.Clock.System
-                                        .now(),
-                            ),
-                        )
+                        val snapshotResult =
+                            snapshotRepository.save(
+                                EventKind.VAULT_ENTRY,
+                                Snapshot(
+                                    aggregateId = aggregateId,
+                                    sequenceNumber = ownedState.sequenceNumber,
+                                    state = ownedState,
+                                    timestamp =
+                                        kotlinx.datetime.Clock.System
+                                            .now(),
+                                ),
+                            )
+                        snapshotResult.exceptionOrNull()?.let { failure ->
+                            if (failure is CancellationException) throw failure
+                        }
                     }
 
                     stateTransferred = true
@@ -141,12 +162,11 @@ class VaultAggregateServiceImpl(
                 }
             }
 
-            val exception =
-                lastResult?.exceptionOrNull() ?: RuntimeException(
-                    "Aggregate command execution failed after retries",
-                )
-            val finalResult: Result<VaultState> = Result.failure(exception)
-            return finalResult
+            return Result.failure(IllegalStateException("Aggregate command execution failed after retries"))
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            Result.failure(IllegalStateException("Vault aggregate command execution failed"))
         } finally {
             command.clearSensitiveMemory()
         }
@@ -176,4 +196,11 @@ class VaultAggregateServiceImpl(
             events.forEach { (it as? VaultEvent)?.clearSensitiveMemory() }
         }
     }
+
+    private fun retrievalFailure(failure: Throwable): Result<VaultState> {
+        if (failure is CancellationException) throw failure
+        return Result.failure(VaultAggregateRetrievalException())
+    }
+
+    private class VaultAggregateRetrievalException : IllegalStateException("Vault aggregate event retrieval failed")
 }

@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import android.bluetooth.BluetoothDevice
@@ -61,7 +63,7 @@ class AndroidFidoBleGattServerHost(
             },
             notificationSentListener = { device, status ->
                 if (status != BluetoothGatt.GATT_SUCCESS) {
-                    Logger.w { "AndroidFidoBleGattServerHost: GATT notification callback failed status=$status" }
+                    Logger.w { "AndroidFidoBleGattServerHost: GATT notification callback failed" }
                 }
                 releaseLegacyNotificationValue(expectedDeviceAddress = device.address)
                 notificationSentListener(device, status)
@@ -147,7 +149,7 @@ class AndroidFidoBleGattServerHost(
 
     private fun startupFailure(failure: Exception): Result<Unit> {
         stop()
-        Logger.e(failure) { "AndroidFidoBleGattServerHost: GATT server startup failed" }
+        Logger.e { "AndroidFidoBleGattServerHost: GATT server startup failed" }
         return Result.failure(failure)
     }
 
@@ -169,7 +171,7 @@ class AndroidFidoBleGattServerHost(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val status = server.notifyCharacteristicChanged(device, characteristic, confirm, value)
             if (status != BluetoothStatusCodes.SUCCESS) {
-                Logger.w { "AndroidFidoBleGattServerHost: GATT notification initiation failed status=$status" }
+                Logger.w { "AndroidFidoBleGattServerHost: GATT notification initiation failed" }
             }
             return status == BluetoothStatusCodes.SUCCESS
         }
@@ -240,7 +242,7 @@ class AndroidFidoBleGattServerHost(
             server?.clearServices()
             server?.close()
         } catch (failure: SecurityException) {
-            Logger.w(failure) { "AndroidFidoBleGattServerHost: Permission lost during GATT cleanup" }
+            Logger.w { "AndroidFidoBleGattServerHost: Permission lost during GATT cleanup" }
         } finally {
             releaseLegacyNotificationValue()
         }

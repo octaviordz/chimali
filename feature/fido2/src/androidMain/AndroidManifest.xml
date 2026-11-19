@@ -26,7 +26,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     
     <!-- Camera permission for Dev Tools QR Scanning (Debug only) -->
-    <uses-permission android:name="android.permission.CAMERA" />
     
     <!-- Hardware requirements -->
     <uses-feature 
@@ -35,8 +34,4 @@
     <uses-feature 
         android:name="android.hardware.fingerprint" 
         android:required="false" />
-    <uses-feature 
-        android:name="android.hardware.camera" 
-        android:required="false" />
-
 </manifest>

@@ -1,6 +1,9 @@
 package com.chimali.fido2.data.transport
 
 import android.os.Build
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
@@ -9,6 +12,7 @@ import com.chimali.fido2.domain.repository.TransportPreference
 import com.chimali.fido2.domain.repository.TransportPreferenceResult
 import com.chimali.fido2.domain.repository.TransportSaveResult
 import com.chimali.fido2.domain.repository.TransportUnavailableReason
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +33,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class ProcessTransportSelectionTest {
     @Test
     @Req("FR-BT-SEL-050", "TR-BT-SEL-020")
@@ -42,6 +47,7 @@ class ProcessTransportSelectionTest {
         var preferenceResult: TransportPreferenceResult =
             TransportPreferenceResult.Success(TransportPreference(BluetoothTransportMode.FIDO_BLE, 0L)),
         var readDelayMs: Long = 0L,
+        var readException: IOException? = null,
     ) : Fido2SettingsRepository {
         var readCount = AtomicInteger(0)
 
@@ -54,6 +60,7 @@ class ProcessTransportSelectionTest {
         override suspend fun getTransportPreference(): TransportPreferenceResult {
             readCount.incrementAndGet()
             if (readDelayMs > 0) delay(readDelayMs)
+            readException?.let { throw it }
             return preferenceResult
         }
 
@@ -81,6 +88,8 @@ class ProcessTransportSelectionTest {
         val name: String,
         var connectDelayMs: Long = 0L,
         var connectResult: Result<Unit> = Result.success(Unit),
+        var connectException: Exception? = null,
+        var disconnectException: Exception? = null,
     ) : Fido2Transport {
         private val mutableConnectionState = MutableStateFlow<Fido2ConnectionState>(Fido2ConnectionState.Idle)
         override val connectionState: StateFlow<Fido2ConnectionState> = mutableConnectionState.asStateFlow()
@@ -91,6 +100,7 @@ class ProcessTransportSelectionTest {
 
         override suspend fun connect(): Result<Unit> {
             connectCallCount.incrementAndGet()
+            connectException?.let { throw it }
             if (connectDelayMs > 0) delay(connectDelayMs)
             if (connectResult.isSuccess) {
                 mutableConnectionState.value = Fido2ConnectionState.Advertising
@@ -105,6 +115,7 @@ class ProcessTransportSelectionTest {
 
         override suspend fun disconnect(): Result<Unit> {
             disconnectCallCount.incrementAndGet()
+            disconnectException?.let { throw it }
             mutableConnectionState.value = Fido2ConnectionState.Idle
             return Result.success(Unit)
         }
@@ -345,6 +356,73 @@ class ProcessTransportSelectionTest {
 
     @Test
     @Req("FR-BT-SEL-040", "TR-BT-SEL-020")
+    fun preferenceReadFailureAndSnapshotTimeoutEmitOnlyFixedDiagnostics() =
+        runTest {
+            val marker = "synthetic-preference-read-secret-marker"
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val writer =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            Logger.setLogWriters(writer)
+            try {
+                val readFailureController =
+                    ProcessTransportSelection(
+                        settingsRepository =
+                            FakeSettingsRepository(readException = IOException(marker)),
+                        capabilityChecker = FakeCapabilityChecker(),
+                        bleTransportFactory = { FakeTransport("BLE") },
+                        classicTransportFactory = { FakeTransport("Classic") },
+                        coroutineScope = this,
+                    )
+                readFailureController.startSnapshot()
+                advanceUntilIdle()
+                assertEquals(
+                    TransportAvailability.Unavailable(TransportUnavailableReason.PreferenceReadFailed),
+                    readFailureController.state.value.availability,
+                )
+                readFailureController.close()
+
+                captured.clear()
+                val timeoutController =
+                    ProcessTransportSelection(
+                        settingsRepository = FakeSettingsRepository(readDelayMs = 100L),
+                        capabilityChecker = FakeCapabilityChecker(),
+                        bleTransportFactory = { FakeTransport("BLE") },
+                        classicTransportFactory = { FakeTransport("Classic") },
+                        coroutineScope = this,
+                        snapshotTimeoutMs = 50L,
+                    )
+                timeoutController.startSnapshot()
+                advanceTimeBy(51L)
+                advanceUntilIdle()
+
+                assertEquals(
+                    TransportAvailability.Unavailable(TransportUnavailableReason.InitializationTimeout),
+                    timeoutController.state.value.availability,
+                )
+                assertTrue(captured.isNotEmpty())
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains(marker) && throwable == null
+                    },
+                )
+                timeoutController.close()
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
+    @Req("FR-BT-SEL-040", "TR-BT-SEL-020")
     fun testLazyActivationTimeoutEnforces5sDeadline() =
         runTest {
             val repository = FakeSettingsRepository()
@@ -442,6 +520,67 @@ class ProcessTransportSelectionTest {
                 assertEquals(1, recovered.connectCallCount.get())
             } finally {
                 controller.close()
+            }
+        }
+
+    @Test
+    @Req("FR-BT-SEL-040", "TR-BT-SEL-030")
+    fun activationFailureDiagnosticsOmitExceptionDetailsAndPreserveFailureCause() =
+        runTest {
+            val failure = IllegalStateException("synthetic transport exception marker")
+            val cleanupFailure = IllegalStateException("synthetic cleanup exception marker")
+            val failingTransport =
+                FakeTransport(
+                    "synthetic",
+                    connectException = failure,
+                    disconnectException = cleanupFailure,
+                )
+            val controller =
+                ProcessTransportSelection(
+                    settingsRepository = FakeSettingsRepository(),
+                    capabilityChecker = FakeCapabilityChecker(),
+                    bleTransportFactory = { failingTransport },
+                    classicTransportFactory = { FakeTransport("Classic") },
+                    coroutineScope = this,
+                )
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val writer =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(writer)
+                controller.startSnapshot()
+                advanceUntilIdle()
+
+                val result = controller.connect()
+
+                assertIs<IllegalStateException>(result.exceptionOrNull())
+                assertEquals(
+                    "synthetic transport exception marker",
+                    result.exceptionOrNull()?.message,
+                    "The activation result preserves the original failure details for callers",
+                )
+                assertTrue(captured.isNotEmpty(), "The failure retains a fixed operation diagnostic")
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains("synthetic transport exception marker") &&
+                            !message.contains("synthetic cleanup exception marker") &&
+                            throwable == null
+                    },
+                    "Logger output must not retain exception details",
+                )
+            } finally {
+                controller.close()
+                Logger.setLogWriters(priorWriters)
             }
         }
 

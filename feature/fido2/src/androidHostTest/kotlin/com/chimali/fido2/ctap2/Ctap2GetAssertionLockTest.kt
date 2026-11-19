@@ -11,11 +11,15 @@ import com.chimali.fido2.testing.stubSensitiveRequestCompatibility
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.runTest
 
 class Ctap2GetAssertionLockTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
+
     private val getAssertionUseCase = mockk<GetAssertionUseCase>()
     private val cborCodec = mockk<CborCodec>()
     private val hmacSecretProcessor = mockk<HmacSecretProcessor>()
@@ -39,22 +43,42 @@ class Ctap2GetAssertionLockTest {
         cborCodec.stubSensitiveRequestCompatibility()
     }
 
+    @AfterTest
+    fun tearDown() {
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
+    }
+
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    @Test
+    fun `teardown erases retained test buffers`() {
+        val buffer = own(byteArrayOf(1, 2, 3))
+
+        tearDown()
+
+        assertContentEquals(ByteArray(3), buffer)
+    }
+
     @Test
     fun `handle returns CHANNEL_BUSY when lock is already held`() =
         runTest {
             // Arrange
-            val cid = byteArrayOf(1, 2, 3, 4)
-            val requestBytes = byteArrayOf(0x01, 0x02)
+            val cid = own(byteArrayOf(1, 2, 3, 4))
+            val requestBytes = own(byteArrayOf(0x01, 0x02))
 
             every { ceremonyLock.tryLock() } returns false
-            every { hidReportParser.encodeResponse(any()) } returns listOf(byteArrayOf(0x06)) // 0x06 = CHANNEL_BUSY
+            every { hidReportParser.encodeResponse(any()) } returns
+                listOf(own(byteArrayOf(0x06))) // 0x06 = CHANNEL_BUSY
 
             // Act
-            val result = handler.handle(cid, requestBytes)
+            val result = handler.handle(cid, requestBytes).onEach(::own)
 
             // Assert
             assertEquals(1, result.size)
             assertEquals(0x06.toByte(), result[0][0])
+            assertContentEquals(byteArrayOf(1, 2, 3, 4), cid)
+            assertContentEquals(byteArrayOf(0x01, 0x02), requestBytes)
             coVerify(exactly = 0) { getAssertionUseCase.findCandidateSummaries(any()) }
         }
 }

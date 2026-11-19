@@ -38,8 +38,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import co.touchlab.kermit.Logger
 import com.chimali.core.ui.R as CoreR
 import com.chimali.fido2.domain.model.PasskeyCredential
@@ -69,42 +74,70 @@ fun CredentialListScreen(
     modifier: Modifier = Modifier,
     viewModel: CredentialManagementViewModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
     var showBiometricPrompt by remember { mutableStateOf<PasskeyCredential?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                is CredentialManagementEffect.ShowToast -> {
-                    snackbarHostState.showSnackbar(effect.message)
+    DisposableEffect(lifecycle, viewModel) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> viewModel.onIntent(CredentialManagementIntent.ScreenStarted)
+                    Lifecycle.Event.ON_STOP -> {
+                        searchQuery = ""
+                        showBiometricPrompt = null
+                        viewModel.onIntent(CredentialManagementIntent.ScreenStopped)
+                    }
+                    else -> Unit
                 }
+            }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            searchQuery = ""
+            showBiometricPrompt = null
+            viewModel.onIntent(CredentialManagementIntent.ScreenStopped)
+        }
+    }
 
-                is CredentialManagementEffect.ShowUndoSnackbar -> {
-                    snackbarHostState.showSnackbar(
-                        message = effect.message,
-                        actionLabel = "Undo",
-                        duration = SnackbarDuration.Long,
-                    )
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.effect.collect { effect ->
+                when (effect) {
+                    is CredentialManagementEffect.ShowToast -> {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
+
+                    is CredentialManagementEffect.ShowUndoSnackbar -> {
+                        snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = "Undo",
+                            duration = SnackbarDuration.Long,
+                        )
+                    }
                 }
             }
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.removalEvents.collect { credential ->
-            val result =
-                snackbarHostState.showSnackbar(
-                    message = "Deleted passkey for ${credential.userName.toBoundaryString()}",
-                    actionLabel = "Undo",
-                    duration = SnackbarDuration.Long,
-                )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.onIntent(CredentialManagementIntent.UndoDelete(credential.id))
-            } else {
-                viewModel.onIntent(CredentialManagementIntent.CommitDelete(credential.id))
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.removalEvents.collect { credentialId ->
+                if (credentialId !in viewModel.state.value.pendingDeleteIds) return@collect
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = "Passkey removal pending",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Long,
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.onIntent(CredentialManagementIntent.UndoDelete(credentialId))
+                } else {
+                    viewModel.onIntent(CredentialManagementIntent.CommitDelete(credentialId))
+                }
             }
         }
     }
@@ -237,7 +270,7 @@ fun CredentialListScreen(
     showBiometricPrompt?.let { credential ->
         BiometricPromptComponent(
             title = "Confirm Deletion",
-            subtitle = "Verify your identity to delete the passkey for ${credential.rpId.toBoundaryString()}",
+            subtitle = "Verify your identity to delete this passkey",
             onSuccess = {
                 showBiometricPrompt = null
                 viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credential.id))

@@ -354,16 +354,16 @@ private class InMemoryCredentialRepository : CredentialRepository {
 
     private val credentials = ConcurrentHashMap<String, PasskeyCredential>()
     private val signCounts = ConcurrentHashMap<CredentialId, Long>()
-    private val relyingParties = ConcurrentHashMap<RpId, RelyingParty>()
+    private val relyingParties = ConcurrentHashMap<String, RelyingParty>()
 
     fun getAllSummariesForRp(rpId: RpId): List<CredentialSummary> =
         credentials.values
             .asSequence()
             .filter { it.belongsToRelyingParty(rpId) }
             .map {
-                CredentialSummary(
+                CredentialSummary.fromRpId(
                     id = it.id.encoded,
-                    rpId = it.rpId.toRpId(),
+                    rpId = RpId(it.rpId.toBoundaryString()),
                     credentialId = it.id,
                     lastUsedAt = it.lastUsedAt,
                     coseAlgorithm = it.coseAlgorithm,
@@ -459,7 +459,7 @@ private class InMemoryCredentialRepository : CredentialRepository {
     override fun getCredentialsRequiringUserVerification(): Flow<PasskeyCredential> = emptyFlow()
 
     override suspend fun saveRelyingParty(rp: RelyingParty): Outcome<Unit, DomainError> {
-        relyingParties[rp.id] = rp.copy()
+        relyingParties[rp.idText.toBoundaryString()] = rp.copy()
         return Outcome.Success(Unit)
     }
 
@@ -467,11 +467,11 @@ private class InMemoryCredentialRepository : CredentialRepository {
         rpId: RpId,
         update: (RelyingParty) -> RelyingParty,
     ): Outcome<Unit, DomainError> {
-        relyingParties[rpId]?.let { relyingParties[rpId] = update(it) }
+        relyingParties[rpId.value]?.let { relyingParties[rpId.value] = update(it) }
         return Outcome.Success(Unit)
     }
 
-    override suspend fun getRelyingParty(rpId: RpId): RelyingParty? = relyingParties[rpId]
+    override suspend fun getRelyingParty(rpId: RpId): RelyingParty? = relyingParties[rpId.value]
 
     override suspend fun saveUserConsent(consent: UserConsentRecord): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
@@ -502,9 +502,9 @@ private class InMemoryCredentialRepository : CredentialRepository {
             credentials.values
                 .filter { it.belongsToRelyingParty(rpId) }
                 .map {
-                    CredentialSummary(
+                    CredentialSummary.fromRpId(
                         id = it.id.encoded,
-                        rpId = it.rpId.toRpId(),
+                        rpId = RpId(it.rpId.toBoundaryString()),
                         credentialId = it.id,
                         lastUsedAt = it.lastUsedAt,
                         coseAlgorithm = it.coseAlgorithm,
@@ -547,16 +547,6 @@ private class InMemoryCredentialRepository : CredentialRepository {
         credentials.clear()
         signCounts.clear()
         relyingParties.clear()
-        return Outcome.Success(Unit)
-    }
-
-    override suspend fun updateLabel(
-        credentialId: CredentialId,
-        label: String?,
-    ): Outcome<Unit, DomainError> {
-        credentials.values.find { it.id == credentialId }?.let { cred ->
-            credentials[cred.id.encoded] = cred.copy(label = label)
-        }
         return Outcome.Success(Unit)
     }
 }

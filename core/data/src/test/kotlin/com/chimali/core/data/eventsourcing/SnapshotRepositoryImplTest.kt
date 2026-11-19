@@ -13,7 +13,10 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.util.UUID
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock.System
+import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -70,6 +73,29 @@ class SnapshotRepositoryImplTest {
         }
 
     @Test
+    fun `save discards serialization exception details`() =
+        runTest {
+            val marker = "SYNTHETIC-SNAPSHOT-ENCRYPT-MARKER"
+            val timestamp = System.now()
+            val snapshot =
+                Snapshot(
+                    aggregateId,
+                    1,
+                    VaultState(id = aggregateId, title = "synthetic"),
+                    timestamp,
+                )
+            every { encryptionManager.encrypt(any(), any()) } throws SerializationException("encode $marker")
+
+            val result = repository.save(EventKind.VAULT_ENTRY, snapshot)
+            val failure = result.exceptionOrNull()
+
+            assertTrue(result.isFailure)
+            assertEquals("Vault snapshot serialization failed", failure?.message)
+            assertNull(failure?.cause)
+            assertFalse(failure?.toString()?.contains(marker) == true)
+        }
+
+    @Test
     fun `getLatest should decrypt and deserialize snapshot`() =
         runTest {
             val state = VaultState(id = aggregateId, title = "test")
@@ -102,6 +128,28 @@ class SnapshotRepositoryImplTest {
             assertEquals(aggregateId, result?.aggregateId)
             assertTrue(result?.state?.title?.contentEquals("test".toCharArray()) == true)
             assertEquals(1L, result?.sequenceNumber)
+        }
+
+    @Test
+    fun `getLatest discards serialization exception details`() =
+        runTest {
+            val marker = "SYNTHETIC-SNAPSHOT-DECODE-MARKER"
+            val timestamp = System.now()
+            database.vaultQueries.insert_snapshot(
+                aggregate_id = aggregateId,
+                sequence_number = 1,
+                timestamp = timestamp.toString(),
+                payload = byteArrayOf(1, 2, 3),
+            )
+            every { encryptionManager.decrypt(any(), any()) } throws SerializationException("decode $marker")
+
+            val result = repository.getLatest<VaultState>(EventKind.VAULT_ENTRY, aggregateId)
+            val failure = result.exceptionOrNull()
+
+            assertTrue(result.isFailure)
+            assertEquals("Vault snapshot serialization failed", failure?.message)
+            assertNull(failure?.cause)
+            assertFalse(failure?.toString()?.contains(marker) == true)
         }
 
     @Test

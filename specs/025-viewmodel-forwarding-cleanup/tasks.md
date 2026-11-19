@@ -42,7 +42,7 @@ description: "Task list for ViewModel Forwarding Cleanup feature implementation"
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [ ] T004 Verify Detekt configuration includes ViewModelForwarding rule in config/detekt/detekt.yml
-- [ ] T005 Run existing test suite to establish baseline in feature/fido2/
+- [x] T005 Run existing test suite to establish baseline in feature/fido2/ (2026-11-17: the legacy `testDebugUnitTest` task is unavailable after the FIDO module became Kotlin Multiplatform; ran `:feature:fido2:testAndroidHostTest` successfully, with all tasks up-to-date).
 - [ ] T006 Document current swipe-to-dismiss behavior for validation reference
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel

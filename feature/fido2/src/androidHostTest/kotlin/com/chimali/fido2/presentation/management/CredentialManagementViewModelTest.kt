@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelStore
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
+import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.SensitiveCredentialText
@@ -15,10 +16,12 @@ import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.slot
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -27,6 +30,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -41,6 +46,7 @@ import org.junit.jupiter.api.AfterEach
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Req("NFR-SEC-041")
+@Suppress("LargeClass")
 class CredentialManagementViewModelTest {
     private lateinit var getAllCredentialsUseCase: GetAllCredentialsUseCase
     private lateinit var searchCredentialsUseCase: SearchCredentialsUseCase
@@ -114,6 +120,68 @@ class CredentialManagementViewModelTest {
             assertCredentialTextErased(credential)
         }
 
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `screen stop erases retained credential owners and resume reloads the list`() =
+        runTest {
+            val credential =
+                PasskeyCredential.createTest(
+                    id = testCredentialIdFromLabel("management-screen-stop"),
+                    rpId = RpId("synthetic.example"),
+                    userName = "synthetic-account",
+                )
+            viewModel.setCredentials(listOf(credential))
+            viewModel.onIntent(CredentialManagementIntent.SelectCredential(credential))
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+            assertTrue(credential.id in viewModel.state.value.pendingDeleteIds)
+
+            viewModel.onIntent(CredentialManagementIntent.ScreenStopped)
+
+            val stoppedState = viewModel.state.value
+            assertTrue(stoppedState.credentials.isEmpty())
+            assertNull(viewModel.state.value.selectedCredential)
+            assertNull(viewModel.state.value.credentialToDelete)
+            assertTrue(stoppedState.pendingDeleteIds.isEmpty())
+            assertCredentialTextErased(credential)
+            viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credential.id))
+            viewModel.onIntent(CredentialManagementIntent.CommitDelete(credential.id))
+            assertFalse(viewModel.state.value.isLoading)
+
+            val reloaded =
+                PasskeyCredential.createTest(
+                    id = testCredentialIdFromLabel("management-screen-resume"),
+                    rpId = RpId("synthetic.example"),
+                    userName = "synthetic-resumed-account",
+                )
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns Outcome.Success(listOf(reloaded))
+            viewModel.onIntent(CredentialManagementIntent.ScreenStarted)
+            advanceUntilIdle()
+
+            val resumedState = viewModel.state.value
+            assertEquals(listOf(reloaded), resumedState.credentials)
+            assertFalse(resumedState.isLoading)
+            reloaded.eraseSensitiveText()
+        }
+
+    @Test
+    @Req("NFR-SEC-030", "FR-008", "FR-009")
+    fun `credential loading error state omits domain error details`() =
+        runTest {
+            val marker = "synthetic-provider-rp-id-error-marker"
+            coEvery { getAllCredentialsUseCase(any<Long>(), any<Long>()) } returns
+                Outcome.Error(DomainError.StorageError(marker))
+
+            viewModel.onIntent(CredentialManagementIntent.RefreshCredentials)
+            advanceUntilIdle()
+
+            assertEquals("Credential loading failed", viewModel.state.value.error)
+            assertFalse(
+                viewModel.state.value.error
+                    .orEmpty()
+                    .contains(marker),
+            )
+        }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
@@ -161,6 +229,28 @@ class CredentialManagementViewModelTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `failed page combination erases incoming batch and preserves retained owners`() {
+        val retained = managementCredential("management-page-retained")
+        val incoming = managementCredential("management-page-incoming")
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                combineOwnedCredentialPage(listOf(retained), listOf(incoming)) { _, _ ->
+                    throw IllegalStateException("synthetic page composition failure")
+                }
+            }
+
+            assertCredentialTextErased(incoming)
+            assertTrue(retained.rpId.contentEquals("example.com"))
+        } finally {
+            retained.eraseSensitiveText()
+            incoming.eraseSensitiveText()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `search replaces loaded credentials and erases prior owners`() =
         runTest(testDispatcher) {
             val previous = managementCredential("management-search-before")
@@ -176,6 +266,37 @@ class CredentialManagementViewModelTest {
             assertCredentialTextErased(previous)
             assertEquals(listOf(searched), viewModel.state.value.credentials)
             searched.eraseSensitiveText()
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `successful search result owner is erased when its view model is cleared`() =
+        runTest(testDispatcher) {
+            val query = "synthetic-search-result-viewmodel-teardown"
+            val searched = managementCredential("successful-search-result-viewmodel-teardown")
+            coEvery { searchCredentialsUseCase(match { it.contentEquals(query) }) } returns flow { emit(searched) }
+            val store = ViewModelStore()
+            store.put("management", viewModel)
+            var retainedQuery: SensitiveCredentialText? = null
+
+            try {
+                viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery(query))
+                advanceTimeBy(301L)
+                advanceUntilIdle()
+
+                assertEquals(listOf(searched), viewModel.state.value.credentials)
+                retainedQuery = retainedSearchQueryOwner()
+                assertSensitiveTextReadable(requireNotNull(retainedQuery))
+
+                store.clear()
+
+                assertCredentialTextErased(searched)
+                assertCredentialTextErased(requireNotNull(retainedQuery))
+            } finally {
+                store.clear()
+                searched.eraseSensitiveText()
+            }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -446,6 +567,32 @@ class CredentialManagementViewModelTest {
             }
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `superseding search erases the in-flight query owner`() =
+        runTest(testDispatcher) {
+            val operationQuery = slot<SensitiveCredentialText>()
+            coEvery { searchCredentialsUseCase(capture(operationQuery)) } returns
+                flow { awaitCancellation() }
+
+            viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery("synthetic-search-owner-marker"))
+            advanceTimeBy(301L)
+            runCurrent()
+
+            assertTrue(operationQuery.isCaptured)
+            assertTrue(operationQuery.captured.contentEquals("synthetic-search-owner-marker"))
+
+            viewModel.onIntent(CredentialManagementIntent.UpdateSearchQuery("replacement-search-marker"))
+            runCurrent()
+
+            assertCredentialTextErased(operationQuery.captured)
+            ViewModelStore().apply {
+                put("management", viewModel)
+                clear()
+            }
+        }
+
     private fun assertCredentialTextErased(credential: PasskeyCredential) {
         listOf(credential.rpId, credential.userId, credential.userName, credential.userDisplayName).forEach { owner ->
             val copy = owner.copyCharacters()
@@ -457,10 +604,30 @@ class CredentialManagementViewModelTest {
         }
     }
 
+    private fun assertCredentialTextReadable(credential: PasskeyCredential) {
+        listOf(credential.rpId, credential.userId, credential.userName, credential.userDisplayName).forEach { owner ->
+            val copy = owner.copyCharacters()
+            try {
+                assertTrue(copy.any { it != '\u0000' }, "Pending snackbar owner must remain readable")
+            } finally {
+                copy.fill('\u0000')
+            }
+        }
+    }
+
     private fun assertCredentialTextErased(owner: SensitiveCredentialText) {
         val copy = owner.copyCharacters()
         try {
             assertContentEquals(CharArray(copy.size), copy)
+        } finally {
+            copy.fill('\u0000')
+        }
+    }
+
+    private fun assertSensitiveTextReadable(owner: SensitiveCredentialText) {
+        val copy = owner.copyCharacters()
+        try {
+            assertTrue(copy.any { it != '\u0000' })
         } finally {
             copy.fill('\u0000')
         }
@@ -527,8 +694,16 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent ConfirmDelete successfully deletes and emits toast effect`() =
         runTest {
-            coEvery { deleteCredentialUseCase(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")) } returns
+            val credentialId = testCredentialIdFromLabel("management-confirm-delete")
+            coEvery { deleteCredentialUseCase(credentialId) } returns
                 Outcome.Success(Unit)
+            val credential =
+                PasskeyCredential.createTest(
+                    id = credentialId,
+                    rpId = RpId("example.com"),
+                    userName = "synthetic-confirm-delete-owner",
+                )
+            viewModel.setCredentials(listOf(credential))
 
             val effects = mutableListOf<CredentialManagementEffect>()
             val job =
@@ -537,7 +712,7 @@ class CredentialManagementViewModelTest {
                 }
 
             viewModel.onIntent(
-                CredentialManagementIntent.ConfirmDelete(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")),
+                CredentialManagementIntent.ConfirmDelete(credentialId),
             )
             advanceUntilIdle()
 
@@ -546,6 +721,11 @@ class CredentialManagementViewModelTest {
             assertTrue(effect is CredentialManagementEffect.ShowToast)
             assertEquals("Credential deleted", (effect as CredentialManagementEffect.ShowToast).message)
             assertNull(viewModel.state.value.error)
+            assertTrue(
+                viewModel.state.value.credentials
+                    .none { it.id == credentialId },
+            )
+            assertCredentialTextErased(credential)
 
             job.cancel()
         }
@@ -568,9 +748,85 @@ class CredentialManagementViewModelTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `credential identifiers never reach deletion diagnostics`() =
+        runTest(testDispatcher) {
+            val credentialId = testCredentialIdFromLabel("credential-id-private-log-marker")
+            val credential =
+                PasskeyCredential.createTest(
+                    id = credentialId,
+                    rpId = RpId("private-rp-log-marker.example"),
+                    userName = "private-user-log-marker",
+                )
+            coEvery { deleteCredentialUseCase(credentialId) } returns
+                Outcome.Error(DomainError.UnknownError("private-error-log-marker"))
+            viewModel.setCredentials(listOf(credential))
+
+            CapturedDiagnostics().use { diagnostics ->
+                viewModel.onIntent(CredentialManagementIntent.ConfirmDelete(credentialId))
+                advanceUntilIdle()
+                viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                advanceUntilIdle()
+                viewModel.onIntent(CredentialManagementIntent.UndoDelete(credentialId))
+                advanceUntilIdle()
+                viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+                advanceUntilIdle()
+                viewModel.onIntent(CredentialManagementIntent.CommitDelete(credentialId))
+                advanceUntilIdle()
+
+                assertTrue(diagnostics.size >= 7, "Deletion and pending-removal source logs must be exercised")
+                diagnostics.assertNoSensitiveValues(
+                    credentialId.encoded,
+                    credentialId.toString(),
+                    "credential-id-private-log-marker",
+                    "private-rp-log-marker",
+                    "private-user-log-marker",
+                    "private-error-log-marker",
+                )
+            }
+
+            ViewModelStore().apply {
+                put("credential-management", viewModel)
+                clear()
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `intent ConfirmDeleteAll successfully deletes all and emits toast effect`() =
         runTest {
             coEvery { deleteAllCredentialsUseCase() } returns Outcome.Success(Unit)
+            val first =
+                PasskeyCredential.createTest(
+                    id = testCredentialIdFromLabel("delete-all-owner-first"),
+                    rpId = RpId("first.example"),
+                    userName = "synthetic-delete-all-first",
+                )
+            val second =
+                PasskeyCredential.createTest(
+                    id = testCredentialIdFromLabel("delete-all-owner-second"),
+                    rpId = RpId("second.example"),
+                    userName = "synthetic-delete-all-second",
+                )
+            viewModel.setCredentials(listOf(first, second))
+            viewModel.onIntent(CredentialManagementIntent.SelectCredential(first))
+            viewModel.onIntent(CredentialManagementIntent.ShowDeleteDialog(second))
+            val borrowerAdmitted = CompletableDeferred<Unit>()
+            val finishBorrower = CompletableDeferred<Unit>()
+            val borrowerFinished = CompletableDeferred<Unit>()
+            val removalBorrower =
+                launch(UnconfinedTestDispatcher(testScheduler)) {
+                    viewModel.removalEvents.collect { credentialId ->
+                        assertEquals(first.id, credentialId)
+                        borrowerAdmitted.complete(Unit)
+                        finishBorrower.await()
+                        assertCredentialTextReadable(first)
+                        borrowerFinished.complete(Unit)
+                    }
+                }
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(first))
+            advanceUntilIdle()
+            borrowerAdmitted.await()
 
             val effects = mutableListOf<CredentialManagementEffect>()
             val job =
@@ -586,7 +842,35 @@ class CredentialManagementViewModelTest {
             assertTrue(effect is CredentialManagementEffect.ShowToast)
             assertEquals("All credentials deleted", (effect as CredentialManagementEffect.ShowToast).message)
             assertNull(viewModel.state.value.error)
+            assertTrue(
+                viewModel.state.value.credentials
+                    .isEmpty(),
+            )
+            assertNull(viewModel.state.value.selectedCredential)
+            assertNull(viewModel.state.value.credentialToDelete)
+            assertTrue(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(first.id),
+            )
+            assertCredentialTextReadable(first)
+            assertCredentialTextErased(second)
 
+            finishBorrower.complete(Unit)
+            advanceUntilIdle()
+            borrowerFinished.await()
+            viewModel.onIntent(CredentialManagementIntent.UndoDelete(first.id))
+            assertTrue(
+                viewModel.state.value.credentials
+                    .isEmpty(),
+                "Undo cannot restore a row after delete-all committed",
+            )
+            assertFalse(
+                viewModel.state.value.pendingDeleteIds
+                    .contains(first.id),
+            )
+            assertCredentialTextErased(first)
+
+            removalBorrower.cancel()
             job.cancel()
         }
 
@@ -601,7 +885,7 @@ class CredentialManagementViewModelTest {
                     rpId = RpId("example.com"),
                     userName = "alice",
                 )
-            val removalEvents = mutableListOf<PasskeyCredential>()
+            val removalEvents = mutableListOf<CredentialId>()
             val job =
                 launch(UnconfinedTestDispatcher(testScheduler)) {
                     viewModel.removalEvents.toList(removalEvents)
@@ -613,8 +897,29 @@ class CredentialManagementViewModelTest {
                 viewModel.state.value.pendingDeleteIds
                     .contains(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")),
             )
-            assertEquals(credential, removalEvents.first())
+            assertEquals(credential.id, removalEvents.first())
             job.cancel()
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `pending removal notification is retained until a later screen collector starts`() =
+        runTest {
+            val credential =
+                PasskeyCredential.createTest(
+                    id = testCredentialIdFromLabel("late-removal-collector"),
+                    rpId = RpId("example.com"),
+                    userName = "synthetic-late-user",
+                )
+            viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
+            advanceUntilIdle()
+
+            assertCredentialTextReadable(credential)
+            assertEquals(credential.id, viewModel.removalEvents.first())
+            viewModel.onIntent(CredentialManagementIntent.UndoDelete(credential.id))
+
+            assertCredentialTextErased(credential)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -649,25 +954,30 @@ class CredentialManagementViewModelTest {
     @Test
     fun `intent CommitDelete calls use case and clears pending id`() =
         runTest {
-            coEvery { deleteCredentialUseCase(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")) } returns
+            val credentialId = testCredentialIdFromLabel("management-commit-delete")
+            coEvery { deleteCredentialUseCase(credentialId) } returns
                 Outcome.Success(Unit)
             val credential =
                 PasskeyCredential.createTest(
-                    id = testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB"),
+                    id = credentialId,
                     rpId = RpId("example.com"),
-                    userName = "alice",
+                    userName = "synthetic-delete-owner",
                 )
+            viewModel.setCredentials(listOf(credential))
             viewModel.onIntent(CredentialManagementIntent.PendingDelete(credential))
 
-            viewModel.onIntent(
-                CredentialManagementIntent.CommitDelete(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")),
-            )
+            viewModel.onIntent(CredentialManagementIntent.CommitDelete(credentialId))
             advanceUntilIdle()
 
             assertFalse(
                 viewModel.state.value.pendingDeleteIds
-                    .contains(testCredentialIdFromLabel("dGVzdF9pZABkR1Z6ZEY5cFpB")),
+                    .contains(credentialId),
             )
+            assertTrue(
+                viewModel.state.value.credentials
+                    .none { it.id == credentialId },
+            )
+            assertCredentialTextErased(credential)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

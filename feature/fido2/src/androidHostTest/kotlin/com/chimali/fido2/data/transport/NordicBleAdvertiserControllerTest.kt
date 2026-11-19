@@ -5,6 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import io.mockk.every
 import io.mockk.mockk
@@ -13,6 +16,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -28,6 +32,45 @@ import no.nordicsemi.android.kotlin.ble.core.advertiser.BleAdvertisingConfig
 @Req("FR-BLE-010", "FR-BLE-060", "TR-BLE-010")
 class NordicBleAdvertiserControllerTest {
     @Test
+    fun startFailureDiagnosticsOmitExceptionContentAndKeepOriginalFailureResult() =
+        runTest {
+            val failure = IllegalStateException("synthetic advertising exception marker")
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val writer =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(writer)
+                val controller =
+                    NordicBleAdvertiserController(mockk<Context>(relaxed = true), this) {
+                        throw failure
+                    }
+
+                val result = controller.startAdvertising(UUID.randomUUID())
+
+                assertSame(failure, result.exceptionOrNull(), "Callers retain the original typed failure")
+                assertTrue(captured.isNotEmpty(), "The failure retains a fixed operation diagnostic")
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains("synthetic advertising exception marker") && throwable == null
+                    },
+                    "Logger output must not retain exception details",
+                )
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
     fun collectsNordicFlowAndWaitsForSuccessfulStartBeforeReturning() =
         runTest {
             var collected = false
@@ -41,13 +84,16 @@ class NordicBleAdvertiserControllerTest {
                 }
             val controller = NordicBleAdvertiserController(mockk<Context>(relaxed = true), this, { advertiser })
 
-            val result = controller.startAdvertising(UUID.randomUUID())
+            val serviceUuid = UUID.randomUUID()
+            val result = controller.startAdvertising(serviceUuid)
 
             assertTrue(result.isSuccess)
             assertTrue(collected)
             assertTrue(config.captured.settings.connectable)
             assertTrue(config.captured.settings.legacyMode)
             assertTrue(config.captured.settings.scannable == true)
+            assertTrue(config.captured.advertiseData?.serviceUuid != null)
+            assertEquals(false, config.captured.scanResponseData?.includeDeviceName)
             controller.stopAdvertising()
         }
 

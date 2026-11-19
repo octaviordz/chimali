@@ -7,7 +7,6 @@ import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.domain.repository.TransportPreference
 import com.chimali.fido2.domain.repository.TransportPreferenceResult
 import com.chimali.fido2.domain.repository.TransportUnavailableReason
-import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -64,7 +63,7 @@ class ProcessTransportSelectionRecoveryTest {
     @Req("FR-BT-SEL-030", "TR-BT-SEL-020")
     fun `snapshot retry reads again only while transport choice is unresolved`() =
         runTest {
-            val repository = RecoverySettingsRepository(TransportPreferenceResult.ReadError(IOException("offline")))
+            val repository = RecoverySettingsRepository(TransportPreferenceResult.ReadError)
             val controller =
                 ProcessTransportSelection(
                     settingsRepository = repository,

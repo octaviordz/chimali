@@ -1,7 +1,7 @@
 package com.chimali.feature.vault.internal.payload
 
 /** FR-VAULT-026: owns its arrays; copies transfer independent ownership. */
-data class PasswordPayload(
+class PasswordPayload(
     val title: CharArray,
     val username: CharArray,
     val password: CharArray,
@@ -37,6 +37,16 @@ data class PasswordPayload(
             notes = notes?.copyOf(),
             customFields = customFields?.map { it.copyForEditing() },
         )
+
+    /** Default arrays and nested fields are copied; explicitly supplied owners transfer to the result. */
+    fun copy(
+        title: CharArray = this.title.copyOf(),
+        username: CharArray = this.username.copyOf(),
+        password: CharArray = this.password.copyOf(),
+        uri: CharArray = this.uri.copyOf(),
+        notes: CharArray? = this.notes?.copyOf(),
+        customFields: List<CustomField>? = this.customFields?.map { it.copyForEditing() },
+    ): PasswordPayload = PasswordPayload(title, username, password, uri, notes, customFields)
 
     override fun toString(): String = "PasswordPayload([redacted])"
 

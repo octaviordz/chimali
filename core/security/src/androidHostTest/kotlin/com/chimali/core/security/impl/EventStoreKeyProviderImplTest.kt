@@ -11,6 +11,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -19,6 +20,16 @@ import org.junit.jupiter.api.Test
 class EventStoreKeyProviderImplTest {
     private val masterSeedProvider = mockk<MasterSeedProvider>()
     private val keyProvider = EventStoreKeyProviderImpl(masterSeedProvider)
+    private val issuedKeys = mutableListOf<ByteArray>()
+
+    @AfterEach
+    fun eraseIssuedKeys() {
+        issuedKeys.forEach { it.fill(0) }
+        issuedKeys.clear()
+    }
+
+    private suspend fun deriveOwnedKey(label: String): ByteArray =
+        keyProvider.getEventStoreKey(label).also(issuedKeys::add)
 
     private fun stubSessionOwner() {
         coEvery {
@@ -37,12 +48,15 @@ class EventStoreKeyProviderImplTest {
             stubSessionOwner()
             coEvery { masterSeedProvider.getMasterSeed() } returns masterSeed
 
-            val key = keyProvider.getEventStoreKey("test_label")
+            try {
+                val key = deriveOwnedKey("test_label")
 
-            assertEquals(32, key.size)
-            assertContentEquals(expected, key)
-            assertTrue(masterSeed.all { it == 0.toByte() }, "The owned root copy must be erased")
-            expected.fill(0)
+                assertEquals(32, key.size)
+                assertContentEquals(expected, key)
+                assertTrue(masterSeed.all { it == 0.toByte() }, "The owned root copy must be erased")
+            } finally {
+                expected.fill(0)
+            }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -66,8 +80,8 @@ class EventStoreKeyProviderImplTest {
             stubSessionOwner()
             coEvery { masterSeedProvider.getMasterSeed() } answers { ByteArray(32) { 0x01.toByte() } }
 
-            val key1 = keyProvider.getEventStoreKey("label_1")
-            val key2 = keyProvider.getEventStoreKey("label_2")
+            val key1 = deriveOwnedKey("label_1")
+            val key2 = deriveOwnedKey("label_2")
 
             assertNotEquals(key1.toList(), key2.toList())
         }

@@ -7,6 +7,7 @@ import com.chimali.fido2.data.dao.RelyingPartyDao
 import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
 import com.chimali.fido2.data.mapper.toDomainModel
 import com.chimali.fido2.domain.repository.RelyingPartyRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
@@ -23,7 +24,7 @@ class RelyingPartyRepositoryImpl(
     /** Persists the supplied relying-party metadata through the protected SQLDelight store. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun saveRelyingParty(relyingParty: RelyingParty): Result<Unit> =
-        runCatching {
+        resultUnlessCancelled {
             relyingPartyDao.insertOrUpdateRelyingParty(relyingParty)
         }
 
@@ -45,7 +46,7 @@ class RelyingPartyRepositoryImpl(
                 try {
                     rows.forEach {
                         val model = it.toDomainModel()
-                        models += model
+                        admitOwnedRelyingParty(model) { models.add(model) }
                         onRelyingPartyCreatedForTest?.invoke(model)
                     }
                     emit(models)
@@ -60,7 +61,7 @@ class RelyingPartyRepositoryImpl(
     /** Deletes the relying-party record identified by [rpId]. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override suspend fun deleteRelyingParty(rpId: RpId): Result<Unit> =
-        runCatching {
+        resultUnlessCancelled {
             relyingPartyDao.deleteRelyingParty(rpId)
         }
 
@@ -70,7 +71,32 @@ class RelyingPartyRepositoryImpl(
         rpId: RpId,
         count: Int,
     ): Result<Unit> =
-        runCatching {
+        resultUnlessCancelled {
             relyingPartyDao.updateCredentialCount(rpId, count)
         }
 }
+
+/** Transfers [model] to its batch only after admission succeeds; otherwise erases its text owners. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+internal fun admitOwnedRelyingParty(
+    model: RelyingParty,
+    admit: () -> Boolean,
+) {
+    var transferred = false
+    try {
+        check(admit()) { "Relying-party batch admission failed" }
+        transferred = true
+    } finally {
+        if (!transferred) model.eraseSensitiveText()
+    }
+}
+
+@Suppress("TooGenericExceptionCaught", "SwallowedException") // Keep DAO details out of returned failures.
+private suspend fun <T> resultUnlessCancelled(block: suspend () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        Result.failure(IllegalStateException("Relying-party operation failed"))
+    }

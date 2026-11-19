@@ -30,8 +30,9 @@ value class CredentialId private constructor(
 ) {
     init {
         require(encoded.isNotBlank()) { "CredentialId cannot be empty" }
-        val decoded = decodeAndValidate(encoded)
-        require(encodeCanonical(decoded) == encoded) { "CredentialId must use canonical unpadded Base64URL" }
+        withDecodedBytes(encoded) { decoded ->
+            require(encodeCanonical(decoded) == encoded) { "CredentialId must use canonical unpadded Base64URL" }
+        }
     }
 
     /** Canonical unpadded Base64URL form. */
@@ -44,9 +45,9 @@ value class CredentialId private constructor(
     @Req("NFR-SEC-041")
     fun toByteArray(): ByteArray = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(encoded)
 
-    /** Returns the wrapper's diagnostic form, including its canonical encoded identifier. */
+    /** Returns a fixed diagnostic form without disclosing the encoded credential identifier. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    override fun toString(): String = "CredentialId($encoded)"
+    override fun toString(): String = "CredentialId([redacted])"
 
     companion object {
         /** Default generated credential identifier length in bytes. */
@@ -64,7 +65,11 @@ value class CredentialId private constructor(
         @Req("NFR-SEC-041", "TR-AUTH-031")
         fun generate(): CredentialId {
             val bytes = generateSecureRandomBytes(CREDENTIAL_ID_SIZE_BYTES)
-            return fromByteArray(bytes)
+            return try {
+                fromByteArray(bytes)
+            } finally {
+                bytes.fill(0)
+            }
         }
 
         /**
@@ -83,24 +88,43 @@ value class CredentialId private constructor(
          * Reconstructs a [CredentialId] from a previously-stored encoded string.
          */
         @Req("NFR-SEC-041")
-        fun fromEncoded(encoded: String): CredentialId {
+        fun fromEncoded(encoded: String): CredentialId =
+            withDecodedBytes(encoded) { decoded -> CredentialId(encodeCanonical(decoded)) }
+
+        /** Borrows decoded bytes only for [action] and always erases the temporary representation. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun <T> withDecodedBytes(
+            encoded: String,
+            action: (ByteArray) -> T,
+        ): T {
             val decoded = decodeAndValidate(encoded)
-            return CredentialId(encodeCanonical(decoded))
+            return try {
+                action(decoded)
+            } finally {
+                decoded.fill(0)
+            }
         }
 
+        // Decoder messages can contain input-derived details; expose only fixed validation text.
+        @Suppress("SwallowedException")
         private fun decodeAndValidate(encoded: String): ByteArray {
             require(encoded.isNotBlank()) { "CredentialId cannot be empty" }
             val decoded =
                 try {
                     Base64.UrlSafe.withPadding(Base64.PaddingOption.PRESENT_OPTIONAL).decode(encoded)
-                } catch (exception: IllegalArgumentException) {
-                    throw IllegalArgumentException("CredentialId must be valid Base64URL", exception)
+                } catch (_: IllegalArgumentException) {
+                    throw IllegalArgumentException("CredentialId must be valid Base64URL")
                 }
-            require(decoded.size in MIN_CREDENTIAL_ID_BYTES..MAX_CREDENTIAL_ID_BYTES) {
-                "Credential ID must be between $MIN_CREDENTIAL_ID_BYTES " +
-                    "and $MAX_CREDENTIAL_ID_BYTES bytes, got ${decoded.size}"
+            var transferred = false
+            try {
+                require(decoded.size in MIN_CREDENTIAL_ID_BYTES..MAX_CREDENTIAL_ID_BYTES) {
+                    "Credential ID must be between $MIN_CREDENTIAL_ID_BYTES " +
+                        "and $MAX_CREDENTIAL_ID_BYTES bytes, got ${decoded.size}"
+                }
+                return decoded.also { transferred = true }
+            } finally {
+                if (!transferred) decoded.fill(0)
             }
-            return decoded
         }
 
         private fun encodeCanonical(bytes: ByteArray): String =

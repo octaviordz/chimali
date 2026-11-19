@@ -32,12 +32,12 @@ class GetAssertionOptions private constructor(
             timeout,
         )
 
-    /** Produces the RP-ID value required by existing service APIs. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    val rpId: RpId get() = rpIdOwner.toRpId()
-
     /** Borrows this request's RP text only for the live request lifetime. */
     internal val rpIdText: CharSequence get() = rpIdOwner
+
+    /** Creates the RP String required by a platform text boundary; callers must release it afterward. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun rpIdForTextBoundary(): String = rpIdOwner.toBoundaryString()
 
     init {
         try {

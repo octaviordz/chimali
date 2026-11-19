@@ -1,34 +1,44 @@
+// Raw storage/codec exceptions are deliberately discarded after cancellation is rethrown.
+@file:Suppress("SwallowedException", "TooGenericExceptionCaught")
+
 package com.chimali.core.data.eventsourcing
 
 import com.chimali.core.database.VaultDatabase
 import com.chimali.core.domain.eventsourcing.DomainEvent
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
+import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
 import com.chimali.core.domain.repository.EventStoreRepository
 import com.chimali.core.security.api.EncryptionManager
 import com.chimali.core.security.api.EventStoreKeyProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 import org.koin.core.annotation.Single
 
-internal object VaultEventSerializer {
-    val json =
-        Json {
-            classDiscriminator = "eventType"
-            serializersModule =
-                SerializersModule {
-                    polymorphic(DomainEvent::class) {
-                        subclass(VaultEvent.Created::class)
-                        subclass(VaultEvent.Updated::class)
-                        subclass(VaultEvent.Deleted::class)
-                    }
-                }
+/** Decodes a batch as one ownership transfer; no prefix escapes when a later row fails. */
+internal fun <T> decodeOwnedVaultEvents(
+    rows: Iterable<T>,
+    decode: (T) -> VaultEvent,
+): List<VaultEvent> {
+    val owned = mutableListOf<VaultEvent>()
+    var transferred = false
+    try {
+        rows.forEach { row ->
+            val event = decode(row)
+            var appended = false
+            try {
+                owned.add(event)
+                appended = true
+            } finally {
+                if (!appended) event.clearSensitiveMemory()
+            }
         }
+        transferred = true
+        return owned
+    } finally {
+        if (!transferred) owned.forEach(VaultEvent::clearSensitiveMemory)
+    }
 }
 
 /**
@@ -41,8 +51,6 @@ class EventStoreRepositoryImpl(
     private val encryptionManager: EncryptionManager,
     private val keyProvider: EventStoreKeyProvider,
 ) : EventStoreRepository {
-    private val json = VaultEventSerializer.json
-
     override suspend fun append(
         kind: EventKind,
         events: List<DomainEvent>,
@@ -51,14 +59,16 @@ class EventStoreRepositoryImpl(
 
         var key: ByteArray? = null
         return try {
-            key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            val eventStoreKey = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            key = eventStoreKey
 
             database.transaction {
                 events.forEach { event ->
-                    val payloadJson = json.encodeToString(event)
-                    val plaintext = payloadJson.encodeToByteArray()
+                    val vaultEvent =
+                        event as? VaultEvent ?: throw SerializationException("Unsupported Vault event type")
+                    val plaintext = VaultMutableJsonCodec.encodeEvent(vaultEvent)
                     try {
-                        val encryptedPayload = encryptionManager.encrypt(plaintext, key!!)
+                        val encryptedPayload = encryptionManager.encrypt(plaintext, eventStoreKey)
                         database.vaultQueries.insert_event(
                             aggregate_id = event.aggregateId,
                             sequence_number = event.sequenceNumber,
@@ -74,9 +84,11 @@ class EventStoreRepositoryImpl(
         } catch (e: CancellationException) {
             throw e
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Result.failure(IllegalStateException("Vault event storage operation failed"))
         } catch (e: SerializationException) {
-            Result.failure(e)
+            Result.failure(SerializationException("Vault event serialization failed"))
+        } catch (e: Exception) {
+            Result.failure(IllegalStateException("Vault event operation failed"))
         } finally {
             key?.fill(0)
         }
@@ -94,29 +106,33 @@ class EventStoreRepositoryImpl(
             // Using a very large timestamp string if upTo is null to fetch all events
             val timestampLimit = upTo?.toString() ?: "9999-12-31T23:59:59Z"
 
-            key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            val eventStoreKey = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            key = eventStoreKey
 
-            val events =
+            val rows =
                 database.vaultQueries
                     .get_events(
                         aggregate_id = aggregateId,
                         timestamp = timestampLimit,
                     ).executeAsList()
-                    .map { row ->
-                        val decryptedPayload = encryptionManager.decrypt(row.payload, key!!)
-                        try {
-                            json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-                        } finally {
-                            decryptedPayload.fill(0)
-                        }
+            val events =
+                decodeOwnedVaultEvents(rows) { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, eventStoreKey)
+                    try {
+                        VaultMutableJsonCodec.decodeEvent(decryptedPayload)
+                    } finally {
+                        decryptedPayload.fill(0)
                     }
+                }
             Result.success(events)
         } catch (e: CancellationException) {
             throw e
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Result.failure(IllegalStateException("Vault event storage operation failed"))
         } catch (e: SerializationException) {
-            Result.failure(e)
+            Result.failure(SerializationException("Vault event serialization failed"))
+        } catch (e: Exception) {
+            Result.failure(IllegalStateException("Vault event operation failed"))
         } finally {
             key?.fill(0)
         }
@@ -131,29 +147,33 @@ class EventStoreRepositoryImpl(
 
         var key: ByteArray? = null
         return try {
-            key = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            val eventStoreKey = keyProvider.getEventStoreKey("chimali_vault_es_v1")
+            key = eventStoreKey
 
-            val events =
+            val rows =
                 database.vaultQueries
                     .get_events_from(
                         aggregate_id = aggregateId,
                         sequence_number = fromSequence,
                     ).executeAsList()
-                    .map { row ->
-                        val decryptedPayload = encryptionManager.decrypt(row.payload, key!!)
-                        try {
-                            json.decodeFromString<DomainEvent>(decryptedPayload.decodeToString())
-                        } finally {
-                            decryptedPayload.fill(0)
-                        }
+            val events =
+                decodeOwnedVaultEvents(rows) { row ->
+                    val decryptedPayload = encryptionManager.decrypt(row.payload, eventStoreKey)
+                    try {
+                        VaultMutableJsonCodec.decodeEvent(decryptedPayload)
+                    } finally {
+                        decryptedPayload.fill(0)
                     }
+                }
             Result.success(events)
         } catch (e: CancellationException) {
             throw e
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Result.failure(IllegalStateException("Vault event storage operation failed"))
         } catch (e: SerializationException) {
-            Result.failure(e)
+            Result.failure(SerializationException("Vault event serialization failed"))
+        } catch (e: Exception) {
+            Result.failure(IllegalStateException("Vault event operation failed"))
         } finally {
             key?.fill(0)
         }

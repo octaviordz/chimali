@@ -23,6 +23,8 @@ class VaultCryptoServiceImpl internal constructor(
     private val eventStoreKeyProvider: EventStoreKeyProvider,
     private val dispatcher: CoroutineDispatcher,
     private val codec: VaultPayloadCodec,
+    private val observeStagedOutput: (VaultItem) -> Unit = {},
+    private val observeEncryptedOutput: (ByteArray) -> Unit = {},
 ) : VaultCryptoService {
     constructor(
         encryptionManager: EncryptionManager,
@@ -59,45 +61,57 @@ class VaultCryptoServiceImpl internal constructor(
         identityId: UUID,
         type: VaultType,
         encode: () -> ByteArray,
-    ): Outcome<VaultItem, DomainError> =
+    ): Outcome<VaultItem, DomainError> {
+        var staged: VaultItem? = null
         try {
-            withContext(dispatcher) {
-                var key: ByteArray? = null
-                var plaintext: ByteArray? = null
-                try {
-                    key = eventStoreKeyProvider.getEventStoreKey(AGGREGATE_LABEL)
-                    plaintext = encode()
-                    val encrypted = encryptionManager.encrypt(plaintext, key)
-                    val now = Instant.now().toString()
-                    Outcome.Success(
-                        VaultItem(
-                            id ?: UUID.randomUUID(),
-                            type,
-                            title.copyOf(),
-                            encrypted,
-                            ByteArray(0),
-                            now,
-                            now,
-                            null,
-                            identityId,
-                        ),
-                    )
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: GeneralSecurityException) {
-                    protectError(type)
-                } catch (_: IllegalArgumentException) {
-                    protectError(type)
-                } catch (_: IllegalStateException) {
-                    keyError()
-                } finally {
-                    plaintext?.fill(0)
-                    key?.fill(0)
+            val result =
+                withContext(dispatcher) {
+                    var key: ByteArray? = null
+                    var plaintext: ByteArray? = null
+                    var encryptedOutput: ByteArray? = null
+                    try {
+                        key = eventStoreKeyProvider.getEventStoreKey(AGGREGATE_LABEL)
+                        plaintext = encode()
+                        encryptedOutput = encryptionManager.encrypt(plaintext, key)
+                        observeEncryptedOutput(checkNotNull(encryptedOutput))
+                        val now = Instant.now().toString()
+                        val item =
+                            VaultItem(
+                                id ?: UUID.randomUUID(),
+                                type,
+                                title.copyOf(),
+                                checkNotNull(encryptedOutput),
+                                ByteArray(0),
+                                now,
+                                now,
+                                null,
+                                identityId,
+                            )
+                        staged = item
+                        encryptedOutput = null
+                        observeStagedOutput(item)
+                        Outcome.Success(item)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: GeneralSecurityException) {
+                        protectError(type)
+                    } catch (_: IllegalArgumentException) {
+                        protectError(type)
+                    } catch (_: IllegalStateException) {
+                        keyError()
+                    } finally {
+                        plaintext?.fill(0)
+                        key?.fill(0)
+                        encryptedOutput?.fill(0)
+                    }
                 }
-            }
+            staged = null // Ownership crossed the dispatcher boundary and transfers to the caller.
+            return result
         } finally {
+            staged?.clearMemory()
             payload.clearMemory()
         }
+    }
 
     override suspend fun decryptPassword(item: VaultItem): Outcome<PasswordPayload, DomainError> =
         decrypt(item) { codec.decodePassword(it) }

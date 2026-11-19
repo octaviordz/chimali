@@ -68,12 +68,30 @@ class RelyingPartyTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `factory derives a display name from a blank input`() {
-        val originName = RelyingParty.create(RpId("https://example.com/login"), " ").name
-        val domainName = RelyingParty.create(RpId("example.net"), "").name
+    fun `trust check borrows RP owner without erasing it`() {
+        val rp = relyingParty(id = "https://example.com/login")
 
-        assertEquals("example.com", originName)
-        assertEquals("example.net", domainName)
+        try {
+            assertTrue(rp.isTrusted(setOf("example.com")))
+            assertTrue(rp.idText.contentEquals("https://example.com/login"))
+        } finally {
+            rp.eraseSensitiveText()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `factory derives a display name from a blank input`() {
+        val origin = RelyingParty.create(RpId("https://example.com/login"), " ")
+        val domain = RelyingParty.create(RpId("example.net"), "")
+
+        try {
+            assertTrue(origin.nameText.contentEquals("example.com"))
+            assertTrue(domain.nameText.contentEquals("example.net"))
+        } finally {
+            origin.eraseSensitiveText()
+            domain.eraseSensitiveText()
+        }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -85,7 +103,7 @@ class RelyingPartyTest {
                 iconUrl = "https://" + "x".repeat(RelyingParty.MAX_ICON_URL_LENGTH - "https://".length),
             )
 
-        assertEquals(RelyingParty.MAX_NAME_LENGTH, rp.name.length)
+        assertEquals(RelyingParty.MAX_NAME_LENGTH, rp.nameText.length)
         assertEquals(RelyingParty.MAX_ICON_URL_LENGTH, rp.iconUrl?.length)
         assertFalse(rp.hasCredentials())
     }

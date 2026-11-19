@@ -3,21 +3,23 @@ package com.chimali.core.common.result
 /**
  * Sealed hierarchy of domain-level errors used throughout the application.
  *
- * Every [DomainError] preserves the original [cause] throwable so that Crashlytics
- * always receives the full stack trace, while domain and presentation layers only
- * ever deal with strongly-typed categorized errors — never raw [Throwable]s.
+ * [DomainError] values preserve typed failure categories without requiring the raw
+ * platform exception to cross the repository boundary. The optional [cause] may be
+ * retained only when its message, stack and downstream handling are appropriate for
+ * every diagnostic destination that can receive it.
  *
  * ## Design Contract
  *
- * - Errors are **logged at the boundary** (Repository / Service layer) where they are
- *   first caught. Presentation layer code must NOT log again.
- * - The [cause] field is optional to allow purely synthetic errors (e.g. validation
- *   failures that have no underlying exception).
+ * - Failures are handled at the boundary (Repository / Service layer) where first
+ *   caught. Log only fixed or reviewed-safe diagnostics; presentation code must NOT log
+ *   raw errors again.
+ * - The [cause] field is optional. Do not attach a sensitive platform exception merely
+ *   to preserve its details for logging.
  * - New sub-types should be added here rather than using [UnknownError], which is
  *   reserved exclusively for APIs that throw undocumented runtime exceptions.
  */
 sealed interface DomainError {
-    /** The original exception, preserved for Crashlytics / Kermit logging at the boundary. */
+    /** Optional original exception; retain only when all downstream diagnostic paths are safe. */
     val cause: Throwable?
 
     /** A human-readable, developer-facing message describing the error. */
@@ -111,7 +113,9 @@ sealed interface DomainError {
      * A catch-all for APIs that throw undocumented runtime exceptions.
      *
      * **Use sparingly.** Prefer a specific sub-type when the exception source is known.
-     * When using [UnknownError], always include the original [cause] for diagnostics.
+     * Retain the original [cause] only when its message, stack, and downstream handling are
+     * safe for every diagnostic destination that can receive it. Otherwise omit the cause;
+     * do not preserve it solely for logging.
      */
     data class UnknownError(
         override val message: String,

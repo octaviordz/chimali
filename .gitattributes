@@ -10,3 +10,6 @@ tools/coverage/policy.json text eol=lf
 .github/workflows/coverage-report.yml text eol=lf
 tools/coverage/fixtures/exporter/branchless.xml -text
 tools/coverage/fixtures/exporter/empty.xml -text
+jacoco.exec filter=lfs diff=lfs merge=lfs -text
+*.exec filter=lfs diff=lfs merge=lfs -text
+*.ec filter=lfs diff=lfs merge=lfs -text

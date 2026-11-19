@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.testing.CapturedDiagnostics
 import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
@@ -342,6 +343,32 @@ class FidoBleGattContractTest {
         assertEquals(unauthenticatedDevice, authenticationFailureDevice)
         assertNull(sessionOwner.activeDeviceAddress)
         assertFalse(packetAdmitted)
+    }
+
+    @Test
+    fun `unauthenticated request diagnostics omit platform bond state`() {
+        every { testDevice.bondState } returns 777
+        val controlPoint = mockk<BluetoothGattCharacteristic>()
+        every { controlPoint.uuid } returns FidoBleGattServer.UUID_FIDO_CONTROL_POINT
+        val diagnostics = CapturedDiagnostics()
+
+        try {
+            gattServer.onCharacteristicWriteRequest(
+                device = testDevice,
+                requestId = 1,
+                characteristic = controlPoint,
+                preparedWrite = false,
+                responseNeeded = true,
+                offset = 0,
+                value = byteArrayOf(0x81.toByte(), 0x00, 0x01, 0x00),
+            )
+
+            assertTrue(diagnostics.containsMessage("rejected unauthenticated GATT request"))
+            diagnostics.assertNoSensitiveValues("777")
+            assertEquals(BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION, fakeSender.responses.single().status)
+        } finally {
+            diagnostics.close()
+        }
     }
 
     @Test

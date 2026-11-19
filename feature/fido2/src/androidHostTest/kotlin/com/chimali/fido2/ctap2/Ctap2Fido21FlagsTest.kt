@@ -7,6 +7,7 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.domain.model.PasskeyCredential
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -26,6 +27,37 @@ import org.junit.jupiter.api.Assertions.assertTrue
 class Ctap2Fido21FlagsTest {
     private val cborCodec = CborCodec()
     private val hidReportParser = mockk<HidReportParser>(relaxed = true)
+    private val ownedBuffers = mutableListOf<ByteArray>()
+    private val ownedDecodedValues = mutableListOf<Any?>()
+
+    private fun ownedBytes(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    private fun ownedBytes(
+        size: Int,
+        value: Byte = 0,
+    ): ByteArray = ByteArray(size) { value }.also(ownedBuffers::add)
+
+    @AfterTest
+    fun eraseSyntheticRequestBuffers() {
+        ownedDecodedValues.forEach(::eraseDecodedValue)
+        ownedBuffers.forEach { it.fill(0) }
+        ownedDecodedValues.clear()
+        ownedBuffers.clear()
+    }
+
+    private fun eraseDecodedValue(value: Any?) {
+        when (value) {
+            is ByteArray -> value.fill(0)
+            is Map<*, *> -> {
+                value.values.forEach(::eraseDecodedValue)
+                (value as? MutableMap<*, *>)?.clear()
+            }
+            is Iterable<*> -> {
+                value.forEach(::eraseDecodedValue)
+                (value as? MutableCollection<*>)?.clear()
+            }
+        }
+    }
 
     private companion object {
         private const val AAGUID_SUFFIX_01 = 0x01.toByte()
@@ -47,23 +79,25 @@ class Ctap2Fido21FlagsTest {
     }
 
     private val dummyAaguid =
-        byteArrayOf(
-            CHAR_C,
-            CHAR_H,
-            CHAR_I,
-            CHAR_M,
-            CHAR_A,
-            CHAR_L,
-            CHAR_I,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            ZERO_BYTE,
-            AAGUID_SUFFIX_01,
+        ownedBytes(
+            byteArrayOf(
+                CHAR_C,
+                CHAR_H,
+                CHAR_I,
+                CHAR_M,
+                CHAR_A,
+                CHAR_L,
+                CHAR_I,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                ZERO_BYTE,
+                AAGUID_SUFFIX_01,
+            ),
         )
 
     // ── 1. GetInfo response FIDO2.1 flags ────────────────────────────────────
@@ -146,21 +180,21 @@ class Ctap2Fido21FlagsTest {
         val requestMap =
             mapOf(
                 // clientDataHash
-                "1" to ByteArray(HASH_SIZE_32),
+                "1" to ownedBytes(HASH_SIZE_32),
                 // rp
                 "2" to mapOf("id" to "example.com", "name" to "Example"),
                 // user
-                "3" to mapOf("id" to ByteArray(USER_ID_SIZE_8), "name" to "user"),
+                "3" to mapOf("id" to ownedBytes(USER_ID_SIZE_8), "name" to "user"),
                 // pubKeyCredParams
                 "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
                 // extensions
                 "6" to mapOf("credProtect" to POLICY_UV_REQUIRED),
             )
-        val requestCbor = cborCodec.encodeToFido2Format(requestMap)
+        val requestCbor = ownedBytes(cborCodec.encodeToFido2Format(requestMap))
 
         // Decode the MakeCredential extensions key (0x06 = "6").
         @Suppress("UNCHECKED_CAST")
-        val decoded = cborCodec.decodeFromFido2Format(requestCbor)
+        val decoded = cborCodec.decodeFromFido2Format(requestCbor).also(ownedDecodedValues::add)
         val extensions = decoded["6"] as? Map<*, *>
         val credProtectPolicy =
             extensions?.let {
@@ -181,16 +215,16 @@ class Ctap2Fido21FlagsTest {
     fun `t056a MakeCredential without credProtect extension yields null policy`() {
         val requestMap =
             mapOf(
-                "1" to ByteArray(HASH_SIZE_32),
+                "1" to ownedBytes(HASH_SIZE_32),
                 "2" to mapOf("id" to "example.com", "name" to "Example"),
-                "3" to mapOf("id" to ByteArray(USER_ID_SIZE_8), "name" to "user"),
+                "3" to mapOf("id" to ownedBytes(USER_ID_SIZE_8), "name" to "user"),
                 "4" to listOf(mapOf("alg" to ALG_ES256, "type" to "public-key")),
                 // No "6" extensions key
             )
-        val requestCbor = cborCodec.encodeToFido2Format(requestMap)
+        val requestCbor = ownedBytes(cborCodec.encodeToFido2Format(requestMap))
 
         @Suppress("UNCHECKED_CAST")
-        val decoded = cborCodec.decodeFromFido2Format(requestCbor)
+        val decoded = cborCodec.decodeFromFido2Format(requestCbor).also(ownedDecodedValues::add)
         val extensions = decoded["6"] as? Map<*, *>
         val credProtectPolicy =
             extensions?.let {

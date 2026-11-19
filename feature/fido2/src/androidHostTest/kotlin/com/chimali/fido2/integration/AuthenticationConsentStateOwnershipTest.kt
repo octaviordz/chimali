@@ -2,8 +2,13 @@ package com.chimali.fido2.integration
 
 import androidx.lifecycle.ViewModelStore
 import com.chimali.core.common.annotation.Req
+import com.chimali.core.domain.model.CredentialKeyDescriptor
+import com.chimali.core.domain.time.TimeProvider
+import com.chimali.core.domain.valueobject.RpId
+import com.chimali.core.domain.valueobject.UserId
 import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.fido2.domain.model.GetAssertionOptions
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.service.BiometricStrength
 import com.chimali.fido2.domain.service.BiometricType
@@ -14,11 +19,13 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.presentation.viewmodel.AuthenticationIntent
 import com.chimali.fido2.presentation.viewmodel.AuthenticationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
+import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -130,6 +137,41 @@ class AuthenticationConsentStateOwnershipTest {
                 options.eraseSensitiveText()
                 sourceOwner.erase()
             }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun selectingCredentialStateErasesItsCredentialOwners() =
+        runTest {
+            val rpOwner = SensitiveCredentialText.copyOf("example.com")
+            val timestamp = TimeProvider().now()
+            val credential =
+                PasskeyCredential(
+                    id = testCredentialIdFromLabel("selection-owner"),
+                    rpId = RpId("example.com"),
+                    userId = UserId("synthetic-user"),
+                    userName = "synthetic-name",
+                    userDisplayName = "Synthetic Name",
+                    publicKey = mockk(),
+                    signCount = 0,
+                    createdAt = timestamp,
+                    lastUsedAt = timestamp,
+                    aaguid = ByteArray(16),
+                    credentialId = ByteArray(32) { 0x31 },
+                    coseAlgorithm = PasskeyCredential.COSE_ES256,
+                    derivationProfile = CredentialKeyDescriptor.profileFor(PasskeyCredential.COSE_ES256),
+                )
+            val state = AuthenticationState.SelectingCredential(rpOwner, listOf(credential))
+
+            state.eraseSensitiveText()
+
+            assertTrue(rpOwner.all { it == '\u0000' })
+            assertTrue(credential.rpId.all { it == '\u0000' })
+            assertTrue(credential.userId.all { it == '\u0000' })
+            assertTrue(credential.userName.all { it == '\u0000' })
+            assertTrue(credential.userDisplayName.all { it == '\u0000' })
+            assertTrue(credential.credentialId.all { it == 0.toByte() })
         }
 
     private fun assertOwnerErased(owner: SensitiveCredentialText) {

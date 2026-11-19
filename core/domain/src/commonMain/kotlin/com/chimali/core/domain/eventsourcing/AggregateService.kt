@@ -15,7 +15,9 @@ interface AggregateService<Command, State> {
      *
      * @param aggregateId The unique identifier of the aggregate root.
      * @param asOf Optional timestamp to reconstruct state at a specific point in history.
-     * @return The reconstructed state or failure if the aggregate does not exist.
+     * @return On success, transfers the reconstructed state to the caller, which owns any
+     *   sensitive mutable state and must erase it at its terminal use. On failure or cancellation,
+     *   no partial state is transferred; implementations release partially reconstructed owners.
      */
     suspend fun getState(
         aggregateId: String,
@@ -31,8 +33,12 @@ interface AggregateService<Command, State> {
      * 4. Retrying automatically on concurrency conflicts.
      *
      * @param aggregateId The unique identifier of the aggregate root.
-     * @param command The command to execute.
-     * @return The new state of the aggregate after command execution.
+     * @param command The command to execute. Implementations may erase sensitive mutable command
+     *   content before this call returns or throws. Callers must relinquish ownership of that
+     *   content for the duration of execution and treat it as unavailable afterward.
+     * @return On success, transfers the resulting state to the caller, which owns any sensitive
+     *   mutable state and must erase it at its terminal use. On failure or cancellation, no partial
+     *   state is transferred; implementations release intermediate state and command owners.
      */
     suspend fun execute(
         aggregateId: String,

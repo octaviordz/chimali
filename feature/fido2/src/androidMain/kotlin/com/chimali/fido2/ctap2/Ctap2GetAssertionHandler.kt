@@ -22,8 +22,11 @@ import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import com.chimali.fido2.util.performance.LatencyOperation
 import com.chimali.fido2.util.performance.LatencyProfiler
 import org.koin.core.annotation.Single
+
+private const val ASCII_MAX_VALUE = 0x7F
 
 /**
 
@@ -70,6 +73,32 @@ class Ctap2GetAssertionHandler(
     private val getAssertionUseCase: GetAssertionUseCase,
     private val ceremonyLock: CeremonyLock,
 ) {
+    internal var onConvertedClientDataHashForTest: ((ByteArray) -> Unit)? = null
+    internal var onEncodedLegacyClientDataHashForTest: ((ByteArray) -> Unit)? = null
+    internal var beforeResponseUserTextOwnerAdmissionForTest: ((SensitiveCredentialText) -> Unit)? = null
+
+    private fun decodeLegacyClientDataHash(value: CharSequence): ByteArray {
+        val encoded = ByteArray(value.length)
+        try {
+            for (index in encoded.indices) {
+                val character = value[index]
+                require(character.code <= ASCII_MAX_VALUE) { "Invalid clientDataHash encoding" }
+                encoded[index] = character.code.toByte()
+            }
+            onEncodedLegacyClientDataHashForTest?.invoke(encoded)
+            return java.util.Base64
+                .getDecoder()
+                .decode(encoded)
+        } finally {
+            encoded.fill(0)
+        }
+    }
+
+    private data class DecodedAssertionOptions(
+        val options: GetAssertionOptions,
+        val convertedClientDataHash: ByteArray?,
+    )
+
     companion object {
         // CTAP2 Request Keys (§6.2)
 
@@ -141,6 +170,8 @@ class Ctap2GetAssertionHandler(
      */
 
     @Req("FR-BLE-080", "TR-BLE-030", "NFR-SEC-041", "TR-AUTH-031")
+    // The lock, ownership and cleanup scopes form the ceremony's explicit safety boundary.
+    @Suppress("NestedBlockDepth")
     suspend fun handleRaw(
         requestBytes: ByteArray,
         onKeepalive: ((Byte) -> Unit)? = null,
@@ -158,12 +189,18 @@ class Ctap2GetAssertionHandler(
 
         var ownedOptions: GetAssertionOptions? = null
 
+        var ownedConvertedClientDataHash: ByteArray? = null
+
         return try {
             val params = cborCodec.decodeSensitiveRequest(requestBytes)
 
             decodedFields = params
 
-            val options = decodeOptions(params)
+            val decodedOptions = decodeOptions(params)
+
+            val options = decodedOptions.options
+
+            ownedConvertedClientDataHash = decodedOptions.convertedClientDataHash
 
             ownedOptions = options
 
@@ -188,7 +225,7 @@ class Ctap2GetAssertionHandler(
                 val assertionResult =
 
                     if (isHeadless) {
-                        Logger.d { "GetAssertion: executing headless fast-path (candidates=${candidates.size})" }
+                        Logger.d { "GetAssertion: executing headless fast-path" }
 
                         try {
                             kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
@@ -206,32 +243,39 @@ class Ctap2GetAssertionHandler(
 
                         val userInteractionCompleted = kotlinx.coroutines.CompletableDeferred<Unit>()
 
-                        LatencyProfiler.startUserInteraction("GetAssertion")
-
-                        uiEventBus.dispatch(
-                            Fido2UiEvent.AuthenticationRequested(options, deferred, userInteractionCompleted),
-                        )
-
-                        onKeepalive?.invoke(0x02.toByte())
-
                         try {
-                            LatencyProfiler.untilUserInteractionCompletes("GetAssertion", userInteractionCompleted) {
-                                kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
-                                    deferred.await()
-                                }
-                            }
-                        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-                            Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
+                            LatencyProfiler.startUserInteraction(LatencyOperation.GET_ASSERTION)
 
-                            deferred.cancel()
-
-                            return com.chimali.fido2.data.transport.RawCtapResult(
-                                byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
+                            uiEventBus.dispatch(
+                                Fido2UiEvent.AuthenticationRequested(options, deferred, userInteractionCompleted),
                             )
-                        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-                            deferred.cancel(cancellation)
 
-                            throw cancellation
+                            onKeepalive?.invoke(0x02.toByte())
+
+                            try {
+                                LatencyProfiler.untilUserInteractionCompletes(
+                                    LatencyOperation.GET_ASSERTION,
+                                    userInteractionCompleted,
+                                ) {
+                                    kotlinx.coroutines.withTimeout(options.getSafeTimeout()) {
+                                        deferred.await()
+                                    }
+                                }
+                            } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                                Logger.e { "GetAssertion timed out after ${options.getSafeTimeout()}ms" }
+
+                                deferred.cancel()
+
+                                return com.chimali.fido2.data.transport.RawCtapResult(
+                                    byteArrayOf(CTAP2_ERR_USER_ACTION_TIMEOUT),
+                                )
+                            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                                deferred.cancel(cancellation)
+
+                                throw cancellation
+                            }
+                        } finally {
+                            if (deferred.isActive) deferred.cancel()
                         }
                     }
 
@@ -262,6 +306,8 @@ class Ctap2GetAssertionHandler(
                             assertion.authData.fill(0)
 
                             assertion.signature.fill(0)
+
+                            assertion.user?.eraseSensitiveText()
                         }
                     }
 
@@ -316,6 +362,8 @@ class Ctap2GetAssertionHandler(
 
             com.chimali.fido2.data.transport
                 .RawCtapResult(byteArrayOf(CTAP1_ERR_OTHER))
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            throw cancellation
         } catch (e: IllegalStateException) {
             Logger.e { "GetAssertion encountered an invalid state" }
 
@@ -323,6 +371,8 @@ class Ctap2GetAssertionHandler(
                 .RawCtapResult(byteArrayOf(CTAP1_ERR_OTHER))
         } finally {
             ownedOptions?.eraseSensitiveText()
+
+            ownedConvertedClientDataHash?.fill(0)
 
             cborCodec.eraseDecodedRequestValues(decodedFields)
 
@@ -350,11 +400,14 @@ class Ctap2GetAssertionHandler(
         requestBytes: ByteArray,
     ): List<ByteArray> {
         val rawResult = handleRaw(requestBytes)
-
-        return hidReportParser.encodeResponse(
-            com.chimali.fido2.bluetooth
-                .CtapHidMessage(cid, CTAP_CMD_CBOR, rawResult.responseBytes),
-        )
+        return try {
+            hidReportParser.encodeResponse(
+                com.chimali.fido2.bluetooth
+                    .CtapHidMessage(cid, CTAP_CMD_CBOR, rawResult.responseBytes),
+            )
+        } finally {
+            rawResult.responseBytes.fill(0)
+        }
     }
 
     /**
@@ -386,7 +439,9 @@ class Ctap2GetAssertionHandler(
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Suppress("ThrowsCount")
-    private fun decodeOptions(params: Map<String, Any>): GetAssertionOptions {
+    private fun decodeOptions(params: Map<String, Any>): DecodedAssertionOptions {
+        var convertedClientDataHash: ByteArray? = null
+
         var rpIdOwner: SensitiveCredentialText? =
 
             when (val value = params[REQ_RP_ID]) {
@@ -412,15 +467,19 @@ class Ctap2GetAssertionHandler(
                     }
 
                     is SensitiveCredentialText -> {
-                        java.util.Base64
-                            .getDecoder()
-                            .decode(raw.toBoundaryString())
+                        decodeLegacyClientDataHash(raw)
+                            .also {
+                                convertedClientDataHash = it
+                                onConvertedClientDataHashForTest?.invoke(it)
+                            }
                     }
 
                     is String -> {
-                        java.util.Base64
-                            .getDecoder()
-                            .decode(raw)
+                        decodeLegacyClientDataHash(raw)
+                            .also {
+                                convertedClientDataHash = it
+                                onConvertedClientDataHashForTest?.invoke(it)
+                            }
                     }
 
                     else -> {
@@ -532,9 +591,15 @@ class Ctap2GetAssertionHandler(
 
             rpIdOwner = null
 
-            return options
+            val convertedHash = convertedClientDataHash
+
+            convertedClientDataHash = null
+
+            return DecodedAssertionOptions(options, convertedHash)
         } finally {
             rpIdOwner?.erase()
+
+            convertedClientDataHash?.fill(0)
         }
     }
 
@@ -565,12 +630,27 @@ class Ctap2GetAssertionHandler(
         options: GetAssertionOptions,
     ): ByteArray {
         val responseMap = mutableMapOf<String, Any>()
+        val responseUserTextOwners = mutableListOf<SensitiveCredentialText>()
+
+        fun retainResponseUserText(owner: SensitiveCredentialText): SensitiveCredentialText {
+            var admitted = false
+            try {
+                beforeResponseUserTextOwnerAdmissionForTest?.invoke(owner)
+                responseUserTextOwners.add(owner)
+                admitted = true
+            } finally {
+                if (!admitted) owner.erase()
+            }
+            return owner
+        }
 
         var prfOutput: com.chimali.fido2.domain.model.PrfExtensionOutput? = null
 
         var hmacOutput: ByteArray? = null
 
         var extensionCbor: ByteArray? = null
+
+        var responseCredentialId: ByteArray? = null
 
         var extensionAuthData: ByteArray? = null
 
@@ -581,11 +661,15 @@ class Ctap2GetAssertionHandler(
 
             assertion.credential?.let { desc ->
 
+                val credentialIdBytes = desc.id.toByteArray()
+
+                responseCredentialId = credentialIdBytes
+
                 responseMap[RESP_CREDENTIAL] =
 
                     mapOf(
                         "type" to "public-key",
-                        "id" to desc.id.toByteArray(),
+                        "id" to credentialIdBytes,
                     )
             }
 
@@ -694,13 +778,22 @@ class Ctap2GetAssertionHandler(
             // 0x04 — user entity (discoverable credential flow)
 
             assertion.user?.let { user ->
+                val idOwner = retainResponseUserText(user.copyEncodedIdOwner())
+                val nameOwner = retainResponseUserText(user.copyNameOwner())
+                val displayNameOwner = user.copyDisplayNameOwner()
+                val displayNameValue =
+                    if (displayNameOwner.length == 0) {
+                        displayNameOwner.erase()
+                        nameOwner
+                    } else {
+                        retainResponseUserText(displayNameOwner)
+                    }
 
                 responseMap[RESP_USER] =
-
                     mapOf(
-                        "id" to user.id.value,
-                        "name" to user.name,
-                        "displayName" to user.displayName.ifEmpty { user.name },
+                        "id" to idOwner,
+                        "name" to nameOwner,
+                        "displayName" to displayNameValue,
                     )
             }
 
@@ -713,11 +806,17 @@ class Ctap2GetAssertionHandler(
 
             return cborCodec.encodeToFido2Format(responseMap)
         } finally {
+            responseMap.clear()
+            responseUserTextOwners.forEach(SensitiveCredentialText::erase)
+            responseUserTextOwners.clear()
+
             prfOutput?.clear()
 
             hmacOutput?.fill(0)
 
             extensionCbor?.fill(0)
+
+            responseCredentialId?.fill(0)
 
             extensionAuthData?.fill(0)
 

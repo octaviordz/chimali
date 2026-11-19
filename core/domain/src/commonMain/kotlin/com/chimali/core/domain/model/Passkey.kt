@@ -15,6 +15,8 @@ data class Passkey(
     val createdAt: Instant,
     val lastUsed: Instant?,
 ) : DomainModel {
+    override fun toString(): String = "Passkey([redacted])"
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false

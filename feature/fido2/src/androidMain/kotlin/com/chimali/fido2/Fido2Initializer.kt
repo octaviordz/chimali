@@ -5,6 +5,7 @@ import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.LogcatWriter
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.service.clearStaleAuthenticationRequestNotification
 import com.chimali.fido2.util.logging.LocalCrashReportingLogWriter
 import com.chimali.fido2.util.logging.PrivacyScrubbingLogWriter
 import com.chimali.fido2.util.performance.WarmUpHelper
@@ -22,6 +23,10 @@ object Fido2Initializer {
     /** Configures local privacy-scrubbed logging and starts best-effort cryptographic warm-up. */
     @Req("NFR-SEC-010", "FR-AUTH-030")
     fun init(context: Context) {
+        // Authentication request owners are process-local. A prior process may have died before
+        // its Service.onDestroy callback could cancel the request notification.
+        clearStaleAuthenticationRequestNotification(context)
+
         val writers = mutableListOf<LogWriter>()
         if (com.chimali.core.common.isDebug) {
             writers.add(PrivacyScrubbingLogWriter(LogcatWriter()))

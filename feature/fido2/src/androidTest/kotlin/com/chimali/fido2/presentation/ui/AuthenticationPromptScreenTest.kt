@@ -11,11 +11,11 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import com.chimali.core.domain.valueobject.CredentialId
-import com.chimali.core.domain.valueobject.RpId
-import com.chimali.fido2.domain.model.AssertionObject
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.AuthenticationState
+import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,6 +28,30 @@ import org.junit.Test
 class AuthenticationPromptScreenTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    private val textOwners = mutableListOf<SensitiveCredentialText>()
+
+    private fun sensitiveText(value: String) = SensitiveCredentialText.copyOf(value).also(textOwners::add)
+
+    private fun consentState(
+        rpId: String,
+        rpName: String,
+        credentialCount: Int,
+    ) = AuthenticationState.AwaitingUserConsent(
+        rpId = sensitiveText(rpId),
+        rpName = sensitiveText(rpName),
+        availableMethod = VerificationMethod.BIOMETRIC,
+        credentialCount = credentialCount,
+    )
+
+    @After
+    fun clearSyntheticConsentState() {
+        composeTestRule.setContent {}
+        textOwners.forEach { owner ->
+            owner.erase()
+            assertTrue(owner.all { it == '\u0000' })
+        }
+        textOwners.clear()
+    }
 
     // ── AwaitingUserConsent state ────────────────────────────────────────────
 
@@ -36,12 +60,7 @@ class AuthenticationPromptScreenTest {
         composeTestRule.setContent {
             AuthenticationPromptContent(
                 state =
-                    AuthenticationState.AwaitingUserConsent(
-                        rpId = "https://example.com",
-                        rpName = "Example",
-                        availableMethod = VerificationMethod.BIOMETRIC,
-                        credentialCount = 1,
-                    ),
+                    consentState("https://example.com", "Example", 1),
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
@@ -64,12 +83,7 @@ class AuthenticationPromptScreenTest {
         composeTestRule.setContent {
             AuthenticationPromptContent(
                 state =
-                    AuthenticationState.AwaitingUserConsent(
-                        rpId = "https://example.com",
-                        rpName = "Example",
-                        availableMethod = VerificationMethod.BIOMETRIC,
-                        credentialCount = 3,
-                    ),
+                    consentState("https://example.com", "Example", 3),
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},
@@ -101,11 +115,9 @@ class AuthenticationPromptScreenTest {
 
     @Test
     fun successState_showsSignedInMessage() {
-        val testAssertion = AssertionObject.createTest(CredentialId.fromEncoded("cred1"), RpId("https://example.com"))
-
         composeTestRule.setContent {
             AuthenticationPromptContent(
-                state = AuthenticationState.Success(testAssertion),
+                state = AuthenticationState.Success,
                 onConfirm = {},
                 onCancel = {},
                 onSelectCredential = {},

@@ -7,5 +7,11 @@ import com.chimali.core.domain.valueobject.CredentialId
 @Req("NFR-SEC-041")
 internal fun testCredentialIdFromLabel(label: String): CredentialId {
     val labelBytes = label.toByteArray(Charsets.UTF_8)
-    return CredentialId.fromByteArray(labelBytes.copyOf(maxOf(CredentialId.MIN_CREDENTIAL_ID_BYTES, labelBytes.size)))
+    val credentialBytes = labelBytes.copyOf(maxOf(CredentialId.MIN_CREDENTIAL_ID_BYTES, labelBytes.size))
+    return try {
+        CredentialId.fromByteArray(credentialBytes)
+    } finally {
+        labelBytes.fill(0)
+        credentialBytes.fill(0)
+    }
 }

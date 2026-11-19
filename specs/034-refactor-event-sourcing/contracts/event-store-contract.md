@@ -233,10 +233,11 @@ class OptimisticConcurrencyException(
     val expectedSequenceNumber: Long,
     val actualSequenceNumber: Long,
 ) : Exception(
-    "Concurrency conflict on aggregate '$aggregateId': " +
-        "expected sequence $expectedSequenceNumber, found $actualSequenceNumber"
+    "Optimistic concurrency conflict"
 )
 ```
+
+The exception retains its structured conflict fields for retry logic. Its message is fixed and must not include aggregate identifiers or other record-derived values, so throwable formatting cannot disclose them through diagnostics.
 
 ---
 

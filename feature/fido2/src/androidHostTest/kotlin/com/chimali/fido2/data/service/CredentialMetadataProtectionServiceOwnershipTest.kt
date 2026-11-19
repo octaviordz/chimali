@@ -94,6 +94,35 @@ class CredentialMetadataProtectionServiceOwnershipTest {
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `parser buffer creation failure erases already parsed metadata owners`() {
+        val plaintext = """{"rpId":"example.com","userId":"user"}""".toByteArray()
+        val encryption = mockk<EncryptedMetadataService>()
+        every { encryption.decrypt(any(), any()) } returns plaintext
+        val owners = mutableListOf<ErasableCharBuffer>()
+        val backingArrays = mutableListOf<CharArray>()
+        val field = ErasableCharBuffer::class.java.getDeclaredField("characters").apply { isAccessible = true }
+        var bufferCreations = 0
+        val service =
+            CredentialMetadataProtectionService(mockk(relaxed = true), encryption) {
+                bufferCreations++
+                check(bufferCreations < 3) { "synthetic parser buffer creation failure" }
+                ErasableCharBuffer(2).also {
+                    owners.add(it)
+                    backingArrays.add(field.get(it) as CharArray)
+                }
+            }
+
+        assertFailsWith<IllegalStateException> { service.decryptCredentialMetadata(byteArrayOf(1), "example.com") }
+
+        assertEquals(3, bufferCreations)
+        assertEquals(2, owners.size)
+        owners.forEach { assertEquals(0, it.length) }
+        backingArrays.forEach { assertContentEquals(CharArray(it.size), it) }
+        assertContentEquals(ByteArray(plaintext.size), plaintext)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
     @ParameterizedTest
     @ValueSource(strings = ["raw-control", "duplicate-field", "missing-field", "trailing-data", "bad-escape"])
     fun `malformed JSON is rejected and decrypted bytes are erased`(failure: String) {

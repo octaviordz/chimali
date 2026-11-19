@@ -47,6 +47,8 @@ data class VaultItem(
 
     fun clearMemory() {
         title.fill('\u0000')
+        payload.fill(0)
+        crdtState.fill(0)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -1,0 +1,10 @@
+SEC065 synthetic mnemonic lifecycle control
+Date: 2026-11-17
+Device: API 35 Android ATD emulator-5554 only
+Variant: heapAudit; unique package com.chimali.heapaudit; debuggable
+Application: HeapAuditApplication lightweight test shell; no product Application startup
+Test: com.chimali.LeakCanaryMnemonicOwnerTest#activityDisposalClearsSyntheticMnemonicOwnerWithoutRetainingLifecycleObjects
+Result: 1 test passed in 52.803 seconds; 0 failures, errors, or skips
+Assertions: generated BIP39 import CharArray zeroed after provider import; ViewModel-owned reveal CharArray zeroed after host Activity ViewModelStore disposal; LeakCanary found no lifecycle leak; no app-private HPROF remained
+Cleanup: app-private test DataStore fixture deleted in finally; both isolated heapAudit packages uninstalled and verified absent
+Limitations: lifecycle regression only; no full HPROF capture, active-owner positive control, field/string/array search, root attribution, vault/passkey group, provider/native analysis, or release-equivalent evidence

@@ -31,8 +31,11 @@ import io.mockk.mockk
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,6 +43,7 @@ import kotlinx.coroutines.InternalForInheritanceCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -455,14 +459,19 @@ class AuthenticationIntegrationTest {
     @Test
     fun `successful authentication runs inside an authenticator owner`() =
         runTest {
+            val effects = mutableListOf<AuthenticationEffect>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.effects.collect { effects += it }
+            }
             val testAssertion =
                 AssertionObject.createTest(
                     credentialId = testCredentialIdFromLabel("Y3JlZDEAWTNKbFpERQAAAA"),
                     rpId = RpId("https://example.com"),
                 )
+            val response = CompletableDeferred<Outcome<AssertionObject, DomainError>>()
             coEvery { getAssertionUseCase(any(), true) } returns Outcome.Success(testAssertion)
 
-            viewModel.handleIntent(AuthenticationIntent.InitAuthentication(createOptions()))
+            uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(createOptions(), response))
             advanceUntilIdle()
 
             // A successful system-verification callback admits signing.
@@ -472,8 +481,40 @@ class AuthenticationIntegrationTest {
             advanceUntilIdle()
 
             assertIs<AuthenticationState.Success>(viewModel.state.value)
+            assertTrue(AuthenticationState.Success::class.java.declaredFields.none { it.name == "assertion" })
+            assertEquals(
+                listOf(AuthenticationEffect.NavigateToSuccess),
+                effects.filterIsInstance<AuthenticationEffect.NavigateToSuccess>(),
+            )
+            assertSame(testAssertion, assertIs<Outcome.Success<AssertionObject>>(response.await()).data)
             assertEquals(MasterSeedOwnerKind.AUTHENTICATOR, observedOwnerKind)
             assertTrue(ownerReleased)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `clearing the authentication presenter discards a buffered success effect`() =
+        runTest {
+            val testAssertion =
+                AssertionObject.createTest(
+                    credentialId = testCredentialIdFromLabel("synthetic-buffered-auth-success"),
+                    rpId = RpId("https://example.com"),
+                )
+            val response = CompletableDeferred<Outcome<AssertionObject, DomainError>>()
+            val viewModelStore = ViewModelStore().apply { put("authentication", viewModel) }
+            coEvery { getAssertionUseCase(any(), true) } returns Outcome.Success(testAssertion)
+
+            uiEventBus.dispatch(Fido2UiEvent.AuthenticationRequested(createOptions(), response))
+            advanceUntilIdle()
+            viewModel.handleIntent(AuthenticationIntent.ConfirmAuthentication)
+            advanceUntilIdle()
+            viewModel.handleIntent(AuthenticationIntent.UserVerificationSuccess(1L))
+            advanceUntilIdle()
+
+            assertSame(testAssertion, assertIs<Outcome.Success<AssertionObject>>(response.await()).data)
+            viewModelStore.clear()
+
+            assertFailsWith<CancellationException> { viewModel.effects.first() }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

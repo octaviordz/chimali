@@ -169,7 +169,7 @@ class WalletMasterSeedProvider(
         requireOwnedOperation()
         ensureInitialized()
         return synchronized(cacheLock) {
-            cachedParent?.let { parent -> HdkKeyPair(parent.privateKey.copyOf(), parent.publicKey.copyOf()) }
+            cachedParent?.let { parent -> copyOwnedParentKeyPair(parent.privateKey, parent.publicKey) }
         }
     }
 
@@ -247,7 +247,7 @@ class WalletMasterSeedProvider(
                 PerformanceTrace.section("Fido2.Wallet.Parent") {
                     P256ParentKeyDerivation.deriveFromPrk(prk)
                 }
-            pendingParent = HdkKeyPair(parentResult.privateScalar.copyOf(), parentResult.publicKey.copyOf())
+            pendingParent = copyOwnedParentKeyPair(parentResult.privateScalar, parentResult.publicKey)
 
             // Provision external root consumers first. Publish the root and parent atomically only
             // after all initialization work has succeeded.
@@ -447,6 +447,13 @@ class WalletMasterSeedProvider(
         cachedParent = null
     }
 
+    /** Stages a caller-owned parent scalar and erases it if later copying or construction fails. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    private fun copyOwnedParentKeyPair(
+        privateScalar: ByteArray,
+        publicKey: ByteArray,
+    ): HdkKeyPair = copyOwnedHdkKeyPair(privateScalar, publicKey)
+
     private fun clearProvisionedMetadataKeys() {
         (lookupTokenService as? HmacMetadataLookupTokenService)?.clearKey()
         (encryptedMetadataService as? AesGcmEncryptedMetadataService)?.clearKey()
@@ -457,5 +464,29 @@ class WalletMasterSeedProvider(
         const val METADATA_KEY_SIZE_BYTES = 32
         const val HMAC_SHA512 = "HmacSHA512"
         const val SEARCHABLE_METADATA_EXPANSION_KEY = "chimali_searchable_metadata_v1"
+    }
+}
+
+/** Stages both copied arrays until pair construction succeeds, then transfers their ownership. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+internal fun copyOwnedHdkKeyPair(
+    privateScalar: ByteArray,
+    publicKey: ByteArray,
+    copyPrivate: (ByteArray) -> ByteArray = { it.copyOf() },
+    copyPublic: (ByteArray) -> ByteArray = { it.copyOf() },
+    create: (ByteArray, ByteArray) -> HdkKeyPair = ::HdkKeyPair,
+): HdkKeyPair {
+    var privateCopy: ByteArray? = null
+    var publicCopy: ByteArray? = null
+    try {
+        privateCopy = copyPrivate(privateScalar)
+        publicCopy = copyPublic(publicKey)
+        return create(requireNotNull(privateCopy), requireNotNull(publicCopy)).also {
+            privateCopy = null
+            publicCopy = null
+        }
+    } finally {
+        privateCopy?.fill(0)
+        publicCopy?.fill(0)
     }
 }

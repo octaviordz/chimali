@@ -1,14 +1,65 @@
 package com.chimali.fido2.presentation.viewmodel
 
+import android.bluetooth.BluetoothDevice
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.data.transport.Fido2ConnectionState
+import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.domain.repository.TransportUnavailableReason
+import io.mockk.every
+import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 class Fido2HomeViewModelTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `connected host display name cache resets after dashboard collectors stop`() =
+        runTest {
+            val device = mockk<BluetoothDevice>()
+            every { device.address } returns "02:00:00:00:00:01"
+            every { device.name } returns "Synthetic device name"
+            val connectionState = MutableStateFlow<Fido2ConnectionState>(Fido2ConnectionState.Connected(device))
+            val pairedDevices =
+                MutableStateFlow(
+                    listOf(
+                        PairedDevice(
+                            macAddress = "02:00:00:00:00:01",
+                            name = "Synthetic paired name",
+                            deviceClass = null,
+                            alias = "Synthetic alias marker",
+                            lastUsedAt = 1L,
+                            createdAt = 1L,
+                        ),
+                    ),
+                )
+            val displayName = connectedDeviceDisplayNameState(backgroundScope, connectionState, pairedDevices)
+            val collector =
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                    displayName.collect()
+                }
+
+            runCurrent()
+            assertEquals("Synthetic alias marker", displayName.value)
+
+            collector.cancel()
+            runCurrent()
+            advanceTimeBy(CONNECTED_DEVICE_DISPLAY_NAME_STOP_TIMEOUT_MS)
+            runCurrent()
+
+            assertEquals(null, displayName.value)
+        }
+
     @Test
     @Req("FR-BT-SEL-030", "FR-BT-SEL-040")
     fun `start is gated until the process preference is frozen`() {

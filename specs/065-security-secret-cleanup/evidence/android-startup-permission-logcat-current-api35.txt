@@ -1,0 +1,9 @@
+Android startup permission diagnostic — refreshed scoped Logcat probe
+Date: 2026-11-15 (America/Mexico_City)
+Target: `shrunkDebug` (`com.chimali`), debug-enabled minified APK.
+Device: API 35 AOSP emulator `emulator-5554` only; both install operations and instrumentation were serial-scoped.
+Procedure: `MainActivityPermissionDiagnosticInstrumentedTest#deniedPermissionWarningOmitsSyntheticKeyFromLogcat`; test inserts begin/end sentinels in the target process, emits one fixed denial warning for a synthetic permission key, and reads only its current-process Logcat segment.
+Result: `OK (1 test)`. The isolated Logcat segment contained the fixed aggregate denial warning and omitted the synthetic permission key. The focused unit suite passed 2 tests, confirming granted states emit no warning and denied map keys do not affect tag/message.
+Target APK SHA-256: 3FF9DE91DF50BC2550F031DA7C1FC73ECD48790CCC49010376D5156AC4870BAD
+Instrumentation APK SHA-256: 5A1E388ED632A0F217A64FCBDDB60F2AE9FB293D5C23D1B89A4665E0FCE42748
+Limitations: debug-enabled minified build, not release-equivalent; one API 35 emulator. This run does not establish Android system retention or unrelated startup diagnostics. Existing non-debuggable release Logcat evidence is recorded separately. No raw Logcat or synthetic key was retained.

@@ -51,7 +51,7 @@ data class CredentialKeyDescriptor(
                 COSE_ES256 -> P256_PROFILE
                 COSE_EDDSA -> ED25519_PROFILE
                 COSE_ML_DSA_65 -> MLDSA65_PROFILE
-                else -> throw IllegalArgumentException("Unsupported credential algorithm: $coseAlgorithm")
+                else -> throw IllegalArgumentException("Unsupported credential algorithm")
             }
     }
 }

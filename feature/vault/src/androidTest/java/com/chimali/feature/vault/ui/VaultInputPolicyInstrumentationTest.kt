@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.core.view.inputmethod.EditorInfoCompat
 import com.chimali.feature.vault.api.VaultType
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Rule
@@ -25,6 +26,12 @@ class VaultInputPolicyInstrumentationTest(
 ) {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @After
+    fun clearSyntheticInput() {
+        runCatching { compose.onAllNodes(hasSetTextAction())[0].performTextReplacement("") }
+        compose.setContent {}
+    }
 
     @Test
     fun entryEditorRequestsRestrictedKeyboardRetention() {

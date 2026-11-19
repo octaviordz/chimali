@@ -36,11 +36,16 @@ internal object PerformanceTrace {
             val mapped = operationContext.correlation.recordLookupCookie(lookupCookie)
             AndroidLookupTraceEventSink.mapping(operationContext, lookupCookie, mapped)
             val lifecycle = CoroutineTraceLifecycle(operationContext, nextCookie, AndroidLookupTraceEventSink)
-            var outcome = "returned"
+            var outcome = LookupTraceOutcome.RETURNED
             try {
                 val result = runCatching { withContext(lifecycle) { block() } }
                 result.exceptionOrNull()?.let { failure ->
-                    outcome = if (failure is CancellationException) "cancelled" else "failed"
+                    outcome =
+                        if (failure is CancellationException) {
+                            LookupTraceOutcome.CANCELLED
+                        } else {
+                            LookupTraceOutcome.FAILED
+                        }
                 }
                 return result.getOrThrow()
             } finally {

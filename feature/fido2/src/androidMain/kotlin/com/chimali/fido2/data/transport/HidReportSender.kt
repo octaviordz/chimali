@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
@@ -26,6 +28,7 @@ internal class HidReportSender(
 ) {
     private data class QueuedPacket(
         val payload: ByteArray,
+        val reportOwner: ByteArray? = null,
         val sent: CompletableDeferred<Boolean>? = null,
         val generation: Long,
         val ownerJob: Job? = null,
@@ -133,48 +136,66 @@ internal class HidReportSender(
         val current =
             synchronized(lock) {
                 session?.takeIf { it.generation == expectedGeneration && sessionGeneration() == expectedGeneration }
-            } ?: return false
-        for (packet in packets) {
-            currentCoroutineContext().ensureActive()
-            val sent = CompletableDeferred<Boolean>()
-            val owned = packet.copyOf()
-            var transferred = false
-            try {
-                current.channel.send(
-                    QueuedPacket(
-                        payload = owned,
-                        sent = sent,
-                        generation = expectedGeneration,
-                        ownerJob = currentCoroutineContext()[Job],
-                    ),
-                )
-                transferred = true
-                if (!sent.await()) allReportsAccepted = false
-            } finally {
-                if (!transferred) owned.fill(0)
             }
+        if (current == null) {
+            packets.forEach { reportAccepted(it, false) }
+            return false
         }
-        return allReportsAccepted
+        var transferredCount = 0
+        try {
+            for (packet in packets) {
+                currentCoroutineContext().ensureActive()
+                val sent = CompletableDeferred<Boolean>()
+                val owned = packet.copyOf()
+                var transferred = false
+                try {
+                    current.channel.send(
+                        QueuedPacket(
+                            payload = owned,
+                            reportOwner = packet,
+                            sent = sent,
+                            generation = expectedGeneration,
+                            ownerJob = currentCoroutineContext()[Job],
+                        ),
+                    )
+                    transferred = true
+                    transferredCount++
+                    if (!sent.await()) allReportsAccepted = false
+                } finally {
+                    if (!transferred) {
+                        owned.fill(0)
+                        reportAccepted(packet, false)
+                    }
+                }
+            }
+            return allReportsAccepted
+        } finally {
+            // A caller can be cancelled between reports. Remove any not-yet-transferred
+            // response owners from correlation tables instead of retaining response bytes.
+            packets.drop(transferredCount).forEach { reportAccepted(it, false) }
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun sendOne(packet: QueuedPacket) {
         try {
             if (packet.generation != sessionGeneration() || packet.ownerJob?.isActive == false) {
+                packet.reportOwner?.let { reportAccepted(it, false) }
                 packet.sent?.complete(false)
                 return
             }
             val accepted = sendReport(packet.payload, packet.generation)
-            reportAccepted(packet.payload, accepted)
+            reportAccepted(packet.reportOwner ?: packet.payload, accepted)
             if (!accepted) Logger.w { "sendReport returned false — host may have disconnected" }
             packet.sent?.complete(accepted)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            packet.reportOwner?.let { reportAccepted(it, false) }
             packet.sent?.complete(false)
             throw cancellation
         } catch (failure: Exception) {
-            reportAccepted(packet.payload, false)
+            reportAccepted(packet.reportOwner ?: packet.payload, false)
             packet.sent?.complete(false)
-            Logger.e(failure) { "Failed to send HID report" }
+            Logger.e { "Failed to send HID report" }
         } finally {
             packet.payload.fill(0)
         }
@@ -189,6 +210,7 @@ internal class HidReportSender(
     }
 
     private fun dispose(packet: QueuedPacket) {
+        packet.reportOwner?.let { reportAccepted(it, false) }
         packet.payload.fill(0)
         packet.sent?.complete(false)
     }

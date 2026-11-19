@@ -1,113 +1,280 @@
 package com.chimali.core.clipboard
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.PersistableBundle
+import android.os.SystemClock
+import com.chimali.core.common.annotation.Req
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.koin.core.annotation.Single
 
+private const val OWNERSHIP_TOKEN_KEY = "com.chimali.clipboard.OWNERSHIP_TOKEN"
+private const val SENSITIVE_KEY = ClipDescription.EXTRA_IS_SENSITIVE
+private const val SAFE_CLIP_LABEL = "Password"
+
+private sealed interface OwnershipTokenRead {
+    data class Readable(
+        val token: String?,
+    ) : OwnershipTokenRead
+
+    data object Unavailable : OwnershipTokenRead
+}
+
 @Single(binds = [ClipboardManagerService::class])
 class AndroidClipboardManagerService(
     private val context: Context,
 ) : ClipboardManagerService {
-    private val clipboardManager: ClipboardManager? by lazy {
-        context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-    }
+    private val manager by lazy { context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager }
 
-    // Use Main-Immediate for UI clipboard operations, but we can manage the delay jobs
+    // Keep the production source private and random. Isolated instrumentation may replace this
+    // field reflectively before a synthetic copy; no production setter or IPC surface is exposed.
+    private var ownershipTokenSource: () -> String = { UUID.randomUUID().toString() }
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
-    private var clearJob: Job? = null
+    private val owner = Mutex()
 
-    // Use Mutex for thread-safe clipboard access
-    private val clipboardMutex = Mutex()
+    // The synchronous ViewModel disposal handoff can race a terminal callback. Serialize
+    // only receipt disposition here; clipboard operations remain serialized by owner.
+    private val receiptLock = Any()
+    private var nextGeneration = 0L
+    private val jobs = mutableMapOf<Long, Job>()
+    private val tokens = mutableMapOf<Long, String>()
+    private val custodianOwned = ConcurrentHashMap.newKeySet<Long>()
+    private val _cleanupStatuses = MutableStateFlow<Map<Long, ClipboardCleanupStatus>>(emptyMap())
+    override val cleanupStatuses: StateFlow<Map<Long, ClipboardCleanupStatus>> = _cleanupStatuses.asStateFlow()
 
-    // Note: Clipboard state monitoring can be added later when event system is integrated
-    // private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-    //     val hasContent = clipboardManager?.primaryClip != null
-    //     eventBus.publish(ClipboardEvent.ContentChanged(
-    //         timestamp = System.currentTimeMillis(),
-    //         hasContent = hasContent,
-    //         isSensitive = hasContent &&
-    //             clipboardManager?.primaryClip?.description?.extras?.getBoolean("is_sensitive") == true
-    //     ))
-    // }
-
+    @Req("NFR-SEC-050", "TR-CLIP-010")
+    @Suppress("UNUSED_PARAMETER") // Caller labels may contain identifying data; the platform label stays fixed.
     override suspend fun copySensitiveData(
         label: String,
-        text: String,
-        clearDelayMs: Long,
-    ): Result<Unit> {
-        return try {
-            val manager =
-                clipboardManager
-                    ?: return Result.failure(ClipboardError.ClipboardUnavailable())
-
-            // Android 13+ has built-in UI for clipboard that might show sensitive data.
-            // We set the Android sensitive-content extra on the ClipData to prevent it showing up in the UI.
-            val clipData =
-                ClipData.newPlainText(label, text).apply {
-                    description.extras =
-                        android.os.PersistableBundle().apply {
-                            // Use the string key for compatibility before API 33.
-                            putBoolean("android.content.extra.IS_SENSITIVE", true)
-                        }
+        text: CharArray,
+    ): Result<ClipboardCopyReceipt> =
+        owner.withLock {
+            val clipboard = manager ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable())
+            if (_cleanupStatuses.value.size >= 2) {
+                return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
+            }
+            val unconfirmedPending =
+                tokens.keys.any { generation ->
+                    _cleanupStatuses.value[generation]?.outcome == CleanupOutcome.Pending &&
+                        lastPublication[generation] == PublicationStatus.Unconfirmed
                 }
+            if (unconfirmedPending) return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
 
-            manager.setPrimaryClip(clipData)
-
-            // Reset the timer
-            clearJob?.cancel()
-            clearJob =
-                scope.launch {
-                    delay(clearDelayMs)
-                    clearClipboard()
+            val generation = ++nextGeneration
+            val token = ownershipTokenSource()
+            try {
+                val clip =
+                    ClipData.newPlainText(SAFE_CLIP_LABEL, String(text)).apply {
+                        description.extras =
+                            PersistableBundle().apply {
+                                putBoolean(SENSITIVE_KEY, true)
+                                putString(OWNERSHIP_TOKEN_KEY, token)
+                            }
+                    }
+                clipboard.setPrimaryClip(clip)
+                val copiedAt = SystemClock.elapsedRealtime()
+                val dueAt = copiedAt + CLIPBOARD_CLEANUP_DELAY_MS
+                val confirmed = (readOwnershipToken(clipboard) as? OwnershipTokenRead.Readable)?.token == token
+                val publication = if (confirmed) PublicationStatus.MetadataConfirmed else PublicationStatus.Unconfirmed
+                if (confirmed) {
+                    tokens.keys.toList().forEach { previous ->
+                        tokens.remove(previous)
+                        jobs.remove(previous)?.cancel()
+                        finishReceipt(previous, CleanupOutcome.Superseded, CleanupOrigin.Automatic)
+                    }
                 }
+                tokens[generation] = token
+                lastPublication[generation] = publication
+                _cleanupStatuses.value =
+                    _cleanupStatuses.value +
+                    (
+                        generation to
+                            ClipboardCleanupStatus(generation, CleanupOutcome.Pending, CleanupOrigin.Automatic)
+                    )
+                jobs[generation] =
+                    scope.launch {
+                        delay((dueAt - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                        attemptAutomatic(generation, token)
+                    }
+                jobs[generation]?.invokeOnCompletion { cause ->
+                    if (cause is CancellationException) recordInterruptedCleanup(generation, token)
+                }
+                Result.success(ClipboardCopyReceipt(generation, dueAt, publication))
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: SecurityException) {
+                Result.failure(ClipboardError.CopyFailed("clipboard publication rejected"))
+            } catch (_: IllegalStateException) {
+                Result.failure(ClipboardError.CopyFailed("clipboard publication unavailable"))
+            } catch (_: Exception) {
+                Result.failure(ClipboardError.CopyFailed("clipboard publication unavailable"))
+            }
+        }
 
-            Result.success(Unit)
-        } catch (e: SecurityException) {
-            Result.failure(ClipboardError.CopyFailed("Security exception: ${e.message}", e))
-        } catch (e: IllegalStateException) {
-            Result.failure(
-                ClipboardError.PlatformError("Android", e::class.simpleName, e.message ?: "Unknown error", e),
-            )
+    private val lastPublication = mutableMapOf<Long, PublicationStatus>()
+
+    private suspend fun attemptAutomatic(
+        generation: Long,
+        token: String,
+    ) = owner.withLock {
+        if (tokens[generation] != token) return@withLock
+        val clipboard = manager
+        val ownership = readOwnershipToken(clipboard)
+        val outcome =
+            when (ownership) {
+                OwnershipTokenRead.Unavailable -> CleanupOutcome.SkippedOwnershipUnavailable
+                is OwnershipTokenRead.Readable ->
+                    when {
+                        ownership.token == null || ownership.token != token -> CleanupOutcome.SkippedReplaced
+                        else ->
+                            try {
+                                clipboard?.clearPrimaryClip()
+                                CleanupOutcome.ClearRequestSubmitted
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (_: SecurityException) {
+                                CleanupOutcome.SkippedOwnershipUnavailable
+                            } catch (_: IllegalStateException) {
+                                CleanupOutcome.SkippedOwnershipUnavailable
+                            } catch (_: Exception) {
+                                CleanupOutcome.SkippedOwnershipUnavailable
+                            }
+                    }
+            }
+        jobs.remove(generation)
+        tokens.remove(generation)
+        lastPublication.remove(generation)
+        finishReceipt(generation, outcome, CleanupOrigin.Automatic)
+    }
+
+    private fun recordInterruptedCleanup(
+        generation: Long,
+        token: String,
+    ) {
+        // A caller may cancel this scheduled job while the app remains alive. Report that
+        // interruption without turning it into a false claim that the clip was removed.
+        // Intentional supersede/manual cancellation removes the token before cancelling.
+        scope.launch {
+            owner.withLock {
+                if (tokens[generation] != token) return@withLock
+                jobs.remove(generation)
+                tokens.remove(generation)
+                lastPublication.remove(generation)
+                finishReceipt(generation, CleanupOutcome.Interrupted, CleanupOrigin.Automatic)
+            }
         }
     }
 
-    override suspend fun clearClipboard(): Result<Unit> {
-        return try {
-            // Ensure thread-safe clipboard access
-            return clipboardMutex.withLock {
-                clearJob?.cancel()
-                clearJob = null
-
-                val manager =
-                    clipboardManager
-                        ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable())
-
-                // Clearing clipboard relies on setting empty data or clearing the primary clip.
-                // API 28+ supports clearPrimaryClip().
-                manager.clearPrimaryClip()
-
-                // Note: Auto-clear event publishing can be added when event system is integrated
-                // eventBus.publish(ClipboardEvent.AutoCleared(
-                //     timestamp = System.currentTimeMillis(),
-                //     reason = "Manual clear"
-                // ))
-
+    override suspend fun clearClipboard(): Result<Unit> =
+        owner.withLock {
+            val clipboard = manager ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable())
+            try {
+                clipboard.clearPrimaryClip()
+                tokens.keys.toList().forEach { generation ->
+                    tokens.remove(generation)
+                    jobs.remove(generation)?.cancel()
+                    lastPublication.remove(generation)
+                    finishReceipt(generation, CleanupOutcome.ManualClearSubmitted, CleanupOrigin.Manual)
+                }
                 Result.success(Unit)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: SecurityException) {
+                Result.failure(ClipboardError.ClearFailed("clipboard clear rejected"))
+            } catch (_: IllegalStateException) {
+                Result.failure(ClipboardError.ClearFailed("clipboard clear unavailable"))
+            } catch (_: Exception) {
+                Result.failure(ClipboardError.ClearFailed("clipboard clear unavailable"))
             }
-        } catch (e: SecurityException) {
-            Result.failure(ClipboardError.ClearFailed("Security exception: ${e.message}", e))
-        } catch (e: IllegalStateException) {
-            Result.failure(
-                ClipboardError.PlatformError("Android", e.javaClass.simpleName, e.message ?: "Unknown error", e),
-            )
         }
+
+    private fun readOwnershipToken(clipboard: ClipboardManager?): OwnershipTokenRead =
+        try {
+            if (clipboard == null) {
+                OwnershipTokenRead.Unavailable
+            } else {
+                val description = clipboard.primaryClipDescription
+                if (description == null) {
+                    OwnershipTokenRead.Unavailable
+                } else {
+                    OwnershipTokenRead.Readable(description.extras?.getString(OWNERSHIP_TOKEN_KEY))
+                }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            OwnershipTokenRead.Unavailable
+        }
+
+    override fun acknowledge(generation: Long) = releaseTerminal(generation)
+
+    override fun abandon(generation: Long) {
+        synchronized(receiptLock) {
+            val current = _cleanupStatuses.value[generation] ?: return
+            if (current.outcome != CleanupOutcome.Pending) {
+                setOutcome(generation, CleanupOutcome.Abandoned, current.origin)
+                releaseTerminal(generation)
+            }
+        }
+    }
+
+    override fun transferToCustodian(generation: Long) {
+        synchronized(receiptLock) {
+            val current = _cleanupStatuses.value[generation] ?: return
+            if (current.outcome == CleanupOutcome.Pending) {
+                custodianOwned.add(generation)
+            } else {
+                setOutcome(generation, CleanupOutcome.Abandoned, current.origin)
+                releaseTerminal(generation)
+            }
+        }
+    }
+
+    private fun finishReceipt(
+        generation: Long,
+        outcome: CleanupOutcome,
+        origin: CleanupOrigin,
+    ) {
+        synchronized(receiptLock) {
+            if (_cleanupStatuses.value[generation] == null) return
+            if (custodianOwned.remove(generation)) {
+                setOutcome(generation, CleanupOutcome.Abandoned, origin)
+                releaseTerminal(generation)
+            } else {
+                setOutcome(generation, outcome, origin)
+            }
+        }
+    }
+
+    private fun releaseTerminal(generation: Long) {
+        synchronized(receiptLock) {
+            if (_cleanupStatuses.value[generation]?.outcome != CleanupOutcome.Pending) {
+                _cleanupStatuses.value = _cleanupStatuses.value - generation
+                custodianOwned.remove(generation)
+            }
+        }
+    }
+
+    private fun setOutcome(
+        generation: Long,
+        outcome: CleanupOutcome,
+        origin: CleanupOrigin,
+    ) {
+        _cleanupStatuses.value =
+            _cleanupStatuses.value + (generation to ClipboardCleanupStatus(generation, outcome, origin))
     }
 }

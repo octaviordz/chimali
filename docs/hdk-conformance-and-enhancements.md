@@ -151,7 +151,7 @@ In Java 17, [PrivateKey extends Destroyable](https://docs.oracle.com/en/java/jav
 
 ### 4.3 Memory-pressure implementation
 
-WalletSessionMemoryManager.kt does not exist. [WalletSessionMemoryPressure](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryPressure.kt) clears the session for the three specified severe Android trim levels and then requests a GC hint. It defines no KDF. [MemoryUtils](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/MemoryUtils.kt) likewise defines no independent KDF.
+WalletSessionMemoryManager.kt does not exist. [WalletSessionMemoryPressure](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryPressure.kt) clears the session for the three specified severe Android trim levels and then requests a GC hint. It defines no KDF. `MemoryUtils` was removed in the 2026-11-14 Feature 065 audit: it had no production callers, and its `clearString` method was a no-op rather than an erasure operation.
 
 [ChimaliApplication](../app/src/main/kotlin/com/chimali/ChimaliApplication.kt) wires memory callbacks; [WalletMasterSeedProvider](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt) owns generation fencing, session owners, and PRK/parent caches. E-5 is closed as an investigation. A GC hint does not guarantee physical erasure.
 

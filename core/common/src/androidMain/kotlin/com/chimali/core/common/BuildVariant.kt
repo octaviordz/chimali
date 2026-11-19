@@ -8,9 +8,14 @@ import java.lang.reflect.InvocationTargetException
  * Uses reflection to detect the debuggable flag from the current application context
  * without requiring an explicit Context parameter (supports AKM single-variant architecture).
  */
-actual val isDebug: Boolean by lazy {
+actual val isDebug: Boolean by lazy { determineAndroidDebugFlag() }
+
+@com.chimali.core.common.annotation.Req("NFR-SEC-030", "FR-008", "FR-009")
+internal fun determineAndroidDebugFlag(
+    activityThreadLoader: () -> Class<*> = { Class.forName("android.app.ActivityThread") },
+): Boolean =
     try {
-        val activityThread = Class.forName("android.app.ActivityThread")
+        val activityThread = activityThreadLoader()
         val currentApplication = activityThread.getMethod("currentApplication")
         val app = currentApplication.invoke(null) as? android.app.Application
         if (app != null) {
@@ -20,17 +25,16 @@ actual val isDebug: Boolean by lazy {
             // (useful for some test environments)
             System.getProperty("chimali.debug") == "true"
         }
-    } catch (e: ClassNotFoundException) {
-        Logger.e(e) { "Failed to determine build variant via reflection: ActivityThread class not found" }
+    } catch (_: ClassNotFoundException) {
+        Logger.e { "Failed to determine build variant via reflection: ActivityThread class not found" }
         false
-    } catch (e: NoSuchMethodException) {
-        Logger.e(e) { "Failed to determine build variant via reflection: currentApplication method not found" }
+    } catch (_: NoSuchMethodException) {
+        Logger.e { "Failed to determine build variant via reflection: currentApplication method not found" }
         false
-    } catch (e: IllegalAccessException) {
-        Logger.e(e) { "Failed to determine build variant via reflection: access denied" }
+    } catch (_: IllegalAccessException) {
+        Logger.e { "Failed to determine build variant via reflection: access denied" }
         false
-    } catch (e: InvocationTargetException) {
-        Logger.e(e) { "Failed to determine build variant via reflection: invocation failed" }
+    } catch (_: InvocationTargetException) {
+        Logger.e { "Failed to determine build variant via reflection: invocation failed" }
         false
     }
-}

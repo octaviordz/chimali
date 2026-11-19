@@ -1,9 +1,7 @@
 package com.chimali.core.domain.usecase.credential
 
-import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.domain.model.Credential
 import com.chimali.core.domain.repository.CredentialRepository
-import com.chimali.core.domain.service.CryptoService
 import com.chimali.core.domain.usecase.BaseUseCase
 import com.chimali.core.domain.usecase.BaseUseCaseNoParams
 import com.chimali.core.domain.validation.CredentialValidator
@@ -38,24 +36,4 @@ class SaveCredentialUseCase(
         validator
             .validate(parameters)
             .mapCatching { repository.saveCredential(parameters).getOrThrow() }
-}
-
-@Factory
-class CopyCredentialToClipboardUseCase(
-    private val repository: CredentialRepository,
-    private val clipboardService: ClipboardManagerService,
-    private val cryptoService: CryptoService,
-) : BaseUseCase<CredentialId, Unit>() {
-    override suspend fun invoke(parameters: CredentialId): Result<Unit> =
-        repository
-            .getCredentialById(parameters)
-            .mapCatching { credential ->
-                val decryptedPassword = cryptoService.decrypt(credential.password)
-                clipboardService
-                    .copySensitiveData(
-                        label = credential.title,
-                        text = decryptedPassword,
-                    ).getOrThrow()
-                repository.updateLastUsed(parameters).getOrThrow()
-            }
 }

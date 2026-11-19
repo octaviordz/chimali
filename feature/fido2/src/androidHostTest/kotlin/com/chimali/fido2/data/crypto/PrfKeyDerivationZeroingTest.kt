@@ -2,6 +2,7 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.model.PrfExtensionInput
+import com.chimali.fido2.domain.model.PrfExtensionOutput
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlin.test.Test
@@ -30,21 +31,36 @@ class PrfKeyDerivationZeroingTest {
             val input = PrfExtensionInput(listOf(salt1, salt2))
             val credentialId = "test-cred"
 
-            coEvery { hmacSecretProcessor.process(credentialId, salt1) } returns output1.copyOf()
-            coEvery { hmacSecretProcessor.process(credentialId, salt2) } returns output2.copyOf()
+            var result: PrfExtensionOutput? = null
+            try {
+                coEvery { hmacSecretProcessor.process(credentialId, salt1) } returns output1.copyOf()
+                coEvery { hmacSecretProcessor.process(credentialId, salt2) } returns output2.copyOf()
 
-            // Act
-            val result = prfKeyDerivation.deriveAll(input, credentialId)
+                // Act
+                result = prfKeyDerivation.deriveAll(input, credentialId)
+                val actualResult = requireNotNull(result)
 
-            // Assert before clearing
-            assertContentEquals(output1, result?.output1)
-            assertContentEquals(output2, result?.output2)
+                // Assert before clearing
+                assertContentEquals(output1, actualResult.output1)
+                assertContentEquals(output2, actualResult.output2)
 
-            // Clear
-            result?.clear()
+                // Clear
+                actualResult.clear()
 
-            // Assert after clearing
-            assertTrue(result?.output1?.all { it == 0.toByte() } == true)
-            assertTrue(result?.output2?.all { it == 0.toByte() } == true)
+                // Assert after clearing
+                assertTrue(actualResult.output1.all { it == 0.toByte() })
+                assertTrue(actualResult.output2?.all { it == 0.toByte() } == true)
+            } finally {
+                result?.clear()
+                salt1.fill(0)
+                salt2.fill(0)
+                output1.fill(0)
+                output2.fill(0)
+            }
+
+            assertTrue(salt1.all { it == 0.toByte() })
+            assertTrue(salt2.all { it == 0.toByte() })
+            assertTrue(output1.all { it == 0.toByte() })
+            assertTrue(output2.all { it == 0.toByte() })
         }
 }

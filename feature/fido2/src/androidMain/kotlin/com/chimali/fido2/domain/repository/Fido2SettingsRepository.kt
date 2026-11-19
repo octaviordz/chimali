@@ -52,9 +52,7 @@ sealed interface TransportPreferenceResult {
         val rawValue: String,
     ) : TransportPreferenceResult
 
-    data class ReadError(
-        val cause: Throwable,
-    ) : TransportPreferenceResult
+    data object ReadError : TransportPreferenceResult
 }
 
 /**
@@ -71,9 +69,7 @@ sealed interface TransportSaveResult {
         val rawValue: String,
     ) : TransportSaveResult
 
-    data class WriteError(
-        val cause: Throwable,
-    ) : TransportSaveResult
+    data object WriteError : TransportSaveResult
 }
 
 /**

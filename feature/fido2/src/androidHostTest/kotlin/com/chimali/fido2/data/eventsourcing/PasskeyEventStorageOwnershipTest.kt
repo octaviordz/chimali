@@ -20,6 +20,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
@@ -41,6 +42,53 @@ import kotlinx.serialization.json.jsonObject
 
 @OptIn(ExperimentalSerializationApi::class)
 class PasskeyEventStorageOwnershipTest {
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `sensitive JSON capacity overflow erases the sanitized serialization copy`() {
+        val sanitized = "{\"credentialId\":\"synthetic-owner\"}".encodeToByteArray()
+        val repeatedValues =
+            object : AbstractCollection<CharArray>() {
+                override val size: Int = 360_000
+
+                override fun iterator(): Iterator<CharArray> =
+                    object : Iterator<CharArray> {
+                        private var remaining = size
+                        private val repeatedOwner = CharArray(1_000)
+
+                        override fun hasNext(): Boolean = remaining > 0
+
+                        override fun next(): CharArray {
+                            if (!hasNext()) throw NoSuchElementException()
+                            remaining--
+                            return repeatedOwner
+                        }
+                    }
+            }
+        val fields =
+            object : Map<String, CharArray> {
+                override val size: Int get() = 0
+
+                override val keys: Set<String> get() = emptySet()
+
+                override val values: Collection<CharArray> get() = repeatedValues
+
+                override val entries: Set<Map.Entry<String, CharArray>> get() = emptySet()
+
+                override fun isEmpty(): Boolean = true
+
+                override fun containsKey(key: String): Boolean = false
+
+                override fun containsValue(value: CharArray): Boolean = false
+
+                override fun get(key: String): CharArray? = null
+            }
+
+        assertFailsWith<ArithmeticException> {
+            SensitiveJsonFields.encodeSanitized(fields, sanitized)
+        }
+        assertContentEquals(ByteArray(sanitized.size), sanitized)
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `mutable event JSON preserves escaped Unicode and long string fields`() {
@@ -141,6 +189,32 @@ class PasskeyEventStorageOwnershipTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `passkey decoder erases decoded credential ID when sensitive field attachment fails`() {
+        val decodedEvent = testEvent("decode-attach-failure")
+        val repository =
+            PasskeyEventStoreRepositoryImpl(
+                mockk<Fido2Database>(),
+                mockk<EncryptionManager>(),
+                mockk<EventStoreKeyProvider>(),
+            )
+        val plaintext = """{"rpId":"rp","userId":"user","userDisplayName":"display"}""".encodeToByteArray()
+
+        try {
+            assertFailsWith<IllegalArgumentException> {
+                repository.decodePasskeyEventWithDecoder(plaintext) { decodedEvent }
+            }
+
+            assertContentEquals(ByteArray(decodedEvent.credentialId.size), decodedEvent.credentialId)
+            listOf(decodedEvent.rpId, decodedEvent.userId, decodedEvent.userName, decodedEvent.userDisplayName)
+                .forEach { assertContentEquals(CharArray(it.size), it) }
+        } finally {
+            plaintext.fill(0)
+            decodedEvent.eraseSensitiveMetadata()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `mutable JSON extraction is limited to the exact state path`() {
         val input =
             """{"extension":{"rpId":"attacker-before"},
@@ -166,6 +240,23 @@ class PasskeyEventStorageOwnershipTest {
             assertEquals("user", decoded.getValue("userId").concatToString())
             assertTrue(decoded.getValue("rpId").concatToString() != "attacker-before")
             assertTrue(decoded.getValue("rpId").concatToString() != "attacker-after")
+        } finally {
+            decoded.values.forEach { it.fill('\u0000') }
+            input.fill(0)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `mutable JSON extraction follows every nested path component`() {
+        val input =
+            """{"root":{"other":{"rpId":"attacker-before"},
+                "state":{"rpId":"real.example"}},
+                "tail":{"rpId":"attacker-after"}}""".encodeToByteArray()
+        val decoded = decodeSensitiveJson(input, listOf("root", "state"))
+
+        try {
+            assertEquals("real.example", decoded.getValue("rpId").concatToString())
         } finally {
             decoded.values.forEach { it.fill('\u0000') }
             input.fill(0)
@@ -260,11 +351,49 @@ class PasskeyEventStorageOwnershipTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `storage result contains malformed UTF-8 failures and preserves cancellation`() =
+    fun `snapshot decoder erases decoded credential ID when sensitive field attachment fails`() {
+        val decodedState =
+            PasskeyState(
+                id = "snapshot-decode-attach-failure",
+                rpId = "decoded.example".toCharArray(),
+                userId = "decoded-user".toCharArray(),
+                userName = "decoded-name".toCharArray(),
+                userDisplayName = "Decoded User".toCharArray(),
+                credentialId = ByteArray(16) { (it + 1).toByte() },
+                publicKey = "synthetic-key",
+                sequenceNumber = 1,
+                coseAlgorithm = -7,
+                derivationProfile = "chimali-local-hdk-p256-v1",
+            )
+        val decodedSnapshot = Snapshot("snapshot-decode-attach-failure", 1, decodedState, Clock.System.now())
+        val repository = PasskeySnapshotRepositoryImpl(mockk(relaxed = true), mockk(), mockk())
+        val plaintext =
+            """{"state":{"rpId":"rp","userId":"user","userDisplayName":"display"}}"""
+                .encodeToByteArray()
+
+        try {
+            assertFailsWith<IllegalArgumentException> {
+                repository.decodePasskeySnapshotWithDecoder(plaintext) { decodedSnapshot }
+            }
+
+            assertContentEquals(ByteArray(decodedState.credentialId.size), decodedState.credentialId)
+            listOf(decodedState.rpId, decodedState.userId, decodedState.userName, decodedState.userDisplayName)
+                .forEach { assertContentEquals(CharArray(it.size), it) }
+        } finally {
+            plaintext.fill(0)
+            decodedState.eraseSensitiveMetadata()
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `storage result sanitizes malformed UTF-8 failures and preserves cancellation`() =
         runTest {
-            val malformedUtf8 = MalformedInputException(1)
-            val contained = captureStorageResult<Unit> { throw malformedUtf8 }
-            assertSame(malformedUtf8, contained.exceptionOrNull())
+            val markerFailure = IllegalStateException("synthetic-storage-failure-marker")
+            val contained = captureStorageResult<Unit> { throw markerFailure }
+            assertEquals("Passkey storage operation failed", contained.exceptionOrNull()?.message)
+            assertNull(contained.exceptionOrNull()?.cause)
+            assertFalse(contained.exceptionOrNull().toString().contains("synthetic-storage-failure-marker"))
 
             val cancellation = CancellationException("synthetic cancellation")
             assertSame(
@@ -521,6 +650,115 @@ class PasskeyEventStorageOwnershipTest {
                 serializedSnapshots.forEach { it.fill(0) }
                 secondEvent.eraseSensitiveMetadata()
             } finally {
+                driver.close()
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `event replay erases staged sensitive events when batch transfer fails`() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            val key = ByteArray(32) { 0x31.toByte() }
+            try {
+                Fido2Database.Schema.create(driver)
+                val database = Fido2Database(driver)
+                val provider =
+                    mockk<EventStoreKeyProvider> {
+                        coEvery { getEventStoreKey(any()) } returns key.copyOf()
+                    }
+                val encryptionManager = mockk<EncryptionManager>()
+                val decryptedRowPayloads = mutableListOf<ByteArray>()
+                every { encryptionManager.encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                every { encryptionManager.decrypt(any(), any()) } answers {
+                    firstArg<ByteArray>().also(decryptedRowPayloads::add).copyOf()
+                }
+                val repository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, provider)
+                val aggregateId = "event-batch-transfer-failure"
+                val stored = testEvent(aggregateId)
+                val staged = testEvent(aggregateId)
+                try {
+                    assertTrue(repository.append(EventKind.PASSKEY, listOf(stored)).isSuccess)
+                    repository.beforeEventBatchTransferForTest = { events ->
+                        assertEquals(1, events.size)
+                        assertSame(staged, events.single())
+                        error("synthetic event batch transfer failure")
+                    }
+
+                    val result = repository.getEventsWithDecoder(EventKind.PASSKEY, aggregateId, null) { staged }
+
+                    assertTrue(result.isFailure)
+                    assertContentEquals(ByteArray(staged.credentialId.size), staged.credentialId)
+                    listOf(staged.rpId, staged.userId, staged.userName, staged.userDisplayName).forEach { owner ->
+                        assertContentEquals(CharArray(owner.size), owner)
+                    }
+                    decryptedRowPayloads.forEach { payload -> assertContentEquals(ByteArray(payload.size), payload) }
+                    val persistedRows =
+                        database.fido2DatabaseQueries
+                            .get_events(aggregate_id = aggregateId, timestamp = "9999-12-31T23:59:59Z")
+                            .executeAsList()
+                    try {
+                        assertTrue(persistedRows.single().payload.any { it != 0.toByte() })
+                    } finally {
+                        persistedRows.forEach { it.payload.fill(0) }
+                    }
+                } finally {
+                    stored.eraseSensitiveMetadata()
+                    staged.eraseSensitiveMetadata()
+                }
+            } finally {
+                key.fill(0)
+                driver.close()
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `event replay from snapshot erases staged sensitive events when batch transfer fails`() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            val key = ByteArray(32) { 0x32.toByte() }
+            var stored: PasskeyEvent.Registered? = null
+            var replayed: PasskeyEvent.Registered? = null
+            try {
+                Fido2Database.Schema.create(driver)
+                val database = Fido2Database(driver)
+                val provider =
+                    mockk<EventStoreKeyProvider> {
+                        coEvery { getEventStoreKey(any()) } returns key.copyOf()
+                    }
+                val encryptionManager = mockk<EncryptionManager>()
+                val decryptedRowPayloads = mutableListOf<ByteArray>()
+                every { encryptionManager.encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                every { encryptionManager.decrypt(any(), any()) } answers {
+                    firstArg<ByteArray>().also(decryptedRowPayloads::add).copyOf()
+                }
+                val repository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, provider)
+                val aggregateId = "event-from-snapshot-transfer-failure"
+                stored = testEvent(aggregateId)
+                assertTrue(repository.append(EventKind.PASSKEY, listOf(checkNotNull(stored))).isSuccess)
+                repository.beforeEventBatchTransferForTest = { events ->
+                    assertEquals(1, events.size)
+                    replayed = events.single() as PasskeyEvent.Registered
+                    error("synthetic snapshot-tail batch transfer failure")
+                }
+
+                val result = repository.getEventsFrom(EventKind.PASSKEY, aggregateId, 0)
+
+                assertTrue(result.isFailure)
+                val failedTransfer = checkNotNull(replayed)
+                assertContentEquals(ByteArray(failedTransfer.credentialId.size), failedTransfer.credentialId)
+                listOf(
+                    failedTransfer.rpId,
+                    failedTransfer.userId,
+                    failedTransfer.userName,
+                    failedTransfer.userDisplayName,
+                ).forEach { owner -> assertContentEquals(CharArray(owner.size), owner) }
+                decryptedRowPayloads.forEach { payload -> assertContentEquals(ByteArray(payload.size), payload) }
+            } finally {
+                stored?.eraseSensitiveMetadata()
+                replayed?.eraseSensitiveMetadata()
+                key.fill(0)
                 driver.close()
             }
         }

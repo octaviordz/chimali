@@ -30,13 +30,19 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 @Req("NFR-SEC-041", "TR-AUTH-031")
+@Suppress("LargeClass") // The validation matrix shares a focused command-handler fixture.
 class Ctap2MakeCredentialHandlerValidationTest {
     private val codec = mockk<CborCodec>()
     private val reportParser = mockk<HidReportParser>()
@@ -53,11 +59,83 @@ class Ctap2MakeCredentialHandlerValidationTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
+    fun `keepalive failure cancels dispatched request and releases pending event`() =
+        runTest {
+            val realCodec = CborCodec()
+            val realEventBus = Fido2UiEventBus()
+            val decodedOwners = mutableListOf<SensitiveCredentialText>()
+            realCodec.onDecodedTextOwnerForTest = decodedOwners::add
+            val realHandler = Ctap2MakeCredentialHandler(realCodec, reportParser, realEventBus, ceremonyLock)
+            val dispatchedEvent =
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    realEventBus.events.first() as Fido2UiEvent.RegistrationRequested
+                }
+            every { ceremonyLock.tryLock() } returns true
+            val encoded = realCodec.encodeToFido2Format(validRequest(algorithms = listOf(-7)))
+            val payload = byteArrayOf(0x01) + encoded
+
+            try {
+                assertFailsWith<IllegalStateException> {
+                    realHandler.handleRaw(payload) { throw IllegalStateException("synthetic keepalive failure") }
+                }
+
+                assertNull(realEventBus.currentRegistrationRequest, "failed callback must not strand UI event owners")
+                val event = dispatchedEvent.await()
+                assertTrue(
+                    event.options.challenge.all { it == 0.toByte() },
+                    "unclaimed event challenge must be erased",
+                )
+                val copiedUserName = event.options.user.name
+                assertTrue(
+                    copiedUserName.all { it == '\u0000' },
+                    "unclaimed event identity must be erased",
+                )
+                assertTrue(decodedOwners.isNotEmpty())
+                assertTrue(
+                    decodedOwners.all { owner ->
+                        val characters = owner.copyCharacters()
+                        characters.all { it == '\u0000' }
+                    },
+                )
+            } finally {
+                realEventBus.currentRegistrationRequest?.deferred?.cancel()
+                payload.fill(0)
+                encoded.fill(0)
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `event admission failure erases independent UI options`() =
+        runTest {
+            every { ceremonyLock.tryLock() } returns true
+            every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = listOf(-7L))
+            every { codec.encodeToFido2Format(any()) } returns byteArrayOf(0x55)
+            var published: Fido2UiEvent.RegistrationRequested? = null
+            every { uiEventBus.dispatch(any()) } answers {
+                published = firstArg()
+                error("synthetic event admission failure")
+            }
+
+            assertFailsWith<IllegalStateException> { handler.handle(requestMessage()) }
+
+            val options = requireNotNull(published).options
+            assertTrue(options.challenge.all { it == 0.toByte() })
+            assertTrue(options.user.name.all { it == '\u0000' })
+            assertTrue(options.rp.name.all { it == '\u0000' })
+            verify(exactly = 1) { ceremonyLock.unlock() }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
     fun `partial request parsing erases fallback owners when later algorithm validation fails`() =
         runTest {
             val realCodec = CborCodec()
             val decodedOwners = mutableListOf<SensitiveCredentialText>()
             val parserOwners = mutableListOf<SensitiveCredentialText>()
+            var framedResponseOwner: ByteArray? = null
             realCodec.onDecodedTextOwnerForTest = decodedOwners::add
             val realHandler =
                 Ctap2MakeCredentialHandler(realCodec, reportParser, uiEventBus, ceremonyLock).apply {
@@ -65,7 +143,11 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 }
             every { ceremonyLock.tryLock() } returns true
             every { reportParser.encodeResponse(any()) } answers {
-                listOf(firstArg<CtapHidMessage>().payload)
+                firstArg<CtapHidMessage>()
+                    .payload
+                    .also { framedResponseOwner = it }
+                    .copyOf()
+                    .let(::listOf)
             }
             val encoded =
                 realCodec.encodeToFido2Format(
@@ -80,9 +162,57 @@ class Ctap2MakeCredentialHandlerValidationTest {
             val response = realHandler.handle(CtapHidMessage(channelId, 0x10, byteArrayOf(0x01) + encoded))
 
             assertEquals(0x14.toByte(), response.single().first())
+            assertTrue(
+                framedResponseOwner?.all { it == 0.toByte() } == true,
+                "Raw response must be erased after HID framing",
+            )
             assertEquals(3, parserOwners.size)
             assertTrue((decodedOwners + parserOwners).all { owner -> owner.copyCharacters().all { it == '\u0000' } })
             verify(exactly = 0) { uiEventBus.dispatch(any()) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `partial request parsing erases copied string owners on later algorithm validation failure`() =
+        runTest {
+            val parserOwners = mutableListOf<SensitiveCredentialText>()
+            val realHandler =
+                Ctap2MakeCredentialHandler(codec, reportParser, uiEventBus, ceremonyLock).apply {
+                    onTemporaryRequestOwnerCreatedForTest = parserOwners::add
+                }
+            every { ceremonyLock.tryLock() } returns true
+            every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = listOf("invalid algorithm"))
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
+
+            val response = realHandler.handle(requestMessage())
+
+            assertEquals(0x36.toByte(), response.single().first())
+            assertEquals(4, parserOwners.size, "RP and user String fields are copied into tracked owners")
+            assertTrue(parserOwners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
+            verify(exactly = 0) { uiEventBus.dispatch(any()) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `request parser erases fallback text when cleanup-list admission fails`() =
+        runTest {
+            val unadmittedOwners = mutableListOf<SensitiveCredentialText>()
+            handler.beforeTemporaryRequestOwnerAdmissionForTest = { owner ->
+                unadmittedOwners += owner
+                error("synthetic request-owner admission failure")
+            }
+            every { ceremonyLock.tryLock() } returns true
+            every { codec.decodeSensitiveRequest(any()) } returns validRequest(algorithms = listOf(-7L))
+
+            assertFailsWith<IllegalStateException> { handler.handleRaw(byteArrayOf(0x01, 0x00)) }
+
+            assertEquals(1, unadmittedOwners.size)
+            val characters = unadmittedOwners.single().copyCharacters()
+            assertContentEquals(CharArray(characters.size), characters)
+            characters.fill('\u0000')
+            verify(exactly = 1) { ceremonyLock.unlock() }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -103,7 +233,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 request
             }
             every { codec.encodeToFido2Format(any()) } returns byteArrayOf(0x55)
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             val data = mockk<AuthenticatorData> { every { credentialId } returns byteArrayOf(9) }
             val statement =
                 mockk<AttestationStatement> {
@@ -112,12 +242,13 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 }
             val attestation =
                 mockk<AttestationObject> {
+                    every { eraseSensitiveData() } returns Unit
                     every { clientData } returns
                         com.chimali.fido2.domain.model.ClientData.create(
                             challenge = ByteArray(32),
                             origin = "https://synthetic.example",
                         )
-                    every { fmt } returns "none"
+                    every { fmt } returns if (mode == "success") marker else "none"
                     every { authData } returns data
                     every { attStmt } returns statement
                 }
@@ -151,6 +282,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 }
                 assertTrue(logs.size > 0)
                 logs.assertNoSensitiveValues(marker)
+                assertFalse(logs.containsMessage("credId="), "Credential identifier metadata must not be logged")
             }
             verify(exactly = 1) { ceremonyLock.unlock() }
         }
@@ -164,7 +296,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
             every { codec.decodeFromFido2Format(any()) } returns
                 validRequest(algorithms = listOf(-7L)) + ("options" to mapOf("uv" to true))
             every { codec.encodeToFido2Format(any()) } returns byteArrayOf(0x55)
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             val authenticatorData = mockk<AuthenticatorData> { every { credentialId } returns byteArrayOf(9) }
             val statement =
                 mockk<AttestationStatement> {
@@ -173,6 +305,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 }
             val attestation =
                 mockk<AttestationObject> {
+                    every { eraseSensitiveData() } returns Unit
                     every { clientData } returns
                         com.chimali.fido2.domain.model.ClientData.create(
                             challenge = ByteArray(32),
@@ -201,7 +334,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
     @Test
     fun `empty or wrong command returns invalid CBOR without acquiring ceremony lock`() =
         runTest {
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val emptyPayloadResponse = handler.handle(CtapHidMessage(channelId, 0x10, byteArrayOf()))
             val wrongCommandResponse = handler.handle(CtapHidMessage(channelId, 0x10, byteArrayOf(0x02)))
@@ -217,7 +350,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
     fun `active ceremony returns channel busy without decoding request`() =
         runTest {
             every { ceremonyLock.tryLock() } returns false
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val response = handler.handle(requestMessage())
 
@@ -233,7 +366,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
         runTest {
             every { ceremonyLock.tryLock() } returns true
             every { codec.decodeFromFido2Format(any()) } returns emptyMap()
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val response = handler.handle(requestMessage())
 
@@ -248,7 +381,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
         runTest {
             every { ceremonyLock.tryLock() } returns true
             every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = emptyList<Any>())
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val response = handler.handle(requestMessage())
 
@@ -263,7 +396,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
         runTest {
             every { ceremonyLock.tryLock() } returns true
             every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = listOf(-19L))
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val response = handler.handle(requestMessage())
 
@@ -293,7 +426,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 invalidPolicies.map { rawPolicy ->
                     validRequest(listOf(-7L)) + ("extensions" to mapOf("credProtect" to rawPolicy))
                 }
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             invalidPolicies.forEach {
                 val response = handler.handle(requestMessage())
@@ -325,7 +458,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
             val cbor = realCodec.encodeToFido2Format(request)
             val message = CtapHidMessage(channelId, 0x10, byteArrayOf(0x01) + cbor)
             every { ceremonyLock.tryLock() } returns true
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             var policy: Any? = null
             every { uiEventBus.dispatch(any()) } answers {
                 val event = firstArg<Fido2UiEvent.RegistrationRequested>()
@@ -351,7 +484,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
             val realHandler =
                 Ctap2MakeCredentialHandler(realCodec, reportParser, uiEventBus, ceremonyLock)
             every { ceremonyLock.tryLock() } returns true
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val malformedExtensions: List<Any> =
                 listOf(
@@ -407,7 +540,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
             val realHandler =
                 Ctap2MakeCredentialHandler(realCodec, reportParser, uiEventBus, ceremonyLock)
             every { ceremonyLock.tryLock() } returns true
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             val malformedOptions: List<Any> =
                 listOf(
@@ -438,7 +571,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
             every { ceremonyLock.tryLock() } returns true
             every { codec.decodeFromFido2Format(any()) } returnsMany
                 wrappingValues.map { value -> validRequest(listOf(value)) }
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             wrappingValues.forEach { _ ->
                 val response = handler.handle(requestMessage())
@@ -455,8 +588,11 @@ class Ctap2MakeCredentialHandlerValidationTest {
         runTest {
             every { ceremonyLock.tryLock() } returns true
             every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = listOf(-7L))
-            every { codec.encodeToFido2Format(any()) } returns byteArrayOf(0x55)
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            var encodedResponse: ByteArray? = null
+            every { codec.encodeToFido2Format(any()) } answers {
+                byteArrayOf(0x55).also { encodedResponse = it }
+            }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             val authenticatorData = mockk<AuthenticatorData> { every { credentialId } returns byteArrayOf(9) }
             val statement =
                 mockk<AttestationStatement> {
@@ -465,6 +601,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                 }
             val attestation =
                 mockk<AttestationObject> {
+                    every { eraseSensitiveData() } returns Unit
                     every { clientData } returns
                         com.chimali.fido2.domain.model.ClientData.create(
                             challenge = ByteArray(32),
@@ -488,6 +625,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
 
             assertEquals(0, response.single()[0].toInt())
             assertEquals(0x55.toByte(), response.single()[1])
+            assertContentEquals(ByteArray(1), encodedResponse)
             assertEquals(-7, selectedAlgorithm)
             verify(exactly = 1) { ceremonyLock.unlock() }
             assertCredentialErased(credential)
@@ -499,7 +637,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
     fun `registration failures map storage authorization and other errors to CTAP statuses`() =
         runTest {
             every { codec.decodeFromFido2Format(any()) } returns validRequest(algorithms = listOf(-7L))
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             var error: DomainError = DomainError.DatabaseError("database")
             every { uiEventBus.dispatch(any()) } answers {
                 firstArg<Fido2UiEvent.RegistrationRequested>().deferred.complete(Outcome.Error(error))
@@ -551,7 +689,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                         "extensions" to extensions,
                     )
                 }
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             repeat(extensionVariants.size) {
                 val response = handler.handle(requestMessage())
@@ -589,7 +727,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
                         "4" to "not-a-list",
                     ),
                 )
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
 
             repeat(7) {
                 val response = handler.handle(requestMessage())
@@ -604,7 +742,7 @@ class Ctap2MakeCredentialHandlerValidationTest {
     fun `FIDO exception families map to CTAP statuses and always release the lock`() =
         runTest {
             every { ceremonyLock.tryLock() } returns true
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload.copyOf()) }
             var failure: Fido2Exception = Fido2Exception.UserVerificationException("denied")
             every { codec.decodeFromFido2Format(any()) } answers { throw failure }
             val cases =

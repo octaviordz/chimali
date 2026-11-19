@@ -24,8 +24,10 @@ class UserConsentRecordDao(
     private val metadataProtectionService: CredentialMetadataProtectionService,
 ) {
     /**
-     * Inserts a consent record. The consent fields and RP value are borrowed; the generated RP lookup token is
+     * Inserts a consent record. RP and consent fields are borrowed; the generated RP lookup token is
      * operation-owned, passed to SQLDelight only for this call, and erased on success or database failure.
+     * Optional IP address, user-agent, and device-ID context has no active product purpose or retention policy,
+     * so new records deliberately omit it. Existing schema columns remain for migration compatibility.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun insertConsent(consent: UserConsentRecord) {
@@ -40,12 +42,12 @@ class UserConsentRecordDao(
                 updated_at = consent.timestamp.toEpochMilliseconds(),
                 biometric_used = if (consent.isBiometricUsed) 1L else 0L,
                 credential_id = consent.credentialId?.encoded,
-                device_id = consent.deviceId,
-                ip_address = consent.ipAddress,
+                device_id = null,
+                ip_address = null,
                 operation_type = consent.operationType.name,
                 pin_used = if (consent.isPinUsed) 1L else 0L,
                 rp_id = rpBytes,
-                user_agent = consent.userAgent,
+                user_agent = null,
                 rp_id_index = rpIdIndex,
             )
         } finally {

@@ -36,6 +36,8 @@ class OnboardingViewModel(
         _state.update { it.copy(step = OnboardingStep.Intro, errorMessage = null) }
     }
 
+    // Keep the UI message fixed and discard potentially sensitive exception details.
+    @Suppress("SwallowedException")
     suspend fun finishOnboarding(): Boolean {
         val currentState = _state.value
         if (!currentState.canContinue) {
@@ -59,7 +61,7 @@ class OnboardingViewModel(
             _state.update {
                 it.copy(
                     isSaving = false,
-                    errorMessage = exception.message ?: "Unable to save onboarding preferences.",
+                    errorMessage = "Unable to save onboarding preferences.",
                 )
             }
             false

@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.core.common.datastore.createUserPreferencesDataStore
 import com.chimali.fido2.data.repository.Fido2SettingsRepositoryImpl
+import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -16,11 +17,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class Fido2SettingsMigrationTest {
-
     private lateinit var context: Context
     private lateinit var dataStore: androidx.datastore.core.DataStore<UserPreferences>
     private lateinit var repository: Fido2SettingsRepositoryImpl
@@ -35,16 +34,18 @@ class Fido2SettingsMigrationTest {
         // Clean up any existing data before test
         cleanupData()
 
-        dataStore = createUserPreferencesDataStore(
-            producePath = {
-                context.filesDir.resolve("user_prefs_fido2_settings_test.pb").absolutePath
-            }
-        )
+        dataStore =
+            createUserPreferencesDataStore(
+                producePath = {
+                    context.filesDir.resolve("user_prefs_fido2_settings_test.pb").absolutePath
+                },
+            )
 
-        repository = Fido2SettingsRepositoryImpl(
-            context = context,
-            dataStore = dataStore
-        )
+        repository =
+            Fido2SettingsRepositoryImpl(
+                context = context,
+                dataStore = dataStore,
+            )
     }
 
     @After
@@ -56,17 +57,18 @@ class Fido2SettingsMigrationTest {
     private fun cleanupData() {
         // Delete datastore file
         File(context.filesDir, "user_prefs_fido2_settings_test.pb").delete()
-        
+
         // Clear EncryptedSharedPreferences
         try {
             val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-            val prefs = EncryptedSharedPreferences.create(
-                prefsFileName,
-                masterKeyAlias,
-                context,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
+            val prefs =
+                EncryptedSharedPreferences.create(
+                    prefsFileName,
+                    masterKeyAlias,
+                    context,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
             prefs.edit().clear().commit()
         } catch (e: Exception) {
             // Ignore setup errors
@@ -74,32 +76,34 @@ class Fido2SettingsMigrationTest {
     }
 
     @Test
-    fun testMigrationFromEncryptedSharedPreferencesToDataStore() = runTest {
-        // 1. Setup legacy data
-        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        val legacyPrefs = EncryptedSharedPreferences.create(
-            prefsFileName,
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-        legacyPrefs.edit().putInt(keyMaxCredentials, 42).commit()
+    fun testMigrationFromEncryptedSharedPreferencesToDataStore() =
+        runTest {
+            // 1. Setup legacy data
+            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            val legacyPrefs =
+                EncryptedSharedPreferences.create(
+                    prefsFileName,
+                    masterKeyAlias,
+                    context,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
+            legacyPrefs.edit().putInt(keyMaxCredentials, 42).commit()
 
-        // Verify it was saved
-        assertEquals(42, legacyPrefs.getInt(keyMaxCredentials, -1))
+            // Verify it was saved
+            assertEquals(42, legacyPrefs.getInt(keyMaxCredentials, -1))
 
-        // 2. Trigger migration
-        val maxCount = repository.getMaxCredentialCount()
+            // 2. Trigger migration
+            val maxCount = repository.getMaxCredentialCount()
 
-        // 3. Verify max count was correctly migrated
-        assertEquals(42, maxCount)
+            // 3. Verify max count was correctly migrated
+            assertEquals(42, maxCount)
 
-        // 4. Verify DataStore has the data
-        val prefs = dataStore.data.first()
-        assertEquals(42, prefs.maxCredentialCount)
+            // 4. Verify DataStore has the data
+            val prefs = dataStore.data.first()
+            assertEquals(42, prefs.maxCredentialCount)
 
-        // 5. Verify legacy prefs were deleted
-        assertFalse(legacyPrefs.contains(keyMaxCredentials))
-    }
+            // 5. Verify legacy prefs were deleted
+            assertFalse(legacyPrefs.contains(keyMaxCredentials))
+        }
 }

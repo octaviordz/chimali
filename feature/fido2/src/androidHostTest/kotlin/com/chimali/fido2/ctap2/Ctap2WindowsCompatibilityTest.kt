@@ -3,6 +3,7 @@ package com.chimali.fido2.ctap2
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
 import com.chimali.core.domain.valueobject.CredentialId
+import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
@@ -11,10 +12,13 @@ import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import java.util.Base64
+import kotlin.test.AfterTest
+import kotlin.test.assertContentEquals
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -25,6 +29,26 @@ import org.junit.jupiter.api.Test
 class Ctap2WindowsCompatibilityTest {
     private val cborCodec = CborCodec()
     private val realHidParser = HidReportParser()
+    private val ownedBuffers = mutableListOf<ByteArray>()
+    private val ownedMessages = mutableListOf<CtapHidMessage>()
+    private val ownedMocks = mutableListOf<Any>()
+
+    @AfterTest
+    fun tearDown() {
+        ownedMessages.forEach(CtapHidMessage::clearMemory)
+        ownedMessages.clear()
+        realHidParser.reset()
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
+        if (ownedMocks.isNotEmpty()) {
+            ownedMocks.forEach { mock -> clearMocks(mock, answers = true, recordedCalls = true) }
+        }
+        ownedMocks.clear()
+    }
+
+    private fun track(buffer: ByteArray): ByteArray = buffer.also(ownedBuffers::add)
+
+    private fun <T : Any> trackMock(mock: T): T = mock.also(ownedMocks::add)
 
     companion object {
         private const val CTAP2_OK = 0x00.toByte()
@@ -37,12 +61,12 @@ class Ctap2WindowsCompatibilityTest {
     @Test
     fun `test Ctap2GetAssertionHandler serializes authData and signature as raw CBOR byte strings`() =
         runTest {
-            val mockHmacProcessor = mockk<HmacSecretProcessor>()
-            val mockEventBus = mockk<Fido2UiEventBus>()
-            val mockPrfDerivation = mockk<PrfKeyDerivation>()
-            val mockGetAssertionUseCase = mockk<GetAssertionUseCase>()
+            val mockHmacProcessor = trackMock(mockk<HmacSecretProcessor>())
+            val mockEventBus = trackMock(mockk<Fido2UiEventBus>())
+            val mockPrfDerivation = trackMock(mockk<PrfKeyDerivation>())
+            val mockGetAssertionUseCase = trackMock(mockk<GetAssertionUseCase>())
 
-            val mockLock = mockk<com.chimali.fido2.domain.service.CeremonyLock>(relaxed = true)
+            val mockLock = trackMock(mockk<com.chimali.fido2.domain.service.CeremonyLock>(relaxed = true))
             every { mockLock.tryLock() } returns true
 
             val handler =
@@ -56,37 +80,42 @@ class Ctap2WindowsCompatibilityTest {
                     ceremonyLock = mockLock,
                 )
 
-            val testCid = byteArrayOf(0x01, 0x02, 0x03, 0x04)
-            val dummyCredIdBytes = ByteArray(16) { 0x0A.toByte() }
-            val rawAuthData = ByteArray(AUTH_DATA_SIZE_37) { 0xBB.toByte() }
-            val rawSignature = ByteArray(SIG_SIZE_64) { 0xCC.toByte() }
-            val expectedAuthData = rawAuthData.copyOf()
-            val expectedSignature = rawSignature.copyOf()
+            val testCid = track(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+            val dummyCredIdBytes = track(ByteArray(16) { 0x0A.toByte() })
+            val rawAuthData = track(ByteArray(AUTH_DATA_SIZE_37) { 0xBB.toByte() })
+            val rawSignature = track(ByteArray(SIG_SIZE_64) { 0xCC.toByte() })
+            val expectedAuthData = track(rawAuthData.copyOf())
+            val expectedSignature = track(rawSignature.copyOf())
 
             val candidate =
-                mockk<CredentialSummary> {
-                    every { eraseSensitiveText() } returns Unit
-                    every { credProtectPolicy } returns 1
-                }
+                trackMock(
+                    mockk<CredentialSummary> {
+                        every { eraseSensitiveText() } returns Unit
+                        every { credProtectPolicy } returns 1
+                    },
+                )
             coEvery { mockGetAssertionUseCase.findCandidateSummaries(any()) } returns listOf(candidate)
 
             // Windows-style Base64 inputs
-            val base64AuthData = Base64.getEncoder().encode(rawAuthData)
-            val base64Signature = Base64.getEncoder().encode(rawSignature)
+            val base64AuthData = track(Base64.getEncoder().encode(rawAuthData))
+            val base64Signature = track(Base64.getEncoder().encode(rawSignature))
 
             // Construct a real-looking CBOR request for GetAssertion (0x02)
+            val requestHash = track(ByteArray(HASH_SIZE_32) { 0x01 })
             val requestCbor =
-                cborCodec.encodeToFido2Format(
-                    mapOf(
-                        "1" to "webauthn.io",
-                        "2" to ByteArray(HASH_SIZE_32) { 0x01 },
-                        "3" to
-                            listOf(
-                                mapOf(
-                                    "type" to "public-key",
-                                    "id" to dummyCredIdBytes,
+                track(
+                    cborCodec.encodeToFido2Format(
+                        mapOf(
+                            "1" to "webauthn.io",
+                            "2" to requestHash,
+                            "3" to
+                                listOf(
+                                    mapOf(
+                                        "type" to "public-key",
+                                        "id" to dummyCredIdBytes,
+                                    ),
                                 ),
-                            ),
+                        ),
                     ),
                 )
 
@@ -99,30 +128,33 @@ class Ctap2WindowsCompatibilityTest {
                 Outcome.Success(dummyAssertion)
 
             // Execute handler
-            val realPackets = handler.handle(testCid, requestCbor)
+            val realPackets = handler.handle(testCid, requestCbor).also { packets -> ownedBuffers.addAll(packets) }
             assertTrue(realPackets.isNotEmpty(), "Handler should produce at least one packet")
 
             // Reassemble the response (could be multiple packets)
-            var reassembled: com.chimali.fido2.bluetooth.CtapHidMessage? = null
+            var reassembled: CtapHidMessage? = null
             for (packet in realPackets) {
                 reassembled = realHidParser.processReport(packet).getOrThrow()
-                if (reassembled != null) break
+                if (reassembled != null) {
+                    ownedMessages += reassembled!!
+                    break
+                }
             }
             assertNotNull(reassembled, "Reassembled message was null")
-            val responseBytes = reassembled!!.payload
+            val responseBytes = track(reassembled!!.payload)
 
             // Status code 0x00 is first byte, followed by actual CBOR map
             assertEquals(CTAP2_OK, responseBytes[0], "Response should start with CTAP2_OK (0x00)")
 
-            val cborPayload = responseBytes.copyOfRange(1, responseBytes.size)
+            val cborPayload = track(responseBytes.copyOfRange(1, responseBytes.size))
             val responseMap = cborCodec.decodeFromFido2Format(cborPayload)
 
             // Verify the map contains the expected binary keys (as strings "1", "2", "3")
             assertTrue(responseMap.containsKey("2"), "Response must contain authData (key 2)")
             assertTrue(responseMap.containsKey("3"), "Response must contain signature (key 3)")
 
-            val outAuthData = responseMap["2"] as ByteArray
-            val outSignature = responseMap["3"] as ByteArray
+            val outAuthData = track(responseMap["2"] as ByteArray)
+            val outSignature = track(responseMap["3"] as ByteArray)
 
             // CRITICAL: They MUST be the raw bytes, NOT Base64 text
             assertEquals(AUTH_DATA_SIZE_37, outAuthData.size, "authData must be raw binary (37 bytes)")
@@ -145,6 +177,20 @@ class Ctap2WindowsCompatibilityTest {
                 "CBOR MUST NOT contain Base64 text representations of signature",
             )
         }
+
+    @Test
+    fun `teardown zeros registered buffers and clears parser assembly`() {
+        val buffer = track(byteArrayOf(1, 2, 3))
+        val channel = track(byteArrayOf(4))
+        val payload = track(byteArrayOf(5, 6))
+        ownedMessages += CtapHidMessage(channel, 0x90, payload)
+
+        tearDown()
+
+        assertContentEquals(ByteArray(3), buffer)
+        assertContentEquals(ByteArray(1), channel)
+        assertContentEquals(ByteArray(2), payload)
+    }
 
     private fun createDummyAssertion(
         credIdBytes: ByteArray,

@@ -23,7 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,20 +43,30 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPairedDeviceScreen(
-    macAddress: String,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
-    val devices by viewModel.pairedDevices.collectAsState()
+    val devices by viewModel.pairedDevices.collectAsStateWithLifecycleAndReset(emptyList())
+    val macAddress by viewModel.editingDeviceAddress.collectAsStateWithLifecycleAndReset(null)
     val device =
         remember(devices, macAddress) {
-            devices.find { it.macAddress == macAddress }
+            macAddress?.let { address -> devices.find { it.macAddress == address } }
         }
 
     // Capture initial alias or empty string
     var aliasText by remember(device) {
         mutableStateOf(device?.alias ?: "")
+    }
+
+    val navigateUpAndClear = {
+        aliasText = ""
+        viewModel.clearEditingDevice()
+        onNavigateUp()
+    }
+
+    DisposableEffect(viewModel) {
+        onDispose(viewModel::clearEditingDevice)
     }
 
     if (device == null) {
@@ -71,7 +81,7 @@ fun EditPairedDeviceScreen(
             TopAppBar(
                 title = { Text("Edit Device Alias") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateUp) {
+                    IconButton(onClick = navigateUpAndClear) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -79,6 +89,8 @@ fun EditPairedDeviceScreen(
                     IconButton(
                         onClick = {
                             val targetDevice = device
+                            aliasText = ""
+                            viewModel.clearEditingDevice()
                             onNavigateUp()
                             viewModel.pendingRemove(targetDevice)
                         },
@@ -105,14 +117,17 @@ fun EditPairedDeviceScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     ChimaliOutlinedButton(
-                        onClick = onNavigateUp,
+                        onClick = navigateUpAndClear,
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("Cancel")
                     }
                     ChimaliButton(
                         onClick = {
-                            viewModel.updateAlias(macAddress, aliasText.ifBlank { null })
+                            val aliasToSave = aliasText.ifBlank { null }
+                            aliasText = ""
+                            viewModel.updateAlias(device.macAddress, aliasToSave)
+                            viewModel.clearEditingDevice()
                             onNavigateUp()
                         },
                         modifier = Modifier.weight(1f),

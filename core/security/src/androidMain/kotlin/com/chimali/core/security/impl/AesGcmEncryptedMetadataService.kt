@@ -44,28 +44,53 @@ class AesGcmEncryptedMetadataService : EncryptedMetadataService {
     override fun encrypt(
         plaintext: ByteArray,
         associatedData: ByteArray?,
+    ): ByteArray = encryptObserved(plaintext, associatedData)
+
+    /** Host-test seam observes adapter-owned arrays at the point this operation releases them. */
+    internal fun encryptObserved(
+        plaintext: ByteArray,
+        associatedData: ByteArray?,
+        onOwnedBuffersReleased: ((List<ByteArray>) -> Unit)? = null,
     ): ByteArray {
         val key = checkNotNull(encryptionKey) { "Encryption key not provisioned" }
         val cipher = Cipher.getInstance(ALGORITHM)
 
         val nonce = ByteArray(EncryptedMetadataService.NONCE_LENGTH_BYTES)
-        secureRandom.nextBytes(nonce)
-        val spec = GCMParameterSpec(TAG_LENGTH_BIT, nonce)
+        var encrypted: ByteArray? = null
+        try {
+            secureRandom.nextBytes(nonce)
+            val spec = GCMParameterSpec(TAG_LENGTH_BIT, nonce)
 
-        cipher.init(Cipher.ENCRYPT_MODE, key, spec)
-        if (associatedData != null) {
-            cipher.updateAAD(associatedData)
+            cipher.init(Cipher.ENCRYPT_MODE, key, spec)
+            if (associatedData != null) {
+                cipher.updateAAD(associatedData)
+            }
+
+            encrypted = cipher.doFinal(plaintext)
+            // Format: VERSION (1 byte) || NONCE (12 bytes) || CIPHERTEXT
+            return ByteArray(1 + nonce.size + encrypted.size).also { envelope ->
+                envelope[0] = EncryptedMetadataService.VERSION_1.toByte()
+                nonce.copyInto(envelope, 1)
+                encrypted.copyInto(envelope, 1 + nonce.size)
+            }
+        } finally {
+            nonce.fill(0)
+            encrypted?.fill(0)
+            onOwnedBuffersReleased?.invoke(listOfNotNull(nonce, encrypted))
         }
-
-        val ciphertext = cipher.doFinal(plaintext)
-        // Format: VERSION (1 byte) || NONCE (12 bytes) || CIPHERTEXT
-        return byteArrayOf(EncryptedMetadataService.VERSION_1.toByte()) + nonce + ciphertext
     }
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun decrypt(
         ciphertext: ByteArray,
         associatedData: ByteArray?,
+    ): ByteArray = decryptObserved(ciphertext, associatedData)
+
+    /** Host-test seam observes adapter-owned envelope slices on successful and failed operations. */
+    internal fun decryptObserved(
+        ciphertext: ByteArray,
+        associatedData: ByteArray?,
+        onOwnedBuffersReleased: ((List<ByteArray>) -> Unit)? = null,
     ): ByteArray {
         val key = checkNotNull(encryptionKey) { "Encryption key not provisioned" }
         require(ciphertext.size > 1 + EncryptedMetadataService.NONCE_LENGTH_BYTES) { "Invalid ciphertext length" }
@@ -73,19 +98,21 @@ class AesGcmEncryptedMetadataService : EncryptedMetadataService {
 
         val nonce = ciphertext.copyOfRange(1, 1 + EncryptedMetadataService.NONCE_LENGTH_BYTES)
         val encryptedData = ciphertext.copyOfRange(1 + EncryptedMetadataService.NONCE_LENGTH_BYTES, ciphertext.size)
-
-        val cipher = Cipher.getInstance(ALGORITHM)
-        val spec = GCMParameterSpec(TAG_LENGTH_BIT, nonce)
-
-        cipher.init(Cipher.DECRYPT_MODE, key, spec)
-        if (associatedData != null) {
-            cipher.updateAAD(associatedData)
-        }
-
         return try {
+            val cipher = Cipher.getInstance(ALGORITHM)
+            val spec = GCMParameterSpec(TAG_LENGTH_BIT, nonce)
+
+            cipher.init(Cipher.DECRYPT_MODE, key, spec)
+            if (associatedData != null) {
+                cipher.updateAAD(associatedData)
+            }
             cipher.doFinal(encryptedData)
         } catch (e: java.security.GeneralSecurityException) {
             throw SecurityException("Authentication failed: data may be tampered", e)
+        } finally {
+            nonce.fill(0)
+            encryptedData.fill(0)
+            onOwnedBuffersReleased?.invoke(listOf(nonce, encryptedData))
         }
     }
 }

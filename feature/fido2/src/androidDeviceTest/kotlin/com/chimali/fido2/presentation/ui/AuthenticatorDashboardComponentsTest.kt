@@ -14,6 +14,7 @@ import com.chimali.fido2.data.transport.Fido2ConnectionState
 import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import kotlinx.coroutines.flow.emptyFlow
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,6 +33,11 @@ class AuthenticatorDashboardComponentsTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+    @After
+    fun disposeSyntheticDeviceUi() {
+        composeTestRule.setContent {}
+    }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test

@@ -3,6 +3,7 @@ package com.chimali.feature.vault.internal.crypto
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.security.api.EncryptionManager
 import com.chimali.core.security.api.EventStoreKeyProvider
+import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultType
 import com.chimali.feature.vault.internal.payload.CreditCardPayload
 import com.chimali.feature.vault.internal.payload.CustomField
@@ -14,6 +15,7 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,6 +30,13 @@ class VaultCryptoServiceTest {
 
     private val testKey = ByteArray(32) { 1 }
     private var capturedEncryptionKey: ByteArray? = null
+
+    @After
+    fun clearSharedTestOwners() {
+        testKey.fill(0)
+        capturedEncryptionKey?.fill(0)
+        capturedEncryptionKey = null
+    }
 
     @Before
     fun setup() {
@@ -60,24 +69,33 @@ class VaultCryptoServiceTest {
                 )
             val identityId = UUID.randomUUID()
 
-            val encryptResult = service.encryptPassword(null, payload, identityId)
-            assertTrue("encryptResult was: $encryptResult", encryptResult is Outcome.Success)
+            var vaultItem: VaultItem? = null
+            var decrypted: PasswordPayload? = null
+            try {
+                val encryptResult = service.encryptPassword(null, payload, identityId)
+                assertTrue("encryptResult was: $encryptResult", encryptResult is Outcome.Success)
 
-            val vaultItem = (encryptResult as Outcome.Success).data
-            assertArrayEquals("Test Bank".toCharArray(), vaultItem.title)
-            assertEquals(VaultType.PASSWORD, vaultItem.type)
+                val encryptedItem = (encryptResult as Outcome.Success).data
+                vaultItem = encryptedItem
+                assertArrayEquals("Test Bank".toCharArray(), encryptedItem.title)
+                assertEquals(VaultType.PASSWORD, encryptedItem.type)
 
-            val decryptResult = service.decryptPassword(vaultItem)
-            assertTrue(decryptResult is Outcome.Success)
+                val decryptResult = service.decryptPassword(encryptedItem)
+                assertTrue(decryptResult is Outcome.Success)
 
-            val decrypted = (decryptResult as Outcome.Success).data
-            assertArrayEquals("Test Bank".toCharArray(), decrypted.title)
-            assertArrayEquals("user".toCharArray(), decrypted.username)
-            assertArrayEquals("pwd".toCharArray(), decrypted.password)
-            assertArrayEquals("https://bank.com".toCharArray(), decrypted.uri)
-            assertArrayEquals("note".toCharArray(), decrypted.notes)
-            assertEquals(1, decrypted.customFields?.size)
-            assertArrayEquals("Security".toCharArray(), decrypted.customFields?.first()?.name)
+                val decryptedPayload = (decryptResult as Outcome.Success).data
+                decrypted = decryptedPayload
+                assertArrayEquals("Test Bank".toCharArray(), decryptedPayload.title)
+                assertArrayEquals("user".toCharArray(), decryptedPayload.username)
+                assertArrayEquals("pwd".toCharArray(), decryptedPayload.password)
+                assertArrayEquals("https://bank.com".toCharArray(), decryptedPayload.uri)
+                assertArrayEquals("note".toCharArray(), decryptedPayload.notes)
+                assertEquals(1, decryptedPayload.customFields?.size)
+                assertArrayEquals("Security".toCharArray(), decryptedPayload.customFields?.first()?.name)
+            } finally {
+                decrypted?.clearMemory()
+                vaultItem?.clearMemory()
+            }
         }
 
     @Test
@@ -93,22 +111,31 @@ class VaultCryptoServiceTest {
                 )
             val identityId = UUID.randomUUID()
 
-            val encryptResult = service.encryptCreditCard(null, payload, identityId)
-            assertTrue(encryptResult is Outcome.Success)
+            var vaultItem: VaultItem? = null
+            var decrypted: CreditCardPayload? = null
+            try {
+                val encryptResult = service.encryptCreditCard(null, payload, identityId)
+                assertTrue(encryptResult is Outcome.Success)
 
-            val vaultItem = (encryptResult as Outcome.Success).data
-            assertArrayEquals("Visa".toCharArray(), vaultItem.title)
-            assertEquals(VaultType.CREDIT_CARD, vaultItem.type)
+                val encryptedItem = (encryptResult as Outcome.Success).data
+                vaultItem = encryptedItem
+                assertArrayEquals("Visa".toCharArray(), encryptedItem.title)
+                assertEquals(VaultType.CREDIT_CARD, encryptedItem.type)
 
-            val decryptResult = service.decryptCreditCard(vaultItem)
-            assertTrue(decryptResult is Outcome.Success)
+                val decryptResult = service.decryptCreditCard(encryptedItem)
+                assertTrue(decryptResult is Outcome.Success)
 
-            val decrypted = (decryptResult as Outcome.Success).data
-            assertArrayEquals("Visa".toCharArray(), decrypted.title)
-            assertArrayEquals("Alice".toCharArray(), decrypted.cardholderName)
-            assertArrayEquals("1234567812345678".toCharArray(), decrypted.cardNumber)
-            assertArrayEquals("12/28".toCharArray(), decrypted.expirationDate)
-            assertArrayEquals("999".toCharArray(), decrypted.cvv)
+                val decryptedPayload = (decryptResult as Outcome.Success).data
+                decrypted = decryptedPayload
+                assertArrayEquals("Visa".toCharArray(), decryptedPayload.title)
+                assertArrayEquals("Alice".toCharArray(), decryptedPayload.cardholderName)
+                assertArrayEquals("1234567812345678".toCharArray(), decryptedPayload.cardNumber)
+                assertArrayEquals("12/28".toCharArray(), decryptedPayload.expirationDate)
+                assertArrayEquals("999".toCharArray(), decryptedPayload.cvv)
+            } finally {
+                decrypted?.clearMemory()
+                vaultItem?.clearMemory()
+            }
         }
 
     @Test
@@ -121,19 +148,28 @@ class VaultCryptoServiceTest {
                 )
             val identityId = UUID.randomUUID()
 
-            val encryptResult = service.encryptSecureNote(null, payload, identityId)
-            assertTrue(encryptResult is Outcome.Success)
+            var vaultItem: VaultItem? = null
+            var decrypted: SecureNotePayload? = null
+            try {
+                val encryptResult = service.encryptSecureNote(null, payload, identityId)
+                assertTrue(encryptResult is Outcome.Success)
 
-            val vaultItem = (encryptResult as Outcome.Success).data
-            assertArrayEquals("My Secret Note".toCharArray(), vaultItem.title)
-            assertEquals(VaultType.NOTE, vaultItem.type)
+                val encryptedItem = (encryptResult as Outcome.Success).data
+                vaultItem = encryptedItem
+                assertArrayEquals("My Secret Note".toCharArray(), encryptedItem.title)
+                assertEquals(VaultType.NOTE, encryptedItem.type)
 
-            val decryptResult = service.decryptSecureNote(vaultItem)
-            assertTrue(decryptResult is Outcome.Success)
+                val decryptResult = service.decryptSecureNote(encryptedItem)
+                assertTrue(decryptResult is Outcome.Success)
 
-            val decrypted = (decryptResult as Outcome.Success).data
-            assertArrayEquals("My Secret Note".toCharArray(), decrypted.title)
-            assertArrayEquals("Secret body text".toCharArray(), decrypted.content)
+                val decryptedPayload = (decryptResult as Outcome.Success).data
+                decrypted = decryptedPayload
+                assertArrayEquals("My Secret Note".toCharArray(), decryptedPayload.title)
+                assertArrayEquals("Secret body text".toCharArray(), decryptedPayload.content)
+            } finally {
+                decrypted?.clearMemory()
+                vaultItem?.clearMemory()
+            }
         }
 
     @Test
@@ -248,22 +284,28 @@ class VaultCryptoServiceTest {
                     lastBackedUpAt = null,
                     identityId = UUID.randomUUID(),
                 )
+            try {
+                val result = service.decryptPassword(item)
 
-            val result = service.decryptPassword(item)
-
-            assertTrue(result is Outcome.Error)
-            assertEquals("Unable to open password payload", (result as Outcome.Error).error.message)
+                assertTrue(result is Outcome.Error)
+                assertEquals("Unable to open password payload", (result as Outcome.Error).error.message)
+            } finally {
+                item.clearMemory()
+            }
         }
 
     @Test
     fun `cancellation from key provider is propagated`() {
         runBlocking {
             coEvery { eventStoreKeyProvider.getEventStoreKey(any()) } throws CancellationException()
+            val payload = SecureNotePayload("Note", "synthetic body".toCharArray())
             try {
-                service.encryptSecureNote(null, SecureNotePayload("Note", charArrayOf()), UUID.randomUUID())
+                service.encryptSecureNote(null, payload, UUID.randomUUID())
                 fail("Expected cancellation")
             } catch (_: CancellationException) {
                 // Expected: cancellation must not be converted into an Outcome.Error.
+            } finally {
+                payload.clearMemory()
             }
         }
     }

@@ -2,6 +2,7 @@ package com.chimali.core.domain.repository
 
 import com.chimali.core.domain.util.TestDataFactory
 import com.chimali.core.domain.valueobject.CredentialId
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -9,6 +10,11 @@ import kotlinx.coroutines.test.runTest
 
 class CredentialRepositoryTest {
     private val repository = FakeCredentialRepository()
+
+    @AfterTest
+    fun clearRepositoryFixture() {
+        repository.clear()
+    }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
@@ -66,5 +72,16 @@ class CredentialRepositoryTest {
             assertTrue(result.isSuccess)
             assertEquals(1, result.getOrThrow().size)
             assertEquals("Apple", result.getOrThrow().first().title)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun clearRemovesCredentialReferencesRetainedByTheFake() =
+        runTest {
+            repository.saveCredential(TestDataFactory.createCredential())
+
+            repository.clear()
+
+            assertTrue(repository.getAllCredentials().getOrThrow().isEmpty())
         }
 }

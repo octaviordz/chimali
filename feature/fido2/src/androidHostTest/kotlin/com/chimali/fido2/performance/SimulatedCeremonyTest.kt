@@ -1,7 +1,9 @@
 package com.chimali.fido2.performance
 
 import com.chimali.core.common.annotation.Req
+import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -13,6 +15,29 @@ import kotlinx.coroutines.withTimeout
 
 @Req("TR-PERF-010")
 class SimulatedCeremonyTest {
+    private val ownedRequests = mutableListOf<SimulatedRelyingParty.Request>()
+
+    @AfterTest
+    fun tearDown() {
+        ownedRequests.forEach { request ->
+            request.challenge.fill(0)
+            request.clientDataHash.fill(0)
+        }
+        ownedRequests.clear()
+    }
+
+    @Test
+    fun `teardown erases retained simulated request buffers`() {
+        val request = request()
+        val retainedChallenge = request.challenge
+        val retainedHash = request.clientDataHash
+
+        tearDown()
+
+        assertContentEquals(ByteArray(retainedChallenge.size), retainedChallenge)
+        assertContentEquals(ByteArray(retainedHash.size), retainedHash)
+    }
+
     @Test
     fun `records request through verified response and associates internal operations`() =
         runBlocking {
@@ -250,10 +275,11 @@ class SimulatedCeremonyTest {
         }
 
     private fun request() =
-        SimulatedRelyingParty.Request(
-            rpId = "example.com",
-            origin = "https://example.com",
-            challenge = ByteArray(32) { it.toByte() },
-            clientDataHash = ByteArray(32) { (it + 1).toByte() },
-        )
+        SimulatedRelyingParty
+            .Request(
+                rpId = "example.com",
+                origin = "https://example.com",
+                challenge = ByteArray(32) { it.toByte() },
+                clientDataHash = ByteArray(32) { (it + 1).toByte() },
+            ).also(ownedRequests::add)
 }

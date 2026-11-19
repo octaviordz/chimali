@@ -9,7 +9,6 @@ data class PublicKeyCredentialParameters(
     val algorithm: String,
     val curve: String?,
     val keyType: String?,
-    val salt: ByteArray?,
 ) {
     init {
         validate()
@@ -41,12 +40,6 @@ data class PublicKeyCredentialParameters(
                 "Key type must be one of: EC2, OKP, RSA"
             }
         }
-
-        // Validate salt if present
-        salt?.let { saltValue ->
-            require(saltValue.isNotEmpty()) { "Salt cannot be empty if provided" }
-            require(saltValue.size <= MAX_SALT_SIZE) { "Salt cannot exceed $MAX_SALT_SIZE bytes" }
-        }
     }
 
     /**
@@ -76,48 +69,7 @@ data class PublicKeyCredentialParameters(
             else -> "Unknown"
         }
 
-    /**
-     * Returns a safe salt value.
-     */
-    @Suppress("unused")
-    fun getSafeSalt(): ByteArray = salt ?: ByteArray(DEFAULT_SALT_SIZE) { it.hashCode().toByte() }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as PublicKeyCredentialParameters
-
-        if (type != other.type) return false
-        if (algorithm != other.algorithm) return false
-        if (curve != other.curve) return false
-        if (keyType != other.keyType) return false
-        if (salt != null) {
-            if (other.salt == null) return false
-            if (!salt.contentEquals(other.salt)) return false
-        } else if (other.salt != null) {
-            return false
-        }
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = type.hashCode()
-        result = (31 * result) + algorithm.hashCode()
-        result = (31 * result) + (curve?.hashCode() ?: 0)
-        result = (31 * result) + (keyType?.hashCode() ?: 0)
-        result = (31 * result) + (salt?.contentHashCode() ?: 0)
-        return result
-    }
-
     companion object {
-        /**
-         * Maximum allowed sizes for various fields.
-         */
-        const val MAX_SALT_SIZE = 32
-        const val DEFAULT_SALT_SIZE = 16
-
         /**
          * Creates a new PublicKeyCredentialParameters with validation.
          */
@@ -126,14 +78,12 @@ data class PublicKeyCredentialParameters(
             algorithm: String = "ES256",
             curve: String? = "P-256",
             keyType: String? = "EC2",
-            salt: ByteArray? = null,
         ): PublicKeyCredentialParameters =
             PublicKeyCredentialParameters(
                 type = type,
                 algorithm = algorithm,
                 curve = curve,
                 keyType = keyType,
-                salt = salt,
             )
 
         /**

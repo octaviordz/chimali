@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.transport
 
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.bluetooth.toHidChannelKey
 
 /** Owns bounded CTAPHID channel IDs and binds each allocation to one host generation. */
 internal class HidChannelRegistry {
@@ -10,7 +11,7 @@ internal class HidChannelRegistry {
     )
 
     private val lock = Any()
-    private val channels = mutableMapOf<String, ChannelOwner>()
+    private val channels = mutableMapOf<Int, ChannelOwner>()
 
     /** Allocates one unique channel while the caller holds the transport session lock. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -27,7 +28,7 @@ internal class HidChannelRegistry {
             val assigned =
                 synchronized(lock) {
                     if (!isSessionCurrent()) return@synchronized false
-                    val key = cid.toHex()
+                    val key = cid.toHidChannelKey()
                     val available =
                         channels.size < maximumChannels &&
                             !cid.contentEquals(BROADCAST_CID) &&
@@ -59,7 +60,7 @@ internal class HidChannelRegistry {
     ) {
         require(cid.size == CID_SIZE)
         synchronized(lock) {
-            val key = cid.toHex()
+            val key = cid.toHidChannelKey()
             require(key in channels || channels.size < maximumChannels)
             channels[key] = ChannelOwner(generation, cid.copyOf())
         }
@@ -72,10 +73,10 @@ internal class HidChannelRegistry {
         generation: Long,
     ): Boolean =
         synchronized(lock) {
-            channels[cid.toHex()]?.let { it.sessionGeneration == generation && it.cid.contentEquals(cid) } == true
+            channels[cid.toHidChannelKey()]?.let {
+                it.sessionGeneration == generation && it.cid.contentEquals(cid)
+            } == true
         }
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     private companion object {
         const val CID_SIZE = 4

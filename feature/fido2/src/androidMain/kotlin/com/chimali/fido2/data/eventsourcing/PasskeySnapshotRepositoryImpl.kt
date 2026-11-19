@@ -165,32 +165,50 @@ class PasskeySnapshotRepositoryImpl(
     internal fun <T> decodePasskeySnapshot(
         kind: EventKind,
         plaintext: ByteArray,
+    ): Snapshot<T> =
+        decodePasskeySnapshotWithDecoder(plaintext) { sanitized ->
+            val stateSerializer = getSerializer<T>(kind)
+            json.decodeFromStream(Snapshot.serializer(stateSerializer), ByteArrayInputStream(sanitized))
+        }
+
+    /** Erases a decoded state owner if sensitive-field attachment does not transfer the snapshot. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun <T> decodePasskeySnapshotWithDecoder(
+        plaintext: ByteArray,
+        deserializeSanitized: (ByteArray) -> Snapshot<T>,
     ): Snapshot<T> {
-        val stateSerializer = getSerializer<T>(kind)
-        val snapshotSerializer = Snapshot.serializer(stateSerializer)
-        return SensitiveJsonFields.decode(
-            input = plaintext,
-            fieldNames = SENSITIVE_FIELDS,
-            fieldObjectPath = listOf("state"),
-            deserializeSanitized = { sanitized ->
-                json.decodeFromStream(snapshotSerializer, ByteArrayInputStream(sanitized))
-            },
-            attachFields = { sanitizedSnapshot, fields ->
-                val state =
-                    sanitizedSnapshot.state as? PasskeyState
-                        ?: throw IllegalArgumentException("Unsupported passkey snapshot state")
-                @Suppress("UNCHECKED_CAST")
-                sanitizedSnapshot.copy(
-                    state =
-                        state.copy(
-                            rpId = requireNotNull(fields["rpId"]),
-                            userId = requireNotNull(fields["userId"]),
-                            userName = requireNotNull(fields["userName"]),
-                            userDisplayName = requireNotNull(fields["userDisplayName"]),
-                        ) as T,
+        var decodedSnapshot: Snapshot<T>? = null
+        var transferred = false
+        return try {
+            val result =
+                SensitiveJsonFields.decode(
+                    input = plaintext,
+                    fieldNames = SENSITIVE_FIELDS,
+                    fieldObjectPath = listOf("state"),
+                    deserializeSanitized = { sanitized ->
+                        deserializeSanitized(sanitized).also { decodedSnapshot = it }
+                    },
+                    attachFields = { snapshot, fields ->
+                        val state =
+                            snapshot.state as? PasskeyState
+                                ?: throw IllegalArgumentException("Unsupported passkey snapshot state")
+                        @Suppress("UNCHECKED_CAST")
+                        snapshot.copy(
+                            state =
+                                state.copy(
+                                    rpId = requireNotNull(fields["rpId"]),
+                                    userId = requireNotNull(fields["userId"]),
+                                    userName = requireNotNull(fields["userName"]),
+                                    userDisplayName = requireNotNull(fields["userDisplayName"]),
+                                ) as T,
+                        )
+                    },
                 )
-            },
-        )
+            transferred = true
+            result
+        } finally {
+            if (!transferred) (decodedSnapshot?.state as? PasskeyState)?.eraseSensitiveMetadata()
+        }
     }
 
     private companion object {

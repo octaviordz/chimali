@@ -4,6 +4,7 @@ import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.data.crypto.HmacSecretProcessor
 import com.chimali.fido2.domain.model.PrfExtensionInput
 import com.chimali.fido2.domain.model.PrfExtensionOutput
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,6 +29,20 @@ import kotlin.test.assertTrue
 class Ctap2GetAssertionHandlerPrfTest {
     private val output1Bytes = ByteArray(32) { 0xAA.toByte() }
     private val output2Bytes = ByteArray(32) { 0xBB.toByte() }
+
+    @AfterTest
+    fun clearPrfOutputFixtures() {
+        output1Bytes.fill(0)
+        output2Bytes.fill(0)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesPrfOutputArrays() {
+        clearPrfOutputFixtures()
+
+        assertTrue(output1Bytes.all { it == 0.toByte() })
+        assertTrue(output2Bytes.all { it == 0.toByte() })
+    }
 
     // ── One salt → CBOR map with key 1 only ──────────────────────────────────
 
@@ -124,6 +139,8 @@ class Ctap2GetAssertionHandlerPrfTest {
             PrfExtensionInput(listOf(salt, salt, salt))
         } catch (e: IllegalArgumentException) {
             threw = true
+        } finally {
+            salt.fill(0)
         }
         assertTrue(
             threw,

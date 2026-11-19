@@ -12,6 +12,8 @@ import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.domain.repository.TransportPreference
 import com.chimali.fido2.domain.repository.TransportPreferenceResult
 import com.chimali.fido2.domain.repository.TransportSaveResult
+import com.chimali.fido2.testing.CapturedDiagnostics
+import java.io.IOException
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -68,18 +70,24 @@ class TransportSettingsViewModelTest {
         var writeResult: TransportSaveResult? = null,
     ) : Fido2SettingsRepository {
         var writes = 0
+        var readFailure: IOException? = null
+        var writeFailure: IOException? = null
 
         override suspend fun getMaxCredentialCount(): Int = 50
 
         override suspend fun setMaxCredentialCount(count: Int) = Unit
 
-        override suspend fun getTransportPreference(): TransportPreferenceResult = readResult
+        override suspend fun getTransportPreference(): TransportPreferenceResult {
+            readFailure?.let { throw it }
+            return readResult
+        }
 
         override suspend fun saveTransportPreference(
             mode: BluetoothTransportMode,
             epochMillis: Long,
         ): TransportSaveResult {
             writes++
+            writeFailure?.let { throw it }
             return writeResult ?: TransportSaveResult.Success(TransportPreference(mode, epochMillis))
         }
     }
@@ -135,7 +143,7 @@ class TransportSettingsViewModelTest {
         runTest {
             Dispatchers.setMain(StandardTestDispatcher(testScheduler))
             val repository =
-                FakeSettingsRepository(TransportPreferenceResult.ReadError(IllegalStateException("offline")))
+                FakeSettingsRepository(TransportPreferenceResult.ReadError)
             val process =
                 ProcessTransportSelection(
                     settingsRepository = repository,
@@ -169,6 +177,64 @@ class TransportSettingsViewModelTest {
             advanceUntilIdle()
             assertEquals(BluetoothTransportMode.FIDO_BLE, viewModel.state.value.savedChoice)
             assertNull(viewModel.state.value.readError)
+            process.close()
+        }
+
+    @Test
+    @Req("FR-008", "FR-009", "FR-BT-SEL-020")
+    fun `settings read exception diagnostic omits exception details`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val marker = "synthetic-private-settings-read-detail"
+            val repository = FakeSettingsRepository().apply { readFailure = IOException(marker) }
+            val process =
+                ProcessTransportSelection(
+                    settingsRepository = repository,
+                    capabilityChecker = FakeCapabilityChecker(),
+                    bleTransportFactory = { error("settings must not construct transport") },
+                    classicTransportFactory = { error("settings must not construct transport") },
+                    coroutineScope = backgroundScope,
+                )
+
+            CapturedDiagnostics().use { diagnostics ->
+                val viewModel = TransportSettingsViewModel(repository, process)
+                advanceUntilIdle()
+
+                assertEquals("read_failed", viewModel.state.value.readError)
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(marker)
+            }
+            process.close()
+        }
+
+    @Test
+    @Req("FR-008", "FR-009", "FR-BT-SEL-030")
+    fun `settings save exception diagnostic omits exception details`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val marker = "synthetic-private-settings-save-detail"
+            val repository = FakeSettingsRepository().apply { writeFailure = IOException(marker) }
+            val process =
+                ProcessTransportSelection(
+                    settingsRepository = repository,
+                    capabilityChecker = FakeCapabilityChecker(),
+                    bleTransportFactory = { error("settings must not construct transport") },
+                    classicTransportFactory = { error("settings must not construct transport") },
+                    coroutineScope = backgroundScope,
+                )
+            process.startSnapshot()
+            advanceUntilIdle()
+            val viewModel = TransportSettingsViewModel(repository, process)
+            advanceUntilIdle()
+
+            CapturedDiagnostics().use { diagnostics ->
+                viewModel.select(BluetoothTransportMode.CLASSIC_HID)
+                advanceUntilIdle()
+
+                assertEquals("write_failed", viewModel.state.value.saveError)
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(marker)
+            }
             process.close()
         }
 
@@ -230,7 +296,7 @@ class TransportSettingsViewModelTest {
             assertEquals(BluetoothTransportMode.FIDO_BLE, viewModel.state.value.processState.processChoice)
             assertTrue(viewModel.state.value.restartRequired)
 
-            repository.writeResult = TransportSaveResult.WriteError(IllegalStateException("disk full"))
+            repository.writeResult = TransportSaveResult.WriteError
             viewModel.select(BluetoothTransportMode.FIDO_BLE)
             advanceUntilIdle()
             assertEquals(BluetoothTransportMode.CLASSIC_HID, viewModel.state.value.savedChoice)

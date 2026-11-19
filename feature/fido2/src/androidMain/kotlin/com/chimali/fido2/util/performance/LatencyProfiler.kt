@@ -17,26 +17,35 @@ import kotlinx.coroutines.launch
  *
  * Usage:
  * ```kotlin
- * LatencyProfiler.start("MakeCredential")
+ * LatencyProfiler.start(LatencyOperation.MAKE_CREDENTIAL)
  * // ... operation ...
- * LatencyProfiler.end("MakeCredential", responseAccepted)
+ * LatencyProfiler.end(LatencyOperation.MAKE_CREDENTIAL, responseAccepted)
  * ```
  */
+enum class LatencyOperation(
+    val logLabel: String,
+) {
+    MAKE_CREDENTIAL("MakeCredential"),
+    GET_ASSERTION("GetAssertion"),
+    GET_INFO("GetInfo"),
+    OTHER("Other CTAP operation"),
+}
+
 object LatencyProfiler {
-    private val startTimes = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    private val userInteractionStarts = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    private val userAccumulatedMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val startTimes = java.util.concurrent.ConcurrentHashMap<LatencyOperation, Long>()
+    private val userInteractionStarts = java.util.concurrent.ConcurrentHashMap<LatencyOperation, Long>()
+    private val userAccumulatedMs = java.util.concurrent.ConcurrentHashMap<LatencyOperation, Long>()
 
     private const val NS_TO_MS_CONVERSION = 1_000_000L
 
     /**
-     * Records the start time for an operation identified by [id].
+     * Records the start time for a fixed [LatencyOperation].
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun start(id: String) {
-        BaselineMeasurements.start(id)
-        startTimes[id] = System.nanoTime()
-        userAccumulatedMs[id] = 0L
+    fun start(operation: LatencyOperation) {
+        BaselineMeasurements.start(operation)
+        startTimes[operation] = System.nanoTime()
+        userAccumulatedMs[operation] = 0L
     }
 
     /**
@@ -44,21 +53,21 @@ object LatencyProfiler {
      * This time will be subtracted from the total in [end].
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun startUserInteraction(id: String) {
-        BaselineMeasurements.startUserInteraction(id)
-        userInteractionStarts[id] = System.nanoTime()
+    fun startUserInteraction(operation: LatencyOperation) {
+        BaselineMeasurements.startUserInteraction(operation)
+        userInteractionStarts[operation] = System.nanoTime()
     }
 
     /**
      * Ends a user interaction window and accumulates the duration.
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun endUserInteraction(id: String) {
-        BaselineMeasurements.endUserInteraction(id)
-        val startNs = userInteractionStarts.remove(id) ?: return
+    fun endUserInteraction(operation: LatencyOperation) {
+        BaselineMeasurements.endUserInteraction(operation)
+        val startNs = userInteractionStarts.remove(operation) ?: return
         val durationMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION
-        val current = userAccumulatedMs[id] ?: 0L
-        userAccumulatedMs[id] = current + durationMs
+        val current = userAccumulatedMs[operation] ?: 0L
+        userAccumulatedMs[operation] = current + durationMs
     }
 
     /**
@@ -67,13 +76,13 @@ object LatencyProfiler {
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun <T> untilUserInteractionCompletes(
-        id: String,
+        latencyOperation: LatencyOperation,
         interactionCompleted: CompletableDeferred<Unit>,
         operation: suspend () -> T,
-    ): T = withUserInteractionWindow(interactionCompleted, { endUserInteraction(id) }, operation)
+    ): T = withUserInteractionWindow(interactionCompleted, { endUserInteraction(latencyOperation) }, operation)
 
     /**
-     * Computes and logs the elapsed local HID handoff time since [start] was called for [id],
+     * Computes and logs the elapsed local HID handoff time since [start] was called for [operation],
      * subtracting any recorded user interaction time. [responseAccepted] means
      * Android's HID wrapper accepted each final response report; it does not
      * confirm that the remote host received or processed those reports.
@@ -82,20 +91,20 @@ object LatencyProfiler {
      */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun end(
-        id: String,
+        operation: LatencyOperation,
         responseAccepted: Boolean,
     ): Long {
         val startNs =
-            startTimes.remove(id) ?: run {
-                Logger.w { "LatencyProfiler.end called without matching start for id='$id'" }
+            startTimes.remove(operation) ?: run {
+                Logger.w { "LatencyProfiler.end called without matching start" }
                 return -1L
             }
-        val userMs = userAccumulatedMs.remove(id) ?: 0L
+        val userMs = userAccumulatedMs.remove(operation) ?: 0L
         val totalMs = (System.nanoTime() - startNs) / NS_TO_MS_CONVERSION
         val pureMs = maxOf(0L, totalMs - userMs)
 
         Logger.d {
-            "[NFR-PERF-030][local-handoff] $id = ${pureMs}ms " +
+            "[NFR-PERF-030][local-handoff] ${operation.logLabel} = ${pureMs}ms " +
                 "(Total: ${totalMs}ms, User: ${userMs}ms, HID reports accepted: $responseAccepted)"
         }
         return pureMs

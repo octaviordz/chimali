@@ -17,10 +17,6 @@ class PublicKeyCredentialRpEntity private constructor(
         icon: String?,
     ) : this(SensitiveCredentialText.copyOf(id.value), SensitiveCredentialText.copyOf(name), icon)
 
-    /** Produces the short-lived RP-ID value required by existing protocol and persistence APIs. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    val id: RpId get() = idOwner.toRpId()
-
     /** Produces display text for the consent UI or a persistence boundary. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     val name: String get() = nameOwner.toBoundaryString()
@@ -53,14 +49,6 @@ class PublicKeyCredentialRpEntity private constructor(
             require(iconUrl.length <= MAX_ICON_LENGTH) { "Icon cannot exceed $MAX_ICON_LENGTH characters" }
         }
     }
-
-    /** Returns the RP domain as a short-lived boundary value. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getDomain(): String = idOwner.toBoundaryString()
-
-    /** Returns a safe name for display. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getSafeName(): String = if (nameOwner.length == 0) getDomain() else nameOwner.toBoundaryString()
 
     /** Erases the RP identifier and display name owned by this entity. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -134,7 +122,30 @@ class PublicKeyCredentialRpEntity private constructor(
             id: RpId,
             name: String,
             icon: String? = null,
-        ): PublicKeyCredentialRpEntity = PublicKeyCredentialRpEntity(id, name, icon)
+        ): PublicKeyCredentialRpEntity = createWithOwnerFactory(id, name, icon)
+
+        /** Stages compatibility copies until both owners and the entity have been created. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun createWithOwnerFactory(
+            id: RpId,
+            name: String,
+            icon: String? = null,
+            ownerFactory: (CharSequence) -> SensitiveCredentialText = SensitiveCredentialText::copyOf,
+        ): PublicKeyCredentialRpEntity {
+            var copiedId: SensitiveCredentialText? = null
+            var copiedName: SensitiveCredentialText? = null
+            try {
+                copiedId = ownerFactory(id.value)
+                copiedName = ownerFactory(name)
+                return fromSensitiveOwners(requireNotNull(copiedId), requireNotNull(copiedName), icon).also {
+                    copiedId = null
+                    copiedName = null
+                }
+            } finally {
+                copiedId?.erase()
+                copiedName?.erase()
+            }
+        }
 
         /**
          * Transfers the supplied mutable owners into this entity without making String copies.
@@ -145,6 +156,27 @@ class PublicKeyCredentialRpEntity private constructor(
             id: SensitiveCredentialText,
             name: SensitiveCredentialText,
             icon: String? = null,
-        ): PublicKeyCredentialRpEntity = PublicKeyCredentialRpEntity(id, name, icon)
+        ): PublicKeyCredentialRpEntity =
+            fromSensitiveOwnersWithFactory(id, name) { ownedId, ownedName ->
+                PublicKeyCredentialRpEntity(ownedId, ownedName, icon)
+            }
+
+        /** Consumes both owners unless entity creation returns successfully. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun fromSensitiveOwnersWithFactory(
+            id: SensitiveCredentialText,
+            name: SensitiveCredentialText,
+            entityFactory: (SensitiveCredentialText, SensitiveCredentialText) -> PublicKeyCredentialRpEntity,
+        ): PublicKeyCredentialRpEntity {
+            var transferred = false
+            try {
+                return entityFactory(id, name).also { transferred = true }
+            } finally {
+                if (!transferred) {
+                    id.erase()
+                    name.erase()
+                }
+            }
+        }
     }
 }

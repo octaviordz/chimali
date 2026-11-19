@@ -5,6 +5,9 @@ data class CustomField(
     val value: CharArray,
     val isConcealed: Boolean,
 ) {
+    /** Avoid emitting the caller-provided field name through generic diagnostics. */
+    override fun toString(): String = "CustomField([redacted])"
+
     fun clearMemory() {
         value.fill('\u0000')
     }

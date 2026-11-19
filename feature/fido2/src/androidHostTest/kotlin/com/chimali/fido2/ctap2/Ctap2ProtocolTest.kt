@@ -185,6 +185,60 @@ class Ctap2ProtocolTest {
         assertTrue(totalLen >= MIN_BODY_LEN_2, "Must have status + at least 1 body byte; got $totalLen")
     }
 
+    @Test
+    fun `serialized authenticator data is exact and cleared after encoding operation`() {
+        val authData = makeAuthData()
+        val rpHashBefore = authData.rpIdHash.copyOf()
+        val credentialIdBefore = authData.credentialId.copyOf()
+        var retained: ByteArray? = null
+        val expected =
+            authData.rpIdHash +
+                authData.flags +
+                byteArrayOf(0, 0, 0, COUNTER_INITIAL.toByte()) +
+                authData.aaguid +
+                byteArrayOf(0, authData.credentialId.size.toByte()) +
+                authData.credentialId +
+                authData.publicKey
+        try {
+            withSerializedAuthenticatorData(authData) { serialized ->
+                retained = serialized
+                assertContentEquals(expected, serialized)
+            }
+
+            assertContentEquals(ByteArray(requireNotNull(retained).size), retained)
+            assertContentEquals(rpHashBefore, authData.rpIdHash)
+            assertContentEquals(credentialIdBefore, authData.credentialId)
+        } finally {
+            rpHashBefore.fill(0)
+            credentialIdBefore.fill(0)
+            expected.fill(0)
+            retained?.fill(0)
+        }
+    }
+
+    @Test
+    fun `success status payload is erased after HID encoding and leaves encoded body borrowed`() {
+        val encodedBody = byteArrayOf(0x21, 0x22, 0x23)
+        var retained: ByteArray? = null
+        var packetPayload: ByteArray? = null
+        try {
+            packetPayload =
+                withCtapSuccessStatus(encodedBody) { payload ->
+                    retained = payload
+                    assertContentEquals(byteArrayOf(CTAP2_OK, 0x21, 0x22, 0x23), payload)
+                    payload.copyOf()
+                }
+
+            assertContentEquals(byteArrayOf(CTAP2_OK, 0x21, 0x22, 0x23), packetPayload)
+            assertContentEquals(ByteArray(requireNotNull(retained).size), retained)
+            assertContentEquals(byteArrayOf(0x21, 0x22, 0x23), encodedBody)
+        } finally {
+            packetPayload?.fill(0)
+            encodedBody.fill(0)
+            retained?.fill(0)
+        }
+    }
+
     // ── getInfoResponse ───────────────────────────────────────────────────────
 
     /** @see Ctap2ResponseBuilder.getInfoResponse FR-HID-020 / FR-VAL-020. */

@@ -5,6 +5,7 @@ import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.Signature
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -32,10 +33,17 @@ import org.junit.jupiter.api.Assertions.assertTrue
 @Req("NFR-SEC-041", "TR-AUTH-031")
 class PostQuantumCryptoTest {
     private lateinit var pqCrypto: PostQuantumCrypto
+    private val ownedTestBuffers = mutableListOf<ByteArray>()
 
     @BeforeTest
     fun setUp() {
         pqCrypto = PostQuantumCrypto()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        ownedTestBuffers.forEach { it.fill(0) }
+        ownedTestBuffers.clear()
     }
 
     private companion object {
@@ -60,7 +68,7 @@ class PostQuantumCryptoTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `ML-DSA key pair generation returns non-null keypair`() {
-        val seed = ByteArray(SEED_SIZE_32) { it.toByte() }
+        val seed = own(ByteArray(SEED_SIZE_32) { it.toByte() })
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair, "generateMlDsaKeyPair must return a non-null KeyPair")
         assertNotNull(keyPair?.public, "Public key must not be null")
@@ -70,7 +78,7 @@ class PostQuantumCryptoTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `ML-DSA key algorithm name contains ML-DSA`() {
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_42 }
+        val seed = own(ByteArray(SEED_SIZE_32) { DUMMY_BYTE_42 })
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair)
         assertTrue(
@@ -83,23 +91,23 @@ class PostQuantumCryptoTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `publicKeyBytes returns non-empty byte array`() {
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_11 }
+        val seed = own(ByteArray(SEED_SIZE_32) { DUMMY_BYTE_11 })
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair)
-        val bytes = pqCrypto.publicKeyBytes(keyPair!!)
+        val bytes = own(pqCrypto.publicKeyBytes(keyPair!!))
         assertTrue(bytes.isNotEmpty(), "Public key bytes must not be empty")
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `sign returns non-null signature`() {
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_22 }
+        val seed = own(ByteArray(SEED_SIZE_32) { DUMMY_BYTE_22 })
         val keyPair = pqCrypto.generateMlDsaKeyPair(seed)
         assertNotNull(keyPair)
-        val message = "hello-fido2".toByteArray()
-        val sig = pqCrypto.sign(keyPair!!.private, message)
+        val message = own("hello-fido2".toByteArray())
+        val sig = own(requireNotNull(pqCrypto.sign(keyPair!!.private, message)))
         assertNotNull(sig, "sign() must return a non-null signature")
-        assertTrue(sig!!.isNotEmpty(), "Signature must not be empty")
+        assertTrue(sig.isNotEmpty(), "Signature must not be empty")
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -113,7 +121,7 @@ class PostQuantumCryptoTest {
                     .generatePrivate(MLDSAPrivateKeySpec(MLDSAParameterSpec.ml_dsa_65, seed)) as MLDSAPrivateKey
             val publicKey = privateKey.getPublicKey() as MLDSAPublicKey
 
-            assertContentEquals(seed, privateKey.seed)
+            assertContentEquals(seed, own(privateKey.seed))
             assertEquals(FIXTURE_PUBLIC_KEY_SHA256, sha256Hex(publicKey.publicData))
         } finally {
             seed.fill(0)
@@ -131,7 +139,7 @@ class PostQuantumCryptoTest {
                     .generatePrivate(MLDSAPrivateKeySpec(MLDSAParameterSpec.ml_dsa_65, seed)) as MLDSAPrivateKey
             val publicKey = privateKey.getPublicKey() as MLDSAPublicKey
 
-            assertContentEquals(seed, privateKey.seed)
+            assertContentEquals(seed, own(privateKey.seed))
             assertEquals(NIST_ACVP_PUBLIC_KEY_SHA256, sha256Hex(publicKey.publicData))
         } finally {
             seed.fill(0)
@@ -150,13 +158,13 @@ class PostQuantumCryptoTest {
             assertEquals(FIXTURE_PUBLIC_KEY_SHA256, sha256Hex(publicKey.publicData))
             assertContentEquals(FIXTURE_SEED.hexToBytes(), seed, "The seed is borrowed and must remain unchanged")
 
-            val message = "synthetic ML-DSA signature fixture".toByteArray(Charsets.US_ASCII)
-            val signature = pqCrypto.sign(keyPair.private, message)
+            val message = own("synthetic ML-DSA signature fixture".toByteArray(Charsets.US_ASCII))
+            val signature = own(requireNotNull(pqCrypto.sign(keyPair!!.private, message)))
             assertNotNull(signature)
             val verifier = Signature.getInstance("ML-DSA-65", "BC")
             verifier.initVerify(publicKey)
             verifier.update(message)
-            assertTrue(verifier.verify(signature!!), "Signature must verify through the provider API")
+            assertTrue(verifier.verify(signature), "Signature must verify through the provider API")
         } finally {
             seed.fill(0)
         }
@@ -208,10 +216,10 @@ class PostQuantumCryptoTest {
     @Test
     fun `production rejects seeds that are not exactly 32 bytes`() {
         assertFailsWith<IllegalArgumentException> {
-            pqCrypto.generateMlDsaKeyPair(ByteArray(31))
+            pqCrypto.generateMlDsaKeyPair(own(ByteArray(31)))
         }
         assertFailsWith<IllegalArgumentException> {
-            pqCrypto.generateMlDsaKeyPair(ByteArray(33))
+            pqCrypto.generateMlDsaKeyPair(own(ByteArray(33)))
         }
     }
 
@@ -225,7 +233,7 @@ class PostQuantumCryptoTest {
 
             assertTrue(!unavailableProvider.isMlDsaSupported())
             assertNull(unavailableProvider.generateMlDsaKeyPair(seed))
-            assertNull(unavailableProvider.sign(validPair.private, "synthetic".toByteArray()))
+            assertNull(unavailableProvider.sign(validPair.private, own("synthetic".toByteArray())))
             assertContentEquals(FIXTURE_SEED.hexToBytes(), seed, "The caller-owned input must remain unchanged")
         } finally {
             seed.fill(0)
@@ -235,7 +243,7 @@ class PostQuantumCryptoTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `signing provider failure erases the returned private-key encoding`() {
-        val encodedPrivateKey = ByteArray(32) { DUMMY_BYTE_42 }
+        val encodedPrivateKey = own(ByteArray(32) { DUMMY_BYTE_42 })
         val privateKey =
             object : PrivateKey {
                 override fun getAlgorithm(): String = "ML-DSA-65"
@@ -246,11 +254,19 @@ class PostQuantumCryptoTest {
             }
 
         assertNull(PostQuantumCrypto("missing-test-provider").sign(privateKey, byteArrayOf(1, 2, 3)))
-        assertContentEquals(ByteArray(encodedPrivateKey.size), encodedPrivateKey)
+        assertContentEquals(own(ByteArray(encodedPrivateKey.size)), encodedPrivateKey)
     }
 
-    private fun String.hexToBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedTestBuffers::add)
 
-    private fun sha256Hex(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+    private fun String.hexToBytes(): ByteArray = own(chunked(2).map { it.toInt(16).toByte() }.toByteArray())
+
+    private fun sha256Hex(bytes: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+        return try {
+            digest.joinToString("") { "%02x".format(it) }
+        } finally {
+            digest.fill(0)
+        }
+    }
 }

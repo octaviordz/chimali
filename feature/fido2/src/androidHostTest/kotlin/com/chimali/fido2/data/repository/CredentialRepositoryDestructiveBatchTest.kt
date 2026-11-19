@@ -32,6 +32,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -152,7 +153,8 @@ class CredentialRepositoryDestructiveBatchTest {
 
             val error = assertIs<DomainError.DatabaseError>(assertIs<Outcome.Error<*>>(failed).error)
             assertEquals("Credential storage operation failed", error.message)
-            assertIs<android.database.SQLException>(error.cause)
+            assertNull(error.cause)
+            assertTrue("synthetic-query-detail" !in error.toString())
 
             val row = row.copyRow()
             every { passkeyDao.getAllCredentials() } returns flowOf(listOf(row))
@@ -175,6 +177,7 @@ class CredentialRepositoryDestructiveBatchTest {
 
             val error = assertIs<DomainError.DatabaseError>(assertIs<Outcome.Error<*>>(result).error)
             assertEquals("Credential storage operation failed", error.message)
+            assertNull(error.cause)
             coVerify(exactly = 0) { aggregate.execute(any(), any()) }
         }
 
@@ -252,6 +255,7 @@ class CredentialRepositoryDestructiveBatchTest {
 
             val error = assertIs<DomainError.ValidationError>(assertIs<Outcome.Error<*>>(result).error)
             assertEquals("Credential storage contains invalid records", error.message)
+            assertNull(error.cause)
             assertRowErased(validRow)
             assertRowErased(malformedRow)
             assertEquals(1, hydrated.size)
@@ -286,6 +290,105 @@ class CredentialRepositoryDestructiveBatchTest {
             hydrated.forEach(::assertCredentialErased)
             coVerify(exactly = 1) { passkeyDao.deleteCredential(expiredId) }
             coVerify(exactly = 0) { passkeyDao.deleteCredential(currentId) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `authenticator reset rolls back metadata cleanup failure and then removes persisted rows`() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            try {
+                Fido2Database.Schema.create(driver)
+                val database = Fido2Database(driver)
+                val protection = mockk<CredentialMetadataProtectionService>(relaxed = true)
+                val rpBytes = "https://example.com".encodeToByteArray()
+                database.relyingPartyQueries.insert(
+                    id = rpBytes.copyOf(),
+                    created_at = 1L,
+                    updated_at = 1L,
+                    last_used_at = null,
+                    credential_count = 0L,
+                    icon_url = null,
+                    is_blocked = 0L,
+                    name = "Example".encodeToByteArray(),
+                    encrypted_metadata = null,
+                )
+                database.userConsentRecordQueries.insert(
+                    id = "consent-reset-test",
+                    created_at = 1L,
+                    timestamp = 1L,
+                    updated_at = 1L,
+                    biometric_used = 0L,
+                    credential_id = null,
+                    device_id = null,
+                    ip_address = null,
+                    operation_type = "AUTHENTICATION",
+                    pin_used = 0L,
+                    rp_id = rpBytes.copyOf(),
+                    rp_id_index = null,
+                    user_agent = null,
+                )
+                val actualPasskeyDao = PasskeyCredentialDao(database, timeProvider, protection)
+                repository =
+                    CredentialRepositoryImpl(
+                        actualPasskeyDao,
+                        RelyingPartyDao(database, timeProvider, protection),
+                        UserConsentRecordDao(database, protection),
+                        decoder,
+                        timeProvider,
+                        aggregate,
+                        protection,
+                    )
+
+                driver.execute(
+                    null,
+                    """
+                    CREATE TRIGGER reject_reset_rp_delete
+                    BEFORE DELETE ON relying_party
+                    BEGIN
+                      SELECT RAISE(ABORT, 'synthetic reset RP delete failure');
+                    END;
+                    """.trimIndent(),
+                    0,
+                )
+                assertFailsWith<Exception> {
+                    RelyingPartyDao(database, timeProvider, protection).clearAuthenticatorMetadata()
+                }
+                assertEquals(
+                    1,
+                    database.relyingPartyQueries
+                        .select_all()
+                        .executeAsList()
+                        .size,
+                )
+                assertEquals(
+                    1,
+                    database.userConsentRecordQueries
+                        .select_recent(10L)
+                        .executeAsList()
+                        .size,
+                )
+
+                driver.execute(null, "DROP TRIGGER reject_reset_rp_delete", 0)
+
+                assertIs<Outcome.Success<*>>(repository.resetAuthenticator())
+
+                assertTrue(
+                    database.relyingPartyQueries
+                        .select_all()
+                        .executeAsList()
+                        .isEmpty(),
+                )
+                assertTrue(
+                    database.userConsentRecordQueries
+                        .select_recent(10L)
+                        .executeAsList()
+                        .isEmpty(),
+                )
+            } finally {
+                driver.close()
+            }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

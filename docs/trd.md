@@ -174,6 +174,15 @@ Event Sourcing serves as the primary persistence and audit mechanism for core ag
 - **Database File Encryption**: SQLite3MultipleCiphers configured with authenticated encryption, using a 256-bit key derived via `PBKDF2-HMAC-SHA512` from the master key.
 - **Key Wrapping**: Platform-backed AES-GCM/AEAD with unique nonces and associated data.
 - **Canonical Security Registers**: Sensitive data fields, volatile memory ownership, and audited platform UI text boundaries are governed by [Data Classification Register](security/data-classification.md) and [Platform Text Boundary Register](security/platform-text-boundaries.md). Historical security reviews from 2026-09-09 (Vault ownership remediation) and 2026-10-14..16 (feature-055 local key derivation) retain their original dated scopes and commit fingerprints without asserting current-source certification.
+#### [TR-CLIP-010] Android Sensitive Clipboard Publication and Cleanup
+
+**Governing requirement**: BRD `NFR-SEC-050` (owner-authorized 2026-11-13 revision; [Feature 065 clarification](../specs/065-security-secret-cleanup/spec.md#clarifications)). This technical requirement applies to Android publication; iOS change-count behavior is assessed separately and is not certified by Android evidence.
+
+- Schedule a best-effort explicit clear attempt 30 seconds after the copy action. Assess actual attempt timing, eligible observations, and Android execution/access limits separately; a returned platform call is not verified removal.
+- Before publication, add `ClipDescription.EXTRA_IS_SENSITIVE=true` to request preview suppression on supporting Android versions, and install the non-content ownership token before `setPrimaryClip`. The marking is not access control and does not guarantee clipboard-history erasure.
+- Before automatic clearing, perform a readable ownership check using non-content identity metadata. Skip and record the outcome when the current entry differs or ownership cannot be read. The check-to-clear race with another app is an accepted limitation, not an atomic guarantee.
+- Keep explicit user-requested clearing separate. User-facing text must describe best-effort behavior and must not claim removal from a submitted platform call. Application-owned mutable buffers still require immediate erasure.
+- Verify publication metadata and ordering in host tests; use eligible emulator/device cohorts for attempts and independent observations. Preview behavior requires supporting physical Android cohorts; see [Android secure clipboard handling](https://developer.android.com/privacy-and-security/risks/secure-clipboard-handling).
 - **Post-Quantum KEM**: No KEM-based remote provisioning capability is defined by the current local credential profile. Any future issuer or provisioning design remains subject to the separate [OpenID4VCI HDK issuance investigation](backlog/openid4vci-hdk-issuance-investigation.md); this document does not claim ML-KEM support or readiness.
 
 ### 5.2 Signature Schemes (NFR-SEC-040)

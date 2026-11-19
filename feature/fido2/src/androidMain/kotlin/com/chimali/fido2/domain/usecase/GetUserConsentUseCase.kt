@@ -7,6 +7,7 @@ import com.chimali.core.common.result.isFailure
 import com.chimali.core.domain.model.ConsentMethod
 import com.chimali.core.domain.model.ConsentOperationType
 import com.chimali.core.domain.model.RelyingParty
+import com.chimali.core.domain.model.SensitiveText
 import com.chimali.core.domain.model.UserConsentRecord
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
@@ -18,8 +19,8 @@ import com.chimali.fido2.domain.service.VerificationContext
 import com.chimali.fido2.domain.service.VerificationMethod
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.Instant
 import org.koin.core.annotation.Factory
 
@@ -117,15 +118,23 @@ class GetUserConsentUseCase(
                     deviceId = null,
                 )
 
-            // Save consent record
-            val saveResult = credentialRepository.saveUserConsent(consentRecord)
-            if (saveResult is Outcome.Error) {
-                return Result.failure(
-                    Fido2Exception.ConsentStorageFailed("Failed to save consent: ${saveResult.error.message}"),
-                )
-            }
+            var transferred = false
+            try {
+                // The repository borrows this record; this use case retains ownership until the
+                // successful result transfers it to its caller.
+                val saveResult = credentialRepository.saveUserConsent(consentRecord)
+                if (saveResult is Outcome.Error) {
+                    return Result.failure(
+                        Fido2Exception.ConsentStorageFailed("Failed to save consent"),
+                    )
+                }
 
-            Result.success(consentRecord)
+                val result = Result.success(consentRecord)
+                transferred = true
+                return result
+            } finally {
+                if (!transferred) consentRecord.eraseSensitiveText()
+            }
         } catch (e: IllegalArgumentException) {
             Result.failure(e)
         } catch (e: Fido2Exception) {
@@ -159,7 +168,7 @@ class GetUserConsentUseCase(
         limit: Int = 50,
     ): Flow<UserConsentRecord> =
         getRecentConsentRecords(rpId, limit)
-            .filter { it.operationType == operationType }
+            .filterAndEraseRejected { it.operationType == operationType }
 
     /**
      * Retrieves consent records for a specific credential.
@@ -173,7 +182,7 @@ class GetUserConsentUseCase(
         limit: Int = 50,
     ): Flow<UserConsentRecord> =
         getRecentConsentRecords(null, limit)
-            .filter { it.isForCredential(credentialId) }
+            .filterAndEraseRejected { it.isForCredential(credentialId) }
 
     /**
      * Retrieves consent records for a specific relying party.
@@ -187,7 +196,7 @@ class GetUserConsentUseCase(
         limit: Int = 50,
     ): Flow<UserConsentRecord> =
         getRecentConsentRecords(rpId, limit)
-            .filter { it.isForRelyingParty(rpId) }
+            .filterAndEraseRejected { it.isForRelyingParty(rpId) }
 
     /**
      * Retrieves recent consent records within a time range.
@@ -203,7 +212,7 @@ class GetUserConsentUseCase(
         rpId: RpId? = null,
     ): Flow<UserConsentRecord> =
         getRecentConsentRecords(rpId, Int.MAX_VALUE)
-            .filter {
+            .filterAndEraseRejected {
                 it.timestamp > startTime && it.timestamp < endTime
             }
 
@@ -219,11 +228,22 @@ class GetUserConsentUseCase(
         rpId: RpId,
         operationType: ConsentOperationType,
         minutes: Int = 5,
-    ): Boolean =
-        getConsentRecordsByOperationType(operationType, rpId, RECENT_CONSENT_LOOKBACK_LIMIT)
-            .toList()
-            .filter { it.isRecent(minutes) }
-            .any { it.isRegistrationConsent() || it.isAuthenticationConsent() }
+    ): Boolean {
+        var recentConsentFound = false
+        getRecentConsentRecords(rpId, RECENT_CONSENT_LOOKBACK_LIMIT).collect { consent ->
+            try {
+                if (consent.operationType == operationType &&
+                    consent.isRecent(minutes) &&
+                    (consent.isRegistrationConsent() || consent.isAuthenticationConsent())
+                ) {
+                    recentConsentFound = true
+                }
+            } finally {
+                consent.eraseSensitiveText()
+            }
+        }
+        return recentConsentFound
+    }
 
     /**
      * Retrieves consent statistics.
@@ -232,37 +252,40 @@ class GetUserConsentUseCase(
      * @return Consent statistics for the specified RP or all RPs
      */
     suspend fun getConsentStatistics(rpId: RpId? = null): ConsentStatistics {
-        val consentRecords = getRecentConsentRecords(rpId, Int.MAX_VALUE).toList()
-
-        val totalConsents = consentRecords.count()
-        val registrationConsents = consentRecords.count { it.isRegistrationConsent() }
-        val authenticationConsents = consentRecords.count { it.isAuthenticationConsent() }
-        val biometricConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC }
-        val pinConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.PIN }
-        val combinedConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC_AND_PIN }
-
-        val consentsByRp =
-            if (rpId != null) {
-                mapOf(rpId to totalConsents)
-            } else {
-                consentRecords
-                    .groupBy { it.rpId }
-                    .mapValues { it.value.size }
+        val consentRecords = mutableListOf<UserConsentRecord>()
+        try {
+            getRecentConsentRecords(rpId, Int.MAX_VALUE).collect { consent ->
+                admitOwnedConsentRecord(consent) { consentRecords.add(consent) }
             }
 
-        val recentConsents = consentRecords.count { it.isRecent(minutes = 60) }
+            val totalConsents = consentRecords.size
+            val registrationConsents = consentRecords.count { it.isRegistrationConsent() }
+            val authenticationConsents = consentRecords.count { it.isAuthenticationConsent() }
+            val biometricConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC }
+            val pinConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.PIN }
+            val combinedConsents = consentRecords.count { it.getConsentMethod() == ConsentMethod.BIOMETRIC_AND_PIN }
+            val uniqueRelyingParties = mutableListOf<SensitiveText>()
+            consentRecords.forEach { consent ->
+                if (uniqueRelyingParties.none { it.contentEquals(consent.rpIdText) }) {
+                    uniqueRelyingParties += consent.rpIdText
+                }
+            }
+            val recentConsents = consentRecords.count { it.isRecent(minutes = 60) }
 
-        return ConsentStatistics(
-            totalConsents = totalConsents,
-            registrationConsents = registrationConsents,
-            authenticationConsents = authenticationConsents,
-            biometricConsents = biometricConsents,
-            pinConsents = pinConsents,
-            combinedConsents = combinedConsents,
-            consentsByRp = consentsByRp,
-            recentConsents = recentConsents,
-            averageConsentsPerDay = calculateAverageConsentsPerDay(consentRecords),
-        )
+            return ConsentStatistics(
+                totalConsents = totalConsents,
+                registrationConsents = registrationConsents,
+                authenticationConsents = authenticationConsents,
+                biometricConsents = biometricConsents,
+                pinConsents = pinConsents,
+                combinedConsents = combinedConsents,
+                uniqueRelyingParties = uniqueRelyingParties.size,
+                recentConsents = recentConsents,
+                averageConsentsPerDay = calculateAverageConsentsPerDay(consentRecords),
+            )
+        } finally {
+            consentRecords.forEach(UserConsentRecord::eraseSensitiveText)
+        }
     }
 
     /**
@@ -270,7 +293,7 @@ class GetUserConsentUseCase(
      */
     private fun validateConsentRequest(rpId: RpId) {
         require(RelyingParty.isValidRpId(rpId.value)) {
-            "RP ID must be a valid domain or HTTPS origin: ${rpId.value}"
+            "RP ID must be a valid domain or HTTPS origin"
         }
     }
 
@@ -330,6 +353,20 @@ class GetUserConsentUseCase(
     }
 }
 
+/** Transfers a consent record into its collection only after admission succeeds. */
+internal fun admitOwnedConsentRecord(
+    consent: UserConsentRecord,
+    admit: () -> Boolean,
+) {
+    var transferred = false
+    try {
+        check(admit()) { "Consent-record collection admission failed" }
+        transferred = true
+    } finally {
+        if (!transferred) consent.eraseSensitiveText()
+    }
+}
+
 /**
  * Data class representing consent verification result.
  */
@@ -349,7 +386,7 @@ data class ConsentStatistics(
     val biometricConsents: Int,
     val pinConsents: Int,
     val combinedConsents: Int,
-    val consentsByRp: Map<RpId, Int>,
+    val uniqueRelyingParties: Int,
     val recentConsents: Int,
     val averageConsentsPerDay: Double,
 ) {
@@ -391,3 +428,30 @@ data class ConsentStatistics(
             "Avg/day: $avgPerDay) - Methods: $methodSummary"
     }
 }
+
+@Suppress("TooGenericExceptionCaught") // Erasure must run for any predicate failure, including Errors.
+private fun Flow<UserConsentRecord>.filterAndEraseRejected(
+    predicate: (UserConsentRecord) -> Boolean,
+): Flow<UserConsentRecord> =
+    flow {
+        collect { consent ->
+            val accepted =
+                try {
+                    predicate(consent)
+                } catch (failure: Throwable) {
+                    consent.eraseSensitiveText()
+                    throw failure
+                }
+            if (accepted) {
+                var transferred = false
+                try {
+                    emit(consent)
+                    transferred = true
+                } finally {
+                    if (!transferred) consent.eraseSensitiveText()
+                }
+            } else {
+                consent.eraseSensitiveText()
+            }
+        }
+    }

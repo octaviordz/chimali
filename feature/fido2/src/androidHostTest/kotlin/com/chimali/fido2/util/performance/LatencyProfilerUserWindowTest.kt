@@ -1,5 +1,8 @@
 package com.chimali.fido2.util.performance
 
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,6 +17,42 @@ import kotlinx.coroutines.runBlocking
 
 /** @see NFR-PERF-030 */
 class LatencyProfilerUserWindowTest {
+    @Test
+    @Req("NFR-SEC-030", "FR-008", "FR-009")
+    fun `timing diagnostics use only the fixed operation label`() {
+        val marker = "synthetic-operation-identifier-secret-marker"
+        val priorWriters = Logger.mutableConfig.logWriterList
+        val priorSeverity = Logger.mutableConfig.minSeverity
+        val records = mutableListOf<String>()
+        try {
+            Logger.setMinSeverity(Severity.Verbose)
+            Logger.setLogWriters(
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        records += message
+                        throwable?.let { records += it.stackTraceToString() }
+                    }
+                },
+            )
+
+            LatencyProfiler.start(LatencyOperation.GET_ASSERTION)
+            assertTrue(LatencyProfiler.end(LatencyOperation.GET_ASSERTION, responseAccepted = true) >= 0L)
+            assertEquals(-1L, LatencyProfiler.end(LatencyOperation.GET_ASSERTION, responseAccepted = false))
+            assertTrue(records.isNotEmpty())
+            assertTrue(records.none { marker in it })
+            assertTrue(records.any { "GetAssertion" in it })
+        } finally {
+            Logger.setLogWriters(priorWriters)
+            Logger.setMinSeverity(priorSeverity)
+            records.clear()
+        }
+    }
+
     /**
      * @see NFR-PERF-030
      * @see FR-VAL-030

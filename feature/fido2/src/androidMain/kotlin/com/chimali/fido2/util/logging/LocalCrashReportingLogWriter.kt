@@ -34,9 +34,9 @@ class LocalCrashReportingLogWriter(
             if (!fileSystem.exists(logDir)) {
                 fileSystem.createDirectories(logDir)
             }
-        } catch (e: java.io.IOException) {
-            // Silently fail or print to stderr if directory creation fails
-            println("CrashReportingWriter: Failed to create log directory: ${e.message}")
+        } catch (_: Exception) {
+            // Keep fallback diagnostics fixed so filesystem errors cannot echo paths or content.
+            System.err.println("CrashReportingWriter: log directory unavailable")
         }
     }
 
@@ -68,10 +68,9 @@ class LocalCrashReportingLogWriter(
 
         val formattedLog =
             buildString {
-                append("$time $priorityStr/$tag: $scrubbedMessage\n")
-                throwable?.let {
-                    append("${it::class.qualifiedName ?: "Throwable"}\n")
-                    it.stackTrace.forEach { frame -> append("\tat $frame\n") }
+                append("$time $priorityStr/Fido2: $scrubbedMessage\n")
+                if (throwable != null) {
+                    append("[throwable details omitted]\n")
                 }
             }
 
@@ -95,17 +94,17 @@ class LocalCrashReportingLogWriter(
                 try {
                     sink.writeUtf8(logEntry)
                     sink.flush()
-                } catch (e: java.io.IOException) {
-                    println("CrashReportingWriter: Write error: ${e.message}")
+                } catch (_: Exception) {
+                    System.err.println("CrashReportingWriter: write failed")
                 } finally {
                     try {
                         sink.close()
                     } catch (ignored: java.io.IOException) {
                     }
                 }
-            } catch (e: java.io.IOException) {
-                // Fallback for debugging writer issues
-                println("CrashReportingWriter: Failed to write local log: ${e.message}")
+            } catch (_: Exception) {
+                // Never forward exception messages or filesystem paths to fallback output.
+                System.err.println("CrashReportingWriter: local log unavailable")
             }
         }
     }
@@ -119,8 +118,8 @@ class LocalCrashReportingLogWriter(
             if (fileSystem.exists(currentLogFile)) {
                 fileSystem.atomicMove(currentLogFile, backupFile)
             }
-        } catch (e: java.io.IOException) {
-            println("CrashReportingWriter: Failed to rotate logs: ${e.message}")
+        } catch (_: Exception) {
+            System.err.println("CrashReportingWriter: log rotation failed")
         }
     }
 

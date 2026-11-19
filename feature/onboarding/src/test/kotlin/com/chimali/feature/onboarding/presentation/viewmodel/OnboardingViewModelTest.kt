@@ -129,7 +129,12 @@ class OnboardingViewModelTest {
             viewModel.onVaultToggled(true)
 
             assertFalse(viewModel.finishOnboarding())
-            assertEquals("disk is unavailable", viewModel.state.value.errorMessage)
+            assertEquals("Unable to save onboarding preferences.", viewModel.state.value.errorMessage)
+            assertFalse(
+                viewModel.state.value.errorMessage
+                    .orEmpty()
+                    .contains("OnboardingStorageMarker"),
+            )
             assertFalse(viewModel.state.value.isSaving)
             assertTrue(viewModel.state.value.vaultSelected)
         }
@@ -138,6 +143,6 @@ class OnboardingViewModelTest {
         override val data: Flow<UserPreferences> = flowOf(UserPreferences())
 
         override suspend fun updateData(transform: suspend (t: UserPreferences) -> UserPreferences): UserPreferences =
-            throw IOException("disk is unavailable")
+            throw IOException("OnboardingStorageMarker: /private/profile/secret")
     }
 }

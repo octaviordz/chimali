@@ -43,11 +43,17 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
@@ -203,6 +209,138 @@ class CredentialRepositoryImplTest {
         }
 
     @Test
+    fun `rejected credential batch admission erases the untransferred credential`() {
+        val candidate = testCredential.copy()
+        val originalCredentialId = candidate.credentialId.copyOf()
+        val rpText = candidate.rpId.copyCharacters()
+        val userIdText = candidate.userId.copyCharacters()
+        val userNameText = candidate.userName.copyCharacters()
+        val displayNameText = candidate.userDisplayName.copyCharacters()
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                mutableListOf<PasskeyCredential>().admitCredential(candidate) { false }
+            }
+
+            val erasedRpText = candidate.rpId.copyCharacters()
+            val erasedUserIdText = candidate.userId.copyCharacters()
+            val erasedUserNameText = candidate.userName.copyCharacters()
+            val erasedDisplayNameText = candidate.userDisplayName.copyCharacters()
+            try {
+                assertContentEquals(CharArray(rpText.size), erasedRpText)
+                assertContentEquals(CharArray(userIdText.size), erasedUserIdText)
+                assertContentEquals(CharArray(userNameText.size), erasedUserNameText)
+                assertContentEquals(CharArray(displayNameText.size), erasedDisplayNameText)
+            } finally {
+                erasedRpText.fill('\u0000')
+                erasedUserIdText.fill('\u0000')
+                erasedUserNameText.fill('\u0000')
+                erasedDisplayNameText.fill('\u0000')
+            }
+            assertContentEquals(ByteArray(originalCredentialId.size), candidate.credentialId)
+            assertTrue(testCredential.rpId.contentEquals("https://example.com"))
+        } finally {
+            originalCredentialId.fill(0)
+            rpText.fill('\u0000')
+            userIdText.fill('\u0000')
+            userNameText.fill('\u0000')
+            displayNameText.fill('\u0000')
+            candidate.eraseSensitiveText()
+        }
+    }
+
+    @Test
+    fun `rejected summary batch admission erases the untransferred summary`() {
+        val summary =
+            CredentialSummary.fromRpId(
+                id = testCredential.id.encoded,
+                rpId = RpId("https://example.com"),
+                credentialId = testCredential.id,
+                lastUsedAt = testCredential.lastUsedAt,
+                coseAlgorithm = PasskeyCredential.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                storedPublicKeyEncoding = testPublicKey.encoded.copyOf(),
+            )
+        val rpText = summary.rpIdText.copyCharacters()
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                mutableListOf<CredentialSummary>().admitCredentialSummary(summary) { false }
+            }
+
+            val erasedRpText = summary.rpIdText.copyCharacters()
+            try {
+                assertContentEquals(CharArray(rpText.size), erasedRpText)
+            } finally {
+                erasedRpText.fill('\u0000')
+            }
+            assertTrue(testCredential.rpId.contentEquals("https://example.com"))
+        } finally {
+            rpText.fill('\u0000')
+            summary.eraseSensitiveText()
+        }
+    }
+
+    @Test
+    fun `result wrapper construction failure erases owned credential batch`() {
+        val candidate = testCredential.copy()
+        val originalRpText = candidate.rpId.copyCharacters()
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                createOwnedBatchResult(listOf(candidate), PasskeyCredential::eraseSensitiveText) {
+                    throw IllegalStateException("synthetic result construction failure")
+                }
+            }
+
+            val observedRpText = candidate.rpId.copyCharacters()
+            try {
+                assertContentEquals(CharArray(originalRpText.size), observedRpText)
+            } finally {
+                observedRpText.fill('\u0000')
+            }
+            assertTrue(testCredential.rpId.contentEquals("https://example.com"))
+        } finally {
+            originalRpText.fill('\u0000')
+            candidate.eraseSensitiveText()
+        }
+    }
+
+    @Test
+    fun `result wrapper construction failure erases owned summary batch`() {
+        val summary =
+            CredentialSummary.fromRpId(
+                id = testCredential.id.encoded,
+                rpId = RpId("https://example.com"),
+                credentialId = testCredential.id,
+                lastUsedAt = testCredential.lastUsedAt,
+                coseAlgorithm = PasskeyCredential.COSE_ES256,
+                derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+                storedPublicKeyEncoding = testPublicKey.encoded.copyOf(),
+            )
+        val originalRpText = summary.rpIdText.copyCharacters()
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                createOwnedBatchResult(listOf(summary), CredentialSummary::eraseSensitiveText) {
+                    throw IllegalStateException("synthetic result construction failure")
+                }
+            }
+
+            val observedRpText = summary.rpIdText.copyCharacters()
+            try {
+                assertContentEquals(CharArray(originalRpText.size), observedRpText)
+            } finally {
+                observedRpText.fill('\u0000')
+            }
+            assertTrue(testCredential.rpId.contentEquals("https://example.com"))
+        } finally {
+            originalRpText.fill('\u0000')
+            summary.eraseSensitiveText()
+        }
+    }
+
+    @Test
     fun `update relying party erases borrowed and transferred owners after successful update`() =
         runTest {
             coEvery { relyingPartyDao.getRelyingPartyByText(any()) } returns testRpEntity()
@@ -251,6 +389,26 @@ class CredentialRepositoryImplTest {
                 }
             }
 
+            assertSensitiveTextErased(requireNotNull(borrowed))
+            coVerify(exactly = 0) { relyingPartyDao.updateRelyingParty(any()) }
+        }
+
+    @Test
+    fun `update relying party propagates database shaped callback failure and erases borrowed owner`() =
+        runTest {
+            coEvery { relyingPartyDao.getRelyingPartyByText(any()) } returns testRpEntity()
+            var borrowed: RelyingParty? = null
+            val callbackFailure = android.database.SQLException("synthetic callback failure")
+
+            val thrown =
+                assertFailsWith<android.database.SQLException> {
+                    repository.updateRelyingParty(RpId("https://example.com")) { current ->
+                        borrowed = current
+                        throw callbackFailure
+                    }
+                }
+
+            assertSame(callbackFailure, thrown)
             assertSensitiveTextErased(requireNotNull(borrowed))
             coVerify(exactly = 0) { relyingPartyDao.updateRelyingParty(any()) }
         }
@@ -393,6 +551,89 @@ class CredentialRepositoryImplTest {
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Req("NFR-SEC-041", "TR-AUTH-031")
         @Test
+        fun `get credential by ID propagates mapper SQL failure after erasing source row`() =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                val mapperFailure = android.database.SQLException("synthetic mapper failure")
+                coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns row
+                coEvery { publicKeyDecoder.decodePublicKey(any(), any()) } throws mapperFailure
+
+                val thrown =
+                    assertFailsWith<android.database.SQLException> {
+                        repository.getCredentialById(testCredential.id)
+                    }
+
+                assertSame(mapperFailure, thrown)
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertTrue(bytes.all { it == 0.toByte() })
+                }
+                row.encrypted_metadata?.let { bytes -> assertTrue(bytes.all { it == 0.toByte() }) }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @ParameterizedTest
+        @ValueSource(strings = ["page", "rp-batch"])
+        fun `credential batch hydration propagates mapper SQL failure after erasing source rows`(path: String) =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                val mapperFailure = android.database.SQLException("synthetic batch mapper failure")
+                every { publicKeyDecoder.decodePublicKey(any(), any()) } throws mapperFailure
+                if (path == "page") {
+                    coEvery { passkeyCredentialDao.getPagedCredentials(any(), any()) } returns listOf(row)
+                } else {
+                    coEvery { passkeyCredentialDao.getCredentialsByRpText(any()) } returns flowOf(listOf(row))
+                }
+
+                val thrown =
+                    assertFailsWith<android.database.SQLException> {
+                        if (path == "page") {
+                            repository.getPagedCredentials(10, 0)
+                        } else {
+                            repository.getCredentialsForRp(RpId(testCredential.rpId.toBoundaryString()))
+                        }
+                    }
+
+                assertSame(mapperFailure, thrown)
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertTrue(bytes.all { it == 0.toByte() })
+                }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @ParameterizedTest
+        @ValueSource(strings = ["by-ids", "creation-validation"])
+        fun `credential ID and validation wrappers propagate mapper SQL failure after erasing rows`(path: String) =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                val mapperFailure = android.database.SQLException("synthetic wrapped mapper failure")
+                every { publicKeyDecoder.decodePublicKey(any(), any()) } throws mapperFailure
+                if (path == "by-ids") {
+                    coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns row
+                } else {
+                    coEvery { passkeyCredentialDao.getCredentialsByRpText(any()) } returns flowOf(listOf(row))
+                }
+
+                val thrown =
+                    assertFailsWith<android.database.SQLException> {
+                        if (path == "by-ids") {
+                            repository.getCredentialsByIds(setOf(testCredential.id), null)
+                        } else {
+                            repository.validateCredentialCreation(
+                                RpId(testCredential.rpId.toBoundaryString()),
+                                UserId(testCredential.userId.toBoundaryString()),
+                            )
+                        }
+                    }
+
+                assertSame(mapperFailure, thrown)
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertTrue(bytes.all { it == 0.toByte() })
+                }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
         fun `mixed valid and malformed rows preserve healthy list and search results`() =
             runTest {
                 val malformedRow =
@@ -426,11 +667,17 @@ class CredentialRepositoryImplTest {
                 }
                 assertEquals(
                     listOf(testCredential.id),
-                    repository.getCredentialsByRpId(testCredential.rpId.toRpId()).toList().map { it.id },
+                    repository
+                        .getCredentialsByRpId(RpId(testCredential.rpId.toBoundaryString()))
+                        .toList()
+                        .map { it.id },
                 )
                 assertEquals(
                     listOf(testCredential.id),
-                    repository.getCredentialsByUserId(testCredential.userId.toUserId()).toList().map { it.id },
+                    repository
+                        .getCredentialsByUserId(UserId(testCredential.userId.toBoundaryString()))
+                        .toList()
+                        .map { it.id },
                 )
                 val page = assertIs<Outcome.Success<List<PasskeyCredential>>>(repository.getPagedCredentials(10, 0))
                 assertEquals(listOf(testCredential.id), page.data.map { it.id })
@@ -446,12 +693,56 @@ class CredentialRepositoryImplTest {
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Req("NFR-SEC-041", "TR-AUTH-031")
         @Test
+        fun `search erases transferred credential when downstream rejects emission`() =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(row))
+                val query = SensitiveCredentialText.copyOf("test")
+                var emitted: PasskeyCredential? = null
+                var downstreamFailureObserved = false
+
+                try {
+                    repository.searchCredentials(query).collect { credential ->
+                        emitted = credential
+                        throw IllegalStateException("synthetic downstream rejection")
+                    }
+                } catch (failure: IllegalStateException) {
+                    downstreamFailureObserved = failure.message == "synthetic downstream rejection"
+                } finally {
+                    query.erase()
+                }
+
+                assertTrue(downstreamFailureObserved)
+                val credential = requireNotNull(emitted)
+                listOf(
+                    credential.rpId,
+                    credential.userId,
+                    credential.userName,
+                    credential.userDisplayName,
+                ).forEach { owner ->
+                    val copy = owner.copyCharacters()
+                    try {
+                        assertContentEquals(CharArray(copy.size), copy)
+                    } finally {
+                        copy.fill('\u0000')
+                    }
+                }
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertContentEquals(ByteArray(bytes.size), bytes)
+                }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
         fun `summary rejects numeric algorithm truncation without public key hydration`() =
             runTest {
                 coEvery { passkeyCredentialDao.getCredentialsByRpText(any()) } returns
                     flowOf(listOf(testEntity.copy(cose_algorithm = 4_294_967_289L)))
 
-                assertIs<Outcome.Error<*>>(repository.getCredentialSummariesForRp(testCredential.rpId.toRpId()))
+                assertIs<Outcome.Error<*>>(
+                    repository.getCredentialSummariesForRp(RpId(testCredential.rpId.toBoundaryString())),
+                )
                 coVerify(exactly = 0) { publicKeyDecoder.decodePublicKey(any(), any()) }
             }
 
@@ -472,7 +763,7 @@ class CredentialRepositoryImplTest {
                         )
                     coEvery { passkeyCredentialDao.getCredentialsByRpText(any()) } returns flowOf(listOf(invalid))
 
-                    val failure = repository.getCredentialSummariesForRp(testCredential.rpId.toRpId())
+                    val failure = repository.getCredentialSummariesForRp(RpId(testCredential.rpId.toBoundaryString()))
 
                     assertIs<Outcome.Error<*>>(failure)
                     rowOwners.forEach { bytes -> assertContentEquals(ByteArray(bytes.size), bytes) }
@@ -720,7 +1011,7 @@ class CredentialRepositoryImplTest {
                 assertEquals(
                     cancellation,
                     assertFailsWith<CancellationException> {
-                        repository.getCredentialsForRp(testCredential.rpId.toRpId())
+                        repository.getCredentialsForRp(RpId(testCredential.rpId.toBoundaryString()))
                     },
                 )
 
@@ -728,6 +1019,49 @@ class CredentialRepositoryImplTest {
                     listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
                         assertContentEquals(ByteArray(bytes.size), bytes)
                     }
+                }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `search propagates database-shaped downstream failure after erasing owners`() =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(row))
+                val query = SensitiveCredentialText.copyOf("test")
+                var emitted: PasskeyCredential? = null
+                val downstreamFailure = android.database.SQLException("synthetic downstream failure")
+
+                try {
+                    val failure =
+                        assertFailsWith<android.database.SQLException> {
+                            repository.searchCredentials(query).collect { credential ->
+                                emitted = credential
+                                throw downstreamFailure
+                            }
+                        }
+                    assertTrue(failure === downstreamFailure)
+                } finally {
+                    query.erase()
+                }
+
+                val credential = requireNotNull(emitted)
+                listOf(
+                    credential.rpId,
+                    credential.userId,
+                    credential.userName,
+                    credential.userDisplayName,
+                ).forEach { owner ->
+                    val copy = owner.copyCharacters()
+                    try {
+                        assertContentEquals(CharArray(copy.size), copy)
+                    } finally {
+                        copy.fill('\u0000')
+                    }
+                }
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertContentEquals(ByteArray(bytes.size), bytes)
                 }
             }
 
@@ -750,7 +1084,7 @@ class CredentialRepositoryImplTest {
                 val registration = commandSlot.captured as PasskeyCommand.Register
                 assertEquals(testCredential.coseAlgorithm, registration.coseAlgorithm)
                 assertEquals(testCredential.derivationProfile, registration.derivationProfile)
-                assertContentEquals(testCredential.id.toByteArray(), registration.credentialId)
+                assertContentEquals(ByteArray(registration.credentialId.size), registration.credentialId)
                 assertEquals(
                     java.util.Base64
                         .getEncoder()
@@ -809,7 +1143,7 @@ class CredentialRepositoryImplTest {
                 } returns
                     flowOf(listOf(testEntity))
 
-                val flow = repository.getCredentialsByRpId(testCredential.rpId.toRpId())
+                val flow = repository.getCredentialsByRpId(RpId(testCredential.rpId.toBoundaryString()))
                 val result = mutableListOf<PasskeyCredential>()
                 flow.collect { result.add(it) }
 
@@ -830,6 +1164,143 @@ class CredentialRepositoryImplTest {
 
                 assertEquals(1, result.size)
                 assertEquals(testCredential.id, result.first().id)
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `get all credentials keeps an admitted child borrower readable until it joins`() =
+            runTest {
+                val row = testEntity.copyCredentialRow()
+                coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(row))
+                var retained: PasskeyCredential? = null
+
+                repository.getAllCredentials().collect { credential ->
+                    retained = credential
+                    coroutineScope {
+                        val admitted = CompletableDeferred<Unit>()
+                        val release = CompletableDeferred<Unit>()
+                        val borrower =
+                            launch {
+                                admitted.complete(Unit)
+                                release.await()
+                                assertTrue(credential.userName.contentEquals("testuser"))
+                                assertTrue(credential.userDisplayName.contentEquals("Test User"))
+                            }
+
+                        admitted.await()
+                        assertTrue(credential.userName.contentEquals("testuser"))
+                        release.complete(Unit)
+                        borrower.join()
+                    }
+                    assertTrue(credential.userName.contentEquals("testuser"))
+                }
+
+                listOfNotNull(
+                    row.rp_id,
+                    row.rp_name,
+                    row.user_id,
+                    row.user_name,
+                    row.user_display_name,
+                    row.rp_id_index,
+                    row.user_id_index,
+                    row.encrypted_metadata,
+                ).forEach { bytes -> assertContentEquals(ByteArray(bytes.size), bytes) }
+                val transferred = requireNotNull(retained)
+                assertTrue(transferred.userName.contentEquals("testuser"))
+                transferred.eraseSensitiveText()
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `independent cold flow collectors receive independently owned credentials`() =
+            runTest {
+                coEvery { passkeyCredentialDao.getAllCredentials() } answers {
+                    flow { emit(listOf(testEntity.copyCredentialRow())) }
+                }
+                val owners = mutableListOf<PasskeyCredential>()
+                val credentials = repository.getAllCredentials()
+
+                credentials.collect(owners::add)
+                credentials.collect(owners::add)
+
+                assertEquals(2, owners.size)
+                assertTrue(owners[0] !== owners[1])
+                assertTrue(owners[0].userName.contentEquals("testuser"))
+                assertTrue(owners[1].userName.contentEquals("testuser"))
+
+                owners[0].eraseSensitiveText()
+
+                assertTrue(owners[0].userName.all { it == '\u0000' })
+                assertTrue(owners[1].userName.contentEquals("testuser"))
+                owners[1].eraseSensitiveText()
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Test
+        fun `concurrent cold flow collectors keep independent credential and query owners`() =
+            runTest {
+                coEvery { passkeyCredentialDao.getAllCredentials() } answers {
+                    flow { emit(listOf(testEntity.copyCredentialRow())) }
+                }
+                val query = SensitiveCredentialText.copyOf("test")
+                val firstReceived = CompletableDeferred<PasskeyCredential>()
+                val secondReceived = CompletableDeferred<PasskeyCredential>()
+                val releaseFirst = CompletableDeferred<Unit>()
+                val releaseSecond = CompletableDeferred<Unit>()
+                var firstCredential: PasskeyCredential? = null
+                var secondCredential: PasskeyCredential? = null
+                val firstCollector =
+                    launch {
+                        repository.searchCredentials(query).collect { credential ->
+                            firstCredential = credential
+                            firstReceived.complete(credential)
+                            releaseFirst.await()
+                            credential.eraseSensitiveText()
+                        }
+                    }
+                val secondCollector =
+                    launch {
+                        repository.searchCredentials(query).collect { credential ->
+                            secondCredential = credential
+                            secondReceived.complete(credential)
+                            releaseSecond.await()
+                            credential.eraseSensitiveText()
+                        }
+                    }
+
+                try {
+                    val first = firstReceived.await()
+                    val second = secondReceived.await()
+                    assertTrue(first !== second)
+                    assertTrue(first.userName.contentEquals("testuser"))
+                    assertTrue(second.userName.contentEquals("testuser"))
+
+                    firstCollector.cancel()
+                    firstCollector.join()
+
+                    assertTrue(first.userName.all { it == '\u0000' })
+                    assertTrue(second.userName.contentEquals("testuser"))
+                    val queryCopy = query.copyCharacters()
+                    try {
+                        assertContentEquals("test".toCharArray(), queryCopy)
+                    } finally {
+                        queryCopy.fill('\u0000')
+                    }
+
+                    releaseSecond.complete(Unit)
+                    secondCollector.join()
+
+                    assertTrue(second.userName.all { it == '\u0000' })
+                } finally {
+                    firstCollector.cancel()
+                    secondCollector.cancel()
+                    firstCredential?.eraseSensitiveText()
+                    secondCredential?.eraseSensitiveText()
+                    query.erase()
+                }
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -866,7 +1337,7 @@ class CredentialRepositoryImplTest {
                 } returns
                     flowOf(listOf(testEntity))
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
-                val result = repository.deleteAllCredentials(testCredential.rpId.toRpId())
+                val result = repository.deleteAllCredentials(RpId(testCredential.rpId.toBoundaryString()))
 
                 assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
@@ -879,10 +1350,12 @@ class CredentialRepositoryImplTest {
             runTest {
                 coEvery { passkeyCredentialDao.getAllCredentials() } returns flowOf(listOf(testEntity))
                 coEvery { passkeyCredentialDao.getCredentialById(testCredential.id) } returns testEntity
+                coEvery { relyingPartyDao.clearAuthenticatorMetadata() } just Runs
                 val result = repository.resetAuthenticator()
 
                 assertTrue(result.isSuccess, "Result was $result")
                 coVerify { passkeyCredentialDao.deleteCredential(testCredential.id) }
+                coVerify(exactly = 1) { relyingPartyDao.clearAuthenticatorMetadata() }
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -1009,6 +1482,40 @@ class CredentialRepositoryImplTest {
             source.erase()
             credentialBytes.fill(0)
             mismatchBytes.forEach { it.fill(0) }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `summary observer SQLException propagates and erases staged summary and source row`() =
+        runTest {
+            val source = SensitiveCredentialText.copyOf("https://example.com")
+            val retained = mutableListOf<CredentialSummary>()
+            val row = testEntity.copyCredentialRow()
+            val callbackFailure = android.database.SQLException("synthetic summary observer failure")
+            repository.onSummaryCreatedForTest = { summary ->
+                retained += summary
+                throw callbackFailure
+            }
+            coEvery { passkeyCredentialDao.getCredentialsByRpText(match { it.contentEquals(source) }) } returns
+                flowOf(listOf(row))
+
+            try {
+                val thrown =
+                    assertFailsWith<android.database.SQLException> {
+                        repository.getCredentialSummariesForRpText(source)
+                    }
+
+                assertSame(callbackFailure, thrown)
+                assertEquals(1, retained.size)
+                assertTrue(retained.single().rpIdText.all { it == '\u0000' })
+                listOf(row.rp_id, row.rp_name, row.user_id, row.user_name, row.user_display_name).forEach { bytes ->
+                    assertTrue(bytes.all { it == 0.toByte() })
+                }
+                assertTrue(source.contentEquals("https://example.com"))
+            } finally {
+                retained.forEach { it.eraseSensitiveText() }
+                source.erase()
+            }
         }
 
     private fun Passkey_credential.copyCredentialRow(

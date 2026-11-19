@@ -8,12 +8,16 @@ import com.chimali.fido2.bluetooth.HidReportParser
 import com.chimali.fido2.ctap2.Ctap2GetAssertionHandler
 import com.chimali.fido2.ctap2.Ctap2MakeCredentialHandler
 import com.chimali.fido2.ctap2.Ctap2ResponseBuilder
+import com.chimali.fido2.domain.exception.Fido2Exception
 import com.chimali.fido2.domain.service.AuthenticatorInfo
 import com.chimali.fido2.domain.service.AuthenticatorInfoProvider
+import com.chimali.fido2.testing.CapturedDiagnostics
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -32,6 +36,7 @@ import kotlinx.coroutines.test.runTest
  */
 @Req("FR-BLE-080", "TR-BLE-030")
 class RawCtapOperationTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
     private val makeCredentialHandler = mockk<Ctap2MakeCredentialHandler>()
     private val getAssertionHandler = mockk<Ctap2GetAssertionHandler>()
     private val authenticatorInfoProvider = mockk<AuthenticatorInfoProvider>()
@@ -51,9 +56,29 @@ class RawCtapOperationTest {
         private const val CTAP2_ERR_INVALID_CMD: Byte = 0x01
         private const val STATUS_PROCESSING: Byte = 0x01
         private const val STATUS_UPNEEDED: Byte = 0x02
-
-        private val DUMMY_CBOR = byteArrayOf(0xA1.toByte(), 0x01, 0x02)
     }
+
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    private fun concatBytes(vararg parts: ByteArray): ByteArray {
+        val result = ByteArray(parts.sumOf(ByteArray::size))
+        try {
+            var offset = 0
+            parts.forEach { part ->
+                part.copyInto(result, destinationOffset = offset)
+                offset += part.size
+            }
+            return own(result)
+        } catch (failure: Throwable) {
+            result.fill(0)
+            throw failure
+        } finally {
+            parts.forEach { it.fill(0) }
+        }
+    }
+
+    private fun expectedCborResponse(): ByteArray =
+        concatBytes(byteArrayOf(CTAP2_OK), byteArrayOf(0xA1.toByte(), 0x01, 0x02))
 
     @BeforeTest
     fun setUp() {
@@ -78,18 +103,47 @@ class RawCtapOperationTest {
             )
     }
 
+    @AfterTest
+    fun tearDown() {
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
+        clearMocks(
+            makeCredentialHandler,
+            getAssertionHandler,
+            authenticatorInfoProvider,
+            responseBuilder,
+            masterSeedProvider,
+            answers = true,
+            recordedCalls = true,
+            verificationMarks = true,
+            childMocks = true,
+        )
+    }
+
+    @Test
+    fun `teardown erases tracked request and response buffers`() {
+        val request = own(byteArrayOf(CMD_GET_INFO))
+        val response = own(byteArrayOf(CTAP2_OK, 0xA1.toByte()))
+
+        tearDown()
+
+        assertContentEquals(ByteArray(request.size), request)
+        assertContentEquals(ByteArray(response.size), response)
+    }
+
     @Test
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute routes MakeCredential to handler with master seed session ownership`() =
         runTest {
-            val request = byteArrayOf(CMD_MAKE_CREDENTIAL, 0xA1.toByte(), 0x01, 0x05)
-            val expectedResponse = byteArrayOf(CTAP2_OK) + DUMMY_CBOR
+            val request = own(byteArrayOf(CMD_MAKE_CREDENTIAL, 0xA1.toByte(), 0x01, 0x05))
+            val expectedResponse = expectedCborResponse()
 
             coEvery {
                 makeCredentialHandler.handleRaw(request, any())
             } returns RawCtapResult(expectedResponse, presenceRequired = true)
 
             val result = rawCtapOperation.execute(request)
+            own(result.responseBytes)
 
             assertEquals(CTAP2_OK, result.status)
             assertTrue(result.isSuccess)
@@ -110,15 +164,16 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute routes GetAssertion to handler with master seed session ownership`() =
         runTest {
-            val request = byteArrayOf(CMD_GET_ASSERTION, 0xA1.toByte(), 0x02, 0x06)
-            val requestBody = byteArrayOf(0xA1.toByte(), 0x02, 0x06)
-            val expectedResponse = byteArrayOf(CTAP2_OK) + DUMMY_CBOR
+            val request = own(byteArrayOf(CMD_GET_ASSERTION, 0xA1.toByte(), 0x02, 0x06))
+            val requestBody = own(byteArrayOf(0xA1.toByte(), 0x02, 0x06))
+            val expectedResponse = expectedCborResponse()
 
             coEvery {
                 getAssertionHandler.handleRaw(match { it.contentEquals(requestBody) }, any())
             } returns RawCtapResult(expectedResponse, presenceRequired = false)
 
             val result = rawCtapOperation.execute(request)
+            own(result.responseBytes)
 
             assertEquals(CTAP2_OK, result.status)
             assertTrue(result.isSuccess)
@@ -139,14 +194,15 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute routes GetInfo to responseBuilder without seed ownership`() =
         runTest {
-            val request = byteArrayOf(CMD_GET_INFO)
+            val request = own(byteArrayOf(CMD_GET_INFO))
             val dummyInfo = mockk<AuthenticatorInfo>()
-            val expectedResponse = byteArrayOf(CTAP2_OK) + DUMMY_CBOR
+            val expectedResponse = expectedCborResponse()
 
             coEvery { authenticatorInfoProvider.getAuthenticatorInfo() } returns dummyInfo
             every { responseBuilder.buildGetInfoRawPayload(dummyInfo, any()) } returns expectedResponse
 
             val result = rawCtapOperation.execute(request)
+            own(result.responseBytes)
 
             assertEquals(CTAP2_OK, result.status)
             assertTrue(result.isSuccess)
@@ -162,9 +218,10 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute returns error on unknown command byte`() =
         runTest {
-            val request = byteArrayOf(CMD_UNKNOWN, 0x01, 0x02)
+            val request = own(byteArrayOf(CMD_UNKNOWN, 0x01, 0x02))
 
             val result = rawCtapOperation.execute(request)
+            own(result.responseBytes)
 
             assertEquals(CTAP2_ERR_INVALID_CMD, result.status)
             assertFalse(result.isSuccess)
@@ -175,9 +232,10 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute returns error on empty request`() =
         runTest {
-            val request = ByteArray(0)
+            val request = own(ByteArray(0))
 
             val result = rawCtapOperation.execute(request)
+            own(result.responseBytes)
 
             assertEquals(CTAP2_ERR_INVALID_CMD, result.status)
             assertFalse(result.isSuccess)
@@ -187,7 +245,7 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `execute propagates keepalive callbacks during execution`() =
         runTest {
-            val request = byteArrayOf(CMD_MAKE_CREDENTIAL, 0x01)
+            val request = own(byteArrayOf(CMD_MAKE_CREDENTIAL, 0x01))
             val keepaliveStatuses = mutableListOf<Byte>()
 
             coEvery {
@@ -196,13 +254,14 @@ class RawCtapOperationTest {
                 val callback = secondArg<((Byte) -> Unit)?>()
                 callback?.invoke(STATUS_PROCESSING)
                 callback?.invoke(STATUS_UPNEEDED)
-                RawCtapResult(byteArrayOf(CTAP2_OK), presenceRequired = true)
+                RawCtapResult(own(byteArrayOf(CTAP2_OK)), presenceRequired = true)
             }
 
             val result =
                 rawCtapOperation.execute(request) { status: Byte ->
                     keepaliveStatuses.add(status)
                 }
+            own(result.responseBytes)
 
             assertTrue(result.isSuccess)
             assertEquals(listOf(STATUS_PROCESSING, STATUS_UPNEEDED), keepaliveStatuses)
@@ -212,8 +271,8 @@ class RawCtapOperationTest {
     @Req("FR-BLE-080", "TR-BLE-030")
     fun `classic HID framing regression verifies raw response can be encoded and decoded via HID`() =
         runTest {
-            val cid = byteArrayOf(0x01, 0x02, 0x03, 0x04)
-            val rawPayload = byteArrayOf(CTAP2_OK) + DUMMY_CBOR
+            val cid = own(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+            val rawPayload = expectedCborResponse()
 
             val hidMessage =
                 CtapHidMessage(
@@ -223,15 +282,36 @@ class RawCtapOperationTest {
                 )
 
             val encodedPackets = hidReportParser.encodeResponse(hidMessage)
+            encodedPackets.forEach(::own)
             assertTrue(encodedPackets.isNotEmpty(), "HID packets must not be empty")
             assertEquals(62, encodedPackets.first().size, "HID packet must be 62 bytes")
 
             val parsedResult = hidReportParser.processReport(encodedPackets.first())
             val parsedMessage = parsedResult.getOrThrow()
             assertNotNull(parsedMessage)
+            own(parsedMessage.channelId)
+            own(parsedMessage.payload)
             assertContentEquals(cid, parsedMessage.channelId)
             assertEquals(0x10, parsedMessage.command)
             assertEquals(rawPayload.size, parsedMessage.payload.size)
             assertContentEquals(rawPayload, parsedMessage.payload)
+        }
+
+    @Test
+    fun `get info failure diagnostic omits provider exception content`() =
+        runTest {
+            val marker = "synthetic-provider-secret-marker"
+            coEvery { authenticatorInfoProvider.getAuthenticatorInfo() } throws
+                Fido2Exception.CryptographicException(marker)
+            val diagnostics = CapturedDiagnostics()
+            try {
+                val result = rawCtapOperation.execute(own(byteArrayOf(CMD_GET_INFO)))
+                own(result.responseBytes)
+                assertEquals(0x30.toByte(), result.status)
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(marker)
+            } finally {
+                diagnostics.close()
+            }
         }
 }

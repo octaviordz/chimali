@@ -228,7 +228,7 @@ class RegisterCredentialUseCase(
         } finally {
             if (!transferred) {
                 credentialOwner?.eraseSensitiveText()
-                attestationOwner?.clientData?.eraseSensitiveText()
+                attestationOwner?.eraseSensitiveData()
             }
         }
     }
@@ -387,94 +387,163 @@ class RegisterCredentialUseCase(
      * failures are returned so the caller does not persist an unusable registration.
      */
 
+    @Suppress("TooGenericExceptionCaught") // Partial encoded output must be erased for every failure type.
     private suspend fun createAttestationObject(
         options: MakeCredentialOptions,
         credential: PasskeyCredential,
         userVerificationPerformed: Boolean,
     ): Outcome<AttestationObject, DomainError> {
-        // Compute COSE public key once — used in both authDataBytes (signed) and AuthenticatorData (serialized).
-        // They MUST be the same bytes; signing authDataBytes with a different key than
-        // the COSE key embedded in it causes "Invalid data" on the server.
-        val pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
+        var pubKeyCose: ByteArray? = null
+        var authDataBytes: ByteArray? = null
+        var authData: AuthenticatorData? = null
+        var signature: ByteArray? = null
+        var clientData: ClientData? = null
+        var transferred = false
+        try {
+            // Compute COSE public key once — used in both authDataBytes (signed) and AuthenticatorData.
+            // They MUST be the same bytes; signing authDataBytes with a different key than
+            // the COSE key embedded in it causes "Invalid data" on the server.
+            pubKeyCose = cborCodec.encodeCosePublicKeyFromJavaKey(credential.publicKey)
 
-        // Build authenticatorData per WebAuthn §6.1
-        val authDataBytes =
-            run {
-                val rpIdHash = rpIdHash(options.rp)
-                val flags = createAuthenticatorFlags(userVerificationPerformed)
-                val counter = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
-                val credIdLen =
-                    byteArrayOf(
-                        (credential.credentialId.size shr SHIFT_8).toByte(),
-                        (credential.credentialId.size and BYTE_MASK_FF).toByte(),
+            // Build authenticatorData per WebAuthn §6.1. Temporary pieces are erased after serialization.
+            authDataBytes =
+                run {
+                    val rpIdHash = rpIdHash(options.rp)
+                    val flags = createAuthenticatorFlags(userVerificationPerformed)
+                    val counter = byteArrayOf(0, 0, 0, 0) // 4-byte big-endian sign count = 0
+                    val credIdLen =
+                        byteArrayOf(
+                            (credential.credentialId.size shr SHIFT_8).toByte(),
+                            (credential.credentialId.size and BYTE_MASK_FF).toByte(),
+                        )
+                    val publicKey = requireNotNull(pubKeyCose)
+                    var encoded: ByteArray? = null
+                    try {
+                        val target =
+                            ByteArray(
+                                Math.addExact(
+                                    Math.addExact(
+                                        Math.addExact(
+                                            Math.addExact(
+                                                Math.addExact(rpIdHash.size, flags.size),
+                                                counter.size,
+                                            ),
+                                            credential.aaguid.size,
+                                        ),
+                                        credIdLen.size,
+                                    ),
+                                    Math.addExact(credential.credentialId.size, publicKey.size),
+                                ),
+                            )
+                        encoded = target
+                        var offset = 0
+                        rpIdHash.copyInto(target, offset).also { offset += rpIdHash.size }
+                        flags.copyInto(target, offset).also { offset += flags.size }
+                        counter.copyInto(target, offset).also { offset += counter.size }
+                        credential.aaguid.copyInto(target, offset).also { offset += credential.aaguid.size }
+                        credIdLen.copyInto(target, offset).also { offset += credIdLen.size }
+                        credential.credentialId.copyInto(target, offset)
+                        offset += credential.credentialId.size
+                        publicKey.copyInto(target, offset)
+                        target
+                    } catch (failure: Throwable) {
+                        encoded?.fill(0)
+                        throw failure
+                    } finally {
+                        rpIdHash.fill(0)
+                        flags.fill(0)
+                        counter.fill(0)
+                        credIdLen.fill(0)
+                    }
+                }
+
+            // AuthenticatorData is a separate response owner. In particular its credential ID
+            // must not alias the persisted credential owner, which the caller clears independently.
+            var responseRpIdHash: ByteArray? = rpIdHash(options.rp)
+            var responseFlags: ByteArray? = createAuthenticatorFlags(userVerificationPerformed)
+            var responseAaguid: ByteArray? = null
+            var responseCredentialId: ByteArray? = null
+            try {
+                responseAaguid = credential.aaguid.copyOf()
+                responseCredentialId = credential.credentialId.copyOf()
+                authData =
+                    AuthenticatorData.create(
+                        rpIdHash = requireNotNull(responseRpIdHash),
+                        flags = requireNotNull(responseFlags),
+                        counter = 0L,
+                        aaguid = requireNotNull(responseAaguid),
+                        credentialId = requireNotNull(responseCredentialId),
+                        // reuse — must match bytes in authDataBytes above
+                        publicKey = requireNotNull(pubKeyCose),
                     )
-                java.io
-                    .ByteArrayOutputStream()
-                    .apply {
-                        write(rpIdHash)
-                        write(flags)
-                        write(counter)
-                        write(credential.aaguid)
-                        write(credIdLen)
-                        write(credential.credentialId)
-                        write(pubKeyCose)
-                    }.toByteArray()
+                // The model now owns these independent arrays.
+                responseRpIdHash = null
+                responseFlags = null
+                responseAaguid = null
+                responseCredentialId = null
+            } finally {
+                responseRpIdHash?.fill(0)
+                responseFlags?.fill(0)
+                responseAaguid?.fill(0)
+                responseCredentialId?.fill(0)
             }
 
-        val authData =
-            AuthenticatorData.create(
-                rpIdHash = rpIdHash(options.rp),
-                flags = createAuthenticatorFlags(userVerificationPerformed),
-                counter = 0L,
-                aaguid = credential.aaguid,
-                credentialId = credential.credentialId,
-                // reuse — must match bytes in authDataBytes above
-                publicKey = pubKeyCose,
-            )
+            // For CTAP2, the host already computed the clientDataHash and passed it in options.challenge.
+            // Sign authData || options.challenge with the SAME algorithm as the credential.
+            val descriptor = descriptorFor(credential.id, options.selectedAlgId)
+            val signingInput = requireNotNull(authDataBytes) + options.challenge
+            val signatureResult =
+                try {
+                    cryptoService.sign(
+                        descriptor = descriptor,
+                        data = signingInput,
+                        expectedStoredPublicKey = credential.publicKey.encoded,
+                    )
+                } finally {
+                    signingInput.fill(0)
+                }
 
-        // For CTAP2, the host already computed the clientDataHash and passed it in options.challenge.
-        // Sign authData || options.challenge (clientDataHash) with the SAME algorithm as the credential.
-        // Passing options.selectedAlgId ensures ML-DSA credentials are signed with ML-DSA,
-        // not the default ES256 — a mismatch causes "Invalid data" during server verification.
-        val descriptor = descriptorFor(credential.id, options.selectedAlgId)
-        val signatureResult =
-            cryptoService.sign(
-                descriptor = descriptor,
-                data = authDataBytes + options.challenge,
-                expectedStoredPublicKey = credential.publicKey.encoded,
-            )
-
-        val signature =
             when (signatureResult) {
-                is Outcome.Success -> signatureResult.data
+                is Outcome.Success -> signature = signatureResult.data
                 is Outcome.Error -> return Outcome.Error(signatureResult.error)
             }
 
-        val clientData =
-            ClientData.createFromText(
-                type = "webauthn.create",
-                challenge = options.challenge,
-                origin = options.rp.idText,
-            )
-        var transferred = false
-        try {
-            return Outcome
-                .Success(
-                    AttestationObject.create(
-                        fmt = "packed",
-                        authData = authData,
-                        attStmt =
-                            AttestationStatement.create(
-                                alg = options.selectedAlgId,
-                                fmt = "packed",
-                                attCert = signature,
-                                authData = authDataBytes,
-                            ),
-                        clientData = clientData,
-                    ),
-                ).also { transferred = true }
+            clientData =
+                ClientData.createFromText(
+                    type = "webauthn.create",
+                    challenge = options.challenge,
+                    origin = options.rp.idText,
+                )
+            val result =
+                AttestationObject.create(
+                    fmt = "packed",
+                    authData = requireNotNull(authData),
+                    attStmt =
+                        AttestationStatement.create(
+                            alg = options.selectedAlgId,
+                            fmt = "packed",
+                            attCert = requireNotNull(signature),
+                            authData = requireNotNull(authDataBytes),
+                        ),
+                    clientData = requireNotNull(clientData),
+                )
+            transferred = true
+            return Outcome.Success(result)
         } finally {
-            if (!transferred) clientData.eraseSensitiveText()
+            if (!transferred) {
+                clientData?.eraseSensitiveData()
+                authDataBytes?.fill(0)
+                authData?.let {
+                    it.rpIdHash.fill(0)
+                    it.flags.fill(0)
+                    it.aaguid.fill(0)
+                    it.credentialId.fill(0)
+                    it.publicKey.fill(0)
+                }
+                // If model construction failed, this still owns the unattached encoding buffer.
+                pubKeyCose?.fill(0)
+                signature?.fill(0)
+            }
         }
     }
 

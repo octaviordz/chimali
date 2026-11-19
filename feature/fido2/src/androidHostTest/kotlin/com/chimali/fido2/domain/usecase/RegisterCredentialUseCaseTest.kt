@@ -247,7 +247,8 @@ class RegisterCredentialUseCaseTest {
         fun `self attestation failure is returned before profile persistence`() =
             runTest {
                 var retainedCredential: PasskeyCredential? = null
-                coEvery { cryptoService.sign(any(), any(), any()) } returns
+                val signingInput = slot<ByteArray>()
+                coEvery { cryptoService.sign(any(), capture(signingInput), any()) } returns
                     Outcome.Error(DomainError.CryptoError("synthetic signing failure"))
 
                 val result =
@@ -258,6 +259,7 @@ class RegisterCredentialUseCaseTest {
                     )
 
                 assertTrue(result.isFailure)
+                assertTrue(signingInput.captured.all { it == 0.toByte() }, "failed signing input must be erased")
                 assertCredentialTextErased(requireNotNull(retainedCredential))
                 coVerify(exactly = 0) { credentialRepository.saveCredential(any()) }
             }
@@ -285,6 +287,7 @@ class RegisterCredentialUseCaseTest {
         fun `credential persistence failure erases the retained registration owner`() =
             runTest {
                 var retainedCredential: PasskeyCredential? = null
+                var retainedAttestation: com.chimali.fido2.domain.model.AttestationObject? = null
                 coEvery { credentialRepository.saveCredential(any()) } returns
                     Outcome.Error(DomainError.StorageError("synthetic persistence failure"))
 
@@ -293,10 +296,15 @@ class RegisterCredentialUseCaseTest {
                         testOptions,
                         userVerificationPerformed = true,
                         onCredentialOwned = { retainedCredential = it },
+                        onAttestationOwned = { retainedAttestation = it },
                     )
 
                 assertTrue(result.isFailure)
                 assertCredentialTextErased(requireNotNull(retainedCredential))
+                val attestation = requireNotNull(retainedAttestation)
+                assertTrue(attestation.authData.credentialId.all { it == 0.toByte() })
+                assertTrue(attestation.attStmt.authData?.all { it == 0.toByte() } == true)
+                assertTrue(attestation.attStmt.attCert?.all { it == 0.toByte() } == true)
                 coVerify(exactly = 1) { credentialRepository.saveCredential(any()) }
             }
 
@@ -314,7 +322,7 @@ class RegisterCredentialUseCaseTest {
                 assertNotNull(attestationObject)
                 assertNotNull(credential)
                 assertEquals("packed", attestationObject.fmt)
-                assertEquals(testRp.id.value, credential.rpId.toBoundaryString())
+                assertTrue(testRp.idText.contentEquals(credential.rpId))
                 assertEquals("testuser", credential.userName.toBoundaryString())
 
                 // Verify all expected interactions
@@ -323,6 +331,59 @@ class RegisterCredentialUseCaseTest {
                 coVerify { credentialRepository.validateCredentialCreationForText(any(), any()) }
                 coVerify { credentialRepository.saveCredential(any()) }
                 coVerify { credentialRepository.saveRelyingParty(any()) }
+            }
+
+        @Test
+        fun `credential cleanup preserves independently owned attestation credential ID`() =
+            runTest {
+                val makeResult =
+                    registerCredentialUseCase(testOptions, userVerificationPerformed = true).getOrThrow()
+                val attestation = makeResult.attestationObject
+                val authData = attestation.authData
+                val attStmt = attestation.attStmt
+                val responseCredentialId = authData.credentialId
+                val expectedResponseId = responseCredentialId.copyOf()
+
+                try {
+                    makeResult.credential.eraseSensitiveText()
+
+                    assertContentEquals(
+                        expectedResponseId,
+                        responseCredentialId,
+                        "releasing the persisted credential owner must not erase the response owner's ID",
+                    )
+                } finally {
+                    expectedResponseId.fill(0)
+                    responseCredentialId.fill(0)
+                    authData.rpIdHash.fill(0)
+                    authData.flags.fill(0)
+                    authData.aaguid.fill(0)
+                    authData.publicKey.fill(0)
+                    attStmt.attCert?.fill(0)
+                    attStmt.authData?.fill(0)
+                }
+            }
+
+        @Test
+        fun `result cleanup erases response arrays without erasing borrowed request challenge`() =
+            runTest {
+                val borrowedChallenge = testOptions.challenge.copyOf()
+                val makeResult =
+                    registerCredentialUseCase(testOptions, userVerificationPerformed = true).getOrThrow()
+                val attestation = makeResult.attestationObject
+
+                try {
+                    makeResult.eraseSensitiveText()
+
+                    assertTrue(attestation.authData.credentialId.all { it == 0.toByte() })
+                    assertTrue(attestation.authData.rpIdHash.all { it == 0.toByte() })
+                    assertTrue(attestation.attStmt.authData?.all { it == 0.toByte() } == true)
+                    assertTrue(attestation.attStmt.attCert?.all { it == 0.toByte() } == true)
+                    assertTrue(attestation.clientData.challenge.all { it == 0.toByte() })
+                    assertContentEquals(borrowedChallenge, testOptions.challenge)
+                } finally {
+                    borrowedChallenge.fill(0)
+                }
             }
 
         /** @see NFR-SEC-041 */
@@ -858,8 +919,11 @@ class RegisterCredentialUseCaseTest {
                     )
                 val options = testOptions.copy(rp = unicodeRp, user = unicodeUser)
                 val signedData = slot<ByteArray>()
-                coEvery { cryptoService.sign(any(), capture(signedData), any()) } returns
+                var signedDataBeforeCleanup: ByteArray? = null
+                coEvery { cryptoService.sign(any(), capture(signedData), any()) } coAnswers {
+                    signedDataBeforeCleanup = signedData.captured.copyOf()
                     Outcome.Success(ByteArray(SIGNATURE_SIZE_72) { DUMMY_BYTE_30 })
+                }
                 val credentialSlot = slot<PasskeyCredential>()
                 coEvery { credentialRepository.saveCredential(capture(credentialSlot)) } returns Outcome.Success(Unit)
                 val expectedRpHash =
@@ -874,7 +938,10 @@ class RegisterCredentialUseCaseTest {
                 assertEquals("José", credential.userName.toBoundaryString())
                 assertEquals("José 用户", credential.userDisplayName.toBoundaryString())
                 assertEquals(UserId.fromByteArray(unicodeIdBytes).value, credential.userId.toBoundaryString())
-                assertContentEquals(expectedRpHash, signedData.captured.copyOfRange(0, expectedRpHash.size))
+                val observedSignedData = assertNotNull(signedDataBeforeCleanup)
+                assertContentEquals(expectedRpHash, observedSignedData.copyOfRange(0, expectedRpHash.size))
+                assertTrue(signedData.captured.all { it == 0.toByte() }, "temporary signed input must be erased")
+                observedSignedData.fill(0)
                 assertEquals("München Web", unicodeRp.name)
                 assertEquals("José", unicodeUser.name)
                 credential.eraseSensitiveText()

@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
 value class PasskeyId(
     val value: String,
 ) {
+    override fun toString(): String = "PasskeyId([redacted])"
+
     init {
         require(value.isNotBlank()) { "PasskeyId cannot be blank" }
     }

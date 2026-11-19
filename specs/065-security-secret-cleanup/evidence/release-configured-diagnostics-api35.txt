@@ -1,0 +1,10 @@
+Configured release diagnostic probe — sanitized result
+Date: 2026-11-14 (America/Mexico_City)
+Device: API 35 Android ATD x86_64 emulator-5554; no physical device selected
+Target: release application; test verified DEBUGGABLE absent
+Test: ConfiguredFidoDiagnosticPrivacyTest.configuredWritersRedactSyntheticValuesAndOmitThrowableDetails
+Result: Passed (1 test)
+Assertions: configured app-private output contains redacted INFO/password, WARN/seed and ERROR/password records; Throwable message, cause and stack details are omitted and replaced by the fixed placeholder; the generated synthetic marker and synthetic tag are absent
+Target APK SHA-256: ABC51D568B5540248A9B01D900C20DBC9D7BC8CCF9961EE03FC11D7094855F4E
+Instrumentation APK SHA-256: AECA2B9AD1ABC37A38C3EECE60A8A5C2BFAC8DB3FA9116BB2369A085CF90EE74
+Limitations: configured local-file writer and one controlled synthetic throwable only; exception paths from other sources, rotation, fallback destinations, Logcat release path and full diagnostic matrix remain open.

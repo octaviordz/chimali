@@ -1,15 +1,8 @@
 package com.chimali.core.domain.model
 
 import com.chimali.core.common.annotation.Req
-import com.chimali.core.domain.eventsourcing.vault.SensitiveCharArraySerializer
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 
 /** Mutable text owner shared by RP, consent and candidate metadata; borrowed views reflect terminal erasure. */
-@Serializable(with = SensitiveTextSerializer::class)
 class SensitiveText private constructor(
     private val characters: CharArray,
 ) : CharSequence {
@@ -37,7 +30,7 @@ class SensitiveText private constructor(
 
     /** Returns an independent mutable owner with the same value. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun copyOwner(): SensitiveText = SensitiveText(characters.copyOf())
+    fun copyOwner(): SensitiveText = takeOwnership(characters.copyOf())
 
     /** Erases all owned characters; borrowed views immediately reflect erasure. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -69,11 +62,38 @@ class SensitiveText private constructor(
     companion object {
         /** Copies borrowed text into a new owner; the source remains caller-owned. */
         @Req("NFR-SEC-041", "TR-AUTH-031")
-        fun copyOf(value: CharSequence): SensitiveText = SensitiveText(CharArray(value.length) { value[it] })
+        fun copyOf(value: CharSequence): SensitiveText {
+            val characters = CharArray(value.length)
+            copyCharacters(value, characters)
+            return takeOwnership(characters)
+        }
+
+        /** Copies borrowed text into an owned destination and erases it if the copy does not complete. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun copyCharacters(
+            value: CharSequence,
+            destination: CharArray,
+        ) {
+            var copied = false
+            try {
+                require(destination.size == value.length)
+                for (index in destination.indices) destination[index] = value[index]
+                copied = true
+            } finally {
+                if (!copied) destination.fill('\u0000')
+            }
+        }
 
         /** Consumes an already allocated buffer, including its terminal erasure obligation. */
         @Req("NFR-SEC-041", "TR-AUTH-031")
-        fun takeOwnership(value: CharArray): SensitiveText = SensitiveText(value)
+        fun takeOwnership(value: CharArray): SensitiveText {
+            var transferred = false
+            try {
+                return SensitiveText(value).also { transferred = true }
+            } finally {
+                if (!transferred) value.fill('\u0000')
+            }
+        }
     }
 
     private class View(
@@ -102,37 +122,4 @@ class SensitiveText private constructor(
         @Req("NFR-SEC-041", "TR-AUTH-031")
         override fun toString(): String = "[sensitive text view]"
     }
-}
-
-/** Generic model compatibility only; production FIDO2 persistence uses mutable byte/JSON adapters instead. */
-object SensitiveTextSerializer : KSerializer<SensitiveText> {
-    /** Preserves the model's historical JSON string shape. */
-    override val descriptor: SerialDescriptor = SensitiveCharArraySerializer.descriptor
-
-    /** Borrows the owner, erasing the compatibility serializer's temporary array on every exit. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    override fun serialize(
-        encoder: Encoder,
-        value: SensitiveText,
-    ) = serializeWithTemporaryFactory(encoder, value, SensitiveText::copyCharacters)
-
-    /** Uses an injectable temporary-owner factory so terminal cleanup is directly testable. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    internal fun serializeWithTemporaryFactory(
-        encoder: Encoder,
-        value: SensitiveText,
-        temporaryFactory: (SensitiveText) -> CharArray,
-    ) {
-        val characters = temporaryFactory(value)
-        try {
-            SensitiveCharArraySerializer.serialize(encoder, characters)
-        } finally {
-            characters.fill('\u0000')
-        }
-    }
-
-    /** Transfers the decoded mutable characters to a new owner. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    override fun deserialize(decoder: Decoder): SensitiveText =
-        SensitiveText.takeOwnership(SensitiveCharArraySerializer.deserialize(decoder))
 }

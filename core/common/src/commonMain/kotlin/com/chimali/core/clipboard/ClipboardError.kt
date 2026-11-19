@@ -6,36 +6,35 @@ package com.chimali.core.clipboard
  */
 sealed class ClipboardError(
     message: String? = null,
-    cause: Throwable? = null,
-) : Exception(message, cause) {
+) : Exception(message) {
     /**
      * Clipboard service is unavailable on this platform/device.
      */
     class ClipboardUnavailable : ClipboardError("Clipboard service unavailable")
 
-    /**
-     * Failed to copy data to clipboard.
-     */
-    data class CopyFailed(
-        val reason: String,
-        override val cause: Throwable? = null,
-    ) : ClipboardError("Copy failed: $reason", cause)
+    /** Admission was refused before clipboard publication because receipt capacity is occupied. */
+    class CopyAdmissionRejected : ClipboardError("Copy is temporarily unavailable. Try again later.")
 
-    /**
-     * Failed to clear clipboard.
-     */
-    data class ClearFailed(
-        val reason: String,
-        override val cause: Throwable? = null,
-    ) : ClipboardError("Clear failed: $reason", cause)
+    /** Failed to copy data to clipboard; platform exception text is not retained. */
+    @Suppress("UNUSED_PARAMETER")
+    class CopyFailed(
+        reason: String,
+        cause: Throwable? = null,
+    ) : ClipboardError("Copy failed")
 
-    /**
-     * Platform-specific clipboard error.
-     */
-    data class PlatformError(
-        val platform: String,
-        val errorCode: String?,
-        val errorMessage: String,
-        override val cause: Throwable? = null,
-    ) : ClipboardError("[$platform Error ${errorCode ?: ""}] $errorMessage", cause)
+    /** Failed to clear clipboard; platform exception text is not retained. */
+    @Suppress("UNUSED_PARAMETER")
+    class ClearFailed(
+        reason: String,
+        cause: Throwable? = null,
+    ) : ClipboardError("Clear failed")
+
+    /** Platform-specific clipboard error; platform-provided fields and causes are discarded. */
+    @Suppress("UNUSED_PARAMETER")
+    class PlatformError(
+        platform: String,
+        errorCode: String?,
+        errorMessage: String,
+        cause: Throwable? = null,
+    ) : ClipboardError("Clipboard operation failed")
 }

@@ -63,6 +63,15 @@ class CredentialProcessRestartTest {
         return File(context.filesDir, STORE_PATH.format(testId))
     }
 
+    private fun syntheticUserId(value: String): UserId {
+        val bytes = value.encodeToByteArray()
+        return try {
+            UserId.fromByteArray(bytes)
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun prepareSyntheticCredentialForRestartRecovery() {
@@ -86,6 +95,8 @@ class CredentialProcessRestartTest {
             val crypto = Fido2CryptoService(HdkP256, provider, PostQuantumCrypto(), Dispatchers.Default)
             val challenge = ByteArray(REGISTRATION_CHALLENGE_SIZE) { it.toByte() }
             var driver: app.cash.sqldelight.db.SqlDriver? = null
+            var attestationAuthData: ByteArray? = null
+            var attestationSignature: ByteArray? = null
             try {
                 val store =
                     createCredentialRepository(
@@ -105,26 +116,31 @@ class CredentialProcessRestartTest {
                         settingsRepository = FixedCredentialLimit,
                         clientDataHashService = ClientDataHashService(),
                     )
-                provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
-                    registration(
-                        MakeCredentialOptions.create(
-                            rp = PublicKeyCredentialRpEntity.create(RpId(RP_ID), "Synthetic Restart Test"),
-                            user =
-                                PublicKeyCredentialUserEntity.create(
-                                    UserId.fromByteArray("synthetic-restart-user".encodeToByteArray()),
-                                    "user",
-                                    "Synthetic User",
-                                ),
-                            challenge = challenge,
-                            pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                            selectedAlgId = com.chimali.core.domain.model.CredentialKeyDescriptor.COSE_ES256,
-                        ),
-                    ).getOrThrow()
-                }
+                val result =
+                    provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
+                        registration(
+                            MakeCredentialOptions.create(
+                                rp = PublicKeyCredentialRpEntity.create(RpId(RP_ID), "Synthetic Restart Test"),
+                                user =
+                                    PublicKeyCredentialUserEntity.create(
+                                        syntheticUserId("synthetic-restart-user"),
+                                        "user",
+                                        "Synthetic User",
+                                    ),
+                                challenge = challenge,
+                                pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+                                selectedAlgId = com.chimali.core.domain.model.CredentialKeyDescriptor.COSE_ES256,
+                            ),
+                        ).getOrThrow()
+                    }
+                attestationAuthData = result.attestationObject.attStmt.authData
+                attestationSignature = result.attestationObject.attStmt.attCert
             } finally {
                 provider.clearSession()
                 driver?.close()
                 challenge.fill(0)
+                attestationAuthData?.fill(0)
+                attestationSignature?.fill(0)
             }
         }
     }
@@ -156,6 +172,8 @@ class CredentialProcessRestartTest {
             val challenge = ByteArray(ASSERTION_CHALLENGE_SIZE) { (ASSERTION_CHALLENGE_START + it).toByte() }
             var driver: app.cash.sqldelight.db.SqlDriver? = null
             var assertionMessage: ByteArray? = null
+            var assertionAuthData: ByteArray? = null
+            var assertionSignature: ByteArray? = null
             try {
                 val store =
                     createCredentialRepository(
@@ -196,13 +214,15 @@ class CredentialProcessRestartTest {
                                 userVerification = UserVerificationRequirement.DISCOURAGED,
                             ),
                         ).getOrThrow()
-                    assertionMessage = assertionResult.authData + challenge
+                    assertionAuthData = assertionResult.authData
+                    assertionMessage = requireNotNull(assertionAuthData) + challenge
+                    assertionSignature = assertionResult.signature
                     val verifier = Signature.getInstance("SHA256withECDSA")
                     verifier.initVerify(publicKey)
                     verifier.update(requireNotNull(assertionMessage))
                     assertTrue(
                         "Recovered key must sign after the OS process restart",
-                        verifier.verify(assertionResult.signature),
+                        verifier.verify(requireNotNull(assertionSignature)),
                     )
                     assertArrayEquals(publicKey.encoded, recoveredCredential.publicKey.encoded)
                 }
@@ -213,6 +233,8 @@ class CredentialProcessRestartTest {
                 recoveryFile.parentFile?.deleteRecursively()
                 challenge.fill(0)
                 assertionMessage?.fill(0)
+                assertionAuthData?.fill(0)
+                assertionSignature?.fill(0)
             }
         }
     }

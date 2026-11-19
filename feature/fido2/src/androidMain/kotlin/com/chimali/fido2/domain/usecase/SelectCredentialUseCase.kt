@@ -5,7 +5,6 @@ import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.domain.model.CredentialSummary
-import com.chimali.fido2.domain.model.GetAssertionOptions
 import org.koin.core.annotation.Factory
 
 /**
@@ -22,12 +21,12 @@ import org.koin.core.annotation.Factory
  */
 @Factory
 class SelectCredentialUseCase {
-    /** Selects metadata only, returning a redacted typed error when no candidate exists. */
+    /**
+     * Borrows candidate summaries and returns the selected existing owner by reference.
+     * The caller must erase every candidate after its final borrower completes.
+     */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    suspend operator fun invoke(
-        candidates: List<CredentialSummary>,
-        options: GetAssertionOptions,
-    ): Outcome<CredentialSummary, DomainError> =
+    suspend operator fun invoke(candidates: List<CredentialSummary>): Outcome<CredentialSummary, DomainError> =
         when {
             candidates.isEmpty() ->
                 Outcome.Error(

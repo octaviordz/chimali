@@ -1,11 +1,14 @@
 package com.chimali.fido2.domain.model
 
 import com.chimali.core.common.annotation.Req
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * T039 — Unit tests for [PrfExtensionInput] validation.
@@ -20,6 +23,20 @@ import kotlin.test.assertNull
 class PrfExtensionInputTest {
     private val salt32 = ByteArray(32) { it.toByte() }
     private val salt32b = ByteArray(32) { (it + 1).toByte() }
+
+    @AfterTest
+    fun clearSaltFixtures() {
+        salt32.fill(0)
+        salt32b.fill(0)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesSaltArrays() {
+        clearSaltFixtures()
+
+        assertTrue(salt32.all { it == 0.toByte() })
+        assertTrue(salt32b.all { it == 0.toByte() })
+    }
 
     // ── Valid constructions ───────────────────────────────────────────────────
 
@@ -55,7 +72,7 @@ class PrfExtensionInputTest {
     @Req("NFR-SEC-010", "FR-VAL-020")
     fun salt1_accessor_returnsFirstSalt() {
         val input = PrfExtensionInput.single(salt32)
-        assertEquals(salt32.toList(), input.salt1.toList())
+        assertSame(salt32, input.salt1)
     }
 
     /**
@@ -66,7 +83,7 @@ class PrfExtensionInputTest {
     @Req("NFR-SEC-010", "FR-VAL-020")
     fun salt2_accessor_returnsSecondSalt_whenPresent() {
         val input = PrfExtensionInput.dual(salt32, salt32b)
-        assertEquals(salt32b.toList(), input.salt2?.toList())
+        assertSame(salt32b, input.salt2)
     }
 
     /**
@@ -104,10 +121,14 @@ class PrfExtensionInputTest {
     @Req("NFR-SEC-010", "FR-VAL-020")
     fun threeSalts_throws() {
         val thirdSalt = ByteArray(32) { 0xFF.toByte() }
-        assertFailsWith<IllegalArgumentException>(
-            "More than ${PrfExtensionInput.MAX_SALTS} salts must throw",
-        ) {
-            PrfExtensionInput(listOf(salt32, salt32b, thirdSalt))
+        try {
+            assertFailsWith<IllegalArgumentException>(
+                "More than ${PrfExtensionInput.MAX_SALTS} salts must throw",
+            ) {
+                PrfExtensionInput(listOf(salt32, salt32b, thirdSalt))
+            }
+        } finally {
+            thirdSalt.fill(0)
         }
     }
 

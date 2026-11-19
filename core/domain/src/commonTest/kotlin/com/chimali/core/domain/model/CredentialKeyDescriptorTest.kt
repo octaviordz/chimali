@@ -4,6 +4,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 class CredentialKeyDescriptorTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -50,5 +51,18 @@ class CredentialKeyDescriptorTest {
         assertFailsWith<IllegalArgumentException> {
             CredentialKeyDescriptor(id, CredentialKeyDescriptor.COSE_ES256, "unknown-profile")
         }
+    }
+
+    @Test
+    fun `unknown algorithm error omits the caller supplied algorithm value`() {
+        val marker = 20_261_115
+
+        val error =
+            assertFailsWith<IllegalArgumentException> {
+                CredentialKeyDescriptor.profileFor(marker)
+            }
+
+        assertEquals("Unsupported credential algorithm", error.message)
+        assertFalse(requireNotNull(error.message).contains(marker.toString()))
     }
 }

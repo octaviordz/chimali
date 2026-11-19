@@ -6,18 +6,16 @@ import com.chimali.core.domain.valueobject.RpId
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * Domain model representing a user consent record for FIDO2 operations.
  * This entity tracks user consent for authentication and registration operations.
  */
-@Serializable
 class UserConsentRecord private constructor(
     val id: String,
     val operationType: ConsentOperationType,
-    @SerialName("rpId") private val rpIdOwner: SensitiveText,
+    private val rpIdOwner: SensitiveText,
     val credentialId: CredentialId?,
     val timestamp: Instant,
     val isBiometricUsed: Boolean,
@@ -50,9 +48,6 @@ class UserConsentRecord private constructor(
         userAgent,
         deviceId,
     )
-
-    /** Compatibility/display RP value; persistence and policy code borrow rpIdText. */
-    val rpId: RpId get() = RpId(rpIdOwner.toBoundaryString())
 
     /** Borrowed RP text, valid until this consent owner ends. */
     val rpIdText: SensitiveText get() = rpIdOwner
@@ -197,7 +192,7 @@ class UserConsentRecord private constructor(
             require(ip.length <= MAX_IP_ADDRESS_LENGTH) {
                 "IP address exceeds maximum length of $MAX_IP_ADDRESS_LENGTH"
             }
-            require(isValidIpAddress(ip)) { "Invalid IP address format: $ip" }
+            require(isValidIpAddress(ip)) { "Invalid IP address format" }
         }
 
         userAgent?.let { ua ->
@@ -247,12 +242,6 @@ class UserConsentRecord private constructor(
             isPinUsed -> ConsentMethod.PIN
             else -> ConsentMethod.NONE
         }
-
-    /**
-     * Returns a safe representation of the credential ID.
-     */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getSafeCredentialId(): String = credentialId?.encoded ?: "N/A"
 
     /**
      * Checks if this consent record is for registration.

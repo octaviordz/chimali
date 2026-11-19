@@ -1,19 +1,43 @@
 package com.chimali.core.domain.model
 
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
-import kotlinx.serialization.json.Json
 
 /**
- * Verification of SensitiveText secret ownership, bounds enforcement, terminal erasure, and serialization.
+ * Verification of SensitiveText secret ownership, bounds enforcement, and terminal erasure.
  * Traceable to NFR-SEC-041 and TR-AUTH-031.
  */
-@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 class SensitiveTextTest {
+    @Test
+    fun `failed borrowed text copy erases partially written destination`() {
+        val destination = CharArray(12) { 'x' }
+        val source =
+            object : CharSequence {
+                override val length: Int = destination.size
+
+                override fun get(index: Int): Char {
+                    if (index == 5) error("synthetic conversion failure")
+                    return "marker-value"[index]
+                }
+
+                override fun subSequence(
+                    startIndex: Int,
+                    endIndex: Int,
+                ): CharSequence = throw UnsupportedOperationException("not used by conversion")
+            }
+
+        assertFailsWith<IllegalStateException> {
+            SensitiveText.copyCharacters(source, destination)
+        }
+
+        assertContentEquals(CharArray(destination.size), destination)
+    }
+
     @Test
     fun `copyOf creates independent owner preserving characters`() {
         val source = "secret_password_123"
@@ -34,6 +58,10 @@ class SensitiveTextTest {
         assertEquals(3, text.length)
         assertEquals('a', text[0])
         assertEquals("abc", text.toBoundaryString())
+
+        text.erase()
+
+        assertContentEquals(CharArray(buffer.size), buffer)
     }
 
     @Test
@@ -140,57 +168,5 @@ class SensitiveTextTest {
         assertEquals(a, b)
         assertNotEquals(a, c)
         assertEquals(a.hashCode(), b.hashCode())
-    }
-
-    @Test
-    fun `serializer serializes and deserializes while preserving content`() {
-        val original = SensitiveText.copyOf("json_roundtrip_secret")
-        val encoded = Json.encodeToString(SensitiveTextSerializer, original)
-        val decoded = Json.decodeFromString(SensitiveTextSerializer, encoded)
-
-        assertEquals(original.toBoundaryString(), decoded.toBoundaryString())
-        assertEquals(original, decoded)
-    }
-
-    @Test
-    fun `serializer clears temporary buffer on encoder failure`() {
-        val original = SensitiveText.copyOf("failure_secret")
-        lateinit var temporary: CharArray
-        val throwingEncoder =
-            object : kotlinx.serialization.encoding.AbstractEncoder() {
-                override val serializersModule = kotlinx.serialization.modules.EmptySerializersModule()
-
-                override fun encodeString(value: String): Unit = error("forced encoder failure")
-            }
-        assertFailsWith<IllegalStateException> {
-            SensitiveTextSerializer.serializeWithTemporaryFactory(throwingEncoder, original) { value ->
-                value.copyCharacters().also { temporary = it }
-            }
-        }
-        assertTrue(temporary.all { it == '\u0000' })
-        assertEquals("failure_secret", original.toBoundaryString())
-    }
-
-    @Test
-    fun `serializer clears temporary buffer after successful encoding`() {
-        val original = SensitiveText.copyOf("success_secret")
-        lateinit var temporary: CharArray
-        var encoded: String? = null
-        val encoder =
-            object : kotlinx.serialization.encoding.AbstractEncoder() {
-                override val serializersModule = kotlinx.serialization.modules.EmptySerializersModule()
-
-                override fun encodeString(value: String) {
-                    encoded = value
-                }
-            }
-
-        SensitiveTextSerializer.serializeWithTemporaryFactory(encoder, original) { value ->
-            value.copyCharacters().also { temporary = it }
-        }
-
-        assertEquals("success_secret", encoded)
-        assertTrue(temporary.all { it == '\u0000' })
-        assertEquals("success_secret", original.toBoundaryString())
     }
 }

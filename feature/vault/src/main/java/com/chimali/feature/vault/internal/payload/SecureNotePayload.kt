@@ -1,7 +1,7 @@
 package com.chimali.feature.vault.internal.payload
 
 /** FR-VAULT-026: owns its arrays; copies transfer independent ownership. */
-data class SecureNotePayload(
+class SecureNotePayload(
     val title: CharArray,
     val content: CharArray,
     val customFields: List<CustomField>? = null,
@@ -25,6 +25,13 @@ data class SecureNotePayload(
             content = content.copyOf(),
             customFields = customFields?.map { it.copyForEditing() },
         )
+
+    /** Default arrays and nested fields are copied; explicitly supplied owners transfer to the result. */
+    fun copy(
+        title: CharArray = this.title.copyOf(),
+        content: CharArray = this.content.copyOf(),
+        customFields: List<CustomField>? = this.customFields?.map { it.copyForEditing() },
+    ): SecureNotePayload = SecureNotePayload(title, content, customFields)
 
     override fun toString(): String = "SecureNotePayload([redacted])"
 

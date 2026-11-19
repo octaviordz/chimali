@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.crypto
 
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
  */
 class PqcSigningTest {
     private val pqc = PostQuantumCrypto()
+    private val ownedTestBuffers = mutableListOf<ByteArray>()
 
     private companion object {
         private const val SEED_SIZE_32 = 32
@@ -34,6 +36,16 @@ class PqcSigningTest {
         private const val DUMMY_BYTE_12 = 0x12.toByte()
         private const val DUMMY_BYTE_55 = 0x55.toByte()
     }
+
+    @AfterTest
+    fun eraseSyntheticKeyAndMessageBuffers() {
+        ownedTestBuffers.forEach { it.fill(0) }
+        ownedTestBuffers.clear()
+    }
+
+    private fun own(buffer: ByteArray): ByteArray = buffer.also(ownedTestBuffers::add)
+
+    private fun seed(fill: (Int) -> Byte): ByteArray = own(ByteArray(SEED_SIZE_32, fill))
 
     // ── Provider availability ─────────────────────────────────────────────────
 
@@ -51,25 +63,23 @@ class PqcSigningTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun sameSeedProducesSamePublicKey() {
-        val seed = ByteArray(SEED_SIZE_32) { it.toByte() }
+        val seed = seed { it.toByte() }
 
         val kp1 = pqc.generateMlDsaKeyPair(seed)
         val kp2 = pqc.generateMlDsaKeyPair(seed)
 
         assertNotNull(kp1, "Key pair must not be null")
         assertNotNull(kp2, "Key pair must not be null")
-        assertContentEquals(
-            pqc.publicKeyBytes(kp1!!),
-            pqc.publicKeyBytes(kp2!!),
-            "Same seed must produce the same public key (KAT)",
-        )
+        val publicKey1 = own(pqc.publicKeyBytes(kp1!!))
+        val publicKey2 = own(pqc.publicKeyBytes(kp2!!))
+        assertContentEquals(publicKey1, publicKey2, "Same seed must produce the same public key (KAT)")
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun differentSeedsProduceDifferentKeys() {
-        val seed1 = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_01 }
-        val seed2 = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_02 }
+        val seed1 = seed { DUMMY_BYTE_01 }
+        val seed2 = seed { DUMMY_BYTE_02 }
 
         val kp1 = pqc.generateMlDsaKeyPair(seed1)
         val kp2 = pqc.generateMlDsaKeyPair(seed2)
@@ -77,7 +87,7 @@ class PqcSigningTest {
         assertNotNull(kp1)
         assertNotNull(kp2)
         assertFalse(
-            pqc.publicKeyBytes(kp1!!).contentEquals(pqc.publicKeyBytes(kp2!!)),
+            own(pqc.publicKeyBytes(kp1!!)).contentEquals(own(pqc.publicKeyBytes(kp2!!))),
             "Different seeds must produce different public keys",
         )
     }
@@ -87,50 +97,47 @@ class PqcSigningTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun signAndVerifyRoundTripSucceeds() {
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_AB }
-        val message = "authData||clientDataHash mock content".toByteArray()
+        val seed = seed { DUMMY_BYTE_AB }
+        val message = own("synthetic authData and clientDataHash bytes".toByteArray())
 
         val kp = pqc.generateMlDsaKeyPair(seed)
         assertNotNull(kp)
 
-        val signature = pqc.sign(kp!!.private, message)
-        assertNotNull(signature, "Signature must not be null")
+        val signature = own(requireNotNull(pqc.sign(kp!!.private, message)))
 
-        val valid = pqc.verify(kp.public, message, signature!!)
+        val valid = pqc.verify(kp.public, message, signature)
         assertTrue(valid, "Signature must verify against the original message")
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun verifyTamperedMessageReturnsFalse() {
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_CD }
-        val originalMessage = "original-auth-data".toByteArray()
-        val tamperedMessage = "tampered-auth-data".toByteArray()
+        val seed = seed { DUMMY_BYTE_CD }
+        val originalMessage = own("synthetic-original-auth-data".toByteArray())
+        val tamperedMessage = own("synthetic-tampered-auth-data".toByteArray())
 
         val kp = pqc.generateMlDsaKeyPair(seed)
-        val signature = pqc.sign(kp!!.private, originalMessage)
-        assertNotNull(signature)
+        val signature = own(requireNotNull(pqc.sign(kp!!.private, originalMessage)))
 
-        val valid = pqc.verify(kp.public, tamperedMessage, signature!!)
+        val valid = pqc.verify(kp.public, tamperedMessage, signature)
         assertFalse(valid, "Verification of a tampered message must fail")
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun verifyWrongKeyReturnsFalse() {
-        val seed1 = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_EF }
-        val seed2 = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_12 }
-        val message = "some-challenge-bytes".toByteArray()
+        val seed1 = seed { DUMMY_BYTE_EF }
+        val seed2 = seed { DUMMY_BYTE_12 }
+        val message = own("synthetic-challenge-bytes".toByteArray())
 
         val kp1 = pqc.generateMlDsaKeyPair(seed1)
         val kp2 = pqc.generateMlDsaKeyPair(seed2)
         assertNotNull(kp1)
         assertNotNull(kp2)
 
-        val signature = pqc.sign(kp1!!.private, message)
-        assertNotNull(signature)
+        val signature = own(requireNotNull(pqc.sign(kp1!!.private, message)))
 
-        val valid = pqc.verify(kp2!!.public, message, signature!!)
+        val valid = pqc.verify(kp2!!.public, message, signature)
         assertFalse(valid, "Verification with a mismatched public key must fail")
     }
 
@@ -140,10 +147,10 @@ class PqcSigningTest {
     @Test
     fun publicKeyBytesHasExpectedMinimumLength() {
         // ML-DSA-65 public keys are 1952 bytes in SubjectPublicKeyInfo DER format
-        val seed = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_55 }
+        val seed = seed { DUMMY_BYTE_55 }
         val kp = pqc.generateMlDsaKeyPair(seed)
         assertNotNull(kp)
-        val keyBytes = pqc.publicKeyBytes(kp!!)
+        val keyBytes = own(pqc.publicKeyBytes(kp!!))
         assertTrue(
             keyBytes.size >= MIN_PUB_KEY_SIZE_1952,
             "ML-DSA-65 public key DER must be at least 1952 bytes, was ${keyBytes.size}",

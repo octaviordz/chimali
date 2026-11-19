@@ -25,7 +25,6 @@ import androidx.compose.ui.test.performTextInput
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.lifecycle.ViewModelStore
 import androidx.test.platform.app.InstrumentationRegistry
-import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.common.datastore.EncryptionWrapper
 import com.chimali.core.common.datastore.createUserPreferencesDataStore
 import com.chimali.core.security.api.ImportMnemonicResult
@@ -249,17 +248,7 @@ class DevelopmentToolsScreenTest {
         assertEquals(ImportMnemonicResult.Created, importResult)
         assertTrue(importBuffer.all { it == '\u0000' })
 
-        val clipboard =
-            object : ClipboardManagerService {
-                override suspend fun copySensitiveData(
-                    label: String,
-                    text: String,
-                    clearDelayMs: Long,
-                ): Result<Unit> = Result.success(Unit)
-
-                override suspend fun clearClipboard(): Result<Unit> = Result.success(Unit)
-            }
-        val viewModel = DevToolsViewModel(provider, clipboard)
+        val viewModel = DevToolsViewModel(provider)
         val viewModelStore = ViewModelStore().apply { put("dev-tools", viewModel) }
         val screenVisible = mutableStateOf(true)
         var biometricSuccess: (() -> Unit)? = null

@@ -5,6 +5,7 @@ import com.chimali.core.domain.valueobject.RpId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class GetAssertionOptionsTest {
@@ -50,9 +51,31 @@ class GetAssertionOptionsTest {
 
         original.eraseSensitiveText()
 
-        assertEquals(rpId, copy.rpId)
+        assertTrue(copy.rpIdText.contentEquals(rpId.value))
         copy.eraseSensitiveText()
-        assertTrue(copy.rpId.value.all { it == '\u0000' })
+        assertTrue(copy.rpIdText.all { it == '\u0000' })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `request exposes no immutable RP ID compatibility getter`() {
+        assertFalse(GetAssertionOptions::class.java.declaredMethods.any { it.name == "getRpId" })
+        assertFalse(SensitiveCredentialText::class.java.declaredMethods.any { it.name == "toRpId" })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `text boundary accessor borrows current owner contents`() {
+        val options = GetAssertionOptions.create(rpId, clientDataHash)
+        try {
+            assertEquals("example.com", options.rpIdForTextBoundary())
+            options.eraseSensitiveText()
+            assertEquals("\u0000".repeat(rpId.value.length), options.rpIdForTextBoundary())
+        } finally {
+            options.eraseSensitiveText()
+        }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -82,11 +105,11 @@ class GetAssertionOptionsTest {
             )
         }
         assertTrue(failedCopyOwners.single().copyCharacters().all { it == '\u0000' })
-        assertEquals(rpId, original.rpId)
+        assertTrue(original.rpIdText.contentEquals(rpId.value))
 
         val validCopy = original.copy()
         original.eraseSensitiveText()
-        assertEquals(rpId, validCopy.rpId)
+        assertTrue(validCopy.rpIdText.contentEquals(rpId.value))
         validCopy.eraseSensitiveText()
     }
 }

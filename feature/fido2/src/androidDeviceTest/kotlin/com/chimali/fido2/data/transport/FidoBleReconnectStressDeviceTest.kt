@@ -40,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -65,6 +66,14 @@ private const val GC_OBSERVATION_DELAY_MILLIS = 100L
 @Req("FR-BLE-050", "FR-BLE-060", "FR-BLE-070", "TR-BLE-020", "TR-BLE-030")
 @Suppress("MagicNumber")
 class FidoBleReconnectStressDeviceTest {
+    private var physicalCorpusTestStarted = false
+
+    @After
+    fun clearPhysicalCorpusFixtures() {
+        if (!physicalCorpusTestStarted) return
+        runCatching { PhysicalCorpusVectors.clear() }
+    }
+
     @Test(timeout = 2_700_000)
     @SuppressLint("MissingPermission") // The test grants platform-specific BLE permissions before scanning.
     fun remoteFidoGattServiceSupportsFiftyDiscoverDisconnectReconnectCycles() {
@@ -138,6 +147,7 @@ class FidoBleReconnectStressDeviceTest {
                 "Set runFidoBlePhysicalCorpusServer=true only on the ASUS FIDO BLE test endpoint.",
                 InstrumentationRegistry.getArguments().getString("runFidoBlePhysicalCorpusServer") == "true",
             )
+            physicalCorpusTestStarted = true
             val instrumentation = InstrumentationRegistry.getInstrumentation()
             val context = instrumentation.targetContext
             grantServerPermissions(instrumentation, context)
@@ -267,6 +277,9 @@ class FidoBleReconnectStressDeviceTest {
                 memorySampler.cancel()
                 transport.disconnect()
                 scope.cancel()
+                operation.clearRecordedRequests()
+                recordingResponseSender.clearRecordedNotifications()
+                PhysicalCorpusVectors.clear()
             }
         }
 
@@ -277,63 +290,67 @@ class FidoBleReconnectStressDeviceTest {
         batchNumber: Int,
     ): Pair<Int, Int> {
         val requests = synchronized(operation.requests) { operation.requests.map { it.copyOf() } }
-        val requestIndex = if (batchNumber == 1) 3 else 0
-        assertEquals(
-            "Reconnect batch $batchNumber request count differed",
-            RECONNECT_CYCLE_COUNT + requestIndex,
-            requests.size,
-        )
-        if (batchNumber == 1) {
-            assertArrayEquals(PhysicalCorpusVectors.makeCredentialRequest, requests[0])
-            assertArrayEquals(PhysicalCorpusVectors.getAssertionRequest, requests[1])
-            assertArrayEquals(PhysicalCorpusVectors.getAssertionRequest, requests[2])
-        }
-        requests.drop(requestIndex).forEachIndexed { index, request ->
-            assertArrayEquals(
-                "Reconnect batch $batchNumber GetInfo request ${index + 1} differed",
-                PhysicalCorpusVectors.getInfoRequest,
-                request,
-            )
-        }
         val notifications = responseSender.notificationValues()
-        val actualResponseFrames = notifications.filter { it.firstOrNull() != BleGattTransport.CMD_KEEPALIVE }
-        val expectedResponseFrames =
-            buildList {
-                if (batchNumber == 1) {
-                    addAll(
-                        FidoBleFraming.fragmentResponse(
-                            BleGattTransport.CMD_MSG,
-                            PhysicalCorpusVectors.makeCredentialResponse,
-                            sessionOwner.notifyCapacity,
-                        ),
-                    )
-                    addAll(
-                        FidoBleFraming.fragmentResponse(
-                            BleGattTransport.CMD_MSG,
-                            PhysicalCorpusVectors.getAssertionResponse,
-                            sessionOwner.notifyCapacity,
-                        ),
-                    )
-                }
-                repeat(RECONNECT_CYCLE_COUNT) {
-                    addAll(
-                        FidoBleFraming.fragmentResponse(
-                            BleGattTransport.CMD_MSG,
-                            PhysicalCorpusVectors.getInfoResponse,
-                            sessionOwner.notifyCapacity,
-                        ),
-                    )
-                }
+        val expectedResponseFrames = mutableListOf<ByteArray>()
+        try {
+            val requestIndex = if (batchNumber == 1) 3 else 0
+            assertEquals(
+                "Reconnect batch $batchNumber request count differed",
+                RECONNECT_CYCLE_COUNT + requestIndex,
+                requests.size,
+            )
+            if (batchNumber == 1) {
+                assertArrayEquals(PhysicalCorpusVectors.makeCredentialRequest, requests[0])
+                assertArrayEquals(PhysicalCorpusVectors.getAssertionRequest, requests[1])
+                assertArrayEquals(PhysicalCorpusVectors.getAssertionRequest, requests[2])
             }
-        assertEquals(
-            "Reconnect batch $batchNumber CTAP response notification count differed",
-            expectedResponseFrames.size,
-            actualResponseFrames.size,
-        )
-        expectedResponseFrames.zip(actualResponseFrames).forEachIndexed { index, (expected, actual) ->
-            assertArrayEquals("Reconnect batch $batchNumber response ${index + 1} differed", expected, actual)
+            requests.drop(requestIndex).forEachIndexed { index, request ->
+                assertArrayEquals(
+                    "Reconnect batch $batchNumber GetInfo request ${index + 1} differed",
+                    PhysicalCorpusVectors.getInfoRequest,
+                    request,
+                )
+            }
+            val actualResponseFrames = notifications.filter { it.firstOrNull() != BleGattTransport.CMD_KEEPALIVE }
+            if (batchNumber == 1) {
+                expectedResponseFrames.addAll(
+                    FidoBleFraming.fragmentResponse(
+                        BleGattTransport.CMD_MSG,
+                        PhysicalCorpusVectors.makeCredentialResponse,
+                        sessionOwner.notifyCapacity,
+                    ),
+                )
+                expectedResponseFrames.addAll(
+                    FidoBleFraming.fragmentResponse(
+                        BleGattTransport.CMD_MSG,
+                        PhysicalCorpusVectors.getAssertionResponse,
+                        sessionOwner.notifyCapacity,
+                    ),
+                )
+            }
+            repeat(RECONNECT_CYCLE_COUNT) {
+                expectedResponseFrames.addAll(
+                    FidoBleFraming.fragmentResponse(
+                        BleGattTransport.CMD_MSG,
+                        PhysicalCorpusVectors.getInfoResponse,
+                        sessionOwner.notifyCapacity,
+                    ),
+                )
+            }
+            assertEquals(
+                "Reconnect batch $batchNumber CTAP response notification count differed",
+                expectedResponseFrames.size,
+                actualResponseFrames.size,
+            )
+            expectedResponseFrames.zip(actualResponseFrames).forEachIndexed { index, (expected, actual) ->
+                assertArrayEquals("Reconnect batch $batchNumber response ${index + 1} differed", expected, actual)
+            }
+            return requests.size to notifications.size
+        } finally {
+            requests.forEach { it.fill(0) }
+            notifications.forEach { it.fill(0) }
+            expectedResponseFrames.forEach { it.fill(0) }
         }
-        return requests.size to notifications.size
     }
 
     private class PhysicalCorpusOperation(
@@ -345,7 +362,11 @@ class FidoBleReconnectStressDeviceTest {
         val requests = mutableListOf<ByteArray>()
         private val requestCount = AtomicInteger()
 
-        fun clearRecordedRequests() = synchronized(requests) { requests.clear() }
+        fun clearRecordedRequests() =
+            synchronized(requests) {
+                requests.forEach { it.fill(0) }
+                requests.clear()
+            }
 
         fun totalRequestCount(): Int = requestCount.get()
 
@@ -428,7 +449,11 @@ class FidoBleReconnectStressDeviceTest {
 
         fun notificationValues(): List<ByteArray> = synchronized(notifications) { notifications.map { it.copyOf() } }
 
-        fun clearRecordedNotifications() = synchronized(notifications) { notifications.clear() }
+        fun clearRecordedNotifications() =
+            synchronized(notifications) {
+                notifications.forEach { it.fill(0) }
+                notifications.clear()
+            }
 
         fun totalNotificationCount(): Int = acceptedNotificationCount.get()
     }
@@ -441,21 +466,41 @@ class FidoBleReconnectStressDeviceTest {
         val getInfoRequest = byteArrayOf(0x04)
         val getInfoResponse = byteArrayOf(0, 0xA1.toByte(), 1, 0x81.toByte(), 0x67) + "FIDO_2_0".encodeToByteArray()
 
+        fun clear() {
+            makeCredentialRequest.fill(0)
+            makeCredentialResponse.fill(0)
+            getAssertionRequest.fill(0)
+            getAssertionResponse.fill(0)
+            getInfoRequest.fill(0)
+            getInfoResponse.fill(0)
+        }
+
         private fun createGetAssertionRequest(): ByteArray {
+            val rpId = "example.com".encodeToByteArray()
+            val clientDataHash = ByteArray(32) { (it + 1).toByte() }
             val credentialId = ByteArray(16) { (0xA0 + it).toByte() }
-            return byteArrayOf(0x02, 0xA3.toByte(), 1, 0x6B) +
-                "example.com".encodeToByteArray() +
-                byteArrayOf(2, 0x58, 0x20) +
-                ByteArray(32) { (it + 1).toByte() } +
-                byteArrayOf(3, 0x81.toByte(), 0xA2.toByte(), 0x64, 0x74, 0x79, 0x70, 0x65, 0x6A) +
-                "public-key".encodeToByteArray() +
-                byteArrayOf(0x62, 0x69, 0x64, 0x50) + ByteArray(16) { (0xA0 + it).toByte() }
+            val rpIdTextKey = "public-key".encodeToByteArray()
+            return try {
+                byteArrayOf(0x02, 0xA3.toByte(), 1, 0x6B) +
+                    rpId +
+                    byteArrayOf(2, 0x58, 0x20) +
+                    clientDataHash +
+                    byteArrayOf(3, 0x81.toByte(), 0xA2.toByte(), 0x64, 0x74, 0x79, 0x70, 0x65, 0x6A) +
+                    rpIdTextKey +
+                    byteArrayOf(0x62, 0x69, 0x64, 0x50) + credentialId
+            } finally {
+                rpId.fill(0)
+                clientDataHash.fill(0)
+                credentialId.fill(0)
+                rpIdTextKey.fill(0)
+            }
         }
 
         private fun createGetAssertionResponse(): ByteArray {
-            val authenticatorData =
-                MessageDigest.getInstance("SHA-256").digest("example.com".encodeToByteArray()) +
-                    byteArrayOf(1, 0, 0, 0, 0)
+            val rpId = "example.com".encodeToByteArray()
+            val rpIdHash = MessageDigest.getInstance("SHA-256").digest(rpId)
+            val clientDataHash = ByteArray(32) { (it + 1).toByte() }
+            val authenticatorData = rpIdHash + byteArrayOf(1, 0, 0, 0, 0)
             val signature =
                 (
                     "3046022100E1468C2B5215BD30923C5AAFDDE652A4E393EB8D0D0FAA848D7B2BA46C5AD17B" +
@@ -474,10 +519,20 @@ class FidoBleReconnectStressDeviceTest {
                 )
             val verifier = Signature.getInstance("SHA256withECDSA")
             verifier.initVerify(key)
-            verifier.update(authenticatorData + ByteArray(32) { (it + 1).toByte() })
-            check(verifier.verify(signature)) { "GetAssertion signature fixture is invalid" }
-            return byteArrayOf(0, 0xA2.toByte(), 2, 0x58, authenticatorData.size.toByte()) +
-                authenticatorData + byteArrayOf(3, 0x58, signature.size.toByte()) + signature
+            val signedMessage = authenticatorData + clientDataHash
+            return try {
+                verifier.update(signedMessage)
+                check(verifier.verify(signature)) { "GetAssertion signature fixture is invalid" }
+                byteArrayOf(0, 0xA2.toByte(), 2, 0x58, authenticatorData.size.toByte()) +
+                    authenticatorData + byteArrayOf(3, 0x58, signature.size.toByte()) + signature
+            } finally {
+                rpId.fill(0)
+                rpIdHash.fill(0)
+                clientDataHash.fill(0)
+                authenticatorData.fill(0)
+                signedMessage.fill(0)
+                signature.fill(0)
+            }
         }
 
         private fun createMakeCredentialRequest(): ByteArray {
@@ -487,30 +542,58 @@ class FidoBleReconnectStressDeviceTest {
             val userId = ByteArray(16) { (it + 1).toByte() }
             val userName = "alice".encodeToByteArray()
             val displayName = "Alice Example".encodeToByteArray()
-            return byteArrayOf(1, 0xA4.toByte(), 1, 0x58, 0x20) + clientDataHash +
-                byteArrayOf(2, 0xA2.toByte(), 0x62, 0x69, 0x64, 0x6B) + rpId +
-                byteArrayOf(0x64, 0x6E, 0x61, 0x6D, 0x65, 0x67) + rpName +
-                byteArrayOf(3, 0xA3.toByte(), 0x62, 0x69, 0x64, 0x50) + userId +
-                byteArrayOf(0x64, 0x6E, 0x61, 0x6D, 0x65, 0x65) + userName +
-                byteArrayOf(0x6B, 0x64, 0x69, 0x73, 0x70, 0x6C, 0x61, 0x79, 0x4E, 0x61, 0x6D, 0x65, 0x6D) +
-                displayName + byteArrayOf(4, 0x81.toByte(), 0xA2.toByte(), 0x64, 0x74, 0x79, 0x70, 0x65, 0x6A) +
-                "public-key".encodeToByteArray() + byteArrayOf(0x63, 0x61, 0x6C, 0x67, 0x26)
+            val rpIdNameKey = "public-key".encodeToByteArray()
+            return try {
+                byteArrayOf(1, 0xA4.toByte(), 1, 0x58, 0x20) + clientDataHash +
+                    byteArrayOf(2, 0xA2.toByte(), 0x62, 0x69, 0x64, 0x6B) + rpId +
+                    byteArrayOf(0x64, 0x6E, 0x61, 0x6D, 0x65, 0x67) + rpName +
+                    byteArrayOf(3, 0xA3.toByte(), 0x62, 0x69, 0x64, 0x50) + userId +
+                    byteArrayOf(0x64, 0x6E, 0x61, 0x6D, 0x65, 0x65) + userName +
+                    byteArrayOf(0x6B, 0x64, 0x69, 0x73, 0x70, 0x6C, 0x61, 0x79, 0x4E, 0x61, 0x6D, 0x65, 0x6D) +
+                    displayName + byteArrayOf(4, 0x81.toByte(), 0xA2.toByte(), 0x64, 0x74, 0x79, 0x70, 0x65, 0x6A) +
+                    rpIdNameKey + byteArrayOf(0x63, 0x61, 0x6C, 0x67, 0x26)
+            } finally {
+                clientDataHash.fill(0)
+                rpId.fill(0)
+                rpName.fill(0)
+                userId.fill(0)
+                userName.fill(0)
+                displayName.fill(0)
+                rpIdNameKey.fill(0)
+            }
         }
 
         private fun createMakeCredentialResponse(): ByteArray {
-            val rpIdHash = MessageDigest.getInstance("SHA-256").digest("example.com".encodeToByteArray())
+            val rpId = "example.com".encodeToByteArray()
+            val rpIdHash = MessageDigest.getInstance("SHA-256").digest(rpId)
             val credentialId = ByteArray(16) { (0xA0 + it).toByte() }
+            val xCoordinate =
+                "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296".hexBytes()
+            val yCoordinate =
+                "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5".hexBytes()
             val cosePublicKey =
                 byteArrayOf(0xA5.toByte(), 1, 2, 3, 0x26, 0x20, 1, 0x21, 0x58, 0x20) +
-                    "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296".hexBytes() +
+                    xCoordinate +
                     byteArrayOf(0x22, 0x58, 0x20) +
-                    "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5".hexBytes()
+                    yCoordinate
             val authData =
                 rpIdHash + byteArrayOf(0x41, 0, 0, 0, 0) + ByteArray(16) +
                     byteArrayOf(0, credentialId.size.toByte()) + credentialId + cosePublicKey
-            check(authData.size == 148)
-            return byteArrayOf(0, 0xA3.toByte(), 1, 0x64) + "none".encodeToByteArray() +
-                byteArrayOf(2, 0x58, authData.size.toByte()) + authData + byteArrayOf(3, 0xA0.toByte())
+            val attestationFormat = "none".encodeToByteArray()
+            return try {
+                check(authData.size == 148)
+                byteArrayOf(0, 0xA3.toByte(), 1, 0x64) + attestationFormat +
+                    byteArrayOf(2, 0x58, authData.size.toByte()) + authData + byteArrayOf(3, 0xA0.toByte())
+            } finally {
+                rpId.fill(0)
+                rpIdHash.fill(0)
+                credentialId.fill(0)
+                xCoordinate.fill(0)
+                yCoordinate.fill(0)
+                cosePublicKey.fill(0)
+                authData.fill(0)
+                attestationFormat.fill(0)
+            }
         }
 
         private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()

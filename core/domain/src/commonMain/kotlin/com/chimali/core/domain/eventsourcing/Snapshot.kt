@@ -25,4 +25,8 @@ data class Snapshot<T>(
      * The point in time when this snapshot was created.
      */
     val timestamp: Instant,
-)
+) {
+    /** Avoid exposing aggregate identifiers or materialized state through generic diagnostics. */
+    override fun toString(): String =
+        "Snapshot(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, state=<redacted>, timestamp=$timestamp)"
+}

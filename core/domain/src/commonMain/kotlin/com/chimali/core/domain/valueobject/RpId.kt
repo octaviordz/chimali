@@ -15,4 +15,7 @@ value class RpId(
     init {
         require(value.isNotBlank()) { "RpId cannot be blank" }
     }
+
+    /** Avoid exposing this relying-party identifier through generic logging or object formatting. */
+    override fun toString(): String = "RpId(<redacted>)"
 }

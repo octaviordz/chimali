@@ -5,17 +5,8 @@ import co.touchlab.kermit.Logger
 /**
  * Centralised registry of Bluetooth HID connection tuning parameters.
  *
- * Resolves a [BluetoothHidConfig] once at startup based on the local device's
- * manufacturer and model. All consumers read from [config] instead of
- * hard-coding magic numbers.
- *
- * ## Adding a new device profile
- *
- * 1. Create a private factory function (e.g. `samsungConfig()`) that returns a
- *    [BluetoothHidConfig] with only the fields that differ from the defaults.
- * 2. Add a private matcher function (e.g. `isSamsung()`).
- * 3. Wire both into [resolveConfig].
- * 4. Document the device, observed symptom, and tuning rationale in KDoc.
+ * Resolves the shared default [BluetoothHidConfig] once at startup. All consumers
+ * read from [config] instead of hard-coding magic numbers.
  */
 object BluetoothHidConfigProvider {
     /**
@@ -29,42 +20,9 @@ object BluetoothHidConfigProvider {
     // ── Config resolution ────────────────────────────────────────────────────
 
     private fun resolveConfig(): BluetoothHidConfig {
-        val manufacturer =
-            android.os.Build.MANUFACTURER
-                .orEmpty()
-                .lowercase()
-        val model =
-            android.os.Build.MODEL
-                .orEmpty()
-                .lowercase()
-
-        // For now a single default configuration is used for all devices.
-        // Add OEM-specific branches here as evidence demands, e.g.:
-        //
-        //   isMotorola(manufacturer, model) -> motorolaConfig()
-        //   isAsus(manufacturer, model)     -> asusConfig()
-        //
         val resolved = BluetoothHidConfig()
 
-        Logger.i {
-            val mfr = manufacturer.ifEmpty { "<unknown>" }
-            val mdl = model.ifEmpty { "<unknown>" }
-            "BluetoothHidConfigProvider: resolved config for manufacturer=$mfr model=$mdl → $resolved"
-        }
+        Logger.i { "BluetoothHidConfigProvider: connection configuration resolved" }
         return resolved
     }
-
-    // ── Private matchers (ready for future OEM profiles) ─────────────────────
-
-    @Suppress("unused") // Kept as scaffolding for future OEM-specific configs
-
-    private fun isMotorola(manufacturer: String, model: String): Boolean =
-        manufacturer.startsWith("moto") ||
-            manufacturer.contains("motorola") ||
-            model.startsWith("moto")
-
-    @Suppress("unused") // Kept as scaffolding for future OEM-specific configs
-
-    private fun isAsus(manufacturer: String, model: String): Boolean =
-        manufacturer.contains("asus")
 }

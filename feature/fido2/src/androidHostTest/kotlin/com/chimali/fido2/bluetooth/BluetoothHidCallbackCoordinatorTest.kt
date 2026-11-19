@@ -9,11 +9,18 @@ import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.content.Intent
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.exception.Fido2Exception
+import com.chimali.fido2.util.logging.LocalCrashReportingLogWriter
+import com.chimali.fido2.util.logging.LogDirectoryProvider
+import com.chimali.fido2.util.logging.PrivacyScrubbingLogWriter
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -37,13 +44,236 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import okio.Path
+import okio.Path.Companion.toOkioPath
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 
 /** Verifies host admission and callback ownership using virtual time and Android platform doubles. */
 @Req("FR-HID-010", "FR-HID-020")
+@Suppress("LargeClass")
 class BluetoothHidCallbackCoordinatorTest {
+    @TempDir
+    lateinit var tempDir: File
+
+    @Test
+    fun `diagnostic snapshot does not emit paired device addresses`() =
+        runTest {
+            val host = host()
+            val hid =
+                mockk<BluetoothHidDevice>(relaxed = true) {
+                    every { getConnectedDevices() } returns listOf(host)
+                    every { getConnectionState(host) } returns BluetoothProfile.STATE_CONNECTED
+                }
+            val adapter =
+                mockk<BluetoothAdapter> {
+                    every { bondedDevices } returns setOf(host)
+                }
+            val owner =
+                RecordingOwner(this).apply {
+                    hidDevice = hid
+                    bluetoothAdapter = adapter
+                    connectedDevice = host
+                    pendingBondDevice = host
+                    connectionState.value = HidConnectionState.Connecting(host)
+                }
+            val captured = mutableListOf<String>()
+            val capturedWriter =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += message
+                    }
+                }
+            val localLog = tempDir.resolve("logs/fido2_crash_log.txt")
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(
+                    LocalCrashReportingLogWriter(
+                        object : LogDirectoryProvider {
+                            override fun getLogDirectory(): Path = tempDir.resolve("logs").toOkioPath()
+                        },
+                    ),
+                    PrivacyScrubbingLogWriter(capturedWriter),
+                )
+
+                BluetoothHidCallbackCoordinator(owner).logDiagnosticSnapshot()
+
+                val output = captured.joinToString("\n")
+                assertFalse(
+                    output.contains(HOST_ADDRESS),
+                    "Raw paired-device addresses must not reach a configured writer",
+                )
+                assertFalse(output.contains("count="), "Do not disclose the number of paired devices")
+                assertEquals("[DIAG] HID diagnostic snapshot captured", output)
+                val localOutput = localLog.readText()
+                assertFalse(
+                    localOutput.contains(HOST_ADDRESS),
+                    "Raw addresses must not persist in local logs",
+                )
+                assertFalse(localOutput.contains("count="), "Do not persist the number of paired devices")
+                assertTrue(localOutput.contains("[DIAG] HID diagnostic snapshot captured"))
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
+    fun `incoming report diagnostics omit callback supplied identifiers`() =
+        runTest {
+            val owner = RecordingOwner(this)
+            val coordinator = BluetoothHidCallbackCoordinator(owner)
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val capturedWriter =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(capturedWriter)
+
+                coordinator.hidCallback.onSetReport(host(), 42, 43, byteArrayOf(1, 2))
+                coordinator.hidCallback.onInterruptData(host(), 44, byteArrayOf(3, 4, 5))
+
+                assertEquals(2, captured.size)
+                assertTrue(captured[0].first.contains("onSetReport received payloadLen=2"))
+                assertTrue(captured[1].first.contains("onInterruptData received payloadLen=3"))
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains("42") &&
+                            !message.contains("43") &&
+                            !message.contains("44") &&
+                            throwable == null
+                    },
+                )
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
+    fun `connection and bond diagnostics omit platform state numbers`() =
+        runTest {
+            val coordinator = BluetoothHidCallbackCoordinator(RecordingOwner(this))
+            val captured = mutableListOf<String>()
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(
+                    object : LogWriter() {
+                        override fun log(
+                            severity: Severity,
+                            message: String,
+                            tag: String,
+                            throwable: Throwable?,
+                        ) {
+                            captured += message
+                        }
+                    },
+                )
+
+                coordinator.hidCallback.onConnectionStateChanged(host(), 777)
+                coordinator.bluetoothStateReceiver.onReceive(
+                    mockk(relaxed = true),
+                    bondIntent(host(), 888),
+                )
+
+                val output = captured.joinToString("\n")
+                assertTrue(output.contains("Paired device connection state event received"))
+                assertTrue(output.contains("Paired device bond state event received"))
+                assertFalse(output.contains("777"))
+                assertFalse(output.contains("888"))
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
+    fun `diagnostic snapshot does not query or emit paired device state`() =
+        runTest {
+            val owner = RecordingOwner(this)
+            owner.hidDevice =
+                mockk {
+                    every { getConnectedDevices() } throws SecurityException("synthetic exception marker")
+                }
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val capturedWriter =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(capturedWriter)
+
+                BluetoothHidCallbackCoordinator(owner).logDiagnosticSnapshot()
+
+                assertEquals(1, captured.size)
+                val (message, _, throwable) = captured.single()
+                assertEquals("[DIAG] HID diagnostic snapshot captured", message)
+                assertFalse(message.contains("synthetic exception marker"))
+                assertNull(throwable)
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
+    @Test
+    fun `adapter state waiter omits platform exception details`() =
+        runTest {
+            val adapter =
+                mockk<BluetoothAdapter> {
+                    every { state } throws SecurityException("synthetic adapter exception marker")
+                }
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val capturedWriter =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(capturedWriter)
+
+                val result = BluetoothAdapterStateWaiter { adapter }.waitForBluetoothToTurnOn()
+
+                assertEquals(BluetoothAdapter.ERROR, result, "Permission failure keeps the existing fallback state")
+                assertTrue(captured.isNotEmpty(), "The failure should retain a fixed diagnostic event")
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains("synthetic adapter exception marker") && throwable == null
+                    },
+                    "Platform exception details must not reach the configured writer",
+                )
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
+        }
+
     /** A delayed request rechecks both bond state and lifecycle at execution time. */
     @ParameterizedTest
     @CsvSource("true,true,true", "true,false,false", "false,true,false", "false,false,false")
@@ -56,7 +286,7 @@ class BluetoothHidCallbackCoordinatorTest {
         val owner = RecordingOwner(this)
         val coordinator = BluetoothHidCallbackCoordinator(owner)
         val host = host()
-        coordinator.scheduleProactiveConnect(host, CONNECT_DELAY, "synthetic host")
+        coordinator.scheduleProactiveConnect(host, CONNECT_DELAY, ProactiveConnectReason.ACL_CONNECTED)
         runCurrent()
         advanceTimeBy(CONNECT_DELAY.inWholeMilliseconds - 1)
         runCurrent()
@@ -80,10 +310,10 @@ class BluetoothHidCallbackCoordinatorTest {
             val coordinator = BluetoothHidCallbackCoordinator(owner)
             val predecessor = host()
             val successor = host(OTHER_ADDRESS)
-            coordinator.scheduleProactiveConnect(predecessor, CONNECT_DELAY, "predecessor")
+            coordinator.scheduleProactiveConnect(predecessor, CONNECT_DELAY, ProactiveConnectReason.BOND_BONDED)
             runCurrent()
             val predecessorJob = requireNotNull(owner.proactiveConnectJob)
-            coordinator.scheduleProactiveConnect(successor, CONNECT_DELAY, "successor")
+            coordinator.scheduleProactiveConnect(successor, CONNECT_DELAY, ProactiveConnectReason.ACL_CONNECTED)
             runCurrent()
             assertTrue(predecessorJob.isCancelled)
 

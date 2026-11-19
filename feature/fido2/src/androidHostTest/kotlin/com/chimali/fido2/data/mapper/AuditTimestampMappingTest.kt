@@ -19,10 +19,12 @@ class AuditTimestampMappingTest {
     fun `RP and consent mapping accept equal and advanced audit timestamps`() {
         listOf(1000L to null, 1000L to 1000L, 3000L to 2000L).forEach { (updatedAt, activityAt) ->
             val rp = relyingParty(createdAt = 1000L, lastUsedAt = activityAt, updatedAt = updatedAt)
+            val encryptedMetadata = requireNotNull(rp.encrypted_metadata)
             val mappedRp = rp.toDomainModel()
             mappedRp.eraseSensitiveText()
             assertTrue(rp.id.all { it == 0.toByte() })
             assertTrue(rp.name.all { it == 0.toByte() })
+            assertTrue(encryptedMetadata.all { it == 0.toByte() })
 
             val consent = consent(createdAt = 1000L, timestamp = activityAt ?: 1000L, updatedAt = updatedAt)
             val mappedConsent = consent.toDomainModel()
@@ -49,6 +51,7 @@ class AuditTimestampMappingTest {
         assertEquals(null, error.cause)
         assertTrue(row.id.all { it == 0.toByte() })
         assertTrue(row.name.all { it == 0.toByte() })
+        assertTrue(requireNotNull(row.encrypted_metadata).all { it == 0.toByte() })
     }
 
     /** @see FR-003, FR-016 and TR-AUTH-031 */
@@ -80,7 +83,7 @@ class AuditTimestampMappingTest {
         last_used_at = lastUsedAt,
         updated_at = updatedAt,
         credential_count = 0,
-        encrypted_metadata = null,
+        encrypted_metadata = byteArrayOf(11, 12, 13),
         icon_url = null,
         is_blocked = 0,
         name = "Synthetic RP".encodeToByteArray(),

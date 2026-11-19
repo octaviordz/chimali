@@ -25,7 +25,16 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        testBuildType = "shrunkDebug"
+        // Default to the minified shrunkDebug target for instrumentation. Android test coverage
+        // makes that target debuggable; choose release explicitly when validating release writers.
+        // The clipboard audit uses a separate debuggable target for its isolated host procedure.
+        testBuildType =
+            providers.gradleProperty("chimaliTestBuildType").orNull
+                ?: if (providers.gradleProperty("chimaliClipboardAudit").orNull == "true") {
+                    "clipboardAudit"
+                } else {
+                    "shrunkDebug"
+                }
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -49,6 +58,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            testProguardFiles("proguard-rules-test.pro")
         }
         create("shrunkDebug") {
             initWith(getByName("release"))
@@ -59,6 +69,58 @@ android {
             enableAndroidTestCoverage = true
             proguardFiles("proguard-rules-leakcanary.pro")
             testProguardFiles("proguard-rules-test.pro")
+        }
+        create("clipboardAudit") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".clipboardaudit"
+            matchingFallbacks += listOf("debug")
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        create("clipboardAuditMinified") {
+            initWith(getByName("clipboardAudit"))
+            applicationIdSuffix = ".clipboardaudit.minified"
+            matchingFallbacks += listOf("release")
+            signingConfig = signingConfigs["devRelease"]
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            testProguardFiles("proguard-rules-test.pro")
+        }
+        create("diagnosticRelease") {
+            // Production Application graph with an isolated package identity for configured
+            // writer instrumentation; this variant is never used as a product delivery build.
+            initWith(getByName("release"))
+            applicationIdSuffix = ".diagnosticrelease"
+            matchingFallbacks += listOf("release")
+            signingConfig = signingConfigs["devRelease"]
+            isDebuggable = false
+            // Preserve only the direct Log.println instrumentation seam across R8 so the
+            // release-derived sink probe can call it without introducing a test-only bridge.
+            proguardFiles("proguard-rules-diagnostic-probe.pro")
+        }
+        create("diagnosticDebug") {
+            // Debug Application graph with an isolated package identity for configured
+            // writer instrumentation; never install over the user's normal app package.
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".diagnosticdebug"
+            matchingFallbacks += listOf("debug")
+            isDebuggable = true
+        }
+        create("heapAudit") {
+            // Isolated debuggable package for controlled synthetic heap-retention experiments.
+            // Never use this target with personal data or as a product delivery build.
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".heapaudit"
+            matchingFallbacks += listOf("debug")
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
     compileOptions {

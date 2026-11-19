@@ -101,6 +101,7 @@ sealed interface PasskeyEvent : DomainEvent {
             userId.fill('\u0000')
             userName.fill('\u0000')
             userDisplayName.fill('\u0000')
+            credentialId.fill(0)
         }
 
         /** Compares event fields by value; mutable arrays use content equality. */
@@ -146,7 +147,7 @@ sealed interface PasskeyEvent : DomainEvent {
         /** Returns diagnostic fields while redacting account, credential and key material. */
         @Req("NFR-SEC-041", "TR-AUTH-031")
         override fun toString(): String =
-            "Registered(aggregateId=$aggregateId, sequenceNumber=$sequenceNumber, timestamp=$timestamp, " +
+            "Registered(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp, " +
                 "rpId=[redacted], userId=[redacted], userName=[redacted], userDisplayName=[redacted], " +
                 "credentialId=[redacted], publicKey=[redacted], aaguid=[redacted], signCount=$signCount, " +
                 "coseAlgorithm=$coseAlgorithm, derivationProfile=$derivationProfile)"
@@ -171,7 +172,12 @@ sealed interface PasskeyEvent : DomainEvent {
         override val timestamp: Instant,
         @Req("NFR-SEC-041", "TR-AUTH-031")
         val newSignCount: Long,
-    ) : PasskeyEvent
+    ) : PasskeyEvent {
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        override fun toString(): String =
+            "Authenticated(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp, " +
+                "newSignCount=$newSignCount)"
+    }
 
     /**
      * Emitted when a passkey is deleted.
@@ -189,5 +195,9 @@ sealed interface PasskeyEvent : DomainEvent {
         override val sequenceNumber: Long,
         @Req("NFR-SEC-041", "TR-AUTH-031")
         override val timestamp: Instant,
-    ) : PasskeyEvent
+    ) : PasskeyEvent {
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        override fun toString(): String =
+            "Deleted(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp)"
+    }
 }

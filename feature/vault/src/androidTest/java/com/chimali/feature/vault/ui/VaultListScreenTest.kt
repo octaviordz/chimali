@@ -1,5 +1,6 @@
 package com.chimali.feature.vault.ui
 
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.ComponentActivity
@@ -22,7 +23,8 @@ import com.chimali.feature.vault.api.VaultType
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -60,10 +62,11 @@ class VaultListScreenTest {
     }
 
     @Test
-    fun passwordDetailCopiesToSystemClipboardAndClearsAfterSixtySeconds() {
+    fun passwordDetailMarksAndAttemptsForegroundCleanupAfterThirtySeconds() {
         val service = AndroidClipboardManagerService(composeTestRule.activity)
         val clipboard = composeTestRule.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         var copyMessage by mutableStateOf<String?>(null)
+        var receiptGeneration by mutableStateOf<Long?>(null)
         val payload = PasswordPayload("entry", "user".toCharArray(), "synthetic-secret".toCharArray(), "uri")
         composeTestRule.setContent {
             MaterialTheme {
@@ -73,11 +76,20 @@ class VaultListScreenTest {
                     onDelete = {},
                     onBack = {},
                     onCopyPassword = { copy ->
-                        val result = runBlocking { service.copySensitiveData("Password", String(copy)) }
+                        val result = runBlocking { service.copySensitiveData("Password", copy) }
                         copy.fill('\u0000')
                         copyMessage =
                             result.fold(
-                                onSuccess = { "Password copied. Clipboard clears in 60s." },
+                                onSuccess = { receipt ->
+                                    receiptGeneration = receipt.generation
+                                    if (receipt.publication ==
+                                        com.chimali.core.clipboard.PublicationStatus.MetadataConfirmed
+                                    ) {
+                                        "Password copied. We'll try to clear the clipboard in 30 seconds."
+                                    } else {
+                                        "Copy couldn't be confirmed. If copied, we'll try to clear it in 30 seconds."
+                                    }
+                                },
                                 onFailure = { "Unable to copy password to clipboard." },
                             )
                     },
@@ -87,16 +99,20 @@ class VaultListScreenTest {
             }
         }
         composeTestRule.onNodeWithContentDescription("Copy password").performClick()
-        composeTestRule.waitUntil(timeoutMillis = 10_000) {
-            clipboard.primaryClip
-                ?.getItemAt(0)
-                ?.coerceToText(composeTestRule.activity)
-                ?.toString() ==
-                "synthetic-secret"
+        composeTestRule.waitUntil(timeoutMillis = 10_000) { clipboard.primaryClipDescription != null }
+        assertTrue(clipboard.primaryClipDescription?.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE) == true)
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { copyMessage != null }
+        composeTestRule.onNodeWithText(requireNotNull(copyMessage)).assertExists()
+        val generation = requireNotNull(receiptGeneration)
+        composeTestRule.waitUntil(timeoutMillis = 40_000) {
+            service.cleanupStatuses.value[generation]?.outcome?.let {
+                it != com.chimali.core.clipboard.CleanupOutcome.Pending
+            } == true
         }
-        composeTestRule.onNodeWithText("Password copied. Clipboard clears in 60s.").assertExists()
-        Thread.sleep(61_000)
-        assertNull(clipboard.primaryClip)
+        assertEquals(
+            com.chimali.core.clipboard.CleanupOutcome.ClearRequestSubmitted,
+            service.cleanupStatuses.value[generation]?.outcome,
+        )
     }
 
     @Test

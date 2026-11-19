@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.style.TextOverflow
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 
@@ -21,6 +22,11 @@ import org.junit.Test
 class CredentialDisplayNameTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+    @After
+    fun disposeSyntheticDisplayNames() {
+        composeTestRule.setContent {}
+    }
 
     /**
      * A 64-character ASCII displayName — exactly 64 UTF-8 bytes.

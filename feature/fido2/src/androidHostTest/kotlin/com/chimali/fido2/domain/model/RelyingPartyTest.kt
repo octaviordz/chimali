@@ -60,8 +60,8 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(RpId("https://example.com"), rp.id)
-                assertEquals("Example Website", rp.name)
+                assertTrue(rp.idText.contentEquals("https://example.com"))
+                assertTrue(rp.nameText.contentEquals("Example Website"))
                 assertNull(rp.iconUrl)
                 assertEquals(0, rp.credentialCount)
                 assertEquals(testTimestamp, rp.createdAt)
@@ -82,8 +82,8 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(RpId("https://example.com"), rp.id)
-                assertEquals("Example Website", rp.name)
+                assertTrue(rp.idText.contentEquals("https://example.com"))
+                assertTrue(rp.nameText.contentEquals("Example Website"))
                 assertEquals("https://example.com/icon.png", rp.iconUrl)
                 assertEquals(CRED_COUNT_5, rp.credentialCount)
                 assertEquals(testTimestamp, rp.createdAt)
@@ -276,10 +276,10 @@ class RelyingPartyTest {
         @Test
         fun `should return safe name`() =
             runTest {
-                assertEquals("Example Website", rp.name)
+                assertTrue(rp.nameText.contentEquals("Example Website"))
 
                 val rpWithBlankName = RelyingParty.create(id = RpId("https://example.com"), name = "")
-                assertEquals("example.com", rpWithBlankName.name)
+                assertTrue(rpWithBlankName.nameText.contentEquals("example.com"))
             }
 
         @Test
@@ -299,8 +299,8 @@ class RelyingPartyTest {
                 val completedAt = Clock.System.now()
 
                 assertEquals(CRED_COUNT_10, updatedRp.credentialCount)
-                assertEquals(rp.id, updatedRp.id)
-                assertEquals(rp.name, updatedRp.name)
+                assertTrue(rp.idText.contentEquals(updatedRp.idText))
+                assertTrue(rp.nameText.contentEquals(updatedRp.nameText))
                 assertTrue(requireNotNull(updatedRp.lastUsedAt) in startedAt..completedAt)
             }
 
@@ -311,8 +311,8 @@ class RelyingPartyTest {
                 val updatedRp = rp.withLastUsedAt(newLastUsedAt)
 
                 assertEquals(newLastUsedAt, updatedRp.lastUsedAt)
-                assertEquals(rp.id, updatedRp.id)
-                assertEquals(rp.name, updatedRp.name)
+                assertTrue(rp.idText.contentEquals(updatedRp.idText))
+                assertTrue(rp.nameText.contentEquals(updatedRp.nameText))
             }
 
         @Test
@@ -359,8 +359,8 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(RpId("https://example.com"), rp.id)
-                assertEquals("Example Website", rp.name)
+                assertTrue(rp.idText.contentEquals("https://example.com"))
+                assertTrue(rp.nameText.contentEquals("Example Website"))
                 assertEquals("https://example.com/icon.png", rp.iconUrl)
                 assertEquals(0, rp.credentialCount) // Should start at 0
                 assertNull(rp.lastUsedAt) // Should be null initially
@@ -376,8 +376,8 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(RpId("https://example.com"), rp.id)
-                assertEquals("Example Website", rp.name)
+                assertTrue(rp.idText.contentEquals("https://example.com"))
+                assertTrue(rp.nameText.contentEquals("Example Website"))
                 assertNull(rp.iconUrl)
             }
 
@@ -430,7 +430,7 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(maxName, rp.name)
+                assertTrue(rp.nameText.contentEquals(maxName))
                 assertEquals(maxIconUrl, rp.iconUrl)
             }
 
@@ -448,7 +448,7 @@ class RelyingPartyTest {
                     )
 
                 assertNotNull(rp)
-                assertEquals(RpId("http://localhost:8080"), rp.id)
+                assertTrue(rp.idText.contentEquals("http://localhost:8080"))
             }
 
         @Test

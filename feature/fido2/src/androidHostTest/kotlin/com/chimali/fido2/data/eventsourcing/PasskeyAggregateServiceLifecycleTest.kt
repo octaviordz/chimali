@@ -16,8 +16,8 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -77,7 +77,9 @@ class PasskeyAggregateServiceLifecycleTest {
             val result = service.execute(aggregateId, authCommand)
 
             assertTrue(result.isFailure)
-            assertSame(snapshotFailure, result.exceptionOrNull())
+            assertEquals("Passkey aggregate snapshot save failed", result.exceptionOrNull()?.message)
+            assertEquals(null, result.exceptionOrNull()?.cause)
+            assertTrue(result.exceptionOrNull() !== snapshotFailure)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

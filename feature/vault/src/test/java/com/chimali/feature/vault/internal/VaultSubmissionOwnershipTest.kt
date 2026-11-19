@@ -40,6 +40,8 @@ class VaultSubmissionOwnershipTest {
     private val crypto = mockk<VaultCryptoService>()
     private val service = mockk<VaultService>(relaxed = true)
     private val store = ViewModelStore()
+    private val testPayloads = mutableListOf<PasswordPayload>()
+    private val testItems = mutableListOf<VaultItem>()
     private lateinit var vm: VaultViewModel
 
     @Before
@@ -53,8 +55,15 @@ class VaultSubmissionOwnershipTest {
 
     @After
     fun cleanup() {
-        store.clear()
-        Dispatchers.resetMain()
+        try {
+            store.clear()
+        } finally {
+            testPayloads.forEach { it.clearMemory() }
+            testPayloads.clear()
+            testItems.forEach { it.clearMemory() }
+            testItems.clear()
+            Dispatchers.resetMain()
+        }
     }
 
     private fun draft() =
@@ -65,14 +74,18 @@ class VaultSubmissionOwnershipTest {
             "uri",
             "notes".toCharArray(),
             listOf(CustomField("name", "value".toCharArray(), false)),
-        )
+        ).also(testPayloads::add)
+
+    private fun track(payload: PasswordPayload): PasswordPayload = payload.also(testPayloads::add)
+
+    private fun track(item: VaultItem): VaultItem = item.also(testItems::add)
 
     @Test
     fun neverStartedJobAndRejectedDuplicateAreErasedWithoutErasingDraft() =
         runTest {
             val draft = draft()
-            val first = draft.copyForEditing()
-            val duplicate = draft.copyForEditing()
+            val first = track(draft.copyForEditing())
+            val duplicate = track(draft.copyForEditing())
             vm.processIntent(VaultIntent.SavePassword(payload = first))
             vm.processIntent(VaultIntent.SavePassword(payload = duplicate))
             erased(duplicate)
@@ -86,6 +99,42 @@ class VaultSubmissionOwnershipTest {
         }
 
     @Test
+    fun submittedDetailCopyIsErasedWhileTheActiveDetailOwnerSurvives() =
+        runTest {
+            val itemId = UUID(0, 44)
+            val item =
+                track(
+                    VaultItem(
+                        itemId,
+                        VaultType.PASSWORD,
+                        "detail",
+                        byteArrayOf(1),
+                        byteArrayOf(),
+                        "",
+                        "",
+                        null,
+                        UUID(0, 45),
+                    ),
+                )
+            val detail = draft()
+            coEvery { service.getItems(any()) } returns Outcome.Success(listOf(item))
+            coEvery { crypto.decryptPassword(item) } returns Outcome.Success(detail)
+            coEvery { crypto.encryptPassword(any(), any(), any()) } returns
+                Outcome.Error(DomainError.CryptoError("synthetic"))
+
+            vm.processIntent(VaultIntent.DecryptItem(itemId))
+            advanceUntilIdle()
+            val submitted = track(requireNotNull(vm.state.value.selectedPasswordPayload).copyForEditing())
+            vm.processIntent(VaultIntent.SavePassword(payload = submitted))
+            advanceUntilIdle()
+
+            erased(submitted)
+            assertEquals("secret", String(requireNotNull(vm.state.value.selectedPasswordPayload).password))
+            assertEquals("value", String(detail.customFields!!.single().value))
+            detail.clearMemory()
+        }
+
+    @Test
     fun failureConsumesEachAttemptAndRetryKeepsIdentityAndEveryDraftField() =
         runTest {
             val ids = mutableListOf<UUID?>()
@@ -94,9 +143,9 @@ class VaultSubmissionOwnershipTest {
                 Outcome.Error(DomainError.CryptoError("retry"))
             }
             val draft = draft()
-            val expected = draft.copyForEditing()
+            val expected = track(draft.copyForEditing())
             repeat(2) {
-                val attempt = draft.copyForEditing()
+                val attempt = track(draft.copyForEditing())
                 vm.processIntent(VaultIntent.SavePassword(payload = attempt))
                 advanceUntilIdle()
                 erased(attempt)
@@ -113,16 +162,18 @@ class VaultSubmissionOwnershipTest {
         runTest {
             val gate = CompletableDeferred<Unit>()
             val item =
-                VaultItem(
-                    UUID(0, 1),
-                    VaultType.PASSWORD,
-                    "title",
-                    byteArrayOf(1),
-                    byteArrayOf(),
-                    "",
-                    "",
-                    null,
-                    UUID(0, 2),
+                track(
+                    VaultItem(
+                        UUID(0, 1),
+                        VaultType.PASSWORD,
+                        "title",
+                        byteArrayOf(1),
+                        byteArrayOf(),
+                        "",
+                        "",
+                        null,
+                        UUID(0, 2),
+                    ),
                 )
             coEvery { crypto.encryptPassword(any(), any(), any()) } returns Outcome.Success(item)
             coEvery { service.saveItem(any()) } coAnswers {
@@ -159,16 +210,18 @@ class VaultSubmissionOwnershipTest {
         runTest {
             val gate = CompletableDeferred<Unit>()
             val item =
-                VaultItem(
-                    UUID(0, 1),
-                    VaultType.PASSWORD,
-                    "old",
-                    byteArrayOf(1),
-                    byteArrayOf(),
-                    "",
-                    "",
-                    null,
-                    UUID(0, 2),
+                track(
+                    VaultItem(
+                        UUID(0, 1),
+                        VaultType.PASSWORD,
+                        "old",
+                        byteArrayOf(1),
+                        byteArrayOf(),
+                        "",
+                        "",
+                        null,
+                        UUID(0, 2),
+                    ),
                 )
             coEvery { crypto.encryptPassword(any(), any(), any()) } returns Outcome.Success(item)
             coEvery { service.saveItem(any()) } returns Outcome.Success(Unit)

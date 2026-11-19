@@ -12,4 +12,20 @@ import java.security.MessageDigest
  */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 internal fun CredentialId.matchesCredentialId(other: CredentialId): Boolean =
-    MessageDigest.isEqual(toByteArray(), other.toByteArray())
+    withCredentialIdBytes(this) { thisBytes ->
+        withCredentialIdBytes(other) { otherBytes -> MessageDigest.isEqual(thisBytes, otherBytes) }
+    }
+
+/** Borrows a decoded ID buffer only for [action], then erases the temporary bytes on every exit. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+internal inline fun <T> withCredentialIdBytes(
+    credentialId: CredentialId,
+    action: (ByteArray) -> T,
+): T {
+    val bytes = credentialId.toByteArray()
+    return try {
+        action(bytes)
+    } finally {
+        bytes.fill(0)
+    }
+}

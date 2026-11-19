@@ -3,6 +3,7 @@ package com.chimali.fido2.data.crypto
 import com.chimali.core.common.result.DomainError
 import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.runCatchingOutcome
+import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyFactory
 import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
@@ -24,16 +25,22 @@ class PublicKeyDecoder {
         coseAlgorithm: Int,
     ): Outcome<PublicKey, DomainError.CryptoError> =
         runCatchingOutcome(
-            onError = { DomainError.CryptoError("Failed to decode public key", it) },
+            onError = { DomainError.CryptoError("Failed to decode public key") },
         ) {
             val keyBytes = Base64.getDecoder().decode(base64Key)
             val keySpec = X509EncodedKeySpec(keyBytes)
 
             val keyFactory =
                 when (coseAlgorithm) {
-                    COSE_ML_DSA_65 -> KeyFactory.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
+                    COSE_ML_DSA_65 -> {
+                        BouncyCastleLoader.ensureRegistered()
+                        KeyFactory.getInstance("ML-DSA-65", BouncyCastleProvider.PROVIDER_NAME)
+                    }
                     COSE_ES256 -> KeyFactory.getInstance("EC") // Standard Java EC for P-256
-                    COSE_EDDSA -> KeyFactory.getInstance("Ed25519", BouncyCastleProvider.PROVIDER_NAME)
+                    COSE_EDDSA -> {
+                        BouncyCastleLoader.ensureRegistered()
+                        KeyFactory.getInstance("Ed25519", BouncyCastleProvider.PROVIDER_NAME)
+                    }
                     else -> throw IllegalArgumentException("Unsupported COSE algorithm: $coseAlgorithm")
                 }
 

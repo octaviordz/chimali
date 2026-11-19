@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.chimali.core.database.VaultDatabase
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.vault.VaultEvent
+import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
 import com.chimali.core.security.api.EncryptionManager
 import com.chimali.core.security.api.EventStoreKeyProvider
 import io.mockk.coEvery
@@ -13,6 +14,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -89,6 +92,54 @@ class EventStoreRepositoryImplTest {
         }
 
     @Test
+    fun `read discards parser exception details`() =
+        runTest {
+            val marker = "SYNTHETIC-VAULT-EVENT-PARSER-MARKER"
+            database.vaultQueries.insert_event(
+                "aggregate",
+                1,
+                timestamp.toString(),
+                byteArrayOf(1, 2, 3),
+            )
+            every { encryptionManager.decrypt(any(), any()) } throws SerializationException("bad event $marker")
+
+            val failure = repository.getEvents(EventKind.VAULT_ENTRY, "aggregate", null).exceptionOrNull()
+
+            assertTrue(failure is SerializationException)
+            assertEquals("Vault event serialization failed", failure?.message)
+            assertNull(failure?.cause)
+            assertFalse(failure?.toString()?.contains(marker) == true)
+        }
+
+    @Test
+    fun `append discards unexpected provider exception details`() =
+        runTest {
+            val marker = "SYNTHETIC-EVENT-ENCRYPTION-PROVIDER-MARKER"
+            val event = VaultEvent.Deleted("aggregate", 1, timestamp)
+            every { encryptionManager.encrypt(any(), any()) } throws IllegalStateException("provider $marker")
+
+            val failure = repository.append(EventKind.VAULT_ENTRY, listOf(event)).exceptionOrNull()
+
+            assertEquals("Vault event operation failed", failure?.message)
+            assertNull(failure?.cause)
+            assertFalse(failure?.toString()?.contains(marker) == true)
+        }
+
+    @Test
+    fun `read discards unexpected provider exception details`() =
+        runTest {
+            val marker = "SYNTHETIC-EVENT-DECRYPTION-PROVIDER-MARKER"
+            database.vaultQueries.insert_event("aggregate", 1, timestamp.toString(), byteArrayOf(1, 2, 3))
+            every { encryptionManager.decrypt(any(), any()) } throws IllegalStateException("provider $marker")
+
+            val failure = repository.getEvents(EventKind.VAULT_ENTRY, "aggregate", null).exceptionOrNull()
+
+            assertEquals("Vault event operation failed", failure?.message)
+            assertNull(failure?.cause)
+            assertFalse(failure?.toString()?.contains(marker) == true)
+        }
+
+    @Test
     fun `append rolls back all events when one encryption fails`() =
         runTest {
             every { encryptionManager.encrypt(any(), any()) } answers {
@@ -125,14 +176,13 @@ class EventStoreRepositoryImplTest {
         runTest {
             val event = VaultEvent.Deleted("aggregate", 1, timestamp)
             repository.append(EventKind.VAULT_ENTRY, listOf(event)).getOrThrow()
-            val decrypted =
-                VaultEventSerializer.json
-                    .encodeToString<com.chimali.core.domain.eventsourcing.DomainEvent>(
-                        event,
-                    ).toByteArray()
+            val decrypted = VaultMutableJsonCodec.encodeEvent(event)
             every { encryptionManager.decrypt(any(), any()) } returns decrypted
 
-            repository.getEvents(EventKind.VAULT_ENTRY, "aggregate", null).getOrThrow()
+            repository
+                .getEvents(EventKind.VAULT_ENTRY, "aggregate", null)
+                .getOrThrow()
+                .forEach { (it as? VaultEvent)?.clearSensitiveMemory() }
 
             assertTrue(decrypted.all { it == 0.toByte() })
         }

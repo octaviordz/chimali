@@ -26,6 +26,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import java.security.KeyPairGenerator
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -44,6 +45,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
+abstract class SearchableMetadataTestFixtureOwner {
+    protected val generatedLookupIndexes = mutableListOf<ByteArray>()
+    protected var closeTestDriver: () -> Unit = {}
+
+    @AfterTest
+    fun clearTrackedLookupTokenFixtures() {
+        generatedLookupIndexes.forEach { it.fill(0) }
+        generatedLookupIndexes.clear()
+        try {
+            closeTestDriver()
+        } finally {
+            closeTestDriver = {}
+        }
+    }
+}
+
 /**
  * T023 [US2] + T049 [US4] — Credential repository lookup, partial-search regression,
  * and tampered encrypted metadata rejection tests.
@@ -54,7 +71,7 @@ import kotlinx.coroutines.test.runTest
  * - Tampered encrypted metadata is handled gracefully during hydration
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class CredentialRepositorySearchableMetadataTest {
+class CredentialRepositorySearchableMetadataTest : SearchableMetadataTestFixtureOwner() {
     private lateinit var driver: JdbcSqliteDriver
     private lateinit var database: Fido2Database
     private lateinit var repository: CredentialRepositoryImpl
@@ -63,8 +80,6 @@ class CredentialRepositorySearchableMetadataTest {
     private lateinit var rpDao: RelyingPartyDao
     private lateinit var consentDao: UserConsentRecordDao
     private lateinit var publicKeyDecoder: PublicKeyDecoder
-    private val generatedLookupIndexes = mutableListOf<ByteArray>()
-
     private val timeProvider = TimeProvider()
 
     private companion object {
@@ -143,7 +158,7 @@ class CredentialRepositorySearchableMetadataTest {
             assertEquals(
                 original.id.encoded,
                 dao
-                    .getCredentialsByRpId(original.rpId.toRpId())
+                    .getCredentialsByRpId(RpId(original.rpId.toBoundaryString()))
                     .first()
                     .single()
                     .id,
@@ -154,6 +169,7 @@ class CredentialRepositorySearchableMetadataTest {
     @BeforeTest
     fun setUp() {
         driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        closeTestDriver = { driver.close() }
         Fido2Database.Schema.create(driver)
         database = Fido2Database(driver)
 
@@ -752,5 +768,24 @@ class CredentialRepositorySearchableMetadataTest {
             user_id_index = userIdIndex.copyOf(),
             encrypted_metadata = ENCRYPTED_META,
         )
+    }
+}
+
+class SearchableMetadataTestFixtureOwnerCleanupTest : SearchableMetadataTestFixtureOwner() {
+    @Test
+    fun cleanupZerosTrackedTokensAndClosesDriverOnce() {
+        val token = byteArrayOf(1, 2, 3)
+        var driverClosed = false
+        generatedLookupIndexes.add(token)
+        closeTestDriver = { driverClosed = true }
+
+        clearTrackedLookupTokenFixtures()
+
+        assertContentEquals(ByteArray(token.size), token)
+        assertTrue(generatedLookupIndexes.isEmpty())
+        assertTrue(driverClosed)
+
+        clearTrackedLookupTokenFixtures()
+        assertTrue(driverClosed)
     }
 }

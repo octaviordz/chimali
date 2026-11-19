@@ -54,7 +54,7 @@ internal class U2fApduCommandHandler(
     ) {
         val cid = message.channelId
         val payload = message.payload
-        Logger.d { "CTAPHID_MSG len=${payload.size} cid=${cid.toHex()}" }
+        Logger.d { "CTAPHID_MSG payload length=${payload.size}" }
 
         if (payload.size < APDU_MIN_SIZE) {
             enqueuePackets(responseBuilder.hidErrorResponse(cid, ERR_INVALID_LEN), sessionGeneration)
@@ -72,12 +72,16 @@ internal class U2fApduCommandHandler(
             Logger.d {
                 "CTAPHID_MSG routing CTAP2 cmd=0x${(cborData[0].toInt() and BYTE_MASK).toString(HEX_RADIX)} as CBOR"
             }
+            val cborChannelId = cid.copyOf()
             var transferred = false
             try {
-                launchCborOperation(CtapHidMessage(cid, CTAPHID_CBOR, cborData), sessionGeneration)
+                launchCborOperation(CtapHidMessage(cborChannelId, CTAPHID_CBOR, cborData), sessionGeneration)
                 transferred = true
             } finally {
-                if (!transferred) cborData.fill(0)
+                if (!transferred) {
+                    cborChannelId.fill(0)
+                    cborData.fill(0)
+                }
             }
             return
         }
@@ -155,6 +159,4 @@ internal class U2fApduCommandHandler(
         sw2: Int,
     ): List<ByteArray> =
         hidReportParser.encodeResponse(CtapHidMessage(cid, CTAPHID_MSG, byteArrayOf(sw1.toByte(), sw2.toByte())))
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 }

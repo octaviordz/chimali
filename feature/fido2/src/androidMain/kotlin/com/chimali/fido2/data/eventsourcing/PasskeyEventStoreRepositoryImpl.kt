@@ -31,6 +31,8 @@ class PasskeyEventStoreRepositoryImpl(
     private val encryptionManager: EncryptionManager,
     private val keyProvider: EventStoreKeyProvider,
 ) : EventStoreRepository {
+    internal var beforeEventBatchTransferForTest: ((List<DomainEvent>) -> Unit)? = null
+
     private val json =
         Json {
             serializersModule =
@@ -125,14 +127,24 @@ class PasskeyEventStoreRepositoryImpl(
                         var plaintext: ByteArray? = null
                         try {
                             plaintext = encryptionManager.decrypt(row.payload, eventKey)
-                            events += decodeEvent(plaintext)
+                            val event = decodeEvent(plaintext)
+                            var appended = false
+                            try {
+                                events.add(event)
+                                appended = true
+                            } finally {
+                                if (!appended) eraseSensitiveEvent(event)
+                            }
                         } finally {
                             plaintext?.fill(0)
+                            row.payload.fill(0)
                         }
                     }
                     context.ensureActive()
+                    beforeEventBatchTransferForTest?.invoke(events)
+                    val result = events.toList()
                     transferred = true
-                    events.toList()
+                    result
                 } finally {
                     if (!transferred) events.forEach(::eraseSensitiveEvent)
                 }
@@ -170,14 +182,24 @@ class PasskeyEventStoreRepositoryImpl(
                         var plaintext: ByteArray? = null
                         try {
                             plaintext = encryptionManager.decrypt(row.payload, eventKey)
-                            events += decodePasskeyEvent(plaintext)
+                            val event = decodePasskeyEvent(plaintext)
+                            var appended = false
+                            try {
+                                events.add(event)
+                                appended = true
+                            } finally {
+                                if (!appended) eraseSensitiveEvent(event)
+                            }
                         } finally {
                             plaintext?.fill(0)
+                            row.payload.fill(0)
                         }
                     }
                     context.ensureActive()
+                    beforeEventBatchTransferForTest?.invoke(events)
+                    val result = events.toList()
                     transferred = true
-                    events.toList()
+                    result
                 } finally {
                     if (!transferred) events.forEach(::eraseSensitiveEvent)
                 }
@@ -215,24 +237,46 @@ class PasskeyEventStoreRepositoryImpl(
         }
 
     private fun decodePasskeyEvent(plaintext: ByteArray): DomainEvent =
-        SensitiveJsonFields.decode(
-            input = plaintext,
-            fieldNames = SENSITIVE_FIELDS,
-            deserializeSanitized = { sanitized -> json.decodeFromStream<DomainEvent>(ByteArrayInputStream(sanitized)) },
-            attachFields = { decoded, fields ->
-                if (decoded !is PasskeyEvent.Registered) {
-                    require(fields.isEmpty()) { "Unexpected sensitive fields for passkey event" }
-                    decoded
-                } else {
-                    decoded.copy(
-                        rpId = requireNotNull(fields["rpId"]),
-                        userId = requireNotNull(fields["userId"]),
-                        userName = requireNotNull(fields["userName"]),
-                        userDisplayName = requireNotNull(fields["userDisplayName"]),
-                    )
-                }
-            },
-        )
+        decodePasskeyEventWithDecoder(plaintext) { sanitized ->
+            json.decodeFromStream<DomainEvent>(ByteArrayInputStream(sanitized))
+        }
+
+    /** Erases a deserialized event owner if mutable-field reconstruction does not transfer it. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun decodePasskeyEventWithDecoder(
+        plaintext: ByteArray,
+        deserializeSanitized: (ByteArray) -> DomainEvent,
+    ): DomainEvent {
+        var decodedEvent: DomainEvent? = null
+        var transferred = false
+        return try {
+            val result =
+                SensitiveJsonFields.decode(
+                    input = plaintext,
+                    fieldNames = SENSITIVE_FIELDS,
+                    deserializeSanitized = { sanitized ->
+                        deserializeSanitized(sanitized).also { decodedEvent = it }
+                    },
+                    attachFields = { decoded, fields ->
+                        if (decoded !is PasskeyEvent.Registered) {
+                            require(fields.isEmpty()) { "Unexpected sensitive fields for passkey event" }
+                            decoded
+                        } else {
+                            decoded.copy(
+                                rpId = requireNotNull(fields["rpId"]),
+                                userId = requireNotNull(fields["userId"]),
+                                userName = requireNotNull(fields["userName"]),
+                                userDisplayName = requireNotNull(fields["userDisplayName"]),
+                            )
+                        }
+                    },
+                )
+            transferred = true
+            result
+        } finally {
+            if (!transferred) (decodedEvent as? PasskeyEvent.Registered)?.eraseSensitiveMetadata()
+        }
+    }
 
     private companion object {
         val SENSITIVE_FIELDS = setOf("rpId", "userId", "userName", "userDisplayName")

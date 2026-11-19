@@ -26,23 +26,31 @@ class PasskeyDecider : Decider<PasskeyCommand, PasskeyState, PasskeyEvent> {
         return when (command) {
             is PasskeyCommand.Register -> {
                 requireCurrentProfile(command.coseAlgorithm, command.derivationProfile)
-                listOf(
-                    PasskeyEvent.Registered(
-                        aggregateId = command.id,
-                        sequenceNumber = nextSequenceNumber,
-                        timestamp = timestamp,
-                        rpId = command.rpId.copyOf(),
-                        userId = command.userId.copyOf(),
-                        userName = command.userName.copyOf(),
-                        userDisplayName = command.userDisplayName.copyOf(),
-                        credentialId = command.credentialId,
-                        publicKey = command.publicKey,
-                        aaguid = command.aaguid,
-                        signCount = command.signCount,
-                        coseAlgorithm = command.coseAlgorithm,
-                        derivationProfile = command.derivationProfile,
-                    ),
-                )
+                withOwnedPasskeyMetadata(
+                    command.rpId,
+                    command.userId,
+                    command.userName,
+                    command.userDisplayName,
+                    command.credentialId,
+                ) { rpId, userId, userName, userDisplayName, credentialId ->
+                    listOf(
+                        PasskeyEvent.Registered(
+                            aggregateId = command.id,
+                            sequenceNumber = nextSequenceNumber,
+                            timestamp = timestamp,
+                            rpId = rpId,
+                            userId = userId,
+                            userName = userName,
+                            userDisplayName = userDisplayName,
+                            credentialId = credentialId,
+                            publicKey = command.publicKey,
+                            aaguid = command.aaguid,
+                            signCount = command.signCount,
+                            coseAlgorithm = command.coseAlgorithm,
+                            derivationProfile = command.derivationProfile,
+                        ),
+                    )
+                }
             }
             is PasskeyCommand.Authenticate ->
                 listOf(
@@ -73,39 +81,65 @@ class PasskeyDecider : Decider<PasskeyCommand, PasskeyState, PasskeyEvent> {
         when (event) {
             is PasskeyEvent.Registered -> {
                 requireCurrentProfile(event.coseAlgorithm, event.derivationProfile)
-                state.copy(
-                    id = event.aggregateId,
-                    rpId = event.rpId.copyOf(),
-                    userId = event.userId.copyOf(),
-                    userName = event.userName.copyOf(),
-                    userDisplayName = event.userDisplayName.copyOf(),
-                    credentialId = event.credentialId,
-                    publicKey = event.publicKey,
-                    aaguid = event.aaguid,
-                    signCount = event.signCount,
-                    sequenceNumber = event.sequenceNumber,
-                    coseAlgorithm = event.coseAlgorithm,
-                    derivationProfile = event.derivationProfile,
-                )
+                withOwnedPasskeyMetadata(
+                    event.rpId,
+                    event.userId,
+                    event.userName,
+                    event.userDisplayName,
+                    event.credentialId,
+                ) { rpId, userId, userName, userDisplayName, credentialId ->
+                    state.copy(
+                        id = event.aggregateId,
+                        rpId = rpId,
+                        userId = userId,
+                        userName = userName,
+                        userDisplayName = userDisplayName,
+                        credentialId = credentialId,
+                        publicKey = event.publicKey,
+                        aaguid = event.aaguid,
+                        signCount = event.signCount,
+                        sequenceNumber = event.sequenceNumber,
+                        coseAlgorithm = event.coseAlgorithm,
+                        derivationProfile = event.derivationProfile,
+                    )
+                }
             }
             is PasskeyEvent.Authenticated ->
-                state.copy(
-                    rpId = state.rpId.copyOf(),
-                    userId = state.userId.copyOf(),
-                    userName = state.userName.copyOf(),
-                    userDisplayName = state.userDisplayName.copyOf(),
-                    signCount = event.newSignCount,
-                    sequenceNumber = event.sequenceNumber,
-                )
+                withOwnedPasskeyMetadata(
+                    state.rpId,
+                    state.userId,
+                    state.userName,
+                    state.userDisplayName,
+                    state.credentialId,
+                ) { rpId, userId, userName, userDisplayName, credentialId ->
+                    state.copy(
+                        rpId = rpId,
+                        userId = userId,
+                        userName = userName,
+                        userDisplayName = userDisplayName,
+                        credentialId = credentialId,
+                        signCount = event.newSignCount,
+                        sequenceNumber = event.sequenceNumber,
+                    )
+                }
             is PasskeyEvent.Deleted ->
-                state.copy(
-                    rpId = state.rpId.copyOf(),
-                    userId = state.userId.copyOf(),
-                    userName = state.userName.copyOf(),
-                    userDisplayName = state.userDisplayName.copyOf(),
-                    isDeleted = true,
-                    sequenceNumber = event.sequenceNumber,
-                )
+                withOwnedPasskeyMetadata(
+                    state.rpId,
+                    state.userId,
+                    state.userName,
+                    state.userDisplayName,
+                    state.credentialId,
+                ) { rpId, userId, userName, userDisplayName, credentialId ->
+                    state.copy(
+                        rpId = rpId,
+                        userId = userId,
+                        userName = userName,
+                        userDisplayName = userDisplayName,
+                        credentialId = credentialId,
+                        isDeleted = true,
+                        sequenceNumber = event.sequenceNumber,
+                    )
+                }
         }
 
     private fun requireCurrentProfile(
@@ -114,6 +148,47 @@ class PasskeyDecider : Decider<PasskeyCommand, PasskeyState, PasskeyEvent> {
     ) {
         require(CredentialKeyDescriptor.profileFor(coseAlgorithm) == derivationProfile) {
             "Unsupported credential algorithm/profile pair"
+        }
+    }
+}
+
+/** Stages passkey metadata copies until event or state construction transfers ownership. */
+internal fun <T> withOwnedPasskeyMetadata(
+    rpId: CharArray,
+    userId: CharArray,
+    userName: CharArray,
+    userDisplayName: CharArray,
+    credentialId: ByteArray,
+    copyCharacters: (CharArray) -> CharArray = { it.copyOf() },
+    copyBytes: (ByteArray) -> ByteArray = { it.copyOf() },
+    build: (CharArray, CharArray, CharArray, CharArray, ByteArray) -> T,
+): T {
+    var rpIdCopy: CharArray? = null
+    var userIdCopy: CharArray? = null
+    var userNameCopy: CharArray? = null
+    var userDisplayNameCopy: CharArray? = null
+    var credentialIdCopy: ByteArray? = null
+    var transferred = false
+    try {
+        rpIdCopy = copyCharacters(rpId)
+        userIdCopy = copyCharacters(userId)
+        userNameCopy = copyCharacters(userName)
+        userDisplayNameCopy = copyCharacters(userDisplayName)
+        credentialIdCopy = copyBytes(credentialId)
+        return build(
+            requireNotNull(rpIdCopy),
+            requireNotNull(userIdCopy),
+            requireNotNull(userNameCopy),
+            requireNotNull(userDisplayNameCopy),
+            requireNotNull(credentialIdCopy),
+        ).also { transferred = true }
+    } finally {
+        if (!transferred) {
+            rpIdCopy?.fill('\u0000')
+            userIdCopy?.fill('\u0000')
+            userNameCopy?.fill('\u0000')
+            userDisplayNameCopy?.fill('\u0000')
+            credentialIdCopy?.fill(0)
         }
     }
 }

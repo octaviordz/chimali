@@ -31,6 +31,9 @@ class CapturedDiagnostics : AutoCloseable {
     /** Number of actual source log/throwable records, for non-vacuity assertions. */
     val size: Int get() = records.size
 
+    /** Checks whether a bounded fixed diagnostic label was emitted. */
+    fun containsMessage(fragment: String): Boolean = records.any { fragment in it }
+
     /** Verifies synthetic input markers never reached the logger, including throwable chains. */
     fun assertNoSensitiveValues(vararg markers: String) {
         markers.forEach { marker ->

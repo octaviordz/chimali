@@ -2,7 +2,9 @@ package com.chimali.fido2.util.logging
 
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.PrintStream
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -34,7 +36,6 @@ class LocalCrashReportingLogWriterTest {
     private companion object {
         private const val MNEMONIC_WORDS_COUNT_MINUS_ONE = 23
         private const val SMALL_LOG_CAP_BYTES = 500L
-        private const val LOG_BURST_REPEAT_COUNT = 20
         private const val FRESH_LOG_MAX_SIZE_BYTES = 300
     }
 
@@ -106,7 +107,7 @@ class LocalCrashReportingLogWriterTest {
             writer.log(Severity.Info, "Expected content", "MyTag", null)
 
             val content = logFile.readText()
-            assertTrue(content.contains("I/MyTag:"), "Entry should contain severity/tag marker")
+            assertTrue(content.contains("I/Fido2:"), "Entry should contain severity and fixed tag")
             assertTrue(content.contains("Expected content"), "Entry should contain the message")
             assertTrue(content.endsWith("\n"), "Entry should end with newline")
         }
@@ -133,15 +134,15 @@ class LocalCrashReportingLogWriterTest {
             writer.log(Severity.Assert, "Assert message", "Tag", null)
 
             val content = logFile.readText()
-            assertTrue(content.contains("I/Tag:"), "Info entry should be present")
-            assertTrue(content.contains("W/Tag:"), "Warn entry should be present")
-            assertTrue(content.contains("E/Tag:"), "Error entry should be present")
-            assertTrue(content.contains("WTF/Tag:"), "Assert entry should be present")
+            assertTrue(content.contains("I/Fido2:"), "Info entry should be present")
+            assertTrue(content.contains("W/Fido2:"), "Warn entry should be present")
+            assertTrue(content.contains("E/Fido2:"), "Error entry should be present")
+            assertTrue(content.contains("WTF/Fido2:"), "Assert entry should be present")
         }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
-        fun `throwable stack trace is appended after the message line`() {
+        fun `throwable details are omitted after the message line`() {
             val writer = LocalCrashReportingLogWriter(mockProvider)
             val cause = RuntimeException("test-cause")
 
@@ -150,9 +151,11 @@ class LocalCrashReportingLogWriterTest {
             val content = logFile.readText()
             assertTrue(content.contains("Error with throwable"), "Message should appear")
             assertTrue(
-                content.contains("RuntimeException") || content.contains("test-cause"),
-                "Stack trace should be appended",
+                content.contains("[throwable details omitted]"),
+                "The output should retain only a fixed throwable indication",
             )
+            assertFalse(content.contains("RuntimeException"))
+            assertFalse(content.contains("test-cause"))
         }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -161,12 +164,13 @@ class LocalCrashReportingLogWriterTest {
             val writer = LocalCrashReportingLogWriter(mockProvider)
             val marker = "synthetic-private-marker-should-not-persist"
             val cause = IllegalStateException("private key=$marker", IllegalArgumentException("seed=$marker"))
+            cause.stackTrace = arrayOf(StackTraceElement(marker, marker, "$marker.kt", 999))
 
             writer.log(Severity.Error, "Operation failed", "CrashTag", cause)
 
             val content = logFile.readText()
             assertTrue(content.contains("Operation failed"))
-            assertTrue(content.contains("IllegalStateException"))
+            assertTrue(content.contains("[throwable details omitted]"))
             assertFalse(content.contains(marker), "Exception messages and causes must not be persisted")
         }
 
@@ -174,6 +178,7 @@ class LocalCrashReportingLogWriterTest {
         @Test
         fun `debug log forwarding redacts messages and removes throwable causes`() {
             var forwardedMessage: String? = null
+            var forwardedTag: String? = null
             var forwardedThrowable: Throwable? = null
             val delegate =
                 object : LogWriter() {
@@ -184,22 +189,27 @@ class LocalCrashReportingLogWriterTest {
                         throwable: Throwable?,
                     ) {
                         forwardedMessage = message
+                        forwardedTag = tag
                         forwardedThrowable = throwable
                     }
                 }
             val marker = "synthetic-private-marker-should-not-forward"
             val writer = PrivacyScrubbingLogWriter(delegate)
+            val throwable = IllegalStateException("seed=$marker", IllegalArgumentException("prk=$marker"))
+            throwable.stackTrace = arrayOf(StackTraceElement(marker, marker, "$marker.kt", 999))
 
             writer.log(
                 Severity.Error,
                 "private key=$marker",
-                "CrashTag",
-                IllegalStateException("seed=$marker", IllegalArgumentException("prk=$marker")),
+                "CrashTag-$marker",
+                throwable,
             )
 
             assertEquals("private key=[REDACTED]", forwardedMessage)
-            assertEquals("java.lang.IllegalStateException", forwardedThrowable?.message)
+            assertEquals("Fido2", forwardedTag)
+            assertEquals("[throwable details omitted]", forwardedThrowable?.message)
             assertEquals(null, forwardedThrowable?.cause)
+            assertEquals(0, forwardedThrowable?.stackTrace?.size)
             assertFalse(forwardedThrowable?.stackTraceToString()?.contains(marker) == true)
         }
 
@@ -214,6 +224,78 @@ class LocalCrashReportingLogWriterTest {
             val content = logFile.readText()
             assertFalse(content.contains("abandon"), "Mnemonic words must not appear in log file")
             assertTrue(content.contains("[REDACTED]"), "Redaction marker must be present")
+        }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `final local output scrubs tags and transformed secret markers`() {
+            val writer = LocalCrashReportingLogWriter(mockProvider)
+            val base64Marker = "a".repeat(80)
+            val hexMarker = "ab".repeat(40)
+
+            writer.log(Severity.Info, "seed=$base64Marker", "credential-$hexMarker", null)
+            writer.log(Severity.Info, "privateKey=$hexMarker", "tag-$base64Marker", null)
+            writer.log(Severity.Info, "privateKey=escaped%3A$hexMarker", "seed=$base64Marker", null)
+
+            val content = logFile.readText()
+            assertFalse(content.contains(base64Marker), "Base64-like output marker must not persist")
+            assertFalse(content.contains(hexMarker), "Hex output marker must not persist")
+            assertTrue(content.contains("[REDACTED]"), content)
+            assertTrue(content.contains("/Fido2:"), content)
+            assertFalse(content.contains("credential-$hexMarker"), "Untrusted tags must not be persisted")
+        }
+
+        /** @see FR-008, FR-009, NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `final local output omits throwable messages causes stack frames and tags`() {
+            val writer = LocalCrashReportingLogWriter(mockProvider)
+            val marker = "synthetic-private-local-log-marker"
+            val throwable =
+                IllegalStateException("failure=$marker", IllegalArgumentException("cause=$marker")).apply {
+                    stackTrace = arrayOf(StackTraceElement(marker, marker, "$marker.kt", 271))
+                }
+
+            writer.log(Severity.Error, "Credential operation failed", "private-tag-$marker", throwable)
+
+            val content = logFile.readText()
+            assertTrue(content.contains("Credential operation failed"), content)
+            assertTrue(content.contains("[throwable details omitted]"), content)
+            assertFalse(content.contains(marker), "Raw throwable and tag markers must not persist")
+            assertFalse(content.contains("IllegalStateException"), "Throwable class details must not persist")
+            assertFalse(content.contains("IllegalArgumentException"), "Cause type details must not persist")
+            assertTrue(content.contains("/Fido2:"), content)
+        }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `filesystem failure fallback does not print paths or exception messages`() {
+            val blocker = tempDir.resolve("private-filesystem-marker")
+            blocker.writeText("not a directory")
+            val blockedProvider =
+                object : LogDirectoryProvider {
+                    override fun getLogDirectory() = blocker.resolve("logs").toOkioPath()
+                }
+            val captured = ByteArrayOutputStream()
+            val previousErr = System.err
+            try {
+                System.setErr(PrintStream(captured))
+                val writer = LocalCrashReportingLogWriter(blockedProvider)
+                writer.log(Severity.Error, "synthetic failure", "private-tag", null)
+
+                val throwingProvider =
+                    object : LogDirectoryProvider {
+                        override fun getLogDirectory(): okio.Path = throw SecurityException("private-provider-marker")
+                    }
+                LocalCrashReportingLogWriter(throwingProvider)
+                    .log(Severity.Error, "synthetic provider failure", "private-tag", null)
+            } finally {
+                System.setErr(previousErr)
+            }
+
+            val fallback = captured.toString()
+            assertFalse(fallback.contains("private-filesystem-marker"))
+            assertFalse(fallback.contains("not a directory"))
+            assertFalse(fallback.contains("private-provider-marker"))
         }
     }
 
@@ -236,7 +318,7 @@ class LocalCrashReportingLogWriterTest {
 
             // Pad the file past the cap with repeated entries
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
-            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
+            while (logFile.length() <= smallCap) writer.log(Severity.Info, padEntry, "BurstTag", null)
 
             val sizeBeforeRotation = logFile.length()
             assertTrue(
@@ -262,7 +344,7 @@ class LocalCrashReportingLogWriterTest {
             val writer = LocalCrashReportingLogWriter(mockProvider, maxFileSize = smallCap)
 
             val padEntry = "Padding entry to fill the log file quickly with enough bytes."
-            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "BurstTag", null) }
+            while (logFile.length() <= smallCap) writer.log(Severity.Info, padEntry, "BurstTag", null)
 
             // Trigger rotation
             writer.log(Severity.Info, "Trigger rotation", "BurstTag", null)
@@ -286,14 +368,14 @@ class LocalCrashReportingLogWriterTest {
 
             // First rotation cycle
             val padEntry = "First rotation fill entry — long enough to count."
-            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "Cycle1", null) }
+            while (logFile.length() <= smallCap) writer.log(Severity.Info, padEntry, "Cycle1", null)
             writer.log(Severity.Info, "Trigger first rotation", "Cycle1", null)
 
             assertTrue(bakFile.exists(), "Bak should exist after first rotation")
             val bakSizeAfterFirst = bakFile.length()
 
             // Second rotation cycle — old bak must be replaced, not left alongside
-            repeat(LOG_BURST_REPEAT_COUNT) { writer.log(Severity.Info, padEntry, "Cycle2", null) }
+            while (logFile.length() <= smallCap) writer.log(Severity.Info, padEntry, "Cycle2", null)
             writer.log(Severity.Info, "Trigger second rotation", "Cycle2", null)
 
             assertTrue(bakFile.exists(), "Bak should still exist after second rotation")

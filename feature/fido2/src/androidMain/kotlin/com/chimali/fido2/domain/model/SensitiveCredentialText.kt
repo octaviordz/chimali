@@ -1,8 +1,6 @@
 package com.chimali.fido2.domain.model
 
 import com.chimali.core.common.annotation.Req
-import com.chimali.core.domain.valueobject.RpId
-import com.chimali.core.domain.valueobject.UserId
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
@@ -13,6 +11,8 @@ import java.util.Base64
 class SensitiveCredentialText private constructor(
     private val characters: CharArray,
 ) : CharSequence {
+    internal var beforeUtf8OutputTransferForTest: ((ByteArray) -> Unit)? = null
+
     /** Returns the current owner length without copying its characters. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override val length: Int get() = characters.size
@@ -71,30 +71,29 @@ class SensitiveCredentialText private constructor(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun toUtf8Bytes(): ByteArray {
         val output = ByteBuffer.allocate(Math.multiplyExact(length, MAX_UTF8_BYTES_PER_CHARACTER))
+        var result: ByteArray? = null
+        var transferred = false
         try {
             val encoder =
                 StandardCharsets.UTF_8
                     .newEncoder()
                     .onMalformedInput(CodingErrorAction.REPORT)
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
-            val encoded = encoder.encode(CharBuffer.wrap(characters), output, true)
-            if (encoded.isError) encoded.throwException()
+            val encodingResult = encoder.encode(CharBuffer.wrap(characters), output, true)
+            if (encodingResult.isError) encodingResult.throwException()
             val flushed = encoder.flush(output)
             if (flushed.isError) flushed.throwException()
             output.flip()
-            return ByteArray(output.remaining()).also(output::get)
+            val encoded = ByteArray(output.remaining())
+            result = encoded
+            beforeUtf8OutputTransferForTest?.invoke(encoded)
+            output.get(encoded)
+            return encoded.also { transferred = true }
         } finally {
+            if (!transferred) result?.fill(0)
             output.array().fill(0)
         }
     }
-
-    /** Creates a short-lived value object for an API that still requires one. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun toRpId(): RpId = RpId(toBoundaryString())
-
-    /** Creates a short-lived value object for an API that still requires one. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun toUserId(): UserId = UserId(toBoundaryString())
 
     /** Erases this owner's complete storage. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -104,7 +103,7 @@ class SensitiveCredentialText private constructor(
 
     /** Creates an independent owner for a copied domain value. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun copyOwner(): SensitiveCredentialText = SensitiveCredentialText(characters.copyOf())
+    fun copyOwner(): SensitiveCredentialText = fromOwnedCharacters(characters.copyOf())
 
     /** Keeps diagnostic conversion redacted. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -135,7 +134,7 @@ class SensitiveCredentialText private constructor(
                 if (decoded.isError) decoded.throwException()
                 val flushed = decoder.flush(output)
                 if (flushed.isError) flushed.throwException()
-                SensitiveCredentialText(output.array().copyOf(output.position()))
+                fromOwnedCharacters(output.array().copyOf(output.position()))
             } finally {
                 output.array().fill('\u0000')
             }
@@ -160,7 +159,7 @@ class SensitiveCredentialText private constructor(
                 if (decoded.isError) decoded.throwException()
                 val flushed = decoder.flush(output)
                 if (flushed.isError) flushed.throwException()
-                SensitiveCredentialText(output.array().copyOf(output.position()))
+                fromOwnedCharacters(output.array().copyOf(output.position()))
             } finally {
                 output.array().fill('\u0000')
             }
@@ -170,8 +169,42 @@ class SensitiveCredentialText private constructor(
         @Req("NFR-SEC-041", "TR-AUTH-031")
         fun copyOf(value: CharSequence): SensitiveCredentialText {
             val characters = CharArray(value.length)
-            for (index in characters.indices) characters[index] = value[index]
-            return SensitiveCredentialText(characters)
+            var transferred = false
+            try {
+                copyCharacters(value, characters)
+                return SensitiveCredentialText(characters).also { transferred = true }
+            } finally {
+                if (!transferred) characters.fill('\u0000')
+            }
+        }
+
+        /** Transfers an owned character array only after wrapper construction succeeds. */
+        internal fun fromOwnedCharacters(
+            characters: CharArray,
+            wrapperFactory: (CharArray) -> SensitiveCredentialText = ::SensitiveCredentialText,
+        ): SensitiveCredentialText {
+            var transferred = false
+            try {
+                return wrapperFactory(characters).also { transferred = true }
+            } finally {
+                if (!transferred) characters.fill('\u0000')
+            }
+        }
+
+        /** Copies borrowed characters into a caller-owned destination, wiping partial output on failure. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Suppress("TooGenericExceptionCaught") // Cleanup must run for any borrower failure, including Errors.
+        internal fun copyCharacters(
+            value: CharSequence,
+            destination: CharArray,
+        ) {
+            try {
+                require(destination.size == value.length)
+                for (index in destination.indices) destination[index] = value[index]
+            } catch (failure: Throwable) {
+                destination.fill('\u0000')
+                throw failure
+            }
         }
 
         /** Encodes borrowed ID bytes as the existing unpadded Base64URL UserId representation. */
@@ -179,7 +212,7 @@ class SensitiveCredentialText private constructor(
         fun fromBase64UrlBytes(bytes: ByteArray): SensitiveCredentialText {
             val encoded = Base64.getUrlEncoder().withoutPadding().encode(bytes)
             return try {
-                SensitiveCredentialText(CharArray(encoded.size) { encoded[it].toInt().toChar() })
+                fromOwnedCharacters(CharArray(encoded.size) { encoded[it].toInt().toChar() })
             } finally {
                 encoded.fill(0)
             }

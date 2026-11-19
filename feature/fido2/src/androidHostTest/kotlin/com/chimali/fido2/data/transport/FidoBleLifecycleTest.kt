@@ -5,10 +5,12 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothProfile
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.testing.CapturedDiagnostics
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -26,6 +28,8 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 @Req("FR-BLE-010", "FR-BLE-040", "TR-BLE-010", "TR-BLE-020")
 class FidoBleLifecycleTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
+
     private lateinit var sessionOwner: BleSessionOwner
     private lateinit var fakeAdvertiser: FakeBleAdvertiserController
     private lateinit var fakeSender: FakeResponseSender
@@ -127,6 +131,23 @@ class FidoBleLifecycleTest {
             sentNotifications.add(value.copyOf())
             return true
         }
+
+        fun clearNotifications() {
+            sentNotifications.forEach { it.fill(0) }
+            sentNotifications.clear()
+        }
+    }
+
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    @AfterTest
+    fun tearDown() {
+        if (::fakeSender.isInitialized) fakeSender.clearNotifications()
+        if (::sessionOwner.isInitialized) {
+            sessionOwner.activeDeviceAddress?.let(sessionOwner::disconnectHost)
+        }
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
     }
 
     @BeforeTest
@@ -135,6 +156,19 @@ class FidoBleLifecycleTest {
         fakeAdvertiser = FakeBleAdvertiserController()
         fakeSender = FakeResponseSender()
         rawCtapOperation = mockk(relaxed = true)
+    }
+
+    @Test
+    fun `teardown erases tracked packet and retained notification buffers`() {
+        val packet = own(byteArrayOf(BleGattTransport.CMD_MSG, 0x01))
+        fakeSender.notifyCharacteristicChanged(mockk(), mockk(), false, packet)
+        val notificationCopy = fakeSender.sentNotifications.single()
+
+        tearDown()
+
+        assertContentEquals(ByteArray(packet.size), packet)
+        assertContentEquals(ByteArray(notificationCopy.size), notificationCopy)
+        assertTrue(fakeSender.sentNotifications.isEmpty())
     }
 
     @Test
@@ -182,17 +216,19 @@ class FidoBleLifecycleTest {
             assertTrue(sessionOwner.selectRevision(BleSessionOwner.REVISION_FIDO2_0x20))
             sessionOwner.setNotificationsEnabled(true)
 
-            transport.onPacketReceived(byteArrayOf(BleGattTransport.CMD_MSG, 0x00, 30) + ByteArray(17))
+            transport.onPacketReceived(own(byteArrayOf(BleGattTransport.CMD_MSG, 0x00, 30) + ByteArray(17)))
             advanceTimeBy(BleSessionOwner.RECEIVE_TIMEOUT_NANOS / 1_000_000L)
             runCurrent()
 
             assertEquals(1, fakeSender.sentNotifications.size)
             assertContentEquals(
-                byteArrayOf(
-                    BleGattTransport.CMD_ERROR,
-                    0x00,
-                    0x01,
-                    FidoBleFraming.ERR_REQ_TIMEOUT,
+                own(
+                    byteArrayOf(
+                        BleGattTransport.CMD_ERROR,
+                        0x00,
+                        0x01,
+                        FidoBleFraming.ERR_REQ_TIMEOUT,
+                    ),
                 ),
                 fakeSender.sentNotifications.single(),
             )
@@ -405,7 +441,7 @@ class FidoBleLifecycleTest {
                         throw failure
                     }
                 } else {
-                    RawCtapResult(responseBytes = byteArrayOf(0x00))
+                    RawCtapResult(responseBytes = own(byteArrayOf(0x00)))
                 }
             }
             transport =
@@ -426,11 +462,13 @@ class FidoBleLifecycleTest {
             sessionOwner.setNotificationsEnabled(true)
 
             transport.onPacketReceived(
-                byteArrayOf(
-                    BleGattTransport.CMD_MSG,
-                    0,
-                    1,
-                    RawCtapOperationImpl.CMD_GET_INFO,
+                own(
+                    byteArrayOf(
+                        BleGattTransport.CMD_MSG,
+                        0,
+                        1,
+                        RawCtapOperationImpl.CMD_GET_INFO,
+                    ),
                 ),
             )
             runCurrent()
@@ -442,7 +480,7 @@ class FidoBleLifecycleTest {
             runCurrent()
             assertEquals(1, fakeSender.sentNotifications.size)
             assertEquals(BleGattTransport.CMD_KEEPALIVE, fakeSender.sentNotifications.single()[0])
-            fakeSender.sentNotifications.clear()
+            fakeSender.clearNotifications()
 
             sessionOwner.disconnectHost(host.address)
             gattHost.reportConnectionState(host, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_DISCONNECTED)
@@ -459,11 +497,13 @@ class FidoBleLifecycleTest {
             assertTrue(sessionOwner.selectRevision(BleSessionOwner.REVISION_FIDO2_0x20))
             sessionOwner.setNotificationsEnabled(true)
             transport.onPacketReceived(
-                byteArrayOf(
-                    BleGattTransport.CMD_MSG,
-                    0,
-                    1,
-                    RawCtapOperationImpl.CMD_GET_INFO,
+                own(
+                    byteArrayOf(
+                        BleGattTransport.CMD_MSG,
+                        0,
+                        1,
+                        RawCtapOperationImpl.CMD_GET_INFO,
+                    ),
                 ),
             )
             runCurrent()
@@ -473,7 +513,7 @@ class FidoBleLifecycleTest {
             assertEquals(2, operationCount, "The successor request must reach a fresh CTAP operation")
             assertEquals(1, fakeSender.sentNotifications.size, "Only the successor request may produce a response")
             assertContentEquals(
-                byteArrayOf(BleGattTransport.CMD_MSG, 0, 1, 0x00),
+                own(byteArrayOf(BleGattTransport.CMD_MSG, 0, 1, 0x00)),
                 fakeSender.sentNotifications.single(),
             )
             transport.disconnect()
@@ -531,6 +571,66 @@ class FidoBleLifecycleTest {
         }
 
     @Test
+    @Req("FR-BLE-040", "FR-BLE-070", "TR-BLE-020", "TR-BLE-040")
+    fun `stale callback diagnostics omit previous peer address`() =
+        runTest {
+            val diagnostics = CapturedDiagnostics()
+            try {
+                val gattHost = FakeGattServerHost()
+                val previousHost = mockk<BluetoothDevice>()
+                val successorHost = mockk<BluetoothDevice>()
+                every { previousHost.address } returns STALE_BOND_HOST_ADDRESS
+                every { successorHost.address } returns SUCCESSOR_HOST_ADDRESS
+                transport =
+                    BleGattTransport(
+                        rawCtapOperation = rawCtapOperation,
+                        sessionOwner = sessionOwner,
+                        advertiserController = fakeAdvertiser,
+                        responseSender = fakeSender,
+                        coroutineScope = this,
+                        gattServerHost = gattHost,
+                    )
+
+                assertTrue(transport.connect().isSuccess)
+                assertTrue(sessionOwner.connectHost(previousHost.address))
+                gattHost.reportConnectionState(
+                    previousHost,
+                    BluetoothGatt.GATT_SUCCESS,
+                    BluetoothProfile.STATE_CONNECTED,
+                )
+                sessionOwner.disconnectHost(previousHost.address)
+                gattHost.reportConnectionState(
+                    previousHost,
+                    BluetoothGatt.GATT_SUCCESS,
+                    BluetoothProfile.STATE_DISCONNECTED,
+                )
+                runCurrent()
+                assertTrue(sessionOwner.connectHost(successorHost.address))
+                gattHost.reportConnectionState(
+                    successorHost,
+                    BluetoothGatt.GATT_SUCCESS,
+                    BluetoothProfile.STATE_CONNECTED,
+                )
+
+                gattHost.reportNotificationSent(previousHost, BluetoothGatt.GATT_SUCCESS)
+                gattHost.reportConnectionState(
+                    previousHost,
+                    BluetoothGatt.GATT_SUCCESS,
+                    BluetoothProfile.STATE_DISCONNECTED,
+                )
+                runCurrent()
+
+                assertEquals(successorHost.address, sessionOwner.activeDeviceAddress)
+                assertEquals(Fido2ConnectionState.Connected(successorHost), transport.connectionState.value)
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(STALE_BOND_HOST_ADDRESS, SUCCESSOR_HOST_ADDRESS)
+                transport.disconnect()
+            } finally {
+                diagnostics.close()
+            }
+        }
+
+    @Test
     @Req("FR-BLE-050", "FR-BLE-070", "TR-BLE-020", "TR-BLE-040")
     fun `notification completion from previous host does not advance successor queue`() =
         runTest {
@@ -566,9 +666,9 @@ class FidoBleLifecycleTest {
             assertTrue(sessionOwner.selectRevision(BleSessionOwner.REVISION_FIDO2_0x20))
             sessionOwner.setNotificationsEnabled(true)
 
-            transport.onPacketReceived(byteArrayOf(BleGattTransport.CMD_PING, 0, 1, 0x11))
+            transport.onPacketReceived(own(byteArrayOf(BleGattTransport.CMD_PING, 0, 1, 0x11)))
             runCurrent()
-            transport.onPacketReceived(byteArrayOf(BleGattTransport.CMD_PING, 0, 1, 0x22))
+            transport.onPacketReceived(own(byteArrayOf(BleGattTransport.CMD_PING, 0, 1, 0x22)))
             runCurrent()
             assertEquals(1, fakeSender.sentNotifications.size)
 

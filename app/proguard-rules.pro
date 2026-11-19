@@ -15,6 +15,23 @@
 # General Jetpack Startup
 -keep class androidx.startup.InitializationProvider { *; }
 
+# Instrumentation emits synthetic diagnostics through the configured Kermit writer across the
+# app/test classloader boundary, so retain the small logging API as a coherent release ABI.
+-keep class co.touchlab.kermit.** { *; }
+-keep interface co.touchlab.kermit.** { *; }
+-keep enum co.touchlab.kermit.** { *; }
+
+# The configured diagnostic writer is exercised from the release instrumentation APK.
+# Keep its intentionally public writer contract across the optimized target/test boundary.
+-keep interface com.chimali.fido2.util.logging.LogDirectoryProvider { *; }
+-keep class com.chimali.fido2.util.logging.LocalCrashReportingLogWriter { *; }
+-keep class com.chimali.fido2.util.logging.AndroidLogDirectoryProvider { *; }
+
+# The direct Logcat regression calls this production warning path from the release test APK.
+-keep class com.chimali.MainActivityKt {
+    public static void logDeniedStartupPermissions(java.util.Map, kotlin.jvm.functions.Function2);
+}
+
 # Koin (Keep internal components used by reflection)
 -keep class org.koin.core.module.** { *; }
 -keep class org.koin.core.qualifier.** { *; }

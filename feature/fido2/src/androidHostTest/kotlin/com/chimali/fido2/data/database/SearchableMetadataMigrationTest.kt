@@ -8,6 +8,7 @@ import com.chimali.fido2.testing.CapturedDiagnostics
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.util.concurrent.CancellationException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -96,6 +97,7 @@ class SearchableMetadataMigrationTest {
         val expectedEncryptedCredMetadata = byteArrayOf(7, 8, 9)
         val expectedEncryptedRpMetadata = byteArrayOf(10, 11, 12)
         val generatedIndexes = mutableListOf<ByteArray>()
+        val generatedEncryptedMetadata = mutableListOf<ByteArray>()
 
         every {
             protectionService.getRpIdIndex(match { it.contentEquals("rp-1") })
@@ -108,8 +110,10 @@ class SearchableMetadataMigrationTest {
                 match { it.contentEquals("rp-1") },
                 match { it.contentEquals("user-1") },
             )
-        } returns expectedEncryptedCredMetadata
-        every { protectionService.encryptRelyingPartyMetadata(any(), any()) } returns expectedEncryptedRpMetadata
+        } answers { expectedEncryptedCredMetadata.copyOf().also(generatedEncryptedMetadata::add) }
+        every { protectionService.encryptRelyingPartyMetadata(any(), any()) } answers {
+            expectedEncryptedRpMetadata.copyOf().also(generatedEncryptedMetadata::add)
+        }
 
         // Execute migration
         val result = SearchableMetadataMigrationState.migrate(database, protectionService)
@@ -135,6 +139,8 @@ class SearchableMetadataMigrationTest {
         )
         assertEquals(3, generatedIndexes.size)
         generatedIndexes.forEach { assertEquals(0, it.count { byte -> byte != 0.toByte() }) }
+        assertEquals(2, generatedEncryptedMetadata.size)
+        generatedEncryptedMetadata.forEach { assertEquals(0, it.count { byte -> byte != 0.toByte() }) }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -596,5 +602,64 @@ class SearchableMetadataMigrationTest {
         val result2 = SearchableMetadataMigrationState.migrate(database, protectionService)
         assertTrue(result2.isSuccess)
         assertEquals(MigrationStatus.SUCCESS, SearchableMetadataMigrationState.status)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `migration propagates cancellation and erases borrowed consent row`() {
+        val rpMarker = "synthetic-canceled-migration-rp"
+        database.userConsentRecordQueries.insert(
+            id = "synthetic-canceled-migration-consent",
+            created_at = 1000L,
+            timestamp = 1000L,
+            updated_at = 1000L,
+            biometric_used = 0L,
+            credential_id = null,
+            device_id = null,
+            ip_address = null,
+            operation_type = "AUTHENTICATION",
+            pin_used = 0L,
+            rp_id = rpMarker.encodeToByteArray(),
+            user_agent = null,
+            rp_id_index = null,
+        )
+
+        val retainedRowBytes = mutableListOf<ByteArray>()
+        val cancellation = CancellationException("synthetic cancellation marker")
+        CapturedDiagnostics().use { diagnostics ->
+            val thrown =
+                org.junit.jupiter.api.Assertions.assertThrows(CancellationException::class.java) {
+                    SearchableMetadataMigrationState.migrateWithTextDecoder(database, protectionService) { bytes ->
+                        retainedRowBytes += bytes
+                        throw cancellation
+                    }
+                }
+
+            assertTrue(thrown === cancellation)
+            assertEquals(MigrationStatus.FAILED, SearchableMetadataMigrationState.status)
+            assertNull(SearchableMetadataMigrationState.lastError)
+            diagnostics.assertNoSensitiveValues(rpMarker, "synthetic cancellation marker")
+        }
+
+        assertTrue(retainedRowBytes.isNotEmpty())
+        assertTrue(retainedRowBytes.all { bytes -> bytes.all { it == 0.toByte() } })
+        val rolledBack =
+            database.userConsentRecordQueries.select_by_id("synthetic-canceled-migration-consent").executeAsOne()
+        assertNull(rolledBack.rp_id_index)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `migration diagnostics omit local record counts`() {
+        CapturedDiagnostics().use { diagnostics ->
+            val result = SearchableMetadataMigrationState.migrate(database, protectionService)
+
+            assertTrue(result.isSuccess)
+            diagnostics.assertNoSensitiveValues(
+                "Found 0 credentials",
+                "Found 0 relying parties",
+                "Found 0 user consent records",
+            )
+        }
     }
 }

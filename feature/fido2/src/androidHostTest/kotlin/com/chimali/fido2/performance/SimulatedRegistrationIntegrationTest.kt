@@ -38,92 +38,110 @@ class SimulatedRegistrationIntegrationTest {
         runTest {
             val rpId = "https://example.com"
             val requestHash = ByteArray(32) { (it + 7).toByte() }
-            val options =
-                MakeCredentialOptions.create(
-                    rp = PublicKeyCredentialRpEntity.create(RpId(rpId), "Synthetic RP"),
-                    user =
-                        PublicKeyCredentialUserEntity.create(
-                            UserId.fromByteArray("synthetic-user".encodeToByteArray()),
-                            "user",
-                            "User",
-                        ),
-                    challenge = requestHash,
-                    pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                    authenticatorSelection =
-                        AuthenticatorSelectionCriteria.create(
-                            userVerification = UserVerificationRequirement.REQUIRED,
-                        ),
-                    selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
-                )
-            val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
-            val repository = mockk<CredentialRepository>()
-            val verificationService = mockk<UserVerificationService>()
-            val settings = mockk<Fido2SettingsRepository>()
-            val crypto = mockk<Fido2CryptoService>()
-            val cbor = CborCodec()
-            every { crypto.decodePublicKey(any(), any()) } returns keyPair.public
-            coEvery { crypto.generateCredentialPublicKey(any()) } returns
-                Outcome.Success(GeneratedCredentialPublicKey(ByteArray(65) { 1 }))
-            coEvery { crypto.sign(any(), any(), any()) } coAnswers {
-                val signer = Signature.getInstance("SHA256withECDSA")
-                signer.initSign(keyPair.private)
-                signer.update(secondArg<ByteArray>())
-                Outcome.Success(signer.sign())
-            }
-            coEvery { verificationService.isUserVerificationRequiredForText(any(), any(), any()) } returns
-                com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
-            coEvery { repository.getRelyingPartyForText(any()) } returns null
-            coEvery { repository.saveRelyingParty(any<RelyingParty>()) } returns Outcome.Success(Unit)
-            coEvery { repository.validateCredentialCreationForText(any(), any()) } returns Outcome.Success(Unit)
-            coEvery { repository.getCredentialStatistics() } returns CredentialStatistics(0, 0, 0, 0, 0.0)
-            coEvery { settings.getMaxCredentialCount() } returns 100
-            coEvery { repository.saveCredential(any()) } returns Outcome.Success(Unit)
-            val useCase =
-                RegisterCredentialUseCase(
-                    repository,
-                    verificationService,
-                    cbor,
-                    crypto,
-                    settings,
-                    ClientDataHashService(),
-                )
-            val relyingParty = SimulatedRelyingParty(cbor)
             val request = SimulatedRelyingParty.Request(rpId, rpId, requestHash, requestHash.copyOf())
-            val verificationDouble = SimulatedUserVerification()
-            val attempt =
-                SimulatedCeremony(verificationDouble).run(
-                    runId = "synthetic-registration-run",
-                    attemptId = "registration-1",
-                    actionId = "registration-action-1",
-                    kind = CeremonyKind.REGISTRATION,
-                    attemptKind = AttemptKind.MEASURED,
-                    issueRequest = { request },
-                    execute = {
-                        userVerification(VerificationOutcome.SUCCESS)
-                        operation("makeCredential") {
-                            when (val result = useCase(options, userVerificationPerformed = true)) {
-                                is Outcome.Success -> result.data
-                                is Outcome.Error ->
-                                    error(
-                                        "synthetic registration failed: ${result.error::class.simpleName}",
-                                    )
+            val generatedKeyBytes = ByteArray(65) { 1 }
+            var optionsForCleanup: MakeCredentialOptions? = null
+            var keyPairForCleanup: java.security.KeyPair? = null
+            try {
+                val options =
+                    MakeCredentialOptions.create(
+                        rp = PublicKeyCredentialRpEntity.create(RpId(rpId), "Synthetic RP"),
+                        user =
+                            PublicKeyCredentialUserEntity.create(
+                                UserId.fromByteArray("synthetic-user".encodeToByteArray()),
+                                "user",
+                                "User",
+                            ),
+                        challenge = requestHash,
+                        pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+                        authenticatorSelection =
+                            AuthenticatorSelectionCriteria.create(
+                                userVerification = UserVerificationRequirement.REQUIRED,
+                            ),
+                        selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
+                    )
+                optionsForCleanup = options
+                val keyPair = KeyPairGenerator.getInstance("EC").apply { initialize(256) }.generateKeyPair()
+                keyPairForCleanup = keyPair
+                val repository = mockk<CredentialRepository>()
+                val verificationService = mockk<UserVerificationService>()
+                val settings = mockk<Fido2SettingsRepository>()
+                val crypto = mockk<Fido2CryptoService>()
+                val cbor = CborCodec()
+                every { crypto.decodePublicKey(any(), any()) } returns keyPair.public
+                coEvery { crypto.generateCredentialPublicKey(any()) } returns
+                    Outcome.Success(GeneratedCredentialPublicKey(generatedKeyBytes.copyOf()))
+                coEvery { crypto.sign(any(), any(), any()) } coAnswers {
+                    val signer = Signature.getInstance("SHA256withECDSA")
+                    signer.initSign(keyPair.private)
+                    signer.update(secondArg<ByteArray>())
+                    Outcome.Success(signer.sign())
+                }
+                coEvery { verificationService.isUserVerificationRequiredForText(any(), any(), any()) } returns
+                    com.chimali.fido2.domain.service.UserVerificationRequirement.NOT_REQUIRED
+                coEvery { repository.getRelyingPartyForText(any()) } returns null
+                coEvery { repository.saveRelyingParty(any<RelyingParty>()) } returns Outcome.Success(Unit)
+                coEvery { repository.validateCredentialCreationForText(any(), any()) } returns Outcome.Success(Unit)
+                coEvery { repository.getCredentialStatistics() } returns CredentialStatistics(0, 0, 0, 0, 0.0)
+                coEvery { settings.getMaxCredentialCount() } returns 100
+                coEvery { repository.saveCredential(any()) } returns Outcome.Success(Unit)
+                val useCase =
+                    RegisterCredentialUseCase(
+                        repository,
+                        verificationService,
+                        cbor,
+                        crypto,
+                        settings,
+                        ClientDataHashService(),
+                    )
+                val relyingParty = SimulatedRelyingParty(cbor)
+                val verificationDouble = SimulatedUserVerification()
+                val attempt =
+                    SimulatedCeremony(verificationDouble).run(
+                        runId = "synthetic-registration-run",
+                        attemptId = "registration-1",
+                        actionId = "registration-action-1",
+                        kind = CeremonyKind.REGISTRATION,
+                        attemptKind = AttemptKind.MEASURED,
+                        issueRequest = { request },
+                        execute = {
+                            userVerification(VerificationOutcome.SUCCESS)
+                            operation("makeCredential") {
+                                when (val result = useCase(options, userVerificationPerformed = true)) {
+                                    is Outcome.Success -> result.data
+                                    is Outcome.Error ->
+                                        error(
+                                            "synthetic registration failed: ${result.error::class.simpleName}",
+                                        )
+                                }
                             }
-                        }
-                    },
-                    verify = {
-                        rpRequest,
-                        response,
-                        ->
-                        relyingParty.verifyRegistration(rpRequest, response.attestationObject).verified
-                    },
-                )
+                        },
+                        verify = {
+                            rpRequest,
+                            response,
+                            ->
+                            try {
+                                relyingParty.verifyRegistration(rpRequest, response.attestationObject).verified
+                            } finally {
+                                response.eraseSensitiveData()
+                            }
+                        },
+                    )
 
-            assertTrue(attempt.verifiedResponse)
-            assertTrue(
-                attempt.operations
-                    .single()
-                    .interval.elapsedNanos != null,
-            )
-            assertTrue(attempt.verification.interval?.elapsedNanos != null)
+                assertTrue(attempt.verifiedResponse)
+                assertTrue(
+                    attempt.operations
+                        .single()
+                        .interval.elapsedNanos != null,
+                )
+                assertTrue(attempt.verification.interval?.elapsedNanos != null)
+            } finally {
+                optionsForCleanup?.eraseSensitiveText()
+                request.challenge.fill(0)
+                request.clientDataHash.fill(0)
+                requestHash.fill(0)
+                generatedKeyBytes.fill(0)
+                keyPairForCleanup?.let { pair -> runCatching { pair.private.destroy() } }
+            }
         }
 }

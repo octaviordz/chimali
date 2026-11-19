@@ -17,6 +17,7 @@ import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -43,31 +44,65 @@ class GetAssertionCandidateOwnershipTest {
             val rpId = RpId("https://example.com")
             val selected = createSummary("allow-listed-owner", rpId)
             val rejected = createSummary("excluded-owner", rpId)
+            val clientDataHash = ByteArray(32)
+            var options: GetAssertionOptions? = null
+            var candidates: List<CredentialSummary>? = null
             coEvery {
                 repository.getCredentialSummariesForRpText(match { it.contentEquals(rpId.value) })
             } returns Outcome.Success(listOf(selected, rejected))
-            val options =
-                GetAssertionOptions.create(
-                    rpId = rpId,
-                    clientDataHash = ByteArray(32),
-                    allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = selected.credentialId)),
-                )
+            try {
+                options =
+                    GetAssertionOptions.create(
+                        rpId = rpId,
+                        clientDataHash = clientDataHash,
+                        allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = selected.credentialId)),
+                    )
 
-            val result = useCase.findCandidateSummaries(options)
+                candidates = useCase.findCandidateSummaries(requireNotNull(options))
 
-            assertEquals(listOf(selected), result)
-            assertTrue(rejected.rpIdText.all { it == '\u0000' })
-            assertTrue(selected.rpIdText.any { it != '\u0000' })
-            coVerify(exactly = 0) { cryptoService.sign(any(), any(), any()) }
-            result.forEach(CredentialSummary::eraseSensitiveText)
-            options.eraseSensitiveText()
+                assertEquals(listOf(selected), candidates)
+                assertTrue(rejected.rpIdText.all { it == '\u0000' })
+                assertTrue(selected.rpIdText.any { it != '\u0000' })
+                coVerify(exactly = 0) { cryptoService.sign(any(), any(), any()) }
+            } finally {
+                candidates?.forEach(CredentialSummary::eraseSensitiveText)
+                selected.eraseSensitiveText()
+                rejected.eraseSensitiveText()
+                options?.eraseSensitiveText()
+                clientDataHash.fill(0)
+            }
         }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `result wrapper failure erases selected and excluded candidate owners`() {
+        val rpId = RpId("https://example.com")
+        val selected = createSummary("wrapper-failure-selected", rpId)
+        val rejected = createSummary("wrapper-failure-rejected", rpId)
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                createOwnedCandidateResult(
+                    all = listOf(selected, rejected),
+                    selectCandidates = { listOf(it.first()) },
+                    createResult = { throw IllegalStateException("synthetic result wrapper failure") },
+                )
+            }
+
+            assertTrue(selected.rpIdText.all { it == '\u0000' })
+            assertTrue(rejected.rpIdText.all { it == '\u0000' })
+        } finally {
+            selected.eraseSensitiveText()
+            rejected.eraseSensitiveText()
+        }
+    }
 
     private fun createSummary(
         id: String,
         rpId: RpId,
     ): CredentialSummary =
-        CredentialSummary(
+        CredentialSummary.fromRpId(
             id = id,
             rpId = rpId,
             credentialId = testCredentialIdFromLabel(id),

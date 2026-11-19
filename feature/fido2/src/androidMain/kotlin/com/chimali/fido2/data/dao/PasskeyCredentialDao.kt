@@ -41,6 +41,7 @@ class PasskeyCredentialDao(
         var userDisplayNameBytes: ByteArray? = null
         var rpIdIndex: ByteArray? = null
         var userIdIndex: ByteArray? = null
+        var encryptedMetadata: ByteArray? = null
         try {
             rpIdBytes = credential.rpId.toUtf8Bytes()
             rpNameBytes = credential.rpId.toUtf8Bytes()
@@ -49,7 +50,7 @@ class PasskeyCredentialDao(
             userDisplayNameBytes = credential.userDisplayName.toUtf8Bytes()
             rpIdIndex = metadataProtectionService.getRpIdIndex(credential.rpId)
             userIdIndex = metadataProtectionService.getUserIdIndex(credential.userId)
-            val encryptedMetadata =
+            encryptedMetadata =
                 metadataProtectionService.encryptCredentialMetadata(
                     credential.rpId,
                     credential.userId,
@@ -86,7 +87,7 @@ class PasskeyCredentialDao(
                 user_name = requireNotNull(userNameBytes),
                 rp_id_index = requireNotNull(rpIdIndex),
                 user_id_index = requireNotNull(userIdIndex),
-                encrypted_metadata = encryptedMetadata,
+                encrypted_metadata = requireNotNull(encryptedMetadata),
             )
         } finally {
             rpIdBytes?.fill(0)
@@ -96,6 +97,7 @@ class PasskeyCredentialDao(
             userDisplayNameBytes?.fill(0)
             rpIdIndex?.fill(0)
             userIdIndex?.fill(0)
+            encryptedMetadata?.fill(0)
         }
     }
 
@@ -265,21 +267,6 @@ class PasskeyCredentialDao(
             userDisplayNameBytes?.fill(0)
             userNameBytes?.fill(0)
         }
-    }
-
-    /**
-     * Updates the custom label for a credential.
-     */
-
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun updateLabel(
-        credentialId: CredentialId,
-        label: String?,
-    ) {
-        database.passkeyCredentialQueries.update_label(
-            label = label,
-            id = credentialId.encoded,
-        )
     }
 
     /**

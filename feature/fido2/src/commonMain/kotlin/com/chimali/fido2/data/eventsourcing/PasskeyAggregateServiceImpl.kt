@@ -48,6 +48,8 @@ class PasskeyAggregateServiceImpl(
             Result.failure(MalformedPasskeyAggregateException())
         } catch (_: IllegalStateException) {
             Result.failure(MalformedPasskeyAggregateException())
+        } catch (_: Exception) {
+            Result.failure(PasskeyAggregateRetrievalException())
         }
 
     // Ownership scopes are intentionally nested so snapshot fallback and transfer cleanup stay paired.
@@ -59,6 +61,7 @@ class PasskeyAggregateServiceImpl(
         // Try to load from snapshot if we're looking for the latest state
         if (asOf == null) {
             val snapshotResult = snapshotRepository.getLatest<PasskeyState>(EventKind.PASSKEY, aggregateId)
+            snapshotResult.exceptionOrNull().throwIfCancellation()
             val snapshot = snapshotResult.getOrNull()
 
             if (snapshot != null) {
@@ -88,7 +91,10 @@ class PasskeyAggregateServiceImpl(
                                 stateTransferred = true
                                 Result.success(reconstructed)
                             },
-                            onFailure = { failure -> Result.failure(failure) },
+                            onFailure = { failure ->
+                                failure.throwIfCancellation()
+                                Result.failure(PasskeyAggregateRetrievalException())
+                            },
                         )
                     } finally {
                         if (!stateTransferred) initialState.eraseSensitiveMetadata()
@@ -99,8 +105,15 @@ class PasskeyAggregateServiceImpl(
 
         return eventStoreRepository.getEvents(EventKind.PASSKEY, aggregateId, asOf).fold(
             onSuccess = { events -> Result.success(foldOwnedEvents(PasskeyState(), events, aggregateId)) },
-            onFailure = { failure -> Result.failure(failure) },
+            onFailure = { failure ->
+                failure.throwIfCancellation()
+                Result.failure(PasskeyAggregateRetrievalException())
+            },
         )
+    }
+
+    private fun Throwable?.throwIfCancellation() {
+        if (this is CancellationException) throw this
     }
 
     private fun foldOwnedEvents(
@@ -197,10 +210,8 @@ class PasskeyAggregateServiceImpl(
             executeOwned(aggregateId, command)
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (failure: IllegalArgumentException) {
-            // Preserve errors raised by repositories/snapshots; only validation failures before
-            // append are translated to InvalidPasskeyCommandException below.
-            Result.failure(failure)
+        } catch (_: Exception) {
+            Result.failure(PasskeyAggregateCommandExecutionException())
         } finally {
             (command as? PasskeyCommand.Register)?.eraseSensitiveMetadata()
         }
@@ -209,8 +220,6 @@ class PasskeyAggregateServiceImpl(
         aggregateId: String,
         command: PasskeyCommand,
     ): Result<PasskeyState> {
-        var lastResult: Result<Unit>? = null
-
         repeat(MAX_RETRIES) {
             val currentStateResult = getState(aggregateId)
             if (currentStateResult.isFailure) return currentStateResult
@@ -258,14 +267,19 @@ class PasskeyAggregateServiceImpl(
                                 ),
                             )
                         if (snapshotResult.isFailure) {
-                            return Result.failure(requireNotNull(snapshotResult.exceptionOrNull()))
+                            snapshotResult.exceptionOrNull()?.let { failure ->
+                                if (failure is CancellationException) throw failure
+                            }
+                            return Result.failure(PasskeyAggregateSnapshotException())
                         }
                     }
 
                     preserveCurrentState = true
                     return Result.success(state)
                 }
-                lastResult = appendResult
+                appendResult.exceptionOrNull()?.let { failure ->
+                    if (failure is CancellationException) throw failure
+                }
             } finally {
                 if (!preserveCurrentState) {
                     currentState.eraseSensitiveMetadata()
@@ -275,21 +289,9 @@ class PasskeyAggregateServiceImpl(
             }
         }
 
-        val exception =
-            lastResult?.exceptionOrNull() ?: RuntimeException(
-                "Passkey aggregate command execution failed after retries",
-            )
-        val finalResult: Result<PasskeyState> = Result.failure(exception)
+        val finalResult: Result<PasskeyState> = Result.failure(PasskeyAggregateRetryException())
         return finalResult
     }
-
-    private fun PasskeyState.copyWithOwnedMetadata(): PasskeyState =
-        copy(
-            rpId = rpId.copyOf(),
-            userId = userId.copyOf(),
-            userName = userName.copyOf(),
-            userDisplayName = userDisplayName.copyOf(),
-        )
 
     private fun validateCommand(
         aggregateId: String,
@@ -328,4 +330,51 @@ class PasskeyAggregateServiceImpl(
     private class MalformedPasskeyAggregateException : IllegalStateException("Passkey aggregate data is invalid")
 
     private class InvalidPasskeyCommandException : IllegalArgumentException("Passkey command is invalid")
+
+    private class PasskeyAggregateRetrievalException :
+        IllegalStateException("Passkey aggregate retrieval failed")
+
+    private class PasskeyAggregateSnapshotException :
+        IllegalStateException("Passkey aggregate snapshot save failed")
+
+    private class PasskeyAggregateRetryException :
+        IllegalStateException("Passkey aggregate command execution failed after retries")
+
+    private class PasskeyAggregateCommandExecutionException :
+        IllegalStateException("Passkey aggregate command execution failed")
+}
+
+/** Copies snapshot-owned mutable metadata and erases every staged copy if construction fails. */
+internal fun PasskeyState.copyWithOwnedMetadata(
+    copyCharacters: (CharArray) -> CharArray = { it.copyOf() },
+    copyBytes: (ByteArray) -> ByteArray = { it.copyOf() },
+): PasskeyState {
+    var rpIdCopy: CharArray? = null
+    var userIdCopy: CharArray? = null
+    var userNameCopy: CharArray? = null
+    var userDisplayNameCopy: CharArray? = null
+    var credentialIdCopy: ByteArray? = null
+    var transferred = false
+    try {
+        rpIdCopy = copyCharacters(rpId)
+        userIdCopy = copyCharacters(userId)
+        userNameCopy = copyCharacters(userName)
+        userDisplayNameCopy = copyCharacters(userDisplayName)
+        credentialIdCopy = copyBytes(credentialId)
+        return copy(
+            rpId = requireNotNull(rpIdCopy),
+            userId = requireNotNull(userIdCopy),
+            userName = requireNotNull(userNameCopy),
+            userDisplayName = requireNotNull(userDisplayNameCopy),
+            credentialId = requireNotNull(credentialIdCopy),
+        ).also { transferred = true }
+    } finally {
+        if (!transferred) {
+            rpIdCopy?.fill('\u0000')
+            userIdCopy?.fill('\u0000')
+            userNameCopy?.fill('\u0000')
+            userDisplayNameCopy?.fill('\u0000')
+            credentialIdCopy?.fill(0)
+        }
+    }
 }

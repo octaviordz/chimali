@@ -34,7 +34,7 @@ internal class CtapHidCommandDispatcher(
         sessionGeneration: Long,
     ) {
         if (!isCurrentSession(sessionGeneration)) {
-            message.payload.fill(0)
+            message.clearMemory()
             return
         }
         if (message.command != CTAPHID_INIT &&
@@ -46,7 +46,7 @@ internal class CtapHidCommandDispatcher(
                     sessionGeneration,
                 )
             } finally {
-                message.payload.fill(0)
+                message.clearMemory()
             }
             return
         }
@@ -56,7 +56,7 @@ internal class CtapHidCommandDispatcher(
                 cborRequestOwner.dispatch(message, sessionGeneration)
                 transferred = true
             } finally {
-                if (!transferred) message.payload.fill(0)
+                if (!transferred) message.clearMemory()
             }
             return
         }
@@ -79,7 +79,7 @@ internal class CtapHidCommandDispatcher(
                 }
             }
         } finally {
-            message.payload.fill(0)
+            message.clearMemory()
         }
     }
 
@@ -98,7 +98,7 @@ internal class CtapHidCommandDispatcher(
                 sendPackets(responseBuilder.hidErrorResponse(BROADCAST_CID, ERR_CHANNEL_BUSY), sessionGeneration)
                 return
             }
-            Logger.i { "CTAPHID_INIT: assigned CID=${cid.toHex()}" }
+            Logger.i { "CTAPHID_INIT: channel assigned" }
             val response = hidReportParser.buildInitResponse(nonce, cid)
             sendPackets(hidReportParser.encodeResponse(response), sessionGeneration)
         } finally {
@@ -124,16 +124,13 @@ internal class CtapHidCommandDispatcher(
             val info = authenticatorInfoProvider.getAuthenticatorInfo()
             val packets = responseBuilder.getInfoResponse(cid, info)
             if (packets.isNotEmpty()) {
-                val hex = packets.first().joinToString("") { packetByte -> "%02x".format(packetByte) }
-                Logger.d { "GetInfo response packet[0] hex: $hex" }
+                Logger.d { "GetInfo response packets built: ${packets.size}" }
             }
             packets
-        } catch (failure: Fido2Exception) {
-            Logger.e(failure) { "GetInfo failed: ${failure.message}" }
+        } catch (_: Fido2Exception) {
+            Logger.e { "GetInfo failed; returning protocol error" }
             responseBuilder.errorResponse(cid, GET_INFO_FAILURE_STATUS)
         }
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     private companion object {
         /** Existing CTAP2 status emitted when GetInfo raises a FIDO2 exception. */

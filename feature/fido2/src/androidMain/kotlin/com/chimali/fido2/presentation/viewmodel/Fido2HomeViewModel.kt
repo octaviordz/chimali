@@ -8,6 +8,7 @@ import com.chimali.fido2.data.transport.Fido2ConnectionState
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.data.transport.ProcessTransportSelection
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.PairedDevice
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.TransportAvailability
 import com.chimali.fido2.domain.repository.TransportUnavailableReason
@@ -15,6 +16,8 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.service.Fido2TransportService
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +29,40 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.annotation.KoinViewModel
+
+internal const val CONNECTED_DEVICE_DISPLAY_NAME_STOP_TIMEOUT_MS = 5000L
+
+internal fun connectedDeviceDisplayNameState(
+    scope: CoroutineScope,
+    connectionState: Flow<Fido2ConnectionState>,
+    pairedDevices: Flow<List<PairedDevice>>,
+): StateFlow<String?> =
+    combine(
+        connectionState,
+        pairedDevices,
+    ) { state, devices ->
+        when (state) {
+            is Fido2ConnectionState.Connected -> {
+                val address = state.device?.address
+                val match = address?.let { targetAddress -> devices.find { it.macAddress == targetAddress } }
+                match?.alias ?: state.device?.name ?: "Connected Host"
+            }
+
+            is Fido2ConnectionState.Connecting -> {
+                state.device?.name ?: "Connecting..."
+            }
+
+            else -> null
+        }
+    }.stateIn(
+        scope = scope,
+        started =
+            SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = CONNECTED_DEVICE_DISPLAY_NAME_STOP_TIMEOUT_MS,
+                replayExpirationMillis = 0L,
+            ),
+        initialValue = null,
+    )
 
 /**
  * T156a — ViewModel for the FIDO2 Authenticator Dashboard.
@@ -54,29 +91,10 @@ class Fido2HomeViewModel(
      * Resolves the display name for the connected host, prioritizing user-defined aliases.
      */
     val connectedDeviceDisplayName: StateFlow<String?> =
-        combine(
-            connectionState,
-            repository.getAllPairedDevices(),
-        ) { state, devices ->
-            when (state) {
-                is Fido2ConnectionState.Connected -> {
-                    val address = state.device?.address
-                    val match = address?.let { targetAddress -> devices.find { it.macAddress == targetAddress } }
-                    match?.alias ?: state.device?.name ?: "Connected Host"
-                }
-
-                is Fido2ConnectionState.Connecting -> {
-                    state.device?.name ?: "Connecting..."
-                }
-
-                else -> {
-                    null
-                }
-            }
-        }.stateIn(
+        connectedDeviceDisplayNameState(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(SUBSCRIBED_STOP_TIMEOUT_MS),
-            initialValue = null,
+            connectionState = connectionState,
+            pairedDevices = repository.getAllPairedDevices(),
         )
 
     /**
@@ -140,7 +158,6 @@ class Fido2HomeViewModel(
     fun getPendingAuthentication(): Fido2UiEvent.AuthenticationRequested? = uiEventBus.currentAuthenticationRequest
 
     companion object {
-        private const val SUBSCRIBED_STOP_TIMEOUT_MS = 5000L
         private const val SERVICE_STARTUP_TIMEOUT_MS = 10_000L
     }
 }

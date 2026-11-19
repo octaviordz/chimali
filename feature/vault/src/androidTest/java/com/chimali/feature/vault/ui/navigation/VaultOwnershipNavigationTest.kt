@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelStore
 import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.common.result.DomainError
@@ -112,9 +113,15 @@ class VaultOwnershipNavigationTest(
                     object : ClipboardManagerService {
                         override suspend fun copySensitiveData(
                             label: String,
-                            text: String,
-                            clearDelayMs: Long,
-                        ) = Result.success(Unit)
+                            text: CharArray,
+                        ): Result<com.chimali.core.clipboard.ClipboardCopyReceipt> =
+                            Result.success(
+                                com.chimali.core.clipboard.ClipboardCopyReceipt(
+                                    1L,
+                                    com.chimali.core.clipboard.CLIPBOARD_CLEANUP_DELAY_MS,
+                                    com.chimali.core.clipboard.PublicationStatus.MetadataConfirmed,
+                                ),
+                            )
 
                         override suspend fun clearClipboard() = Result.success(Unit)
                     },
@@ -155,6 +162,69 @@ class VaultOwnershipNavigationTest(
     private fun clickFormButton(text: String) {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
         compose.onNodeWithText(text).performClick()
+    }
+
+    @Test
+    fun backgroundingErasesListBuffersAndForegroundReloadsActiveItems() {
+        compose.waitUntil(timeoutMillis = 10_000) {
+            vm.state.value.labels
+                .isNotEmpty()
+        }
+        val original =
+            vm.state.value
+                .items
+                .single()
+        val title = original.title
+        val payload = original.payload
+        val crdtState = original.crdtState
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.waitUntil(timeoutMillis = 10_000) {
+            title.all { it == '\u0000' } &&
+                payload.all { it == 0.toByte() } &&
+                crdtState.all { it == 0.toByte() } &&
+                vm.state.value.items
+                    .isEmpty() &&
+                vm.state.value.labels
+                    .isEmpty()
+        }
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitUntil(timeoutMillis = 10_000) {
+            vm.state.value.labels
+                .isNotEmpty() &&
+                vm.state.value.items
+                    .singleOrNull()
+                    ?.title
+                    ?.contentEquals("entry".toCharArray()) == true
+        }
+        assertTrue(
+            vm.state.value.items
+                .single()
+                .title !== title,
+        )
+    }
+
+    @Test
+    fun backgroundingDiscardsEditorDraftAndReturnsToReloadedList() {
+        openEditor()
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.waitUntil(timeoutMillis = 10_000) {
+            vm.state.value.items
+                .isEmpty() &&
+                vm.state.value.selectedItem == null &&
+                vm.state.value.mutationState != VaultMutationState.PENDING
+        }
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitUntil(timeoutMillis = 10_000) {
+            vm.state.value.items
+                .singleOrNull()
+                ?.title
+                ?.contentEquals("entry".toCharArray()) == true
+        }
+        compose.onNodeWithText("entry").assertExists()
+        compose.onNodeWithText("changed").assertDoesNotExist()
     }
 
     @Test
@@ -270,6 +340,7 @@ class VaultOwnershipNavigationTest(
 
     private class Storage : VaultService {
         lateinit var item: VaultItem
+        val labels = listOf(LabelUiModel(UUID(0, 2), "synthetic label", "#123456"))
         var failNext = false
         var saveGate: CompletableDeferred<Unit>? = null
         var enteredSave = false
@@ -303,7 +374,7 @@ class VaultOwnershipNavigationTest(
 
         override suspend fun getItemLabelIds(itemId: UUID) = Outcome.Success(emptyList<UUID>())
 
-        override suspend fun getLabels() = Outcome.Success(emptyList<LabelUiModel>())
+        override suspend fun getLabels() = Outcome.Success(labels)
 
         override suspend fun deleteItem(id: UUID) = Outcome.Success(Unit)
 

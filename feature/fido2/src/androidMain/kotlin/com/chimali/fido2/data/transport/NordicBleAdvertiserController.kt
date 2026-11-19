@@ -67,7 +67,9 @@ class NordicBleAdvertiserController(
                         BleAdvertisingData(
                             serviceUuid = ParcelUuid(serviceUuid),
                         ),
-                    scanResponseData = BleAdvertisingData(includeDeviceName = true),
+                    // The FIDO service UUID is sufficient for discovery; do not broadcast the
+                    // phone's user-configurable Bluetooth name to nearby scanners.
+                    scanResponseData = BleAdvertisingData(includeDeviceName = false),
                 )
             val startup = CompletableDeferred<Result<Unit>>()
             val job =
@@ -103,7 +105,7 @@ class NordicBleAdvertiserController(
                         throw e
                     } catch (e: Exception) {
                         if (!startup.complete(Result.failure(e))) onUnexpectedFailure(e)
-                        Logger.e(e) { "NordicBleAdvertiserController: Advertising failed or interrupted" }
+                        Logger.e { "NordicBleAdvertiserController: Advertising failed or interrupted" }
                     }
                 }
             advertisingJob = job
@@ -140,17 +142,17 @@ class NordicBleAdvertiserController(
         } catch (e: SecurityException) {
             stopAdvertising()
             stopObservingAdapterState()
-            Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
+            Logger.e { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalArgumentException) {
             stopAdvertising()
             stopObservingAdapterState()
-            Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
+            Logger.e { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         } catch (e: IllegalStateException) {
             stopAdvertising()
             stopObservingAdapterState()
-            Logger.e(e) { "NordicBleAdvertiserController: Failed to start advertising" }
+            Logger.e { "NordicBleAdvertiserController: Failed to start advertising" }
             Result.failure(e)
         }
 

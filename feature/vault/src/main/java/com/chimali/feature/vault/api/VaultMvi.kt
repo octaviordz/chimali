@@ -79,6 +79,9 @@ sealed interface VaultIntent {
 
     data object ClearSelectedItem : VaultIntent
 
+    /** Clears Vault list owners while the app is backgrounded. */
+    data object ClearListData : VaultIntent
+
     data object ResetMutation : VaultIntent
 
     /** Disposes a save session; late completion cannot navigate another editor. */

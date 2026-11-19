@@ -11,8 +11,8 @@ import kotlinx.serialization.encoding.Encoder
 /**
  * Compatibility serializer for mutable text fields that must retain the v1 JSON string shape.
  * Encoding and decoding still materialize immutable Strings through the generic serialization API;
- * this serializer is not an erasure boundary for sensitive production payloads. The passkey event
- * and snapshot repositories use their mutable-field JSON codec instead.
+ * this serializer is not an erasure boundary for sensitive production payloads. Vault event and
+ * snapshot persistence must use the mutable-field JSON codec instead.
  */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 object SensitiveCharArraySerializer : KSerializer<CharArray> {

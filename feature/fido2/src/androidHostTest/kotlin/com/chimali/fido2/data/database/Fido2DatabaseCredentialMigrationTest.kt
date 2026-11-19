@@ -11,21 +11,114 @@ import com.chimali.fido2.data.dao.PasskeyCredentialDao
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.testing.testCredentialIdFromLabel
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
-import java.security.KeyPairGenerator
+import java.security.PublicKey
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-/** Verifies migration 2 retains legacy passkeys and removes the one-row-per-account restriction. */
+/** Verifies database migrations preserve passkeys and remove optional consent context. */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 class Fido2DatabaseCredentialMigrationTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
+    private val mocksToClear = mutableListOf<Any>()
+
+    private fun own(buffer: ByteArray): ByteArray {
+        ownedBuffers += buffer
+        return buffer
+    }
+
+    private fun <T : Any> ownMock(mock: T): T {
+        mocksToClear += mock
+        return mock
+    }
+
+    @Test
+    fun `migration clears historical optional consent context`() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.execute(
+                identifier = null,
+                sql =
+                    """
+                    CREATE TABLE user_consent_record (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        created_at INTEGER NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        biometric_used INTEGER NOT NULL DEFAULT 0,
+                        credential_id TEXT,
+                        device_id TEXT,
+                        ip_address TEXT,
+                        operation_type TEXT NOT NULL,
+                        pin_used INTEGER NOT NULL DEFAULT 0,
+                        rp_id BLOB NOT NULL,
+                        rp_id_index BLOB,
+                        user_agent TEXT
+                    )
+                    """.trimIndent(),
+                parameters = 0,
+            )
+            driver.execute(
+                identifier = null,
+                sql =
+                    """
+                    INSERT INTO user_consent_record (
+                        id, created_at, timestamp, updated_at, credential_id,
+                        device_id, ip_address, operation_type, rp_id, user_agent
+                    ) VALUES (
+                        'synthetic-consent', 1, 1, 1, 'synthetic-credential',
+                        'synthetic-device', 'synthetic-ip', 'GET', X'010203', 'synthetic-agent'
+                    )
+                    """.trimIndent(),
+                parameters = 0,
+            )
+
+            Fido2Database.Schema.migrate(driver, oldVersion = 3, newVersion = 4)
+
+            val migrated =
+                driver
+                    .executeQuery(
+                        identifier = null,
+                        sql =
+                            """
+                            SELECT device_id, ip_address, user_agent, credential_id, rp_id
+                            FROM user_consent_record WHERE id = 'synthetic-consent'
+                            """.trimIndent(),
+                        mapper = { cursor ->
+                            check(cursor.next().value)
+                            QueryResult.Value(
+                                listOf(
+                                    cursor.getString(0),
+                                    cursor.getString(1),
+                                    cursor.getString(2),
+                                    cursor.getString(3),
+                                    cursor.getBytes(4),
+                                ),
+                            )
+                        },
+                        parameters = 0,
+                    ).value
+
+            assertEquals(null, migrated[0])
+            assertEquals(null, migrated[1])
+            assertEquals(null, migrated[2])
+            assertEquals("synthetic-credential", migrated[3])
+            assertContentEquals(byteArrayOf(1, 2, 3), migrated[4] as ByteArray)
+        } finally {
+            driver.close()
+        }
+    }
+
     @Test
     fun `migration preserves credentials and allows multiple credentials for an account`() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        val rowBuffers = mutableListOf<ByteArray>()
+        var secondCredential: PasskeyCredential? = null
         try {
             driver.execute(
                 identifier = null,
@@ -61,6 +154,28 @@ class Fido2DatabaseCredentialMigrationTest {
                 identifier = null,
                 sql =
                     """
+                    CREATE TABLE user_consent_record (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        created_at INTEGER NOT NULL,
+                        timestamp INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        biometric_used INTEGER NOT NULL DEFAULT 0,
+                        credential_id TEXT,
+                        device_id TEXT,
+                        ip_address TEXT,
+                        operation_type TEXT NOT NULL,
+                        pin_used INTEGER NOT NULL DEFAULT 0,
+                        rp_id BLOB NOT NULL,
+                        rp_id_index BLOB,
+                        user_agent TEXT
+                    )
+                    """.trimIndent(),
+                parameters = 0,
+            )
+            driver.execute(
+                identifier = null,
+                sql =
+                    """
                     CREATE VIEW credential_summary AS
                     SELECT id, rp_id, rp_name, user_name, user_display_name, created_at, last_used_at, sign_count
                     FROM passkey_credential
@@ -88,6 +203,17 @@ class Fido2DatabaseCredentialMigrationTest {
 
             val database = Fido2Database(driver)
             val preserved = database.passkeyCredentialQueries.select_by_id("legacy-credential").executeAsOne()
+            rowBuffers +=
+                listOfNotNull(
+                    preserved.encrypted_metadata,
+                    preserved.rp_id,
+                    preserved.rp_id_index,
+                    preserved.rp_name,
+                    preserved.user_display_name,
+                    preserved.user_id,
+                    preserved.user_id_index,
+                    preserved.user_name,
+                )
             assertEquals("legacy-credential", preserved.id)
             assertEquals(10L, preserved.created_at)
             assertEquals(11L, preserved.last_used_at)
@@ -97,17 +223,17 @@ class Fido2DatabaseCredentialMigrationTest {
             assertEquals("legacy-credential", preserved.credential_id)
             assertEquals(1L, preserved.cred_protect_policy)
             assertEquals("p256", preserved.derivation_profile)
-            assertContentEquals(byteArrayOf(1, 2, 3), preserved.encrypted_metadata)
+            assertContentEquals(own(byteArrayOf(1, 2, 3)), preserved.encrypted_metadata)
             assertEquals("legacy-label", preserved.label)
             assertEquals("public-key", preserved.public_key)
-            assertContentEquals("example.com".encodeToByteArray(), preserved.rp_id)
-            assertContentEquals(byteArrayOf(1), preserved.rp_id_index)
-            assertContentEquals("example.com".encodeToByteArray(), preserved.rp_name)
+            assertContentEquals(own("example.com".encodeToByteArray()), preserved.rp_id)
+            assertContentEquals(own(byteArrayOf(1)), preserved.rp_id_index)
+            assertContentEquals(own("example.com".encodeToByteArray()), preserved.rp_name)
             assertEquals(4L, preserved.sign_count)
-            assertContentEquals("User".encodeToByteArray(), preserved.user_display_name)
-            assertContentEquals("user-1".encodeToByteArray(), preserved.user_id)
-            assertContentEquals(byteArrayOf(2), preserved.user_id_index)
-            assertContentEquals("user".encodeToByteArray(), preserved.user_name)
+            assertContentEquals(own("User".encodeToByteArray()), preserved.user_display_name)
+            assertContentEquals(own("user-1".encodeToByteArray()), preserved.user_id)
+            assertContentEquals(own(byteArrayOf(2)), preserved.user_id_index)
+            assertContentEquals(own("user".encodeToByteArray()), preserved.user_name)
             val viewRows =
                 driver
                     .executeQuery(
@@ -123,19 +249,22 @@ class Fido2DatabaseCredentialMigrationTest {
             assertEquals(listOf("legacy-credential"), viewRows)
 
             val protectionService =
-                mockk<CredentialMetadataProtectionService> {
-                    every { getRpIdIndex(any()) } answers { "rp:${firstArg<CharSequence>()}".toByteArray() }
-                    every { getUserIdIndex(any()) } answers { "user:${firstArg<CharSequence>()}".toByteArray() }
-                    every { encryptCredentialMetadata(any(), any()) } returns byteArrayOf(9, 8, 7)
-                }
+                ownMock(
+                    mockk<CredentialMetadataProtectionService> {
+                        every { getRpIdIndex(any()) } answers { own(byteArrayOf(0x31)) }
+                        every { getUserIdIndex(any()) } answers { own(byteArrayOf(0x32)) }
+                        every { encryptCredentialMetadata(any(), any()) } answers { own(byteArrayOf(9, 8, 7)) }
+                    },
+                )
             val id = testCredentialIdFromLabel("second-same-account")
             val publicKey =
-                KeyPairGenerator
-                    .getInstance("EC")
-                    .apply { initialize(256) }
-                    .generateKeyPair()
-                    .public
-            val secondCredential =
+                ownMock(
+                    mockk<PublicKey> {
+                        every { encoded } returns own("synthetic-public-key".encodeToByteArray())
+                    },
+                )
+            val credentialBytes = own(id.toByteArray())
+            secondCredential =
                 PasskeyCredential.create(
                     id = id,
                     rpId = RpId("example.com"),
@@ -143,12 +272,12 @@ class Fido2DatabaseCredentialMigrationTest {
                     userName = "user",
                     userDisplayName = "User",
                     publicKey = publicKey,
-                    aaguid = ByteArray(16),
-                    credentialId = id.toByteArray(),
+                    aaguid = own(ByteArray(16)),
+                    credentialId = credentialBytes,
                     derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
                 )
             val dao = PasskeyCredentialDao(database, TimeProvider(), protectionService)
-            runTest { dao.insertCredentialProjection(secondCredential) }
+            runTest { dao.insertCredentialProjection(requireNotNull(secondCredential)) }
 
             val rows = database.passkeyCredentialQueries.select_all().executeAsList()
             assertEquals(setOf("legacy-credential", id.encoded), rows.map { it.id }.toSet())
@@ -176,6 +305,12 @@ class Fido2DatabaseCredentialMigrationTest {
                     ),
             )
         } finally {
+            secondCredential?.eraseSensitiveText()
+            rowBuffers.forEach { it.fill(0) }
+            ownedBuffers.forEach { it.fill(0) }
+            ownedBuffers.clear()
+            mocksToClear.forEach { clearMocks(it) }
+            mocksToClear.clear()
             driver.close()
         }
     }

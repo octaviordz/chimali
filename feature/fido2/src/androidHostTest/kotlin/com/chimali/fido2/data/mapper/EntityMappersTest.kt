@@ -7,6 +7,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.fido2.data.crypto.PublicKeyDecoder
 import com.chimali.fido2.data.database.Passkey_credential
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.SensitiveCredentialText
 import io.mockk.every
 import io.mockk.mockk
@@ -132,6 +133,57 @@ class EntityMappersTest {
             assertNull(failure.cause)
             ownedRows.forEach { bytes -> assertContentEquals(ByteArray(bytes.size), bytes) }
         }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `partially constructed credential clears decoded binary owners`() {
+        val invalid = row().copy(aaguid = Base64.getEncoder().encodeToString(ByteArray(15)))
+        val decodedOwners = mutableListOf<ByteArray>()
+
+        val result =
+            invalid.toDomainModelWithTextDecoder(
+                decoder,
+                metadata,
+                aaguidDecoder = { encoded -> Base64.getDecoder().decode(encoded).also(decodedOwners::add) },
+                credentialIdDecoder = { credentialId -> credentialId.toByteArray().also(decodedOwners::add) },
+                textDecoder = SensitiveCredentialText::fromUtf8Bytes,
+            )
+
+        assertIs<Outcome.Error<*>>(result)
+        assertEquals(2, decodedOwners.size)
+        decodedOwners.forEach { assertContentEquals(ByteArray(it.size), it) }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `credential and row owners erase when success wrapper construction fails`() {
+        val stored = row()
+        val rowOwners = listOf(stored.rp_id, stored.rp_name, stored.user_id, stored.user_name, stored.user_display_name)
+        var constructed: PasskeyCredential? = null
+
+        val result =
+            stored.toDomainModelWithTextDecoder(
+                decoder = decoder,
+                metadataProtectionService = metadata,
+                textDecoder = SensitiveCredentialText::fromUtf8Bytes,
+                successFactory = { credential ->
+                    constructed = credential
+                    error("synthetic success-wrapper construction failure")
+                },
+            )
+
+        assertIs<Outcome.Error<*>>(result)
+        val credential = requireNotNull(constructed)
+        listOf(credential.rpId, credential.userId, credential.userName, credential.userDisplayName).forEach { owner ->
+            val characters = owner.copyCharacters()
+            assertContentEquals(CharArray(characters.size), characters)
+            characters.fill('\u0000')
+        }
+        assertContentEquals(ByteArray(credential.credentialId.size), credential.credentialId)
+        rowOwners.forEach { owner -> assertContentEquals(ByteArray(owner.size), owner) }
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */

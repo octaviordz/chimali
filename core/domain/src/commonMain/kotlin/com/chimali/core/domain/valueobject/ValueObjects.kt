@@ -7,7 +7,9 @@ import kotlinx.serialization.Serializable
 @JvmInline
 value class EncryptedString(
     val value: String,
-)
+) {
+    override fun toString(): String = "EncryptedString([redacted])"
+}
 
 @Serializable
 enum class CredentialCategory {

@@ -147,7 +147,7 @@ The heading was wrong; the body was correct.
 
 **Finding**: The original analysis referenced `WalletSessionMemoryManager.kt`, which does not exist. The actual file is [`WalletSessionMemoryPressure.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryPressure.kt).
 
-**Verification**: Confirmed. `WalletSessionMemoryPressure.handle()` invokes the `clearSession()` callback for three `TRIM_MEMORY_*` levels and then requests a GC hint. No KDF. [`MemoryUtils.kt`](file:///d:/octav/source/repos/Chimali/feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/MemoryUtils.kt) provides buffer utilities only. No KDF audit is needed for either file.
+**Verification**: Confirmed. `WalletSessionMemoryPressure.handle()` invokes the `clearSession()` callback for three `TRIM_MEMORY_*` levels and then requests a GC hint. No KDF. The formerly adjacent `MemoryUtils` utility was removed in the 2026-11-14 Feature 065 audit after finding no production callers; its `clearString` method was a no-op, and String-to-array helpers could not erase immutable source Strings. No KDF audit is needed for the remaining memory-pressure callback.
 
 **Disposition**: ✅ **CORRECTION ACCEPTED.** E-5 is **closed**.
 

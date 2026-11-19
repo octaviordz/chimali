@@ -1,5 +1,6 @@
 package com.chimali.fido2.ctap2
 
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,22 +23,46 @@ class Ctap2AttestationStatementTest {
     // We replicate the private buildAttestationStatementMap logic here for testability.
     // The real implementation is in Ctap2MakeCredentialHandler.buildAttestationStatementMap.
 
+    private val ownedBuffers = mutableListOf<ByteArray>()
+    private val ownedChains = mutableListOf<List<ByteArray>>()
+    private val ownedMaps = mutableListOf<MutableMap<Any, Any>>()
+
+    private fun ownedBytes(
+        size: Int,
+        value: Byte,
+    ): ByteArray = ByteArray(size) { value }.also(ownedBuffers::add)
+
+    @AfterTest
+    fun eraseSyntheticAttestationFixtures() {
+        ownedMaps.forEach(MutableMap<Any, Any>::clear)
+        ownedChains.flatten().forEach { it.fill(0) }
+        ownedBuffers.forEach { it.fill(0) }
+        ownedMaps.clear()
+        ownedChains.clear()
+        ownedBuffers.clear()
+    }
+
     private fun buildAttestationStatementMap(
         fmt: String,
         alg: Any,
         sig: ByteArray? = null,
         x5c: List<ByteArray>? = null,
-    ): Map<Any, Any> =
-        when (fmt) {
-            "none" -> emptyMap()
-            "packed", "attCA" ->
-                buildMap {
-                    put("alg", alg)
-                    sig?.let { put("sig", it) }
-                    x5c?.let { put("x5c", it) }
-                }
-            else -> emptyMap()
-        }
+    ): Map<Any, Any> {
+        val result =
+            when (fmt) {
+                "none" -> mutableMapOf()
+                "packed", "attCA" ->
+                    mutableMapOf<Any, Any>().apply {
+                        put("alg", alg)
+                        sig?.let { put("sig", it) }
+                        x5c?.let { put("x5c", it) }
+                    }
+                else -> mutableMapOf()
+            }
+        ownedMaps.add(result)
+        x5c?.let(ownedChains::add)
+        return result
+    }
 
     // ── "packed" format ───────────────────────────────────────────────────────
 
@@ -50,14 +75,14 @@ class Ctap2AttestationStatementTest {
 
     @Test
     fun packed_format_emitsSig_whenPresent() {
-        val sig = ByteArray(64) { 0xAA.toByte() }
+        val sig = ownedBytes(64, 0xAA.toByte())
         val map = buildAttestationStatementMap(fmt = "packed", alg = -7, sig = sig)
         assertTrue(map.containsKey("sig"), "packed statement must contain 'sig' when attCert is non-null")
     }
 
     @Test
     fun packed_format_emitsX5c_whenPresent() {
-        val chain = listOf(ByteArray(32) { 0xBB.toByte() })
+        val chain = listOf(ownedBytes(32, 0xBB.toByte()))
         val map = buildAttestationStatementMap(fmt = "packed", alg = -7, x5c = chain)
         assertTrue(map.containsKey("x5c"), "packed statement must contain 'x5c' when chain is non-null")
     }
@@ -80,14 +105,14 @@ class Ctap2AttestationStatementTest {
 
     @Test
     fun attCA_format_emitsSig_whenPresent() {
-        val sig = ByteArray(64) { 0xCC.toByte() }
+        val sig = ownedBytes(64, 0xCC.toByte())
         val map = buildAttestationStatementMap(fmt = "attCA", alg = -7, sig = sig)
         assertTrue(map.containsKey("sig"), "attCA statement must contain 'sig' when signature is present")
     }
 
     @Test
     fun attCA_format_emitsX5c_whenChainPresent() {
-        val chain = listOf(ByteArray(32) { 0xDD.toByte() }, ByteArray(32) { 0xEE.toByte() })
+        val chain = listOf(ownedBytes(32, 0xDD.toByte()), ownedBytes(32, 0xEE.toByte()))
         val map = buildAttestationStatementMap(fmt = "attCA", alg = -7, x5c = chain)
         assertTrue(map.containsKey("x5c"), "attCA statement must contain 'x5c' for the CA chain")
         @Suppress("UNCHECKED_CAST")

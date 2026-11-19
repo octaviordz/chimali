@@ -44,8 +44,8 @@ object WarmUpHelper {
             sig.sign() // result intentionally discarded
 
             Logger.d { "BouncyCastle warm-up DONE: ${mark.elapsedNow()}" }
-        } catch (e: java.security.GeneralSecurityException) {
-            Logger.w(e) { "BouncyCastle warm-up FAILED (non-fatal): ${e.message}" }
+        } catch (_: java.security.GeneralSecurityException) {
+            Logger.w { "BouncyCastle warm-up FAILED (non-fatal): operation failure" }
         }
     }
 }

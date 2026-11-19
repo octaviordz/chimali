@@ -7,12 +7,15 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
 
 /**
- * T108 — Retrieves all FIDO2 credentials stored on the device across all relying parties.
+ * Retrieves paged FIDO2 credentials across relying parties. A successful repository page is
+ * forwarded without copying; each mutable [PasskeyCredential] transfers to this use case's caller,
+ * which must erase its sensitive text after its final borrower completes.
  */
 @Factory
 class GetAllCredentialsUseCase(
     private val passkeyCredentialRepository: CredentialRepository,
 ) {
+    /** Returns a caller-owned page, or an error with no credential owner transferred. */
     suspend operator fun invoke(
         limit: Long,
         offset: Long,

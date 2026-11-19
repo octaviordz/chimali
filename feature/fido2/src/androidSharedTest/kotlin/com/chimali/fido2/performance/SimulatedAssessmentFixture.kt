@@ -158,7 +158,7 @@ internal class SimulatedAssessmentFixture {
                                         old.eraseSensitiveText()
                                     }
                                     currentSummary =
-                                        CredentialSummary(
+                                        CredentialSummary.fromRpId(
                                             id = makeResult.credential.id.encoded,
                                             rpId = RpId(relyingPartyId),
                                             credentialId = makeResult.credential.id,

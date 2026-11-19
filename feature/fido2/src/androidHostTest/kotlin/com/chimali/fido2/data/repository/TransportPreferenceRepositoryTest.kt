@@ -2,13 +2,23 @@ package com.chimali.fido2.data.repository
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.TransportPreferenceResult
 import com.chimali.fido2.domain.repository.TransportSaveResult
+import com.chimali.fido2.testing.CapturedDiagnostics
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import java.io.IOException
+import java.security.GeneralSecurityException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -18,6 +28,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -58,6 +69,39 @@ class TransportPreferenceRepositoryTest {
             assertIs<TransportPreferenceResult.Success>(result)
             assertEquals(BluetoothTransportMode.FIDO_BLE, result.preference.mode)
             assertEquals(0L, result.preference.selectedAtEpochMillis)
+        }
+
+    @Test
+    @Req("NFR-SEC-030", "NFR-SEC-041", "TR-AUTH-031")
+    fun `legacy encrypted preference initialization failure logs no provider details`() =
+        runTest {
+            val marker = "synthetic-legacy-preference-provider-secret"
+            mockkStatic(MasterKeys::class)
+            mockkStatic(EncryptedSharedPreferences::class)
+            every { MasterKeys.getOrCreate(any()) } returns "synthetic-master-key"
+            every {
+                EncryptedSharedPreferences.create(
+                    any<String>(),
+                    any<String>(),
+                    any<Context>(),
+                    any<EncryptedSharedPreferences.PrefKeyEncryptionScheme>(),
+                    any<EncryptedSharedPreferences.PrefValueEncryptionScheme>(),
+                )
+            } throws GeneralSecurityException(marker)
+
+            try {
+                val dataStore = TestDataStore(UserPreferences())
+                val repository = Fido2SettingsRepositoryImpl(context, dataStore)
+                CapturedDiagnostics().use { diagnostics ->
+                    assertEquals(1000, repository.getMaxCredentialCount())
+                    assertTrue(diagnostics.size > 0, "The provider failure should produce a fixed diagnostic")
+                    diagnostics.assertNoSensitiveValues(marker, "synthetic-master-key")
+                }
+                assertEquals(1000, dataStore.state.value.maxCredentialCount)
+            } finally {
+                unmockkStatic(EncryptedSharedPreferences::class)
+                unmockkStatic(MasterKeys::class)
+            }
         }
 
     @Test
@@ -187,12 +231,24 @@ class TransportPreferenceRepositoryTest {
     fun testReadErrorOutcomeOnDataStoreFailure() =
         runTest {
             val dataStore = TestDataStore()
-            dataStore.failOnRead = IOException("Disk read error")
+            dataStore.failOnRead = IOException("synthetic-settings-read-marker")
             val repository = Fido2SettingsRepositoryImpl(context, dataStore)
 
             val result = repository.getTransportPreference()
-            assertIs<TransportPreferenceResult.ReadError>(result)
-            assertIs<IOException>(result.cause)
+            assertEquals(TransportPreferenceResult.ReadError, result)
+        }
+
+    @Test
+    @Req("FR-BT-SEL-050", "TR-BT-SEL-020", "NFR-SEC-041")
+    fun `observed read error returns a cause-free failure result`() =
+        runTest {
+            val dataStore =
+                TestDataStore().apply {
+                    failOnRead = IOException("synthetic-observed-settings-read-marker")
+                }
+            val repository = Fido2SettingsRepositoryImpl(context, dataStore)
+
+            assertEquals(TransportPreferenceResult.ReadError, repository.observeTransportPreference().first())
         }
 
     @Test
@@ -205,16 +261,44 @@ class TransportPreferenceRepositoryTest {
                     bluetoothTransportSelectedAtEpochMillis = 100L,
                 )
             val dataStore = TestDataStore(initial)
-            dataStore.failOnUpdate = IOException("Disk write error")
+            val failure = IOException("synthetic datastore exception marker")
+            dataStore.failOnUpdate = failure
             val repository = Fido2SettingsRepositoryImpl(context, dataStore)
 
-            val result = repository.saveTransportPreference("classic_hid", 200L)
-            assertIs<TransportSaveResult.WriteError>(result)
-            assertIs<IOException>(result.cause)
+            val captured = mutableListOf<Triple<String, String, Throwable?>>()
+            val writer =
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        captured += Triple(message, tag, throwable)
+                    }
+                }
+            val priorWriters = Logger.mutableConfig.logWriterList
+            try {
+                Logger.setLogWriters(writer)
 
-            // Prior state preserved
-            assertEquals("fido_ble", dataStore.state.value.bluetoothTransport)
-            assertEquals(100L, dataStore.state.value.bluetoothTransportSelectedAtEpochMillis)
+                val result = repository.saveTransportPreference("classic_hid", 200L)
+                assertEquals(TransportSaveResult.WriteError, result)
+                assertTrue(captured.isNotEmpty(), "The write error retains a fixed diagnostic event")
+                assertTrue(
+                    captured.all { (message, _, throwable) ->
+                        !message.contains("synthetic datastore exception marker") &&
+                            !message.contains("classic_hid") &&
+                            throwable == null
+                    },
+                    "Logger output must omit exception details and transport codes",
+                )
+
+                // Prior state preserved
+                assertEquals("fido_ble", dataStore.state.value.bluetoothTransport)
+                assertEquals(100L, dataStore.state.value.bluetoothTransportSelectedAtEpochMillis)
+            } finally {
+                Logger.setLogWriters(priorWriters)
+            }
         }
 
     @Test

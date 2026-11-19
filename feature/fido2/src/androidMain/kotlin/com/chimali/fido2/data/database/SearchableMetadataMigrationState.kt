@@ -6,6 +6,7 @@ import com.chimali.fido2.data.mapper.eraseSensitiveMetadata
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
 import com.chimali.fido2.domain.model.SensitiveCredentialText
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.cancellation.CancellationException
 
 enum class MigrationStatus {
     PENDING,
@@ -61,7 +62,7 @@ object SearchableMetadataMigrationState {
             database.transaction {
                 // 1. Migrate passkey credentials
                 val credentials = database.passkeyCredentialQueries.select_all().executeAsList()
-                log.d { "Found ${credentials.size} credentials to inspect for migration." }
+                log.d { "Inspecting stored credential metadata for migration." }
                 try {
                     for (cred in credentials) {
                         if (cred.rp_id_index == null || cred.user_id_index == null || cred.encrypted_metadata == null) {
@@ -70,6 +71,7 @@ object SearchableMetadataMigrationState {
                             var userId: SensitiveCredentialText? = null
                             var rpIdIndex: ByteArray? = null
                             var userIdIndex: ByteArray? = null
+                            var encryptedMetadata: ByteArray? = null
                             try {
                                 rpId = textDecoder(cred.rp_id)
                                 userId = textDecoder(cred.user_id)
@@ -77,7 +79,7 @@ object SearchableMetadataMigrationState {
                                 val userIdOwner = requireNotNull(userId)
                                 rpIdIndex = protectionService.getRpIdIndex(rpIdOwner)
                                 userIdIndex = protectionService.getUserIdIndex(userIdOwner)
-                                val encryptedMetadata =
+                                encryptedMetadata =
                                     protectionService.encryptCredentialMetadata(
                                         rpIdOwner,
                                         userIdOwner,
@@ -86,7 +88,7 @@ object SearchableMetadataMigrationState {
                                 database.passkeyCredentialQueries.update_migration_fields(
                                     rp_id_index = requireNotNull(rpIdIndex),
                                     user_id_index = requireNotNull(userIdIndex),
-                                    encrypted_metadata = encryptedMetadata,
+                                    encrypted_metadata = requireNotNull(encryptedMetadata),
                                     id = cred.id,
                                 )
                             } finally {
@@ -94,6 +96,7 @@ object SearchableMetadataMigrationState {
                                 userId?.erase()
                                 rpIdIndex?.fill(0)
                                 userIdIndex?.fill(0)
+                                encryptedMetadata?.fill(0)
                             }
                         }
                     }
@@ -103,16 +106,17 @@ object SearchableMetadataMigrationState {
 
                 // 2. Migrate relying parties
                 val relyingParties = database.relyingPartyQueries.select_all().executeAsList()
-                log.d { "Found ${relyingParties.size} relying parties to inspect for migration." }
+                log.d { "Inspecting stored relying-party metadata for migration." }
                 try {
                     for (rp in relyingParties) {
                         if (rp.encrypted_metadata == null) {
                             var rpId: SensitiveCredentialText? = null
                             var rpName: SensitiveCredentialText? = null
+                            var encryptedMetadata: ByteArray? = null
                             try {
                                 rpId = textDecoder(rp.id)
                                 rpName = textDecoder(rp.name)
-                                val encryptedMetadata =
+                                encryptedMetadata =
                                     protectionService.encryptRelyingPartyMetadata(
                                         requireNotNull(rpId),
                                         requireNotNull(rpName),
@@ -123,12 +127,13 @@ object SearchableMetadataMigrationState {
                                     icon_url = rp.icon_url,
                                     is_blocked = rp.is_blocked,
                                     name = rp.name,
-                                    encrypted_metadata = encryptedMetadata,
+                                    encrypted_metadata = requireNotNull(encryptedMetadata),
                                     id = rp.id,
                                 )
                             } finally {
                                 rpId?.erase()
                                 rpName?.erase()
+                                encryptedMetadata?.fill(0)
                             }
                         }
                     }
@@ -138,7 +143,7 @@ object SearchableMetadataMigrationState {
 
                 // 3. Migrate user consent records
                 val consents = database.userConsentRecordQueries.select_all(MAX_CONSENT_RECORDS).executeAsList()
-                log.d { "Found ${consents.size} user consent records to inspect for migration." }
+                log.d { "Inspecting stored consent metadata for migration." }
                 try {
                     for (consent in consents) {
                         if (consent.rp_id_index == null) {
@@ -165,6 +170,10 @@ object SearchableMetadataMigrationState {
             _lastError.set(null)
             log.i { "Searchable metadata migration completed successfully." }
             return Result.success(Unit)
+        } catch (cancellation: CancellationException) {
+            _status.set(MigrationStatus.FAILED)
+            _lastError.set(null)
+            throw cancellation
         } catch (_: Exception) {
             _status.set(MigrationStatus.FAILED)
             val redactedFailure = IllegalStateException(MIGRATION_FAILURE_MESSAGE)

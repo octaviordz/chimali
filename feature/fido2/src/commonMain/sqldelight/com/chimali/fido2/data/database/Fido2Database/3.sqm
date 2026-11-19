@@ -1,0 +1,5 @@
+-- Remove optional identifying context retained by older consent records. New writes already omit it.
+UPDATE user_consent_record
+SET device_id = NULL,
+    ip_address = NULL,
+    user_agent = NULL;

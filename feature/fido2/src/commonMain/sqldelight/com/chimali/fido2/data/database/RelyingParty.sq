@@ -63,7 +63,7 @@ update_credential_count:
 UPDATE relying_party SET credential_count = :credential_count, last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;
 
 is_blocked:
-SELECT is_blocked FROM relying_party WHERE id = :id; 
+SELECT is_blocked FROM relying_party WHERE id = :id;
 
 select_with_credentials:
 SELECT * FROM relying_party WHERE credential_count > 0;
@@ -115,9 +115,6 @@ DELETE FROM relying_party WHERE credential_count = 0;
 
 changes:
 SELECT changes();
-
-get_top_relying_parties:
-SELECT * FROM relying_party ORDER BY credential_count DESC LIMIT :limit;
 
 increment_credential_count:
 UPDATE relying_party SET credential_count = credential_count + 1, last_used_at = :last_used_at, updated_at = MAX(updated_at + 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER), :last_used_at) WHERE id = :id;

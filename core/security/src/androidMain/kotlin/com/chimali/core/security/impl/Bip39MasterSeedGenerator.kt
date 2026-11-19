@@ -112,10 +112,15 @@ class Bip39MasterSeedGenerator() : MasterSeedGenerator {
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal fun entropyToMnemonic(entropy: ByteArray): CharArray {
         require(entropy.size == ENTROPY_LENGTH) { "The current wallet profile requires 256-bit entropy" }
-        val checksum = MessageDigest.getInstance("SHA-256").digest(entropy)
-        val indices = IntArray(PROFILE_WORD_COUNT)
+        var checksum: ByteArray? = null
+        var indices: IntArray? = null
+        var phrase: CharArray? = null
         try {
-            for (word in indices.indices) {
+            val computedChecksum = MessageDigest.getInstance("SHA-256").digest(entropy)
+            checksum = computedChecksum
+            val wordIndices = IntArray(PROFILE_WORD_COUNT)
+            indices = wordIndices
+            for (word in wordIndices.indices) {
                 var value = 0
                 for (bitInWord in 0 until BITS_PER_WORD) {
                     val sourceBit = word * BITS_PER_WORD + bitInWord
@@ -123,26 +128,28 @@ class Bip39MasterSeedGenerator() : MasterSeedGenerator {
                         if (sourceBit < ENTROPY_LENGTH * BITS_PER_BYTE) {
                             bitAt(entropy, sourceBit)
                         } else {
-                            bitAt(checksum, sourceBit - ENTROPY_LENGTH * BITS_PER_BYTE)
+                            bitAt(computedChecksum, sourceBit - ENTROPY_LENGTH * BITS_PER_BYTE)
                         }
                     value = (value shl 1) or bit
                 }
-                indices[word] = value
+                wordIndices[word] = value
             }
 
             val words = wordList
-            val length = indices.sumOf { words[it].length } + indices.lastIndex
-            val phrase = CharArray(length)
+            val length = wordIndices.sumOf { words[it].length } + wordIndices.lastIndex
+            val ownedPhrase = CharArray(length)
+            phrase = ownedPhrase
             var offset = 0
-            indices.forEachIndexed { wordIndex, wordIndexValue ->
+            wordIndices.forEachIndexed { wordIndex, wordIndexValue ->
                 val word = words[wordIndexValue]
-                word.forEach { character -> phrase[offset++] = character }
-                if (wordIndex != indices.lastIndex) phrase[offset++] = ' '
+                word.forEach { character -> ownedPhrase[offset++] = character }
+                if (wordIndex != wordIndices.lastIndex) ownedPhrase[offset++] = ' '
             }
-            return phrase
+            return ownedPhrase.also { phrase = null }
         } finally {
-            checksum.fill(0)
-            indices.fill(0)
+            checksum?.fill(0)
+            indices?.fill(0)
+            phrase?.fill('\u0000')
         }
     }
 

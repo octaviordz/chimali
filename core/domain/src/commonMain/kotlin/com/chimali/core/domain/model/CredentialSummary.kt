@@ -4,18 +4,15 @@ import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import kotlinx.datetime.Instant
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 /**
  * Lightweight credential projection used exclusively for the **candidate selection**
  * phase of a `GetAssertion` ceremony.
  */
-@Serializable
 @Req("NFR-SEC-041", "TR-AUTH-031")
 class CredentialSummary private constructor(
     val id: String,
-    @SerialName("rpId") private val rpIdOwner: SensitiveText,
+    private val rpIdOwner: SensitiveText,
     val credentialId: CredentialId,
     val lastUsedAt: Instant,
     val coseAlgorithm: Int,
@@ -23,30 +20,6 @@ class CredentialSummary private constructor(
     val storedPublicKeyEncoding: ByteArray,
     val credProtectPolicy: Int = 1,
 ) {
-    /** Copies a compatibility RP identifier into this summary's independent owner. */
-    constructor(
-        id: String,
-        rpId: RpId,
-        credentialId: CredentialId,
-        lastUsedAt: Instant,
-        coseAlgorithm: Int,
-        derivationProfile: String,
-        storedPublicKeyEncoding: ByteArray,
-        credProtectPolicy: Int = 1,
-    ) : this(
-        id,
-        SensitiveText.copyOf(rpId.value),
-        credentialId,
-        lastUsedAt,
-        coseAlgorithm,
-        derivationProfile,
-        storedPublicKeyEncoding,
-        credProtectPolicy,
-    )
-
-    /** Compatibility/display RP value; selection code uses public identity and borrowed rpIdText. */
-    val rpId: RpId get() = RpId(rpIdOwner.toBoundaryString())
-
     /** Borrows the RP association until this result batch is released. */
     val rpIdText: SensitiveText get() = rpIdOwner
 
@@ -75,7 +48,7 @@ class CredentialSummary private constructor(
         storedPublicKeyEncoding: ByteArray = this.storedPublicKeyEncoding,
         credProtectPolicy: Int = this.credProtectPolicy,
     ): CredentialSummary =
-        CredentialSummary(
+        fromOwnedText(
             id,
             SensitiveText.copyOf(rpId?.value ?: rpIdOwner),
             credentialId,
@@ -130,7 +103,7 @@ class CredentialSummary private constructor(
             storedPublicKeyEncoding: ByteArray,
             credProtectPolicy: Int = 1,
         ): CredentialSummary =
-            CredentialSummary(
+            fromOwnedText(
                 id,
                 SensitiveText.copyOf(rpId),
                 credentialId,
@@ -140,5 +113,59 @@ class CredentialSummary private constructor(
                 storedPublicKeyEncoding,
                 credProtectPolicy,
             )
+
+        /** Copies an RP value through the staged text factory. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        fun fromRpId(
+            id: String,
+            rpId: RpId,
+            credentialId: CredentialId,
+            lastUsedAt: Instant,
+            coseAlgorithm: Int,
+            derivationProfile: String,
+            storedPublicKeyEncoding: ByteArray,
+            credProtectPolicy: Int = 1,
+        ): CredentialSummary =
+            fromText(
+                id,
+                rpId.value,
+                credentialId,
+                lastUsedAt,
+                coseAlgorithm,
+                derivationProfile,
+                storedPublicKeyEncoding,
+                credProtectPolicy,
+            )
+
+        /** Retains a newly created owner until the summary wrapper has been constructed. */
+        internal fun fromOwnedText(
+            id: String,
+            rpIdOwner: SensitiveText,
+            credentialId: CredentialId,
+            lastUsedAt: Instant,
+            coseAlgorithm: Int,
+            derivationProfile: String,
+            storedPublicKeyEncoding: ByteArray,
+            credProtectPolicy: Int,
+        ): CredentialSummary {
+            var transferred = false
+            try {
+                val summary =
+                    CredentialSummary(
+                        id,
+                        rpIdOwner,
+                        credentialId,
+                        lastUsedAt,
+                        coseAlgorithm,
+                        derivationProfile,
+                        storedPublicKeyEncoding,
+                        credProtectPolicy,
+                    )
+                transferred = true
+                return summary
+            } finally {
+                if (!transferred) rpIdOwner.erase()
+            }
+        }
     }
 }

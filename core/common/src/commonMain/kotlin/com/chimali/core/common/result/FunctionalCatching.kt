@@ -17,7 +17,7 @@
  * ```kotlin
  * // For truly unknown APIs (use sparingly)
  * val result: Outcome<String, DomainError> = runCatchingOutcome(
- *     onError = { e -> DomainError.UnknownError("Unexpected failure", e) }
+ *     onError = { _ -> DomainError.UnknownError("Unexpected failure") }
  * ) {
  *     undocumentedApi.doSomething()
  * }
@@ -32,18 +32,21 @@ import kotlinx.coroutines.CancellationException
  *
  * - On success: returns [Outcome.Success] with the block's return value.
  * - On [CancellationException]: **always rethrows** to preserve structured concurrency.
- * - On any other [Throwable]: maps via [onError] and returns [Outcome.Error].
+ * - On any other [Exception]: maps via [onError] and returns [Outcome.Error].
+ * - Fatal [Error] instances propagate unchanged.
  *
  * ### Architectural Decision: @Suppress("TooGenericExceptionCaught")
- * We catch [Throwable] here to provide a safe boundary for third-party or platform APIs
+ * We catch [Exception] here to provide a safe boundary for third-party or platform APIs
  * that might throw undocumented runtime exceptions. This is the **only** layer where
  * generic catching is permitted, ensuring that the rest of the business logic remains
  * crash-safe and adheres to strict static analysis.
  *
  * **Important**: [CancellationException] is NOT caught or wrapped.
  *
- * @param onError Maps the caught [Throwable] to a specific [DomainError] subtype.
- *                The throwable passed to [onError] is never a [CancellationException].
+ * @param onError Maps the caught [Exception] (passed through the legacy Throwable callback type)
+ *                to a specific [DomainError] subtype. Cancellation is never passed to it.
+ *                Omit it from the returned error unless every downstream diagnostic path
+ *                is reviewed for its message and cause content; this helper does not sanitize it.
  */
 @Suppress("TooGenericExceptionCaught")
 inline fun <D, E : DomainError> runCatchingOutcome(
@@ -54,19 +57,22 @@ inline fun <D, E : DomainError> runCatchingOutcome(
         Outcome.Success(block())
     } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (throwable: Throwable) {
-        Outcome.Error(onError(throwable))
+    } catch (exception: Exception) {
+        Outcome.Error(onError(exception))
     }
 
 /**
  * Executes [block] and wraps the result in an [Outcome.Success], or returns
  * [Outcome.Error] with a [DomainError.UnknownError] if any non-cancellation
- * [Throwable] is caught.
+ * [Exception] is caught. Fatal [Error] instances propagate unchanged.
+ *
+ * The caught throwable is deliberately discarded. This generic helper cannot establish
+ * that its message, stack or object graph is safe for every downstream consumer.
  *
  * This version is **suspend-aware** and safe for use in coroutines.
  *
  * ### Architectural Decision: @Suppress("TooGenericExceptionCaught")
- * Generic [Throwable] is caught and wrapped into a [DomainError.UnknownError] to prevent
+ * Generic [Exception] is caught and wrapped into a [DomainError.UnknownError] to prevent
  * unhandled crashes at the boundary of external or legacy code. By using this helper,
  * we avoid polluting the rest of the codebase with `@Suppress` annotations.
  *
@@ -81,6 +87,6 @@ suspend inline fun <D> functionalCatching(
         Outcome.Success(block())
     } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (throwable: Throwable) {
-        Outcome.Error(DomainError.UnknownError(errorMessage, throwable))
+    } catch (_: Exception) {
+        Outcome.Error(DomainError.UnknownError(errorMessage))
     }

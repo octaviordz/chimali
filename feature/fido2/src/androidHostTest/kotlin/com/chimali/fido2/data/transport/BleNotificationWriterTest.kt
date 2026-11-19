@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.transport
 
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.testing.CapturedDiagnostics
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -72,6 +73,32 @@ class BleNotificationWriterTest {
             // Now packet2 is sent
             assertEquals(2, sentPackets.size)
             assertContentEquals(packet2, sentPackets[1])
+        }
+
+    @Test
+    @Req("FR-BLE-050", "TR-BLE-020")
+    fun `send buffer is erased after platform initiation returns`() =
+        runTest {
+            var platformBuffer: ByteArray? = null
+            var platformObservedBytes: ByteArray? = null
+            val writer =
+                BleNotificationWriter(
+                    scope = this,
+                    sendGattNotification = { _, packet ->
+                        platformBuffer = packet
+                        platformObservedBytes = packet.copyOf()
+                        true
+                    },
+                    onSessionStalled = {},
+                )
+            val callerPacket = byteArrayOf(0x2A, 0x5C, 0x7E)
+
+            assertTrue(writer.enqueue(callerPacket, isKeepalive = false, sessionGeneration = 1L))
+            runCurrent()
+
+            assertContentEquals(callerPacket, platformObservedBytes)
+            assertContentEquals(byteArrayOf(0, 0, 0), platformBuffer)
+            assertContentEquals(byteArrayOf(0x2A, 0x5C, 0x7E), callerPacket)
         }
 
     @Test
@@ -436,5 +463,35 @@ class BleNotificationWriterTest {
 
             assertEquals(1, sends)
             assertFalse(sessionStalledCalled)
+        }
+
+    @Test
+    @Req("FR-008", "FR-009", "FR-BLE-050", "TR-BLE-020")
+    fun `notification initiation and delivery callback diagnostics omit exception details`() =
+        runTest {
+            val initiationMarker = "synthetic-private-gatt-initiation-detail"
+            val deliveryMarker = "synthetic-private-delivery-callback-detail"
+            val writer =
+                BleNotificationWriter(
+                    scope = this,
+                    sendGattNotification = { _, _ -> throw IllegalStateException(initiationMarker) },
+                    onSessionStalled = { sessionStalledCalled = true },
+                )
+
+            CapturedDiagnostics().use { diagnostics ->
+                assertTrue(
+                    writer.enqueue(
+                        byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x00),
+                        isKeepalive = false,
+                        sessionGeneration = 1L,
+                        onDeliveryResult = { throw IllegalStateException(deliveryMarker) },
+                    ),
+                )
+                runCurrent()
+
+                assertTrue(sessionStalledCalled)
+                assertTrue(diagnostics.size >= 2, "Both failure paths must emit diagnostics")
+                diagnostics.assertNoSensitiveValues(initiationMarker, deliveryMarker)
+            }
         }
 }

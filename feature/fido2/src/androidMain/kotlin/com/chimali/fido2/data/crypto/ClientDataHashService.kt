@@ -27,9 +27,6 @@ import org.koin.core.annotation.Single
 class ClientDataHashService {
     fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 
-    /** Convenience: SHA-256 of a relying party ID string (used for rpIdHash). */
-    fun rpIdHash(rpId: String): ByteArray = sha256(rpId.toByteArray(Charsets.UTF_8))
-
     /** Hashes borrowed mutable RP text and erases the temporary UTF-8 encoding before return. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun rpIdHash(rpId: SensitiveCredentialText): ByteArray {

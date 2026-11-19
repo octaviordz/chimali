@@ -29,17 +29,32 @@ fun PasskeyCredentialEntity.toDomainModel(
     decoder: PublicKeyDecoder,
     metadataProtectionService: CredentialMetadataProtectionService,
 ): Outcome<PasskeyCredential, DomainError.CryptoError> =
-    toDomainModelWithTextDecoder(decoder, metadataProtectionService, SensitiveCredentialText::fromUtf8Bytes)
+    toDomainModelWithTextDecoder(
+        decoder,
+        metadataProtectionService,
+        textDecoder = SensitiveCredentialText::fromUtf8Bytes,
+    )
 
 /** Runs row hydration with the production text decoder, exposed internally for retained-owner verification. */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 internal fun PasskeyCredentialEntity.toDomainModelWithTextDecoder(
     decoder: PublicKeyDecoder,
     metadataProtectionService: CredentialMetadataProtectionService,
+    aaguidDecoder: (String) -> ByteArray = Base64.getDecoder()::decode,
+    credentialIdDecoder: (CredentialId) -> ByteArray = CredentialId::toByteArray,
+    successFactory: (PasskeyCredential) -> Outcome<PasskeyCredential, DomainError.CryptoError> =
+        { credential -> Outcome.Success(credential) },
     textDecoder: (ByteArray) -> SensitiveCredentialText,
 ): Outcome<PasskeyCredential, DomainError.CryptoError> =
     try {
-        mapCredentialRecord(decoder, metadataProtectionService, textDecoder)
+        mapCredentialRecord(
+            decoder,
+            metadataProtectionService,
+            textDecoder,
+            aaguidDecoder,
+            credentialIdDecoder,
+            successFactory,
+        )
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: java.nio.charset.CharacterCodingException) {
@@ -52,7 +67,7 @@ internal fun PasskeyCredentialEntity.toDomainModelWithTextDecoder(
         eraseSensitiveMetadata()
     }
 
-/** Erases the mutable text byte buffers owned by this SQLDelight projection row. */
+/** Erases mutable identifying text, lookup-token and encrypted-metadata buffers owned by this row. */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 fun PasskeyCredentialEntity.eraseSensitiveMetadata() {
     rp_id.fill(0)
@@ -60,6 +75,9 @@ fun PasskeyCredentialEntity.eraseSensitiveMetadata() {
     user_display_name.fill(0)
     user_id.fill(0)
     user_name.fill(0)
+    rp_id_index?.fill(0)
+    user_id_index?.fill(0)
+    encrypted_metadata?.fill(0)
 }
 
 private fun malformedCredentialRecord(): Outcome.Error<DomainError.CryptoError> =
@@ -80,6 +98,9 @@ private fun PasskeyCredentialEntity.mapCredentialRecord(
     decoder: PublicKeyDecoder,
     metadataProtectionService: CredentialMetadataProtectionService,
     textDecoder: (ByteArray) -> SensitiveCredentialText,
+    aaguidDecoder: (String) -> ByteArray,
+    credentialIdDecoder: (CredentialId) -> ByteArray,
+    successFactory: (PasskeyCredential) -> Outcome<PasskeyCredential, DomainError.CryptoError>,
 ): Outcome<PasskeyCredential, DomainError.CryptoError> {
     requireAuditTimestampOrder(created_at, updated_at, last_used_at, "Malformed credential record")
     require(cose_algorithm == cose_algorithm.toInt().toLong()) { "Invalid persisted algorithm value" }
@@ -91,6 +112,10 @@ private fun PasskeyCredentialEntity.mapCredentialRecord(
     var userId: SensitiveCredentialText? = null
     var userName: SensitiveCredentialText? = null
     var userDisplayName: SensitiveCredentialText? = null
+    var decodedAaguid: ByteArray? = null
+    var decodedCredentialId: ByteArray? = null
+    var constructedCredential: PasskeyCredential? = null
+    var ownershipTransferred = false
     try {
         rpId = textDecoder(rp_id)
         userId = textDecoder(user_id)
@@ -127,6 +152,8 @@ private fun PasskeyCredentialEntity.mapCredentialRecord(
                 is Outcome.Success -> result.data
                 is Outcome.Error -> return malformedCredentialRecord()
             }
+        decodedAaguid = aaguidDecoder(aaguid)
+        decodedCredentialId = credentialIdDecoder(credentialId)
         val credential =
             PasskeyCredential(
                 id = id,
@@ -140,19 +167,27 @@ private fun PasskeyCredentialEntity.mapCredentialRecord(
                 lastUsedAt =
                     this.last_used_at?.let { Instant.fromEpochMilliseconds(it) }
                         ?: Instant.fromEpochMilliseconds(this.created_at),
-                aaguid = Base64.getDecoder().decode(this.aaguid),
-                credentialId = credentialId.toByteArray(),
+                aaguid = requireNotNull(decodedAaguid),
+                credentialId = requireNotNull(decodedCredentialId),
                 coseAlgorithm = descriptor.coseAlgorithm,
                 derivationProfile = descriptor.derivationProfile,
                 credProtectPolicy = CredentialProtectionPolicy.fromPersisted(this.cred_protect_policy),
                 label = this.label,
             )
+        constructedCredential = credential
+        val result = successFactory(credential)
+        ownershipTransferred = true
+        decodedAaguid = null
+        decodedCredentialId = null
         rpId = null
         userId = null
         userName = null
         userDisplayName = null
-        return Outcome.Success(credential)
+        return result
     } finally {
+        if (!ownershipTransferred) constructedCredential?.eraseSensitiveText()
+        decodedAaguid?.fill(0)
+        decodedCredentialId?.fill(0)
         rpId?.erase()
         userId?.erase()
         userName?.erase()
@@ -200,6 +235,7 @@ internal fun RelyingPartyEntity.toDomainModelWithTextDecoder(textDecoder: (ByteA
 fun RelyingPartyEntity.eraseSensitiveMetadata() {
     id.fill(0)
     name.fill(0)
+    encrypted_metadata?.fill(0)
 }
 
 /** Consumes consent row bytes and copies the RP into an independently erasable model. */
@@ -227,8 +263,9 @@ fun UserConsentRecordEntity.toDomainModel(): UserConsentRecord {
     }
 }
 
-/** Erases a consent row's mutable RP association after its last use. */
+/** Erases a consent row's mutable RP association and lookup-token buffers after its last use. */
 @Req("NFR-SEC-041", "TR-AUTH-031")
 fun UserConsentRecordEntity.eraseSensitiveMetadata() {
     rp_id.fill(0)
+    rp_id_index?.fill(0)
 }

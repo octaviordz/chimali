@@ -6,8 +6,8 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import org.koin.core.annotation.Factory
 
 /**
- * T111 — Resets the authenticator completely.
- * This wipes all credentials, master PIN, biometric state, and restores factory defaults.
+ * Requests removal of current credential records and relying-party/consent projection metadata.
+ * Historical event-store records and unrelated PIN/biometric settings are outside this operation.
  */
 @Factory
 class ResetAuthenticatorUseCase(

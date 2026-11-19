@@ -54,14 +54,47 @@ class VaultRepositoryImplIntegrationTest {
             val created = repository.getItems(null).getOrThrow()
             assertEquals(items.map { it.type }.toSet(), created.map { it.type }.toSet())
 
-            val updated = items.first().copy(title = "Updated".toCharArray(), payload = byteArrayOf(8, 9))
+            val updated = items.first().copy(title = "Updated 🔐".toCharArray(), payload = byteArrayOf(8, 9))
             repository.saveItem(updated).getOrThrow()
             val reloaded = repository.getItems(null).getOrThrow().first { it.id == updated.id }
-            assertArrayEquals("Updated".toCharArray(), reloaded.title)
+            assertArrayEquals("Updated 🔐".toCharArray(), reloaded.title)
             assertTrue(reloaded.payload.contentEquals(byteArrayOf(8, 9)))
 
             repository.deleteItem(updated.id).getOrThrow()
             assertTrue(repository.getItems(null).getOrThrow().none { it.id == updated.id })
+        }
+
+    @Test
+    fun clearingReturnedItemOwnersDoesNotMutatePersistedVaultData() =
+        runTest {
+            val identityId = UUID.randomUUID()
+            val source = item(VaultType.PASSWORD, identityId)
+            val expectedTitle = source.title.copyOf()
+            val expectedPayload = source.payload.copyOf()
+            val expectedCrdt = source.crdtState.copyOf()
+            try {
+                repository.saveItem(source).getOrThrow()
+
+                val firstRead = repository.getItems(null).getOrThrow().single()
+                assertArrayEquals(expectedTitle, firstRead.title)
+                assertArrayEquals(expectedPayload, firstRead.payload)
+                assertArrayEquals(expectedCrdt, firstRead.crdtState)
+                firstRead.clearMemory()
+
+                val secondRead = repository.getItems(null).getOrThrow().single()
+                try {
+                    assertArrayEquals(expectedTitle, secondRead.title)
+                    assertArrayEquals(expectedPayload, secondRead.payload)
+                    assertArrayEquals(expectedCrdt, secondRead.crdtState)
+                } finally {
+                    secondRead.clearMemory()
+                }
+            } finally {
+                source.clearMemory()
+                expectedTitle.fill('\u0000')
+                expectedPayload.fill(0)
+                expectedCrdt.fill(0)
+            }
         }
 
     private fun item(

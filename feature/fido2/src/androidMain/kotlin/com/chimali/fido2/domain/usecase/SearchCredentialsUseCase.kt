@@ -7,7 +7,12 @@ import com.chimali.fido2.domain.repository.CredentialRepository
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.annotation.Factory
 
-/** Searches by borrowing the caller's mutable query owner for the lifetime of the returned flow. */
+/**
+ * Returns a cold flow that borrows [query] for its full collection lifetime. The caller must keep
+ * the query valid until collection completes, then erase it. Each accepted credential emission
+ * transfers to the collector, which erases it after its final borrower completes; rejected
+ * emissions remain the producer's cleanup responsibility.
+ */
 @Factory
 class SearchCredentialsUseCase(
     private val passkeyCredentialRepository: CredentialRepository,

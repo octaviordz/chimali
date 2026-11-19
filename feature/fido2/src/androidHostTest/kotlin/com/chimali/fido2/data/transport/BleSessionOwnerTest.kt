@@ -1,6 +1,8 @@
 package com.chimali.fido2.data.transport
 
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.testing.CapturedDiagnostics
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -20,6 +22,7 @@ import kotlin.test.assertTrue
  */
 @Req("FR-BLE-040", "FR-BLE-050", "TR-BLE-020")
 class BleSessionOwnerTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
     private lateinit var sessionOwner: BleSessionOwner
     private var virtualTimeNanos = 0L
 
@@ -41,12 +44,64 @@ class BleSessionOwnerTest {
             )
     }
 
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    private fun concatBytes(vararg parts: ByteArray): ByteArray {
+        val result = ByteArray(parts.sumOf(ByteArray::size))
+        try {
+            var offset = 0
+            parts.forEach { part ->
+                part.copyInto(result, destinationOffset = offset)
+                offset += part.size
+            }
+            return own(result)
+        } catch (failure: Throwable) {
+            result.fill(0)
+            throw failure
+        } finally {
+            parts.forEach { it.fill(0) }
+        }
+    }
+
+    @AfterTest
+    fun tearDown() {
+        if (::sessionOwner.isInitialized) {
+            sessionOwner.activeDeviceAddress?.let(sessionOwner::disconnectHost)
+        }
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
+    }
+
+    @Test
+    fun `teardown erases tracked packet buffers`() {
+        val packet = own(byteArrayOf(0x83.toByte(), 0x01))
+
+        tearDown()
+
+        assertContentEquals(ByteArray(packet.size), packet)
+    }
+
     @Test
     @Req("FR-BLE-040", "TR-BLE-020")
     fun `single active host connects and second host is rejected`() {
         assertTrue(sessionOwner.connectHost(DEVICE_A))
         assertEquals(DEVICE_A, sessionOwner.activeDeviceAddress)
         assertFalse(sessionOwner.connectHost(DEVICE_B), "Second concurrent host must be rejected")
+    }
+
+    @Test
+    @Req("FR-BLE-040", "TR-BLE-020")
+    fun `second host rejection diagnostics omit device addresses`() {
+        val diagnostics = CapturedDiagnostics()
+        try {
+            assertTrue(sessionOwner.connectHost(DEVICE_A))
+            assertFalse(sessionOwner.connectHost(DEVICE_B))
+            assertEquals(DEVICE_A, sessionOwner.activeDeviceAddress)
+            assertTrue(diagnostics.size > 0)
+            diagnostics.assertNoSensitiveValues(DEVICE_A, DEVICE_B)
+        } finally {
+            diagnostics.close()
+        }
     }
 
     @Test
@@ -102,15 +157,15 @@ class BleSessionOwnerTest {
     @Test
     @Req("FR-BLE-050", "TR-BLE-020")
     fun `message value identity includes CTAP payload and session generation`() {
-        val message = FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), sessionGeneration = 3L)
-        val equalMessage = FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), sessionGeneration = 3L)
+        val message = FidoBleMessage(0x83.toByte(), own(byteArrayOf(0x01, 0x02)), sessionGeneration = 3L)
+        val equalMessage = FidoBleMessage(0x83.toByte(), own(byteArrayOf(0x01, 0x02)), sessionGeneration = 3L)
 
         assertEquals(message, message)
         assertEquals(message, equalMessage)
         assertEquals(message.hashCode(), equalMessage.hashCode())
-        assertFalse(message == FidoBleMessage(0x82.toByte(), byteArrayOf(0x01, 0x02), 3L))
-        assertFalse(message == FidoBleMessage(0x83.toByte(), byteArrayOf(0x01), 3L))
-        assertFalse(message == FidoBleMessage(0x83.toByte(), byteArrayOf(0x01, 0x02), 4L))
+        assertFalse(message == FidoBleMessage(0x82.toByte(), own(byteArrayOf(0x01, 0x02)), 3L))
+        assertFalse(message == FidoBleMessage(0x83.toByte(), own(byteArrayOf(0x01)), 3L))
+        assertFalse(message == FidoBleMessage(0x83.toByte(), own(byteArrayOf(0x01, 0x02)), 4L))
         assertFalse(message.equals("not a FIDO BLE message"))
     }
 
@@ -200,7 +255,7 @@ class BleSessionOwnerTest {
     fun `commands are rejected when revision or notifications are not ready`() {
         assertFalse(sessionOwner.isCommandReady)
         sessionOwner.connectHost(DEVICE_A)
-        val packet = byteArrayOf(0x81.toByte(), 0x00, 0x01, 0x42)
+        val packet = own(byteArrayOf(0x81.toByte(), 0x00, 0x01, 0x42))
 
         // Case 1: Neither revision nor notifications set
         assertEquals(BleIncomingWriteResult.NotReady, sessionOwner.processIncomingWrite(packet))
@@ -213,6 +268,7 @@ class BleSessionOwnerTest {
         sessionOwner.setNotificationsEnabled(true)
         val result = sessionOwner.processIncomingWrite(packet)
         val message = (result as BleIncomingWriteResult.Complete).message
+        own(message.data)
         assertEquals(0x81.toByte(), message.command)
     }
 
@@ -224,7 +280,7 @@ class BleSessionOwnerTest {
         sessionOwner.setNotificationsEnabled(true)
 
         // Init packet: CMD_MSG (0x83), length 5 (0x00, 0x05), data 3 bytes
-        val initPacket = byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03)
+        val initPacket = own(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03))
         val assembly1 = sessionOwner.processIncomingWrite(initPacket)
         assertIs<BleIncomingWriteResult.InProgress>(assembly1, "Message incomplete — waiting for continuation")
 
@@ -232,12 +288,14 @@ class BleSessionOwnerTest {
         virtualTimeNanos += 2 * NANOS_PER_SECOND
 
         // Continuation packet: SEQ 0 (0x00), data 2 bytes
-        val contPacket = byteArrayOf(0x00, 0x04, 0x05)
+        val contPacket = own(byteArrayOf(0x00, 0x04, 0x05))
         val completeMessage = sessionOwner.processIncomingWrite(contPacket)
 
         val message = (completeMessage as BleIncomingWriteResult.Complete).message
+        own(message.data)
+        own(message.data)
         assertEquals(0x83.toByte(), message.command)
-        assertContentEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05), message.data)
+        assertContentEquals(own(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05)), message.data)
     }
 
     @Test
@@ -247,14 +305,14 @@ class BleSessionOwnerTest {
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
         sessionOwner.setNotificationsEnabled(true)
 
-        val initPacket = byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03)
+        val initPacket = own(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03))
         sessionOwner.processIncomingWrite(initPacket)
 
         // Advance exactly 3 seconds to the receive deadline
         virtualTimeNanos += 3 * NANOS_PER_SECOND
 
         // Next continuation arrives after timeout
-        val contPacket = byteArrayOf(0x00, 0x04, 0x05)
+        val contPacket = own(byteArrayOf(0x00, 0x04, 0x05))
         val result = sessionOwner.processIncomingWrite(contPacket)
         assertEquals(FidoBleFraming.ERR_REQ_TIMEOUT, (result as BleIncomingWriteResult.Error).errorCode)
     }
@@ -266,7 +324,7 @@ class BleSessionOwnerTest {
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
         sessionOwner.setNotificationsEnabled(true)
         val progress =
-            sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01)) as
+            sessionOwner.processIncomingWrite(own(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01))) as
                 BleIncomingWriteResult.InProgress
 
         assertNull(sessionOwner.expireIncompleteRequest(progress.sessionGeneration - 1, progress.timeoutToken))
@@ -287,11 +345,11 @@ class BleSessionOwnerTest {
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
         sessionOwner.setNotificationsEnabled(true)
 
-        val initPacket = byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03)
+        val initPacket = own(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01, 0x02, 0x03))
         sessionOwner.processIncomingWrite(initPacket)
 
         // Expected SEQ 0, but sending SEQ 1
-        val invalidSeqPacket = byteArrayOf(0x01, 0x04, 0x05)
+        val invalidSeqPacket = own(byteArrayOf(0x01, 0x04, 0x05))
         val result = sessionOwner.processIncomingWrite(invalidSeqPacket)
         assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (result as BleIncomingWriteResult.Error).errorCode)
     }
@@ -303,20 +361,26 @@ class BleSessionOwnerTest {
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
         sessionOwner.setNotificationsEnabled(true)
 
-        val emptyFrame = sessionOwner.processIncomingWrite(byteArrayOf())
+        val emptyFrame = sessionOwner.processIncomingWrite(own(byteArrayOf()))
         assertEquals(FidoBleFraming.ERR_INVALID_PAR, (emptyFrame as BleIncomingWriteResult.Error).errorCode)
 
-        val shortHeader = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00))
+        val shortHeader = sessionOwner.processIncomingWrite(own(byteArrayOf(0x83.toByte(), 0x00)))
         assertEquals(FidoBleFraming.ERR_INVALID_LEN, (shortHeader as BleIncomingWriteResult.Error).errorCode)
 
-        val oversizeDeclaration = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x04, 0xB1.toByte()))
+        val oversizeDeclaration =
+            sessionOwner.processIncomingWrite(
+                own(byteArrayOf(0x83.toByte(), 0x04, 0xB1.toByte())),
+            )
         assertEquals(FidoBleFraming.ERR_INVALID_LEN, (oversizeDeclaration as BleIncomingWriteResult.Error).errorCode)
 
-        val extraInitPayload = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x11, 0x22))
+        val extraInitPayload =
+            sessionOwner.processIncomingWrite(
+                own(byteArrayOf(0x83.toByte(), 0x00, 0x01, 0x11, 0x22)),
+            )
         assertEquals(FidoBleFraming.ERR_INVALID_LEN, (extraInitPayload as BleIncomingWriteResult.Error).errorCode)
 
-        sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x12) + ByteArray(17))
-        val extraContinuation = sessionOwner.processIncomingWrite(byteArrayOf(0x00) + ByteArray(2))
+        sessionOwner.processIncomingWrite(concatBytes(byteArrayOf(0x83.toByte(), 0x00, 0x12), ByteArray(17)))
+        val extraContinuation = sessionOwner.processIncomingWrite(concatBytes(byteArrayOf(0x00), ByteArray(2)))
         assertEquals(FidoBleFraming.ERR_INVALID_LEN, (extraContinuation as BleIncomingWriteResult.Error).errorCode)
     }
 
@@ -327,13 +391,13 @@ class BleSessionOwnerTest {
         sessionOwner.selectRevision(REVISION_FIDO2_0x20)
         sessionOwner.setNotificationsEnabled(true)
 
-        val partial = sessionOwner.processIncomingWrite(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01))
+        val partial = sessionOwner.processIncomingWrite(own(byteArrayOf(0x83.toByte(), 0x00, 0x05, 0x01)))
         assertIs<BleIncomingWriteResult.InProgress>(partial)
 
         sessionOwner.setNotificationsEnabled(false)
         sessionOwner.setNotificationsEnabled(true)
 
-        val staleContinuation = sessionOwner.processIncomingWrite(byteArrayOf(0x00, 0x02, 0x03))
+        val staleContinuation = sessionOwner.processIncomingWrite(own(byteArrayOf(0x00, 0x02, 0x03)))
         assertEquals(FidoBleFraming.ERR_INVALID_SEQ, (staleContinuation as BleIncomingWriteResult.Error).errorCode)
     }
 }

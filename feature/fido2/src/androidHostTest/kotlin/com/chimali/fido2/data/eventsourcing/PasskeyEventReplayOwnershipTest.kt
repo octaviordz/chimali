@@ -106,6 +106,8 @@ class PasskeyEventReplayOwnershipTest {
                     retainedEvent.userName,
                     retainedEvent.userDisplayName,
                 ).forEach { assertContentEquals(CharArray(it.size), it) }
+                assertContentEquals(ByteArray(retainedEvent.credentialId.size), retainedEvent.credentialId)
+                assertTrue(firstEvent.credentialId.any { it != 0.toByte() })
                 firstEvent.eraseSensitiveMetadata()
             } finally {
                 driver.close()
@@ -183,6 +185,7 @@ class PasskeyEventReplayOwnershipTest {
                                 userId = "stored-user".toCharArray(),
                                 userName = "stored-name".toCharArray(),
                                 userDisplayName = "Stored User".toCharArray(),
+                                credentialId = ByteArray(16) { 0x35 },
                                 publicKey = "synthetic-key",
                                 coseAlgorithm = -7,
                                 derivationProfile = "chimali-local-hdk-p256-v1",
@@ -198,6 +201,7 @@ class PasskeyEventReplayOwnershipTest {
                                 userId = "retained-user".toCharArray(),
                                 userName = "retained-name".toCharArray(),
                                 userDisplayName = "Retained User".toCharArray(),
+                                credentialId = ByteArray(16) { 0x36 },
                             ),
                     )
                 lateinit var operationJob: Job
@@ -223,6 +227,8 @@ class PasskeyEventReplayOwnershipTest {
                     retainedState.userName,
                     retainedState.userDisplayName,
                 ).forEach { assertContentEquals(CharArray(it.size), it) }
+                assertContentEquals(ByteArray(retainedState.credentialId.size), retainedState.credentialId)
+                assertTrue(persistedSnapshot.state.credentialId.any { it != 0.toByte() })
                 persistedSnapshot.state.eraseSensitiveMetadata()
             } finally {
                 driver.close()

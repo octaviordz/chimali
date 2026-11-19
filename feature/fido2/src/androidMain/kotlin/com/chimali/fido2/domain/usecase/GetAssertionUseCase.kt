@@ -52,6 +52,9 @@ class GetAssertionUseCase(
     private val cryptoService: Fido2CryptoService,
     private val clientDataHashService: ClientDataHashService,
 ) {
+    internal var onRpIdHashCreatedForTest: ((ByteArray) -> Unit)? = null
+    internal var onAuthDataCreatedForTest: ((ByteArray) -> Unit)? = null
+
     companion object {
         private const val COUNTER_PERSISTENCE_FAILED = "Unable to persist credential signing counter"
         private const val COUNTER_OUT_OF_RANGE = "Credential signing counter is outside the supported range"
@@ -148,7 +151,7 @@ class GetAssertionUseCase(
             // 3 — Phase 2: select best candidate (MRU or allow-list match) — still no HDK
             val selectionResult =
                 PerformanceTrace.section("Fido2.Assertion.Selection") {
-                    selectCredentialUseCase(authorizedCandidates, options)
+                    selectCredentialUseCase(authorizedCandidates)
                 }
             val selectedSummary = selectionResult.getOrElse { return Outcome.Error(it) }
 
@@ -172,45 +175,51 @@ class GetAssertionUseCase(
                 } finally {
                     rpIdOwner.erase()
                 }
-            val signCountResult =
-                PerformanceTrace.section("Fido2.Assertion.CounterRead") {
-                    credentialRepository.getSignCount(selectedSummary.credentialId)
-                }
-            val signCount =
-                signCountResult.getOrElse {
-                    return Outcome.Error(DomainError.CryptoError("Unable to read credential signing counter"))
-                }
-            if (signCount !in 0L until MAX_AUTHENTICATOR_COUNTER) {
-                return Outcome.Error(DomainError.DatabaseError(COUNTER_OUT_OF_RANGE))
-            }
-            val newSignCount = signCount + 1
-            val authData =
-                buildAuthData(
-                    rpIdHash = rpIdHash,
-                    userVerified = userVerificationPerformed,
-                    signCount = newSignCount,
-                )
-
-            val signatureResult =
-                PerformanceTrace.section("Fido2.Assertion.DeriveAndSign") {
-                    signWithCredential(
-                        descriptor,
-                        selectedSummary,
-                        authData,
-                        options.clientDataHash,
-                    )
-                }
-            val signature = signatureResult.getOrElse { return Outcome.Error(it) }
-
-            // 5 — persist the incremented sign count before releasing the assertion to the caller.
+            var ownedAuthData: ByteArray? = null
+            var ownedSignature: ByteArray? = null
             var outputReleased = false
             try {
+                onRpIdHashCreatedForTest?.invoke(rpIdHash)
+                val signCountResult =
+                    PerformanceTrace.section("Fido2.Assertion.CounterRead") {
+                        credentialRepository.getSignCount(selectedSummary.credentialId)
+                    }
+                val signCount =
+                    signCountResult.getOrElse {
+                        return Outcome.Error(DomainError.CryptoError("Unable to read credential signing counter"))
+                    }
+                if (signCount !in 0L until MAX_AUTHENTICATOR_COUNTER) {
+                    return Outcome.Error(DomainError.DatabaseError(COUNTER_OUT_OF_RANGE))
+                }
+                val newSignCount = signCount + 1
+                val authData =
+                    buildAuthData(
+                        rpIdHash = rpIdHash,
+                        userVerified = userVerificationPerformed,
+                        signCount = newSignCount,
+                    )
+                ownedAuthData = authData
+                onAuthDataCreatedForTest?.invoke(authData)
+
+                val signatureResult =
+                    PerformanceTrace.section("Fido2.Assertion.DeriveAndSign") {
+                        signWithCredential(
+                            descriptor,
+                            selectedSummary,
+                            authData,
+                            options.clientDataHash,
+                        )
+                    }
+                val signature = signatureResult.getOrElse { return Outcome.Error(it) }
+                ownedSignature = signature
+
+                // 5 — persist the incremented sign count before releasing the assertion to the caller.
                 val counterUpdate =
                     PerformanceTrace.section("Fido2.Assertion.CounterWrite") {
                         credentialRepository.updateSignCount(selectedSummary.credentialId, newSignCount)
                     }
                 if (counterUpdate is Outcome.Error) {
-                    Logger.w { "Failed to update assertion sign count (${counterUpdate.error::class.simpleName})" }
+                    Logger.w { "Failed to persist assertion sign count" }
                     return Outcome.Error(DomainError.DatabaseError(COUNTER_PERSISTENCE_FAILED))
                 }
 
@@ -229,9 +238,10 @@ class GetAssertionUseCase(
                 outputReleased = true
                 return Outcome.Success(assertion)
             } finally {
+                rpIdHash.fill(0)
                 if (!outputReleased) {
-                    signature.fill(0)
-                    authData.fill(0)
+                    ownedSignature?.fill(0)
+                    ownedAuthData?.fill(0)
                 }
             }
         } finally {
@@ -280,32 +290,29 @@ class GetAssertionUseCase(
                 is Outcome.Error -> return Outcome.Error(result.error)
             }
 
-        var transferredCandidates: List<CredentialSummary>? = null
-        try {
-            val candidates =
+        return createOwnedCandidateResult(
+            all = all,
+            selectCandidates = { summaries ->
                 if (options.isDiscoverableFlow()) {
                     // Discoverable: any resident credential for this RP
-                    all
+                    summaries
                 } else {
                     // Non-discoverable: match the bounded allow-list with the same byte-based
                     // primitive used for policy checks. Do not hash or compare credential IDs as
                     // Strings before an assertion is authorized.
                     val allowCredentials = options.allowCredentials.orEmpty()
-                    all.filter { summary ->
+                    summaries.filter { summary ->
                         allowCredentials.any { it.id.matchesCredentialId(summary.credentialId) }
                     }
                 }
-
-            // Keep potential candidates intact here. The caller applies policy 3 only after it
-            // knows whether verification completed; the CTAP handler also needs these rows to
-            // prevent a protected single credential from taking the headless path.
-            transferredCandidates = candidates
-            return Outcome.Success(candidates)
-        } finally {
-            all
-                .filterNot { summary -> transferredCandidates?.any { it === summary } == true }
-                .forEach(CredentialSummary::eraseSensitiveText)
-        }
+            },
+            createResult = { candidates ->
+                // Keep potential candidates intact here. The caller applies policy 3 only after it
+                // knows whether verification completed; the CTAP handler also needs these rows to
+                // prevent a protected single credential from taking the headless path.
+                Outcome.Success(candidates)
+            },
+        )
     }
 
     private fun buildAuthData(
@@ -332,6 +339,31 @@ class GetAssertionUseCase(
         summary: CredentialSummary,
         authData: ByteArray,
         clientDataHash: ByteArray,
-    ): Outcome<ByteArray, DomainError> =
-        cryptoService.sign(descriptor, authData + clientDataHash, summary.storedPublicKeyEncoding)
+    ): Outcome<ByteArray, DomainError> {
+        val signingInput = authData + clientDataHash
+        return try {
+            cryptoService.sign(descriptor, signingInput, summary.storedPublicKeyEncoding)
+        } finally {
+            signingInput.fill(0)
+        }
+    }
+}
+
+/** Transfers selected summaries only after selection and result construction both succeed. */
+internal fun <R> createOwnedCandidateResult(
+    all: List<CredentialSummary>,
+    selectCandidates: (List<CredentialSummary>) -> List<CredentialSummary>,
+    createResult: (List<CredentialSummary>) -> R,
+): R {
+    var transferredCandidates: List<CredentialSummary>? = null
+    try {
+        val candidates = selectCandidates(all)
+        val result = createResult(candidates)
+        transferredCandidates = candidates
+        return result
+    } finally {
+        all
+            .filterNot { summary -> transferredCandidates?.any { it === summary } == true }
+            .forEach(CredentialSummary::eraseSensitiveText)
+    }
 }

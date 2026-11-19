@@ -120,6 +120,25 @@ sealed interface RegistrationState {
     data object Cancelled : RegistrationState
 }
 
+/** Transfers a group of newly created mutable text owners only after state construction succeeds. */
+@Req("NFR-SEC-041", "TR-AUTH-031")
+internal fun <T> withSensitiveTextOwnerCopies(
+    ownerFactories: List<() -> SensitiveCredentialText>,
+    transfer: (List<SensitiveCredentialText>) -> T,
+): T {
+    val owned = arrayOfNulls<SensitiveCredentialText>(ownerFactories.size)
+    var transferred = false
+    try {
+        ownerFactories.forEachIndexed { index, createOwner -> owned[index] = createOwner() }
+        val copies = List(owned.size) { index -> requireNotNull(owned[index]) }
+        return transfer(copies).also { transferred = true }
+    } finally {
+        if (!transferred) {
+            owned.forEach { it?.erase() }
+        }
+    }
+}
+
 // ── MVI: Side-effects ─────────────────────────────────────────────────────────
 
 sealed interface RegistrationEffect {
@@ -210,8 +229,9 @@ class RegistrationPromptViewModel(
                     }
                     return@onEach
                 }
+                val ownedOptions = event.claimOptions() ?: return@onEach
                 uiEventBus.clearRegistrationRequest(event.deferred)
-                initRegistration(event.options, event.deferred, event.userInteractionCompleted, event.traceContext)
+                initRegistration(ownedOptions, event.deferred, event.userInteractionCompleted, event.traceContext)
             }.launchIn(viewModelScope)
     }
 
@@ -234,9 +254,9 @@ class RegistrationPromptViewModel(
                 if (!consumeVerificationResult(intent.promptId)) return
                 finishUserInteraction()
                 val response = pendingDeferred
+                releasePendingOptions()
                 pendingDeferred = null
                 pendingUserInteractionCompleted = null
-                pendingOptions = null
                 finishPendingForegroundPrompt(authorized = false)
                 if (!completeResponse(
                         response,
@@ -264,6 +284,7 @@ class RegistrationPromptViewModel(
     ) {
         val previousResponse = pendingDeferred
         val previousJob = pendingRequestJob
+        releasePendingOptions()
         finishPendingForegroundPrompt(authorized = false)
         ceremonyJob = null
         requestGeneration += 1
@@ -292,13 +313,23 @@ class RegistrationPromptViewModel(
             val availability = userVerificationService.getUserVerificationAvailability()
             if (!isLiveRequest(generation)) return@launch
             setState(
-                RegistrationState.AwaitingUserConsent(
-                    rpId = options.rp.copyIdOwner(),
-                    rpName = options.rp.copyNameOwner(),
-                    userName = options.user.copyNameOwner(),
-                    userDisplayName = options.user.copyDisplayNameOwner(),
-                    availableMethod = availability.getBestAvailableMethod(),
-                ),
+                withSensitiveTextOwnerCopies(
+                    ownerFactories =
+                        listOf(
+                            options.rp::copyIdOwner,
+                            options.rp::copyNameOwner,
+                            options.user::copyNameOwner,
+                            options.user::copyDisplayNameOwner,
+                        ),
+                ) { owners ->
+                    RegistrationState.AwaitingUserConsent(
+                        rpId = owners[0],
+                        rpName = owners[1],
+                        userName = owners[2],
+                        userDisplayName = owners[3],
+                        availableMethod = availability.getBestAvailableMethod(),
+                    )
+                },
             )
 
             // Fix F — Fallback auto-confirm for UV=NONE capability.
@@ -368,15 +399,15 @@ class RegistrationPromptViewModel(
 
     private fun cancelRegistration() {
         val request = pendingRequestJob
-        pendingRequestJob = null
         requestGeneration += 1
         finishUserInteraction()
         ceremonyJob?.cancel(CancellationException("Registration was cancelled by the user"))
         ceremonyJob = null
         finishPendingForegroundPrompt(authorized = false)
+        releasePendingOptions()
+        pendingRequestJob = null
         completeResponse(pendingDeferred, Outcome.Error(DomainError.OperationCanceled("Cancelled by user")))
         uiEventBus.clearRegistrationRequest(pendingDeferred)
-        pendingOptions = null
         pendingDeferred = null
         setState(RegistrationState.Cancelled)
         request?.cancel(CancellationException("Registration was cancelled by the user"))
@@ -388,10 +419,11 @@ class RegistrationPromptViewModel(
         if (isLiveRequest(requestGeneration)) return
         val next = uiEventBus.currentRegistrationRequest
         if (next != null && next.deferred.isActive) {
+            val ownedOptions = next.claimOptions() ?: return
             uiEventBus.clearRegistrationRequest(next.deferred)
-            initRegistration(next.options, next.deferred, next.userInteractionCompleted, next.traceContext)
+            initRegistration(ownedOptions, next.deferred, next.userInteractionCompleted, next.traceContext)
         } else {
-            pendingOptions = null
+            releasePendingOptions()
             setState(RegistrationState.Error("Start a new request to try again", false))
         }
     }
@@ -455,7 +487,7 @@ class RegistrationPromptViewModel(
                     emit(RegistrationEffect.NavigateToSuccess(uiCredential.id.encoded))
 
                     // Release request data after the terminal result is shown.
-                    pendingOptions = null
+                    releasePendingOptions()
                     pendingDeferred = null
                     pendingUserInteractionCompleted = null
                 } else if (result is Outcome.Error) {
@@ -469,7 +501,7 @@ class RegistrationPromptViewModel(
                         return@launch
                     }
                     pendingDeferred = null
-                    pendingOptions = null
+                    releasePendingOptions()
                     pendingUserInteractionCompleted = null
 
                     Logger.e { "Registration process failed" }
@@ -495,6 +527,7 @@ class RegistrationPromptViewModel(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     override fun onCleared() {
         pendingRequestJob?.cancel()
+        releasePendingOptions()
         pendingRequestJob = null
         finishUserInteraction()
         ceremonyJob?.cancel()
@@ -552,7 +585,7 @@ class RegistrationPromptViewModel(
                     val response = pendingDeferred
                     pendingDeferred = null
                     pendingUserInteractionCompleted = null
-                    pendingOptions = null
+                    releasePendingOptions()
                     uiEventBus.clearRegistrationRequest(response)
                     completeResponse(
                         response,
@@ -595,16 +628,24 @@ class RegistrationPromptViewModel(
     ) {
         if (generation != requestGeneration || pendingRequestJob !== request) return
         val response = pendingDeferred
+        releasePendingOptions()
         pendingRequestJob = null
         finishUserInteraction()
         finishPendingForegroundPrompt(authorized = false)
         ceremonyJob = null
-        pendingOptions = null
         pendingDeferred = null
         pendingUserInteractionCompleted = null
         uiEventBus.clearRegistrationRequest(response)
         setState(RegistrationState.Cancelled)
         _effects.trySend(RegistrationEffect.NavigateBack)
+    }
+
+    /** Holds option owners until their request parent and every admitted child borrower finish. */
+    private fun releasePendingOptions() {
+        val options = pendingOptions ?: return
+        pendingOptions = null
+        val borrower = pendingRequestJob
+        options.eraseAfter(borrower)
     }
 
     /** Marks presenter-owned completion before synchronous deferred listeners can run. */

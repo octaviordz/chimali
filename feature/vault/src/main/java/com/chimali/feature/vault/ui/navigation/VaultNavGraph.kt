@@ -20,6 +20,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,23 +84,57 @@ fun VaultNavGraph(
     }
 
     val state by viewModel.state.collectAsState()
-    var showAddTypeSheet by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val listClearedForBackgroundState = remember(viewModel) { mutableStateOf(false) }
+    var listClearedForBackground by listClearedForBackgroundState
+    val showAddTypeSheetState = remember { mutableStateOf(false) }
+    var showAddTypeSheet by showAddTypeSheetState
 
-    var editingPasswordPayload by remember { mutableStateOf<Pair<UUID, PasswordPayload>?>(null) }
-    var editingCreditCardPayload by remember { mutableStateOf<Pair<UUID, CreditCardPayload>?>(null) }
-    var editingSecureNotePayload by remember { mutableStateOf<Pair<UUID, SecureNotePayload>?>(null) }
+    val editingPasswordPayloadState = remember { mutableStateOf<Pair<UUID, PasswordPayload>?>(null) }
+    var editingPasswordPayload by editingPasswordPayloadState
+    val editingCreditCardPayloadState = remember { mutableStateOf<Pair<UUID, CreditCardPayload>?>(null) }
+    var editingCreditCardPayload by editingCreditCardPayloadState
+    val editingSecureNotePayloadState = remember { mutableStateOf<Pair<UUID, SecureNotePayload>?>(null) }
+    var editingSecureNotePayload by editingSecureNotePayloadState
 
     DisposableEffect(viewModel) {
         onDispose {
-            editingPasswordPayload?.second?.clearMemory()
-            editingCreditCardPayload?.second?.clearMemory()
-            editingSecureNotePayload?.second?.clearMemory()
+            clearEditingPayloadCopies(
+                editingPasswordPayload?.second,
+                editingCreditCardPayload?.second,
+                editingSecureNotePayload?.second,
+            )
             viewModel.processIntent(VaultIntent.ClearSelectedItem)
             viewModel.processIntent(VaultIntent.AbandonMutation)
         }
     }
 
-    var editingLabelIds by remember { mutableStateOf(emptySet<UUID>()) }
+    val editingLabelIdsState = remember { mutableStateOf(emptySet<UUID>()) }
+    var editingLabelIds by editingLabelIdsState
+
+    ObserveVaultBackground(
+        lifecycleOwner = lifecycleOwner,
+        navController = navController,
+        onStop = {
+            clearVaultBackgroundOwners(
+                viewModel,
+                navController,
+                listClearedForBackgroundState,
+                showAddTypeSheetState,
+                editingPasswordPayloadState,
+                editingCreditCardPayloadState,
+                editingSecureNotePayloadState,
+                editingLabelIdsState,
+            )
+        },
+        onStart = {
+            if (listClearedForBackgroundState.value) {
+                listClearedForBackgroundState.value = false
+                viewModel.processIntent(VaultIntent.LoadItems(viewModel.state.value.selectedLabelId))
+                viewModel.processIntent(VaultIntent.LoadLabels)
+            }
+        },
+    )
 
     LaunchedEffect(Unit) {
         viewModel.processIntent(VaultIntent.LoadItems())
@@ -111,6 +146,11 @@ fun VaultNavGraph(
             navController.currentBackStackEntry?.destination?.route != VaultDestinations.LIST_ROUTE
         ) {
             navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
+            clearEditingPayloadCopies(
+                editingPasswordPayload?.second,
+                editingCreditCardPayload?.second,
+                editingSecureNotePayload?.second,
+            )
             editingPasswordPayload = null
             editingCreditCardPayload = null
             editingSecureNotePayload = null
@@ -193,7 +233,10 @@ fun VaultNavGraph(
         // Add / Edit Password
         composable(VaultDestinations.ENTRY_PASSWORD_ROUTE) {
             DisposableEffect(Unit) {
-                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+                onDispose {
+                    clearEditingPayloadCopies(editingPasswordPayload?.second, null, null)
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                }
             }
             PasswordEntryScreen(
                 saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
@@ -276,7 +319,10 @@ fun VaultNavGraph(
         // Add / Edit Credit Card
         composable(VaultDestinations.ENTRY_CARD_ROUTE) {
             DisposableEffect(Unit) {
-                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+                onDispose {
+                    clearEditingPayloadCopies(null, editingCreditCardPayload?.second, null)
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                }
             }
             CreditCardEntryScreen(
                 saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
@@ -346,7 +392,10 @@ fun VaultNavGraph(
         // Add / Edit Secure Note
         composable(VaultDestinations.ENTRY_NOTE_ROUTE) {
             DisposableEffect(Unit) {
-                onDispose { viewModel.processIntent(VaultIntent.AbandonMutation) }
+                onDispose {
+                    clearEditingPayloadCopies(null, null, editingSecureNotePayload?.second)
+                    viewModel.processIntent(VaultIntent.AbandonMutation)
+                }
             }
             SecureNoteEntryScreen(
                 saveSucceeded = state.mutationState == com.chimali.feature.vault.api.VaultMutationState.SUCCEEDED,
@@ -429,6 +478,58 @@ fun VaultNavGraph(
                 errorMessage = state.errorMessage,
             )
         }
+    }
+}
+
+@Composable
+private fun ObserveVaultBackground(
+    lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+    navController: NavHostController,
+    onStop: () -> Unit,
+    onStart: () -> Unit,
+) {
+    val stop by rememberUpdatedState(onStop)
+    val start by rememberUpdatedState(onStart)
+    DisposableEffect(lifecycleOwner, navController) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_STOP -> stop()
+                    Lifecycle.Event.ON_START -> start()
+                    else -> Unit
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+}
+
+private fun clearVaultBackgroundOwners(
+    viewModel: VaultViewModel,
+    navController: NavHostController,
+    listClearedForBackground: MutableState<Boolean>,
+    showAddTypeSheet: MutableState<Boolean>,
+    editingPasswordPayload: MutableState<Pair<UUID, PasswordPayload>?>,
+    editingCreditCardPayload: MutableState<Pair<UUID, CreditCardPayload>?>,
+    editingSecureNotePayload: MutableState<Pair<UUID, SecureNotePayload>?>,
+    editingLabelIds: MutableState<Set<UUID>>,
+) {
+    listClearedForBackground.value = true
+    viewModel.processIntent(VaultIntent.ClearListData)
+    viewModel.processIntent(VaultIntent.ClearSelectedItem)
+    viewModel.processIntent(VaultIntent.AbandonMutation)
+    clearEditingPayloadCopies(
+        editingPasswordPayload.value?.second,
+        editingCreditCardPayload.value?.second,
+        editingSecureNotePayload.value?.second,
+    )
+    editingPasswordPayload.value = null
+    editingCreditCardPayload.value = null
+    editingSecureNotePayload.value = null
+    editingLabelIds.value = emptySet()
+    showAddTypeSheet.value = false
+    if (navController.currentBackStackEntry?.destination?.route != VaultDestinations.LIST_ROUTE) {
+        navController.popBackStack(VaultDestinations.LIST_ROUTE, false)
     }
 }
 

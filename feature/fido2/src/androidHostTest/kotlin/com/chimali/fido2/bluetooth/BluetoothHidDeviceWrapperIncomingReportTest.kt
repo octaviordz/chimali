@@ -6,11 +6,19 @@ import android.bluetooth.BluetoothHidDevice
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.content.Intent
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.testing.CapturedDiagnostics
+import com.chimali.fido2.util.logging.LocalCrashReportingLogWriter
+import com.chimali.fido2.util.logging.LogDirectoryProvider
+import com.chimali.fido2.util.logging.PrivacyScrubbingLogWriter
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -24,11 +32,152 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runTest
+import okio.Path
+import okio.Path.Companion.toOkioPath
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 /** @see NFR-SEC-041 and TR-AUTH-031 */
 class BluetoothHidDeviceWrapperIncomingReportTest {
+    @TempDir
+    lateinit var tempDir: File
+
+    @Test
+    fun `initialize diagnostics omit profile proxy object description`() =
+        runTest {
+            val marker = "synthetic-private-bluetooth-proxy-description"
+            val hid = mockk<BluetoothHidDevice>(name = marker)
+            val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+            setPrivateField(wrapper, "hidDevice", hid)
+            val diagnostics = CapturedDiagnostics()
+
+            try {
+                assertTrue(wrapper.initialize().isSuccess)
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(marker)
+            } finally {
+                diagnostics.close()
+            }
+        }
+
+    @Test
+    fun `connect diagnostics omit host address and platform exception message`() {
+        val hostAddress = "00:11:22:33:44:55"
+        val exceptionMarker = "synthetic-private-platform-error"
+        val host =
+            mockk<BluetoothDevice> {
+                every { address } returns hostAddress
+                every { bondState } returns BluetoothDevice.BOND_BONDED
+            }
+        val hid =
+            mockk<BluetoothHidDevice> {
+                every { connect(host) } returns true
+            }
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        setPrivateField(wrapper, "hidDevice", hid)
+        val captured = mutableListOf<String>()
+        val capturedWriter =
+            object : LogWriter() {
+                override fun log(
+                    severity: Severity,
+                    message: String,
+                    tag: String,
+                    throwable: Throwable?,
+                ) {
+                    captured += message
+                }
+            }
+        val localLog = tempDir.resolve("logs/fido2_crash_log.txt")
+        val priorWriters = Logger.mutableConfig.logWriterList
+        try {
+            Logger.setLogWriters(
+                LocalCrashReportingLogWriter(
+                    object : LogDirectoryProvider {
+                        override fun getLogDirectory(): Path = tempDir.resolve("logs").toOkioPath()
+                    },
+                ),
+                PrivacyScrubbingLogWriter(capturedWriter),
+            )
+
+            every { host.bondState } returns 777
+            assertFalse(wrapper.connect(host))
+            assertFalse(captured.joinToString("\n").contains("777"))
+
+            every { host.bondState } returns BluetoothDevice.BOND_BONDED
+            assertTrue(wrapper.connect(host))
+            assertFalse(captured.joinToString("\n").contains(hostAddress))
+
+            every { hid.connect(host) } throws IllegalStateException(exceptionMarker)
+            assertFalse(wrapper.connect(host))
+            val output = captured.joinToString("\n")
+            assertFalse(output.contains(hostAddress))
+            assertFalse(output.contains(exceptionMarker))
+            assertTrue(output.contains("Bluetooth not available for paired device"))
+            val localOutput = localLog.readText()
+            assertFalse(localOutput.contains(hostAddress))
+            assertFalse(localOutput.contains(exceptionMarker))
+            assertTrue(localOutput.contains("Bluetooth not available for paired device"))
+        } finally {
+            Logger.setLogWriters(priorWriters)
+        }
+    }
+
+    @Test
+    fun `register diagnostics omit adapter state numbers`() =
+        runTest {
+            val adapter = mockk<BluetoothAdapter> { every { state } returns 777 }
+            val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+            setPrivateField(wrapper, "bluetoothAdapter\$delegate", lazyOf(adapter))
+            setPrivateField(wrapper, "hidDevice", mockk<BluetoothHidDevice>(relaxed = true))
+            val diagnostics = CapturedDiagnostics()
+
+            try {
+                assertFalse(wrapper.registerApp().isSuccess)
+                assertTrue(diagnostics.containsMessage("Bluetooth adapter is not ready"))
+                diagnostics.assertNoSensitiveValues("777")
+            } finally {
+                diagnostics.close()
+            }
+        }
+
+    @Test
+    fun `invalid address diagnostics omit platform exception content`() {
+        val address = "synthetic-invalid-bluetooth-address"
+        val marker = "synthetic-invalid-address-provider-detail"
+        val adapter = mockk<BluetoothAdapter>()
+        every { adapter.getRemoteDevice(address) } throws IllegalArgumentException(marker)
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        setPrivateField(wrapper, "bluetoothAdapter\$delegate", lazyOf(adapter))
+        val diagnostics = CapturedDiagnostics()
+
+        try {
+            assertFalse(wrapper.connect(address))
+            assertTrue(diagnostics.size > 0)
+            diagnostics.assertNoSensitiveValues(address, marker)
+        } finally {
+            diagnostics.close()
+        }
+    }
+
+    @Test
+    fun `unregister diagnostics omit platform exception content`() {
+        val marker = "synthetic-private-unregister-platform-error"
+        val hid = mockk<BluetoothHidDevice>(relaxed = true)
+        every { hid.unregisterApp() } throws SecurityException(marker)
+        val wrapper = BluetoothHidDeviceWrapper(mockk<Context>(relaxed = true))
+        setPrivateField(wrapper, "hidDevice", hid)
+        val diagnostics = CapturedDiagnostics()
+
+        try {
+            wrapper.unregisterApp()
+            assertTrue(diagnostics.size > 0)
+            diagnostics.assertNoSensitiveValues(marker)
+        } finally {
+            diagnostics.close()
+        }
+    }
+
     /**
      * @see FR-HID-010
      * @see FR-HID-020

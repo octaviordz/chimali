@@ -18,10 +18,6 @@ class PublicKeyCredentialUserEntity private constructor(
         icon: String?,
     ) : this(id.toByteArray(), SensitiveCredentialText.copyOf(name), SensitiveCredentialText.copyOf(displayName), icon)
 
-    /** Creates the short-lived encoded ID required by current persistence and response APIs. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    val id: UserId get() = UserId.fromByteArray(idBytes)
-
     /** Creates display text for the consent UI or persistence boundary. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     val name: String get() = nameOwner.toBoundaryString()
@@ -61,10 +57,6 @@ class PublicKeyCredentialUserEntity private constructor(
         }
     }
 
-    /** Returns the user ID as a base64 URL-safe string for an API boundary. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getIdBase64Url(): String = id.value
-
     /** Returns a safe display name. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun getSafeDisplayName(): String = if (displayNameOwner.length == 0) name else displayName
@@ -72,17 +64,6 @@ class PublicKeyCredentialUserEntity private constructor(
     /** Checks whether this user has an icon. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun hasIcon(): Boolean = icon?.isNotBlank() ?: false
-
-    /** Returns the user ID as a hex value for a compatibility API and erases the temporary bytes. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun getIdHex(): String {
-        val bytes = idBytes.copyOf()
-        return try {
-            bytes.joinToString("") { "%02x".format(it) }
-        } finally {
-            bytes.fill(0)
-        }
-    }
 
     /** Erases the owned user ID and account text. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -203,6 +184,33 @@ class PublicKeyCredentialUserEntity private constructor(
             name: SensitiveCredentialText,
             displayName: SensitiveCredentialText,
             icon: String? = null,
-        ): PublicKeyCredentialUserEntity = PublicKeyCredentialUserEntity(idBytes, name, displayName, icon)
+        ): PublicKeyCredentialUserEntity =
+            fromSensitiveOwnersWithFactory(idBytes, name, displayName) { ownedId, ownedName, ownedDisplayName ->
+                PublicKeyCredentialUserEntity(ownedId, ownedName, ownedDisplayName, icon)
+            }
+
+        /** Consumes every owner unless entity creation returns successfully. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        internal fun fromSensitiveOwnersWithFactory(
+            idBytes: ByteArray,
+            name: SensitiveCredentialText,
+            displayName: SensitiveCredentialText,
+            entityFactory: (
+                ByteArray,
+                SensitiveCredentialText,
+                SensitiveCredentialText,
+            ) -> PublicKeyCredentialUserEntity,
+        ): PublicKeyCredentialUserEntity {
+            var transferred = false
+            try {
+                return entityFactory(idBytes, name, displayName).also { transferred = true }
+            } finally {
+                if (!transferred) {
+                    idBytes.fill(0)
+                    name.erase()
+                    displayName.erase()
+                }
+            }
+        }
     }
 }

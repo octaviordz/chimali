@@ -3,6 +3,7 @@ package com.chimali.fido2.domain.model
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.model.CredentialProtectionPolicy
 import java.util.Base64
+import kotlinx.coroutines.Job
 
 /**
  * Domain model representing options for making a FIDO2 credential.
@@ -82,6 +83,49 @@ data class MakeCredentialOptions(
      */
     @Suppress("unused")
     fun getChallengeBase64Url(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(challenge)
+
+    /** Creates independently erasable user, RP and challenge owners for an asynchronous UI borrower. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal fun copyWithIndependentSensitiveOwners(): MakeCredentialOptions {
+        var ownedRp: PublicKeyCredentialRpEntity? = null
+        var ownedUser: PublicKeyCredentialUserEntity? = null
+        var ownedChallenge: ByteArray? = null
+        try {
+            ownedRp = rp.copy()
+            ownedUser = user.copy()
+            ownedChallenge = challenge.copyOf()
+            return copy(
+                rp = requireNotNull(ownedRp),
+                user = requireNotNull(ownedUser),
+                challenge = requireNotNull(ownedChallenge),
+            ).also {
+                ownedRp = null
+                ownedUser = null
+                ownedChallenge = null
+            }
+        } finally {
+            ownedRp?.eraseSensitiveText()
+            ownedUser?.eraseSensitiveText()
+            ownedChallenge?.fill(0)
+        }
+    }
+
+    /** Erases mutable request owners retained by this options instance. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveText() {
+        challenge.fill(0)
+        rp.eraseSensitiveText()
+        user.eraseSensitiveText()
+    }
+
+    /** Defers erasure until the request job and every admitted child borrower have completed. */
+    internal fun eraseAfter(borrower: Job?) {
+        if (borrower != null && !borrower.isCompleted) {
+            borrower.invokeOnCompletion { eraseSensitiveText() }
+        } else {
+            eraseSensitiveText()
+        }
+    }
 
     /**
      * Checks if this request allows resident keys.
@@ -206,27 +250,42 @@ data class MakeCredentialOptions(
             attestation: AttestationConveyancePreference = AttestationConveyancePreference.NONE,
             extensions: Map<String, Any>? = null,
             selectedAlgId: Int,
-        ): MakeCredentialOptions {
+        ): MakeCredentialOptions =
+            withDecodedBase64Challenge(challengeBase64) { challenge ->
+                create(
+                    rp = rp,
+                    user = user,
+                    challenge = challenge,
+                    pubKeyCredParams = pubKeyCredParams,
+                    timeout = timeout,
+                    allowCredentials = allowCredentials,
+                    excludeCredentials = excludeCredentials,
+                    authenticatorSelection = authenticatorSelection,
+                    attestation = attestation,
+                    extensions = extensions,
+                    selectedAlgId = selectedAlgId,
+                )
+            }
+
+        /** Transfers the decoded bytes only when construction succeeds; partial failures are erased. */
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        @Suppress("SwallowedException") // Decoder details may contain input-derived data.
+        internal fun <T> withDecodedBase64Challenge(
+            challengeBase64: String,
+            create: (ByteArray) -> T,
+        ): T {
             val challenge =
                 try {
                     Base64.getUrlDecoder().decode(challengeBase64)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid base64 challenge", e)
+                } catch (_: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid base64 challenge")
                 }
-
-            return create(
-                rp = rp,
-                user = user,
-                challenge = challenge,
-                pubKeyCredParams = pubKeyCredParams,
-                timeout = timeout,
-                allowCredentials = allowCredentials,
-                excludeCredentials = excludeCredentials,
-                authenticatorSelection = authenticatorSelection,
-                attestation = attestation,
-                extensions = extensions,
-                selectedAlgId = selectedAlgId,
-            )
+            var transferred = false
+            try {
+                return create(challenge).also { transferred = true }
+            } finally {
+                if (!transferred) challenge.fill(0)
+            }
         }
     }
 }

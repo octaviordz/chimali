@@ -282,7 +282,9 @@ class HidReportParserTest {
         val result = parser.processReport(contWrong)
 
         assertTrue(result.isFailure)
-        assertIs<Exception>(result.exceptionOrNull())
+        val error = assertIs<Exception>(result.exceptionOrNull())
+        assertEquals("HID continuation sequence mismatch", error.message)
+        assertFalse(error.message.orEmpty().contains("01020304"))
     }
 
     /**
@@ -298,6 +300,9 @@ class HidReportParserTest {
 
         val result = parser.processReport(packet)
         assertTrue(result.isFailure)
+        val error = assertIs<Exception>(result.exceptionOrNull())
+        assertEquals("Continuation packet for unknown channel", error.message)
+        assertFalse(error.message.orEmpty().contains("01020304"))
     }
 
     // ── Short report ──────────────────────────────────────────────────────────
@@ -398,6 +403,33 @@ class HidReportParserTest {
         // Verify sequence numbers on continuations
         assertEquals(SEQ_0.toByte(), packets[1][CONT_SEQ_OFFSET]) // seq=0
         assertEquals(SEQ_1.toByte(), packets[PACKET_INDEX_2][CONT_SEQ_OFFSET]) // seq=1
+    }
+
+    /** @see FR-HID-010 and FR-VAL-020 */
+    @Req("FR-HID-010", "FR-VAL-020")
+    @Test
+    fun `response packet admission failure erases current and previously staged packets`() {
+        val payload = ByteArray(INIT_DATA_SIZE + CONT_DATA_SIZE + 1) { it.toByte() }
+        val original = payload.copyOf()
+        val staged = mutableListOf<ByteArray>()
+        parser.beforeResponsePacketAdmissionForTest = { packet ->
+            staged += packet
+            if (staged.size == 2) error("synthetic HID packet admission failure")
+        }
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                parser.encodeResponse(CtapHidMessage(testCid, CTAPHID_CBOR, payload))
+            }
+
+            assertEquals(2, staged.size)
+            assertTrue(staged.all { packet -> packet.all { it == 0.toByte() } })
+            assertContentEquals(original, payload)
+        } finally {
+            parser.beforeResponsePacketAdmissionForTest = null
+            payload.fill(0)
+            original.fill(0)
+        }
     }
 
     // ── CTAPHID_INIT response ─────────────────────────────────────────────────

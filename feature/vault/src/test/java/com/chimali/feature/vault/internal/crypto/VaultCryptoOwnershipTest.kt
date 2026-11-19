@@ -97,6 +97,33 @@ class VaultCryptoOwnershipTest {
         }
 
     @Test
+    fun encryptedOutputIsErasedWhenOutputConstructionFails() =
+        runTest {
+            val arrays = mutableListOf<Any>()
+            val codec = VaultPayloadCodec { arrays.add(it) }
+            val payload = decode(codec, VaultType.PASSWORD, fixture(VaultType.PASSWORD))
+            val key = ByteArray(32) { 1 }
+            val encryptedOutput = ByteArray(48) { 7 }
+            val provider = mockk<EventStoreKeyProvider>()
+            coEvery { provider.getEventStoreKey(any()) } returns key
+            val encryption = mockk<EncryptionManager>()
+            every { encryption.encrypt(any(), any()) } returns encryptedOutput
+            val service =
+                VaultCryptoServiceImpl(
+                    encryption,
+                    provider,
+                    coroutineContextDispatcher(),
+                    codec,
+                    observeEncryptedOutput = { throw IllegalArgumentException("synthetic construction failure") },
+                )
+
+            assertTrue(encrypt(service, payload) is Outcome.Error)
+            arrays.forEach { erased(it) }
+            erased(encryptedOutput)
+            erased(key)
+        }
+
+    @Test
     fun rejectedEncryptionErasesAllocatedPlaintextForEveryType() =
         runTest {
             for (type in types) {
@@ -209,6 +236,48 @@ class VaultCryptoOwnershipTest {
                 assertFalse(delivered)
                 arrays.forEach { erased(it) }
                 erased(plaintext)
+                erased(key)
+            }
+        }
+
+    @Test
+    fun cancellationDuringEncryptionReturnDeliveryErasesStagedVaultItemForEveryType() =
+        runTest {
+            for (type in types) {
+                val arrays = mutableListOf<Any>()
+                val codec = VaultPayloadCodec { arrays.add(it) }
+                val payload = decode(codec, type, fixture(type))
+                val dispatcher = QueuedDispatcher()
+                val key = ByteArray(32) { 1 }
+                val ciphertext = byteArrayOf(3, 4, 5)
+                val provider = mockk<EventStoreKeyProvider>()
+                coEvery { provider.getEventStoreKey(any()) } returns key
+                val encryption = mockk<EncryptionManager>()
+                every { encryption.encrypt(any(), any()) } returns ciphertext
+                val staged = mutableListOf<VaultItem>()
+                val service = VaultCryptoServiceImpl(encryption, provider, dispatcher, codec, staged::add)
+                var delivered = false
+                val job =
+                    launch {
+                        encrypt(service, payload)
+                        delivered = true
+                    }
+
+                runCurrent()
+                dispatcher.runNext()
+                assertTrue(staged.single().title.any { it != '\u0000' })
+                assertTrue(staged.single().payload.any { it != 0.toByte() })
+
+                job.cancel()
+                advanceUntilIdle()
+
+                assertFalse(delivered)
+                staged.single().let { item ->
+                    assertTrue(item.title.all { it == '\u0000' })
+                    assertTrue(item.payload.all { it == 0.toByte() })
+                    assertTrue(item.crdtState.all { it == 0.toByte() })
+                }
+                arrays.forEach(::erased)
                 erased(key)
             }
         }

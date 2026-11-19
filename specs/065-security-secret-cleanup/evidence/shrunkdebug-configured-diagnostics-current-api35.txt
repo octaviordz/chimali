@@ -1,0 +1,11 @@
+Configured shrunkDebug diagnostic probe — current exploratory worktree
+Date: 2026-11-15 (America/Mexico_City)
+Target: minified `shrunkDebug`; `DEBUGGABLE` is present because instrumentation coverage enables it. This build is not release-equivalent.
+Device: API 35 AOSP emulator `emulator-5554` only.
+Build: `./gradlew --console=plain :app:assembleShrunkDebug :app:assembleShrunkDebugAndroidTest` (build-only; no connected-device task).
+Install/run: serial-scoped `adb -s emulator-5554 install -r` for target and instrumentation APK, followed by `adb -s emulator-5554 shell am instrument -w -e class com.chimali.security.ConfiguredFidoDiagnosticPrivacyTest -e syntheticMarker [GENERATED_MARKER] -e syntheticRunId [GENERATED_RUN_ID] -e expectedDebug true com.chimali.shrunk.test/androidx.test.runner.AndroidJUnitRunner`.
+Result: `OK (1 test)`. The test asserted redacted INFO/password, WARN/seed and ERROR/password in app-private output; throwable message/cause/stack and marker-bearing tag details were omitted; the generated marker was absent.
+External Logcat check: zero raw synthetic-marker matches; three redacted lines were observed: `I Fido2: SEC065 run=[RUN_ID] password=[REDACTED]`, `W Fido2: SEC065 run=[RUN_ID] seed=[REDACTED]`, and `E Fido2: SEC065 run=[RUN_ID] password=[REDACTED]`. No throwable details were present.
+Target APK SHA-256: D8CD6AEBED7B8E34A998711D2EE2F9F72C42562E84D0901680C3CCCB612238B4
+Instrumentation APK SHA-256: 2CE403F18D9BC5EDCC4EE1325B17F10ED522798DAA9FD07EB0D6ABD9C047342E
+Limitations: debug-enabled minified target only, one emulator, one configured writer path and controlled diagnostic; not release-equivalent. Rotation, failure/fallback sinks and the complete destination matrix remain open.

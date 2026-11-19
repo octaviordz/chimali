@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong
 object BaselineMeasurements {
     private const val TAG = "ChimaliT003"
     private val sequence = AtomicInteger()
-    private val operations = ConcurrentHashMap<String, Operation>()
+    private val operations = ConcurrentHashMap<LatencyOperation, Operation>()
     private val reports = ConcurrentHashMap<ByteArray, Response>()
     private val processSession = UUID.randomUUID().toString()
 
@@ -57,47 +57,47 @@ object BaselineMeasurements {
     }
 
     @Req("NFR-PERF-030", "FR-VAL-030")
-    fun start(name: String) {
-        operations.put(name, Operation(name))?.closeTrace()
+    fun start(operation: LatencyOperation) {
+        operations.put(operation, Operation(operation.logLabel))?.closeTrace()
     }
 
     /** Returns a process-scoped diagnostic identity for the active MakeCredential operation. */
     @Req("NFR-PERF-030", "TR-AUTH-031")
-    internal fun traceContext(name: String): Fido2OperationTraceContext? {
-        if (name != "MakeCredential") return null
-        val operation = operations[name] ?: return null
-        return if (operation.traced) Fido2OperationTraceContext(processSession, operation.cookie) else null
+    internal fun traceContext(operation: LatencyOperation): Fido2OperationTraceContext? {
+        if (operation != LatencyOperation.MAKE_CREDENTIAL) return null
+        val activeOperation = operations[operation] ?: return null
+        return if (activeOperation.traced) Fido2OperationTraceContext(processSession, activeOperation.cookie) else null
     }
 
     @Req("NFR-PERF-030", "FR-VAL-030")
-    fun startUserInteraction(name: String) {
-        operations[name]?.userStartedNs?.set(System.nanoTime())
+    fun startUserInteraction(operation: LatencyOperation) {
+        operations[operation]?.userStartedNs?.set(System.nanoTime())
     }
 
     @Req("NFR-PERF-030", "FR-VAL-030")
-    fun endUserInteraction(name: String) {
-        val operation = operations[name] ?: return
-        val startedNs = operation.userStartedNs.getAndSet(0L)
-        if (startedNs != 0L) operation.userNs.addAndGet(System.nanoTime() - startedNs)
+    fun endUserInteraction(operation: LatencyOperation) {
+        val activeOperation = operations[operation] ?: return
+        val startedNs = activeOperation.userStartedNs.getAndSet(0L)
+        if (startedNs != 0L) activeOperation.userNs.addAndGet(System.nanoTime() - startedNs)
     }
 
     @Req("NFR-PERF-030", "FR-VAL-030")
-    fun processingComplete(name: String) {
-        operations[name]?.let { it.processingNs = System.nanoTime() - it.startedNs }
+    fun processingComplete(operation: LatencyOperation) {
+        operations[operation]?.let { it.processingNs = System.nanoTime() - it.startedNs }
     }
 
     /** Associate responses by array identity without changing the existing FIFO queue. */
     @Req("NFR-PERF-030", "FR-VAL-030")
     fun trackResponse(
-        name: String,
+        operation: LatencyOperation,
         packets: List<ByteArray>,
     ) {
-        val operation = operations.remove(name) ?: return
+        val activeOperation = operations.remove(operation) ?: return
         if (packets.isEmpty()) {
-            operation.closeTrace()
+            activeOperation.closeTrace()
             return
         }
-        val response = Response(operation, packets.size)
+        val response = Response(activeOperation, packets.size)
         packets.forEach { reports[it] = response }
     }
 

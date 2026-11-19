@@ -14,7 +14,9 @@ import io.mockk.mockk
 import java.security.KeyPairGenerator
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 
@@ -107,6 +109,7 @@ class PasskeyCredentialDaoTest {
                 var insertedUserId: ByteArray? = null
                 var insertedUserName: ByteArray? = null
                 var insertedDisplayName: ByteArray? = null
+                var retainedInsertBuffers = emptyList<ByteArray>()
                 every {
                     queries.insert(
                         any(),
@@ -131,6 +134,8 @@ class PasskeyCredentialDaoTest {
                         any(),
                     )
                 } answers {
+                    retainedInsertBuffers =
+                        listOf(9, 12, 13, 14, 16, 17, 18, 19).map { arg<ByteArray>(it) }
                     insertedRpId = arg<ByteArray>(12).copyOf()
                     insertedDisplayName = arg<ByteArray>(16).copyOf()
                     insertedUserId = arg<ByteArray>(17).copyOf()
@@ -167,6 +172,45 @@ class PasskeyCredentialDaoTest {
                 assertEquals("user123", requireNotNull(insertedUserId).decodeToString())
                 assertEquals("testuser", requireNotNull(insertedUserName).decodeToString())
                 assertEquals("Test User", requireNotNull(insertedDisplayName).decodeToString())
+                retainedInsertBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `insert credential erases every temporary buffer when SQLDelight fails`() =
+            runTest {
+                var retainedInsertBuffers = emptyList<ByteArray>()
+                every {
+                    queries.insert(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                    )
+                } answers {
+                    retainedInsertBuffers =
+                        listOf(9, 12, 13, 14, 16, 17, 18, 19).map { arg<ByteArray>(it) }
+                    error("synthetic SQLDelight insert failure")
+                }
+
+                assertFailsWith<IllegalStateException> { dao.insertCredential(testCredential) }
+                retainedInsertBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -174,10 +218,10 @@ class PasskeyCredentialDaoTest {
         fun `should update credential successfully`() =
             runTest {
                 var updatedValues = emptyList<ByteArray>()
+                var retainedUpdateBuffers = emptyList<ByteArray>()
                 every { queries.update(any(), any(), any(), any(), any(), any(), any()) } answers {
-                    updatedValues =
-                        listOf(arg<ByteArray>(2), arg<ByteArray>(4), arg<ByteArray>(5))
-                            .map(ByteArray::copyOf)
+                    retainedUpdateBuffers = listOf(arg<ByteArray>(2), arg<ByteArray>(4), arg<ByteArray>(5))
+                    updatedValues = retainedUpdateBuffers.map(ByteArray::copyOf)
                     mockk(relaxed = true)
                 }
                 dao.updateCredential(testCredential)
@@ -187,6 +231,21 @@ class PasskeyCredentialDaoTest {
                     listOf("example.com", "Test User", "testuser"),
                     updatedValues.map(ByteArray::decodeToString),
                 )
+                retainedUpdateBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `update credential erases every temporary buffer when SQLDelight fails`() =
+            runTest {
+                var retainedUpdateBuffers = emptyList<ByteArray>()
+                every { queries.update(any(), any(), any(), any(), any(), any(), any()) } answers {
+                    retainedUpdateBuffers = listOf(arg<ByteArray>(2), arg<ByteArray>(4), arg<ByteArray>(5))
+                    error("synthetic SQLDelight update failure")
+                }
+
+                assertFailsWith<IllegalStateException> { dao.updateCredential(testCredential) }
+                retainedUpdateBuffers.forEach { assertContentEquals(ByteArray(it.size), it) }
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */

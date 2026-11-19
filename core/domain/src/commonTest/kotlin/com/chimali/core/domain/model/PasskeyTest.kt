@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlinx.datetime.Instant
 
 /**
@@ -26,6 +27,21 @@ class PasskeyTest {
             createdAt = defaultInstant,
             lastUsed = defaultInstant,
         )
+
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `diagnostic representation omits passkey identity and credential data`() {
+        val diagnostic = passkey.toString()
+
+        assertEquals("Passkey([redacted])", diagnostic)
+        assertEquals("PasskeyId([redacted])", passkey.id.toString())
+        assertFalse(diagnostic.contains("passkey-id-1"))
+        assertFalse(passkey.id.toString().contains("passkey-id-1"))
+        assertFalse(diagnostic.contains("example.com"))
+        assertFalse(diagnostic.contains("alice"))
+        assertFalse(diagnostic.contains("1, 2, 3"))
+        assertTrue(diagnostic.isNotBlank())
+    }
 
     @Test
     @Req("NFR-SEC-041", "TR-AUTH-031")

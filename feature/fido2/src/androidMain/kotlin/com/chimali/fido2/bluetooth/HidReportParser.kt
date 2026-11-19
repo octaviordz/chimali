@@ -90,6 +90,14 @@ private const val INIT_DEVICE_BUILD_VERSION: Byte = 0x00
 /** Maximum payload accepted across one initial packet and 128 continuation packets. */
 internal const val MAX_HID_MESSAGE_SIZE = INIT_DATA_SIZE + (128 * CONT_DATA_SIZE)
 
+/** Packs a four-byte CTAPHID channel into an integer key without creating immutable text. */
+internal fun ByteArray.toHidChannelKey(): Int {
+    require(size == CID_SIZE) { "CID must be $CID_SIZE bytes" }
+    var key = 0
+    for (byte in this) key = (key shl SHIFT_8) or (byte.toInt() and BYTE_MASK)
+    return key
+}
+
 private const val MAX_PENDING_HID_MESSAGES = 8
 private const val PENDING_HID_MESSAGE_TIMEOUT_NANOS = 5_000_000_000L
 
@@ -136,6 +144,13 @@ data class CtapHidMessage(
     @Req("FR-HID-010", "FR-VAL-020")
     val payload: ByteArray,
 ) {
+    /** Clears the message-owned channel and payload arrays after dispatch reaches a terminal state. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun clearMemory() {
+        channelId.fill(0)
+        payload.fill(0)
+    }
+
     /** Compares channel, command, and payload by value; byte arrays use content equality. */
     @Req("FR-HID-010", "FR-VAL-020")
     override fun equals(other: Any?): Boolean {
@@ -172,8 +187,9 @@ data class CtapHidMessage(
 @Single
 @Req("FR-HID-010", "FR-VAL-020")
 class HidReportParser {
+    internal var beforeResponsePacketAdmissionForTest: ((ByteArray) -> Unit)? = null
+
     private data class InProgress(
-        val channelId: ByteArray,
         val command: Int,
         val buffer: ByteArray,
         var bytesWritten: Int,
@@ -182,7 +198,7 @@ class HidReportParser {
     )
 
     /** Map from CID (as hex string) → in-progress reassembly state. */
-    private val pending = mutableMapOf<String, InProgress>()
+    private val pending = mutableMapOf<Int, InProgress>()
 
     /** Monotonic nanosecond clock used for expiration and deterministic host tests. */
     @Req("FR-HID-010", "FR-VAL-020")
@@ -215,12 +231,19 @@ class HidReportParser {
         }
 
         val cid = report.copyOfRange(0, CID_SIZE)
-        val cidKey = cid.toHex()
-
-        return if (report[INIT_CMD_OFFSET].toInt() and CMD_FLAG != 0) {
-            processInitPacket(cid, cidKey, report)
-        } else {
-            processContinuationPacket(cid, cidKey, report)
+        val channelKey = cid.toHidChannelKey()
+        var messageOwnsCid = false
+        try {
+            val result =
+                if (report[INIT_CMD_OFFSET].toInt() and CMD_FLAG != 0) {
+                    processInitPacket(cid, channelKey, report)
+                } else {
+                    processContinuationPacket(cid, channelKey, report)
+                }
+            messageOwnsCid = result.getOrNull() != null
+            return result
+        } finally {
+            if (!messageOwnsCid) cid.fill(0)
         }
     }
 
@@ -229,7 +252,7 @@ class HidReportParser {
     @Req("FR-HID-010", "FR-VAL-020")
     private fun processInitPacket(
         cid: ByteArray,
-        cidKey: String,
+        channelKey: Int,
         report: ByteArray,
     ): Result<CtapHidMessage?> {
         val cmd = report[INIT_CMD_OFFSET].toInt() and CMD_MASK
@@ -239,7 +262,7 @@ class HidReportParser {
 
         // A new init packet replaces any incomplete request from the same channel, even when
         // the new length itself is rejected.
-        pending.remove(cidKey)?.erase()
+        pending.remove(channelKey)?.erase()
 
         if (totalLength > MAX_HID_MESSAGE_SIZE) {
             return Result.failure(
@@ -264,9 +287,8 @@ class HidReportParser {
             val buffer = ByteArray(totalLength)
             onReassemblyBufferCreatedForTest?.invoke(buffer)
             report.copyInto(buffer, 0, INIT_DATA_OFFSET, INIT_DATA_OFFSET + dataInThisPacket)
-            pending[cidKey] =
+            pending[channelKey] =
                 InProgress(
-                    channelId = cid,
                     command = cmd,
                     buffer = buffer,
                     bytesWritten = dataInThisPacket,
@@ -282,22 +304,22 @@ class HidReportParser {
     @Req("FR-HID-010", "FR-VAL-020")
     private fun processContinuationPacket(
         cid: ByteArray,
-        cidKey: String,
+        channelKey: Int,
         report: ByteArray,
     ): Result<CtapHidMessage?> {
         val state =
-            pending[cidKey]
+            pending[channelKey]
                 ?: return Result.failure(
-                    Fido2Exception.ProtocolException("Continuation packet for unknown CID $cidKey"),
+                    Fido2Exception.ProtocolException("Continuation packet for unknown channel"),
                 )
 
         val seq = report[CONT_SEQ_OFFSET].toInt() and CMD_MASK
         if (seq != state.nextSeq) {
-            pending.remove(cidKey)
+            pending.remove(channelKey)
             state.erase()
             return Result.failure(
                 Fido2Exception.ProtocolException(
-                    "Sequence mismatch on CID $cidKey: expected ${state.nextSeq}, got $seq",
+                    "HID continuation sequence mismatch",
                 ),
             )
         }
@@ -309,7 +331,7 @@ class HidReportParser {
         state.nextSeq++
 
         return if (state.bytesWritten == state.buffer.size) {
-            pending.remove(cidKey)
+            pending.remove(channelKey)
             val payload = state.buffer.copyOf()
             state.erase()
             Result.success(CtapHidMessage(cid, state.command, payload))
@@ -321,7 +343,6 @@ class HidReportParser {
     @Req("FR-HID-010", "FR-VAL-020")
     private fun InProgress.erase() {
         buffer.fill(0)
-        channelId.fill(0)
         bytesWritten = 0
     }
 
@@ -355,32 +376,52 @@ class HidReportParser {
         val packets = mutableListOf<ByteArray>()
         val payload = message.payload
         val totalLength = payload.size
+        var transferred = false
 
-        // Init packet
-        val initPacket = ByteArray(HID_PACKET_SIZE)
-        message.channelId.copyInto(initPacket, 0)
-        initPacket[INIT_CMD_OFFSET] = (message.command or CMD_FLAG).toByte()
-        initPacket[INIT_BCNTH_OFFSET] = ((totalLength shr SHIFT_8) and BYTE_MASK).toByte()
-        initPacket[INIT_BCNTL_OFFSET] = (totalLength and BYTE_MASK).toByte()
-        val firstChunk = minOf(INIT_DATA_SIZE, totalLength)
-        payload.copyInto(initPacket, INIT_DATA_OFFSET, 0, firstChunk)
-        packets.add(initPacket)
-
-        // Continuation packets
-        var offset = firstChunk
-        var seq = 0
-        while (offset < totalLength) {
-            val contPacket = ByteArray(HID_PACKET_SIZE)
-            message.channelId.copyInto(contPacket, 0)
-            contPacket[CONT_SEQ_OFFSET] = (seq and CMD_MASK).toByte()
-            val chunk = minOf(CONT_DATA_SIZE, totalLength - offset)
-            payload.copyInto(contPacket, CONT_DATA_OFFSET, offset, offset + chunk)
-            packets.add(contPacket)
-            offset += chunk
-            seq++
+        fun admitPacket(packet: ByteArray) {
+            var admitted = false
+            try {
+                beforeResponsePacketAdmissionForTest?.invoke(packet)
+                packets.add(packet)
+                admitted = true
+            } finally {
+                if (!admitted) packet.fill(0)
+            }
         }
 
-        return packets
+        try {
+            // Init packet
+            val initPacket = ByteArray(HID_PACKET_SIZE)
+            admitPacket(initPacket)
+            message.channelId.copyInto(initPacket, 0)
+            initPacket[INIT_CMD_OFFSET] = (message.command or CMD_FLAG).toByte()
+            initPacket[INIT_BCNTH_OFFSET] = ((totalLength shr SHIFT_8) and BYTE_MASK).toByte()
+            initPacket[INIT_BCNTL_OFFSET] = (totalLength and BYTE_MASK).toByte()
+            val firstChunk = minOf(INIT_DATA_SIZE, totalLength)
+            payload.copyInto(initPacket, INIT_DATA_OFFSET, 0, firstChunk)
+
+            // Continuation packets
+            var offset = firstChunk
+            var seq = 0
+            while (offset < totalLength) {
+                val contPacket = ByteArray(HID_PACKET_SIZE)
+                admitPacket(contPacket)
+                message.channelId.copyInto(contPacket, 0)
+                contPacket[CONT_SEQ_OFFSET] = (seq and CMD_MASK).toByte()
+                val chunk = minOf(CONT_DATA_SIZE, totalLength - offset)
+                payload.copyInto(contPacket, CONT_DATA_OFFSET, offset, offset + chunk)
+                offset += chunk
+                seq++
+            }
+
+            transferred = true
+            return packets
+        } finally {
+            if (!transferred) {
+                packets.forEach { packet -> packet.fill(0) }
+                packets.clear()
+            }
+        }
     }
 
     /**
@@ -445,8 +486,4 @@ class HidReportParser {
         pending.values.forEach { it.erase() }
         pending.clear()
     }
-
-    // ── Utilities ─────────────────────────────────────────────────────────────
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 }

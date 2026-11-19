@@ -138,7 +138,7 @@ Original references: §3.6, §3.9, and §9.4.
 
 [WalletSessionMemoryPressure](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletSessionMemoryPressure.kt) handles the three specified severe Android trim levels. It invokes the supplied session-clearing callback before requesting a GC hint. It performs no key derivation. [ChimaliApplication](../app/src/main/kotlin/com/chimali/ChimaliApplication.kt) connects the callback to application lifecycle handling.
 
-The adjacent [MemoryUtils](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/MemoryUtils.kt) provides buffer/conversion utilities and likewise defines no independent KDF. Session ownership, generation fencing, and cached material belong to [WalletMasterSeedProvider](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt). A GC hint must not be presented as a physical-erasure guarantee.
+The adjacent `MemoryUtils` utility was removed in the 2026-11-14 Feature 065 audit because it had no production callers; its `clearString` method was a no-op and its String-to-array helpers could not erase their immutable source String. Session ownership, generation fencing, and cached material belong to [WalletMasterSeedProvider](../feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/WalletMasterSeedProvider.kt). A GC hint must not be presented as a physical-erasure guarantee.
 
 ### TD-8: preserve the boundary between primitive and application policy
 

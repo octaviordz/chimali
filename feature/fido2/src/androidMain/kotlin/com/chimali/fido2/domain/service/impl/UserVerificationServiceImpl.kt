@@ -2,6 +2,7 @@ package com.chimali.fido2.domain.service.impl
 
 import android.app.KeyguardManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.biometric.BiometricManager
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.common.result.DomainError
@@ -27,6 +28,18 @@ class UserVerificationServiceImpl(
     private val keyguardManager: KeyguardManager,
     private val timeProvider: TimeProvider,
 ) : UserVerificationService {
+    private var elapsedRealtimeMs: () -> Long = SystemClock::elapsedRealtime
+
+    /** Host-test seam for deterministic cache-expiration checks. */
+    internal constructor(
+        biometricManager: BiometricManager,
+        keyguardManager: KeyguardManager,
+        timeProvider: TimeProvider,
+        elapsedRealtimeMs: () -> Long,
+    ) : this(biometricManager, keyguardManager, timeProvider) {
+        this.elapsedRealtimeMs = elapsedRealtimeMs
+    }
+
     companion object {
         /** How long a cached availability result is considered fresh (10 seconds). */
         private const val CACHE_TTL_MS = 10_000L
@@ -67,8 +80,8 @@ class UserVerificationServiceImpl(
     @Volatile private var cachedAvailability: UserVerificationAvailability? = null
 
     /**
-     * Wall-clock timestamp (ms) at which [cachedAvailability] was last populated.
-     * Used to compute cache age against [CACHE_TTL_MS].
+     * Monotonic elapsed-realtime timestamp (ms) at which [cachedAvailability] was last populated.
+     * Wall-clock changes must not extend the security-posture cache lifetime.
      */
     @Volatile private var cacheTimestampMs: Long = 0L
 
@@ -76,10 +89,7 @@ class UserVerificationServiceImpl(
 
     override suspend fun getUserVerificationAvailability(): UserVerificationAvailability {
         // ── Fast path: return cached result if still within TTL ───────────────
-        // System.currentTimeMillis() is used rather than System.nanoTime() because
-        // wall-clock precision is sufficient and it avoids the nanoTime monotonic-
-        // clock overhead on some ARM platforms.
-        val now = timeProvider.epochMillis()
+        val now = elapsedRealtimeMs()
         cachedAvailability?.let { cached ->
             if (now - cacheTimestampMs < CACHE_TTL_MS) {
                 return cached // ← no Binder IPC; just a memory read

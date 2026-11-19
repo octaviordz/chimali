@@ -12,10 +12,17 @@ data class MakeCredentialResult(
     val attestationObject: AttestationObject,
     val credential: PasskeyCredential,
 ) {
-    /** Releases transport-owned credential metadata and the independently owned attestation origin. */
+    /** Releases credential metadata and every mutable owner in the returned attestation. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun eraseSensitiveText() {
+        eraseSensitiveData()
+    }
+
+    /** Erases the independently owned credential and attestation response after final use. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveData() {
         credential.eraseSensitiveText()
-        attestationObject.clientData.eraseSensitiveText()
+        attestationObject.clientData.eraseSensitiveData()
+        attestationObject.eraseSensitiveData()
     }
 }

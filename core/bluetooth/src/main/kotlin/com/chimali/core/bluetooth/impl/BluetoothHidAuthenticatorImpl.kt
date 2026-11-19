@@ -88,8 +88,8 @@ class BluetoothHidAuthenticatorImpl(
     private fun initializeProfileProxy() {
         try {
             adapter?.getProfileProxy(context, this, BluetoothProfile.HID_DEVICE)
-        } catch (e: SecurityException) {
-            Logger.e(TAG, e) { "Bluetooth permission denied on init" }
+        } catch (_: SecurityException) {
+            Logger.e(TAG) { "Bluetooth permission denied on init" }
         }
     }
 
@@ -165,8 +165,8 @@ class BluetoothHidAuthenticatorImpl(
                     }
                 },
             )
-        } catch (e: SecurityException) {
-            Logger.e(TAG, e) { "Bluetooth permission denied when starting advertisement" }
+        } catch (_: SecurityException) {
+            Logger.e(TAG) { "Bluetooth permission denied when starting advertisement" }
         }
     }
 
@@ -180,11 +180,7 @@ class BluetoothHidAuthenticatorImpl(
      */
     @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     override fun stop() {
-        try {
-            // hidDevice?.unregisterApp() — intentionally deferred; see KDoc above.
-        } catch (e: SecurityException) {
-            Logger.e(TAG, e) { "Bluetooth permission denied when stopping" }
-        }
+        // hidDevice?.unregisterApp() — intentionally deferred; see KDoc above.
         _state.value = AuthenticatorState.IDLE
     }
 

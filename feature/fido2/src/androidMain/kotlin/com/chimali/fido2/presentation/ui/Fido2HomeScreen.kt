@@ -123,10 +123,10 @@ fun Fido2HomeScreen(
     pairedDevicesViewModel: PairedDevicesViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
-    val connectionState by viewModel.connectionState.collectAsState()
+    val connectionState by viewModel.connectionState.collectAsStateWithLifecycleAndReset(Fido2ConnectionState.Idle)
     val processState by viewModel.processTransportState.collectAsState()
     val outboundBleUnsupported by viewModel.outboundBleUnsupported.collectAsState()
-    val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsState()
+    val connectedDisplayName by viewModel.connectedDeviceDisplayName.collectAsStateWithLifecycleAndReset(null)
     val showPairingHelp = remember { mutableStateOf(false) }
     val selectedMode = processState.processChoice
     val toggleAction = transportToggleAction(connectionState, processState.availability)
@@ -252,7 +252,7 @@ fun Fido2HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsState()
+            val pairedDevices by pairedDevicesViewModel.pairedDevices.collectAsStateWithLifecycleAndReset(emptyList())
             StatusIndicator(
                 state = dashboardConnectionState,
                 displayName = connectedDisplayName,
@@ -468,8 +468,8 @@ private fun Fido2EventObserver(
     onRegisterRequest: () -> Unit,
     onAuthenticateRequest: () -> Unit,
 ) {
-    val registration by pendingRegistration.collectAsState()
-    val authentication by pendingAuthentication.collectAsState()
+    val registration by pendingRegistration.collectAsStateWithLifecycleAndReset(null)
+    val authentication by pendingAuthentication.collectAsStateWithLifecycleAndReset(null)
     val latestOnRegister by rememberUpdatedState(onRegisterRequest)
     val latestOnAuthenticate by rememberUpdatedState(onAuthenticateRequest)
 
@@ -562,10 +562,16 @@ private fun launchDiscoverability(
                 putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, DISCOVERABLE_DURATION_SECONDS)
             }
         launcher.launch(intent)
-    } catch (e: SecurityException) {
-        Logger.e(e) { "Fido2HomeScreen: SecurityException launching discoverability" }
+    } catch (failure: SecurityException) {
+        logDiscoverabilityLaunchFailure(failure)
         onError()
     }
+}
+
+@Req("FR-008", "FR-009")
+@Suppress("FunctionParameterNaming", "UnusedParameter")
+internal fun logDiscoverabilityLaunchFailure(_failure: SecurityException) {
+    Logger.e { "Fido2HomeScreen: SecurityException launching discoverability" }
 }
 
 /**

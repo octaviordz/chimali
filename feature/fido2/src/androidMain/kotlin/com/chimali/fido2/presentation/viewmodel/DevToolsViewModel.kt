@@ -3,7 +3,6 @@ package com.chimali.fido2.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedOwnerKind
@@ -51,7 +50,7 @@ sealed interface DevToolsIntent {
     /** Dismiss any error message. */
     data object DismissError : DevToolsIntent
 
-    /** Support copying the mnemonic words to the clipboard securely. */
+    /** Reserved legacy action. Mnemonic clipboard export is intentionally unsupported. */
     data object CopyToClipboard : DevToolsIntent
 
     /** Attempt to re-ingest a mnemonic (e.g. from QR scan or manual entry). */
@@ -94,13 +93,12 @@ sealed interface DevToolsEffect {
  * T146a — MVI ViewModel for the Dev Tools mnemonic export/recovery flows.
  *
  * **Security note**: the ViewModel owns the revealed mnemonic `CharArray`. The UI clears it
- * through [DevToolsIntent.ClearMnemonic] when hidden or disposed. Immutable copies are limited
- * to the explicit platform rendering/clipboard boundary.
+ * through [DevToolsIntent.ClearMnemonic] when hidden or disposed. Mnemonic clipboard export is
+ * unsupported because it would require retaining an immutable copy of recovery material.
  */
 @KoinViewModel
 class DevToolsViewModel(
     private val masterSeedProvider: MasterSeedProvider,
-    private val clipboardManagerService: ClipboardManagerService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DevToolsUiState())
     val state: StateFlow<DevToolsUiState> = _state.asStateFlow()
@@ -111,7 +109,7 @@ class DevToolsViewModel(
     private var mnemonicLoadJob: Job? = null
     private var mnemonicImportJob: Job? = null
     private var mnemonicImportBuffer: CharArray? = null
-    private var clipboardCopyJob: Job? = null
+    private var mnemonicImportBorrowerAdmitted = false
     private var mnemonicLoadGeneration: Long = 0
     private var mnemonicImportGeneration: Long = 0
 
@@ -123,17 +121,11 @@ class DevToolsViewModel(
             is DevToolsIntent.DismissError -> _state.update { it.copy(error = null) }
             is DevToolsIntent.RecoverFromSeed -> recoverFromSeed(intent.mnemonic)
             is DevToolsIntent.CopyToClipboard -> {
-                _state.value.mnemonicWords?.let { words ->
-                    val text = String(words)
-                    clipboardCopyJob?.cancel()
-                    clipboardCopyJob =
-                        viewModelScope.launch {
-                            clipboardManagerService.copySensitiveData("Chimali Master Seed", text)
-                            _effects.send(DevToolsEffect.ShowSnackbar("Mnemonic copied safely. It will clear in 60s."))
-                        }
+                viewModelScope.launch {
+                    _effects.send(DevToolsEffect.ShowSnackbar("Mnemonic clipboard export is disabled."))
                 }
             }
-            is DevToolsIntent.BiometricError -> handleBiometricError(intent.errorCode, intent.message)
+            is DevToolsIntent.BiometricError -> handleBiometricError(intent.message)
         }
     }
 
@@ -145,15 +137,10 @@ class DevToolsViewModel(
      * Clears mnemonic from state immediately regardless of error code. No retry is attempted.
      */
 
-    private fun handleBiometricError(
-        errorCode: Int,
-        message: String,
-    ) {
+    private fun handleBiometricError(message: String) {
         cancelMnemonicReveal()
-        clipboardCopyJob?.cancel()
-        clipboardCopyJob = null
         eraseRevealedMnemonic()
-        Logger.w { "Biometric error received: code=$errorCode" }
+        Logger.w { "Biometric error received" }
         _state.update {
             it.copy(
                 mnemonicWords = null,
@@ -217,8 +204,6 @@ class DevToolsViewModel(
 
     private fun clearMnemonic() {
         cancelMnemonicReveal()
-        clipboardCopyJob?.cancel()
-        clipboardCopyJob = null
         eraseRevealedMnemonic()
         _state.update {
             it.copy(
@@ -250,17 +235,21 @@ class DevToolsViewModel(
         }
         cancelMnemonicReveal()
         eraseRevealedMnemonic()
-        clipboardCopyJob?.cancel()
-        clipboardCopyJob = null
         _state.update { it.copy(mnemonicWords = null, isMnemonicVisible = false) }
         val generation = ++mnemonicImportGeneration
-        mnemonicImportJob?.cancel()
-        mnemonicImportBuffer?.fill('\u0000')
+        val previousImportJob = mnemonicImportJob
+        previousImportJob?.cancel()
+        if (previousImportJob != null && !mnemonicImportBorrowerAdmitted) {
+            mnemonicImportBuffer?.fill('\u0000')
+            mnemonicImportBuffer = null
+        }
+        mnemonicImportBorrowerAdmitted = false
         mnemonicImportBuffer = mnemonic
         val importJob =
             viewModelScope.launch {
                 _state.update { it.copy(isLoading = true, error = null) }
                 try {
+                    mnemonicImportBorrowerAdmitted = true
                     val result = masterSeedProvider.importMnemonic(mnemonic)
 
                     val message =
@@ -291,7 +280,10 @@ class DevToolsViewModel(
             }
         // A job cancelled before its dispatcher starts the body never enters the try/finally.
         // Completion cleanup covers that queued-but-never-started ownership path as well.
-        importJob.invokeOnCompletion { mnemonic.fill('\u0000') }
+        importJob.invokeOnCompletion {
+            mnemonic.fill('\u0000')
+            if (mnemonicImportBuffer === mnemonic) mnemonicImportBuffer = null
+        }
         mnemonicImportJob = importJob
     }
 
@@ -324,10 +316,8 @@ class DevToolsViewModel(
         mnemonicLoadGeneration += 1
         mnemonicImportGeneration += 1
         mnemonicLoadJob?.cancel()
+        if (!mnemonicImportBorrowerAdmitted) mnemonicImportBuffer?.fill('\u0000')
         mnemonicImportJob?.cancel()
-        clipboardCopyJob?.cancel()
-        mnemonicImportBuffer?.fill('\u0000')
-        mnemonicImportBuffer = null
         eraseRevealedMnemonic()
         _state.update { it.copy(mnemonicWords = null, isMnemonicVisible = false, isLoading = false) }
         super.onCleared()

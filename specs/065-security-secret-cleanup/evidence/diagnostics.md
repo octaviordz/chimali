@@ -1,0 +1,117 @@
+# Configured FIDO diagnostic destination evidence
+
+## Scope
+
+| Field | Result |
+|---|---|
+| Requirement | FR-008/009/013/014; T034 |
+| Procedure | `com.chimali.security.ConfiguredFidoDiagnosticPrivacyTest#configuredWritersRedactSyntheticPasswordAndSeedMarkers` |
+| Device | API 35 Android ATD x86_64, `emulator-5554`; physical device not selected |
+| Date | 2026-11-14 (America/Mexico_City) |
+| Source revision | Dirty exploratory worktree based on `78812e4d0a2d4ff422e03cd71611d6eb4ab4c57` |
+
+The instrumentation generates an external synthetic marker and run identifier. It checks the configured app-private FIDO diagnostic file for raw marker absence. In the debug-enabled target it also emits controlled INFO/password and WARN/seed diagnostics through Kermit and requires `[REDACTED]` in the local file. The captured Logcat lines are sanitized below; run identifiers and values are not retained.
+
+## Results
+
+| Variant | Target build state | Result | APK SHA-256 (target / instrumentation) |
+|---|---|---|---|
+| `release` (`com.chimali`) | `DEBUGGABLE` absent in `dumpsys package` | 1 instrumentation case passed. App-private log received the production Bouncy Castle startup INFO marker; synthetic marker absent. | `9365E480D9E8B92C96C07F9D4E84935C5BA1B15924DE58619C9B250A8E094042` / `190E84E9F484C3A39D474B5212C0E48926C1EF0EEDE1A1B42873F7BDE06ACC15` |
+| `shrunkDebug` (`com.chimali.shrunk`) | Minified; installed manifest and package are `DEBUGGABLE` because Android test coverage is enabled, despite `isDebuggable = false` in the build type | 1 instrumentation case passed. Configured local file assertions passed for INFO/password and WARN/seed redaction; Logcat contains both sanitized records below. | `61A299761B916C61236B4C4AC413EF6C398CE6792F0EDA2E29ADAB416DCFC8D1` / `89C5CC1CDA665B662E3F54D2EE6F98A8E4FB125E924476D6D96261B8FA0F94A7` |
+
+Sanitized Logcat from `shrunkDebug`:
+
+```text
+I Fido2: SEC065 run=[RUN_ID] password=[REDACTED]
+W Fido2: SEC065 run=[RUN_ID] seed=[REDACTED]
+```
+
+External synthetic-marker SHA-256 fingerprints: release `AFECE980D85FFB283C118CCF28BB2233ED1168E61C584BDD7E24704DD8AEF1A4`; `shrunkDebug` `5B1655C9B76E7358686BCFF3F9D513A60B10E14096B817A8A4B53DD0A8F5F963`. Raw markers were not written to the evidence tree.
+
+## Applicability and limits
+
+The release probe validates the actual release target's private-file writer using a production startup diagnostic and absence of the synthetic marker; it does not inject synthetic release-side failures. `shrunkDebug` is minified but debug-enabled and is not release-equivalent. This is one configured target path on one emulator. Rotated-file behavior, unavailable/rejected writers, exception-path matrix, other destinations, physical devices, and remaining inventory-selected sources are not covered. T034 remains open.
+
+## Release injected synthetic marker probe
+
+On 2026-11-14, rebuilt `release` plus `releaseAndroidTest` with `-PchimaliTestBuildType=release` and installed both explicitly using `adb -s emulator-5554`. `ConfiguredFidoDiagnosticPrivacyTest.configuredWritersRedactSyntheticPasswordAndSeedMarkers` emitted a generated synthetic value under password and seed labels through the configured Kermit logger. The release target remained non-debuggable. The single instrumentation case passed and verified both redacted records in the configured app-private file, with the synthetic marker absent. A sanitized run record is retained in `evidence/release-configured-diagnostics-api35.txt` (SHA-256 `0D14495008CDFE43CB5B347DB7BB751AAC3AB27BA50A834EEDF5BC681791555D`). Target APK SHA-256: `ABC51D568B5540248A9B01D900C20DBC9D7BC8CCF9961EE03FC11D7094855F4E`; instrumentation APK SHA-256: `A31DCC29782D0B87130E85C5FC7E20C4B8C66C0161E2A4DABF60C46B3D31725E`. Initial instrumentation attempts failed before the assertions because R8 removed Kermit API classes across the target/test classloader boundary. The release rules now retain the Kermit package as a coherent instrumentation ABI; no marker or raw diagnostic line is retained. This provides configured release app-private output evidence for the two injected INFO/WARN records, but not release exception/failure injection, rotation, fallback destinations, or a complete T034 matrix.
+
+## Refreshed shrunkDebug Logcat and file probe
+
+After updating the instrumentation to emit markers through the common Kermit call shape used by release, the minified `shrunkDebug` target and its test APK were rebuilt and installed only on `emulator-5554`. The test passed and both the local-file assertions and external Logcat scan confirmed the password/seed markers were redacted. Sanitized lines: `I Fido2: SEC065 run=[RUN_ID] password=[REDACTED]` and `W Fido2: SEC065 run=[RUN_ID] seed=[REDACTED]`. The sanitized run and APK hashes are in `evidence/shrunkdebug-configured-diagnostics-api35.txt` (SHA-256 `C0287A2FBF2B6E0782DFEBC927298E61738F99C20F54316EADE828F410FFFCE6`). Target APK SHA-256: `4E428B99E1286783DB5567588441F8C4937C0349586DF2DE15191EDCFEFB6D8B`; instrumentation APK SHA-256: `45C03F5203D528C15CB5F4A193F8E572848CE57AD2FA2835EE18FAE375951A48`. This refreshed probe remains debug-enabled and is not release-equivalent.
+
+The original results table above records the first, narrower probes. Its release row did not emit synthetic markers and must not be read as release redaction evidence; the later release injected-marker probe supersedes that claim. Earlier APK files were overwritten by the current builds; their historical hashes remain as run metadata, while current hashes and sanitized assertions are preserved in the two run records linked above.
+
+## Synthetic throwable and tag follow-up
+
+The latest configured-writer instrumentation test was extended to pass a synthetic exception whose message, cause message and stack-trace class/method/file fields all contain the same marker, under a marker-bearing Kermit tag. Both non-debuggable `release` and minified `shrunkDebug` passed the one-case instrumentation test on `emulator-5554`. App-private output retained redacted INFO/password, WARN/seed and ERROR/password messages plus the fixed `[throwable details omitted]` line, with no synthetic value/tag detail. The `shrunkDebug` Logcat capture contained only the three redacted messages and no throwable details. Updated sanitized records and APK hashes are preserved in the two variant-specific run files. This verifies those configured sinks for one controlled throwable; it does not cover all exception emitters, rotation, writer failures, fallback sinks or T034 closure.
+
+## Current release probe (2026-11-15)
+
+A refreshed release app and instrumentation APK were built from the current exploratory worktree. The test was run explicitly against API 35 AOSP emulator emulator-5554 and passed one instrumentation case. The installed target had no DEBUGGABLE flag. Configured app-private file assertions verified redaction for INFO/password, WARN/seed and ERROR/password, replacement of throwable details, and absence of the generated marker; external Logcat scanning found no generated marker or run-id match. APK hashes and the sanitized transcript are in evidence/release-configured-diagnostics-current-api35.txt.
+
+The initial Gradle connectedReleaseAndroidTest task selected all attached devices. One test completed on two attached phones before I stopped the task; their results are excluded as device-isolation evidence. The accepted run used serial-scoped adb -s emulator-5554 commands only. Device state outside the test assertions remains unverified. This is not a release candidate or complete T034 matrix: rotation, failure/fallback sinks, other diagnostic destinations and all emitter rows remain open.
+
+## Current shrunkDebug probe (2026-11-15)
+
+Built with the non-connected assembleShrunkDebug/assembleShrunkDebugAndroidTest tasks and installed/run only through adb -s emulator-5554. One instrumentation case passes. The minified debug-enabled target is marked DEBUGGABLE because of instrumentation and is not release-equivalent. App-private assertions confirm redacted INFO/WARN/ERROR values and omitted throwable/tag detail. Logcat scanning finds zero raw synthetic marker matches and three redacted records; sanitized lines and APK hashes are in evidence/shrunkdebug-configured-diagnostics-current-api35.txt. Release and shrunkDebug current-worktree probes are documented separately. Earlier attached-phone executions from the connected-device attempt are excluded from the accepted evidence. T034 remains open for other source emitters, destinations, rotation and injected failures.
+## Startup permission warning Logcat probe (2026-11-15)
+
+Built `:app:assembleShrunkDebug :app:assembleShrunkDebugAndroidTest` and installed/reran only on API 35 emulator `emulator-5554` using serial-scoped `adb -s emulator-5554` commands. `MainActivityPermissionDiagnosticInstrumentedTest` passed one instrumentation case against the refreshed target APK after removal of permission-group and aggregate-granted startup logs. The test injected a synthetic permission-name marker into the fixed-message helper and inspected only the current process's Logcat entries between test sentinels: the fixed warning was present and the marker was absent. No raw Logcat transcript was persisted.
+
+Target APK SHA-256: `3FF9DE91DF50BC2550F031DA7C1FC73ECD48790CCC49010376D5156AC4870BAD`. Instrumentation APK SHA-256: `5A1E388ED632A0F217A64FCBDDB60F2AE9FB293D5C23D1B89A4665E0FCE42748`. The `shrunkDebug` target is debuggable and is not release-equivalent. This establishes one Android Logcat emitter path only; system retention, release behavior and other destinations remain open under T029/T034/T035.
+## Release startup permission warning Logcat probe (2026-11-15)
+
+Built `:app:assembleRelease :app:assembleReleaseAndroidTest` with `-PchimaliTestBuildType=release`. Installed and ran only against API 35 emulator `emulator-5554` with serial-scoped adb commands. `MainActivityPermissionDiagnosticInstrumentedTest` passed one case against the minified release target. The installed target package had `pkgFlags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ]` and no `DEBUGGABLE` flag. The instrumentation test injected a synthetic permission-name key into the production fixed-warning method, explicitly supplied `Log.w`, and inspected only the current process Logcat entries between test sentinels: the warning was present and the key absent. No raw Logcat transcript was persisted.
+
+Target release APK SHA-256: `04BA6E4A47A4C5ADD318B9BC107FDA2E50B3FD9AFC24A2DBC8823DD343928BEA`. Release instrumentation APK SHA-256: `78B58D45F89E4D672A82AD11A5559B5B977F5410C131BBC833EE7DCEE9A24B33`. A narrowly scoped R8 keep rule retains `MainActivityKt.logDeniedStartupPermissions` so the release instrumentation APK can call the production sink method; the Android activity's permission request/result flow remains as implemented. This is one Logcat path in a dirty exploratory release build, not a frozen release candidate. Platform retention, other emitters and remaining T029/T034/T035 destinations remain open.
+
+**SEC065-LOG-048 registration state follow-up (2026-11-15):** `BluetoothHidDeviceWrapper.registerApp` no longer includes the Android adapter state number in its warning. Profile initialization also no longer reads and logs the adapter state before requesting the HID profile; its existing host test short-circuits before that branch, so this removal is source-reviewed but not independently covered by a host regression. A synthetic state `777` regression verifies the fixed diagnostic label and rejects the number; the wrapper suite passes 32 cases. The full FIDO host suite passes 1,239 tests across 164 reports with zero failures/errors/skips, and FIDO KtLint passes. Host evidence only; configured destinations and broader paired-device path review remain open.
+
+**SEC065-LOG-048 BLE GATT bond-state follow-up (2026-11-15):** `FidoBleGattServer.rejectUnauthenticatedRequest` no longer writes Android `BluetoothDevice.bondState` into the warning. The captured callback regression with synthetic state `777` fails with the original interpolation and passes with the fixed label; the 17-case GATT contract suite passes. The full FIDO host suite passes 1,240 tests across 164 reports with zero failures/errors/skips, and KtLint passes; inventory and evidence-index validation are recorded after the complete run. Host diagnostics only; configured Android destinations and other BLE state emissions remain open.
+
+**SEC065-LOG-025 Android BLE notification status follow-up (2026-11-15):** `AndroidFidoBleGattServerHost` now emits fixed labels for notification initiation and callback failures rather than numeric Bluetooth framework status values. The callback output regression failed against `status=777` and passes after correction while still exercising callback cleanup; the three-case host privacy test class and KtLint pass. The initiation status line was changed in source but its API-33+ branch is not directly exercised by this host callback test. The full FIDO host suite passes 1,241 tests across 164 reports with zero failures/errors/skips; the refreshed evidence index and source inventory validate. Configured Android destinations and Bluetooth stack delivery remain open.
+
+**SEC065-LOG-050 assertion counter error-type update (2026-11-15):** `GetAssertionUseCase` no longer interpolates the returned domain error subtype into the counter-write warning. A captured regression failed with the original `DatabaseError` interpolation; after correction, the fixed message is present, the synthetic error marker and type name are absent, and the caller still receives the fixed cause-free `DatabaseError`. Focused test and full FIDO suite (1,242 tests across 164 reports) pass; KtLint passes. Configured Android destinations and full error-source reachability remain open.
+
+## Current clipboardAudit configured-diagnostic probe (2026-11-15)
+
+The current isolated `clipboardAudit` target and instrumentation APKs were rebuilt and installed on `emulator-5554` only. `ConfiguredFidoDiagnosticPrivacyTest#configuredWritersRedactSyntheticValuesAndOmitThrowableDetails` passed one instrumentation case. Its configured app-private file assertions confirmed redacted INFO/password, WARN/seed and ERROR/password records, fixed throwable wording, and absence of the synthetic marker. A sanitized scan of retained API 35 Logcat found three run-tagged redacted records and no generated marker, marker-bearing tag, or run-scoped exception/stack marker. No raw line or generated value was retained. The APK hashes and aggregate run results are in `evidence/configured-diagnostics-audit-current-api35.txt`.
+
+This is a debug-enabled audit target and does not establish release behavior. It covers one API 35 emulator and does not exercise writer failure, rotation, fallback destinations, or the full diagnostic-emitter matrix. T034 remains open.
+
+## Current Android startup permission Logcat probe (2026-11-15)
+
+A refreshed `shrunkDebug` build and Android instrumentation APK were installed only on API 35 emulator `emulator-5554`. The focused unit tests pass (2 cases). The serial-scoped instrumentation passes (1 case) and reads only the target process segment between unique sentinels; the fixed denial warning is present and the generated permission name is absent. APK hashes and the sanitized test summary are retained in `evidence/android-startup-permission-logcat-current-api35.txt`. This complements the existing non-debuggable release probe for this path; system Logcat retention and other diagnostic paths remain outside this check.
+
+## Diagnostic writer rotation and fallback probe (2026-11-16)
+
+Added a release/`clipboardAudit` instrumentation case for the production writer's active/rotated app-private files and fixed stderr fallback. Initial attempts hit target startup ANRs or R8 cross-classloader issues; those failed runs are retained in `evidence/diagnostic-file-rotation-fallback-api35.md`. After isolating the audit Application and correcting the scrub-aware rotation threshold, the API 35 `clipboardAudit` case passed one method-filtered instrumentation test. The passing evidence is limited to the debug-enabled audit variant; release-variant rotation/fallback and the wider T029/T034/T035 matrix remain open. See `evidence/diagnostic-file-rotation-fallback-api35-success.md`.
+
+## Current API 35 rotation/fallback verification (2026-11-17)
+
+After isolating the disposable audit flavor behind a minimal clipboard-only Application graph and lowering the test threshold below the fixed redacted record overhead, `ConfiguredFidoDiagnosticPrivacyTest#configuredFileWriterRotationAndFallbackOmitSyntheticValuesAndFailures` passed on API 35 emulator `emulator-5554` (1 test, 0 failures). The actual instrumentation output is retained in `build/security/clipboard-observation/configured-rotation-fallback-api35-20261117.txt`; APK hashes and the assertion scope are in `evidence/diagnostic-file-rotation-fallback-api35-success.md`. Both temporary packages and the uniquely scoped synthetic output directory were removed. This is debug-enabled audit-variant evidence only; release rotation/fallback and the broader diagnostic matrix remain open.
+
+## Minified non-debuggable API 35 rotation/fallback verification (2026-11-17)
+
+Added a `clipboardAuditMinified` variant with its own conventional manifest/source directory, unique application ID, R8 minification, release dependency fallback and `isDebuggable=false`. The method-filtered rotation/fallback instrumentation passed on API 35 emulator `emulator-5554`; `dumpsys package` confirmed `flags=0x0`. Active and rotated app-private output contained only the redacted synthetic record and fixed throwable placeholder; the blocked-directory fallback omitted the synthetic marker, path, and exception details. The transcript and APK/source hashes are recorded in `evidence/diagnostic-file-rotation-fallback-minified-api35.md`. Both isolated APK packages and test output directory were removed. This provides one release-equivalent non-debuggable audit-variant result, not a full product-release startup/destination matrix or release acceptance; T029/T034/T035 remain open.
+
+## Labeled multiword diagnostic value redaction (2026-11-17)
+
+Source review found the scrubber's prior keyword rule left `password is <value>` unchanged and redacted only the first word of values with spaces. `PrivacyLogScrubber` now handles `:`/`=` and `is`/`was` forms and consumes the field through the next delimiter or recognized sensitive label. The focused scrubber/local-writer suites pass 24 tests, and FIDO KtLint passes. See `evidence/privacy-scrubber-multiword-field-redaction.md` for scope, hashes and the remaining heuristic/destination limitations. This is source/host evidence, not a full diagnostic matrix result.
+
+## MakeCredential attestation format diagnostic redaction (2026-11-17)
+
+`encodeAttestationResponse` no longer writes `AttestationObject.fmt` to diagnostics. A synthetic marker regression failed against the prior dynamic log and passes with the fixed description; the protocol response still includes its format field. The 24-case MakeCredential validation class, complete 1,310-test/172-report FIDO host suite and FIDO KtLint pass. This verifies the source emission under captured host diagnostics only; configured sinks and matrix completion remain open. See `evidence/make-credential-attestation-format-log-redaction.md`.
+
+## Full-graph release-derived diagnostic writer check (2026-11-17)
+
+Added an isolated `diagnosticRelease` variant with the production Application graph, minification, release rules and a unique package ID. On API 35 emulator `emulator-5554`, the configured writer redaction/startup assertions and active/rotated-file plus blocked-path fallback assertions passed (2 tests) with the target non-debuggable. Both temporary packages were removed. This fills the earlier full-graph gap for those writer cases only; it does not complete the diagnostic matrix or establish product release signing/acceptance. Details and hashes are in `evidence/diagnostic-release-full-graph-api35.md`.
+
+## Direct BaselineMeasurements Logcat sink probe (2026-11-18)
+
+`BaselineMeasurements` writes completion and disconnect diagnostics with direct `android.util.Log.println`, bypassing the configured Kermit writers. `DirectFidoPerformanceLogcatPrivacyTest` passed 1/1 on API 35 AOSP emulator `emulator-5554` in both isolated `diagnosticDebug` and minified non-debuggable `diagnosticRelease` targets. Each bounded process Logcat segment contained the fixed `MakeCredential` label/numeric timing fields or fixed `incomplete=true reason=disconnect` message; raw UTF-8, Base64 and hex forms of the synthetic response marker were absent.
+
+The diagnosticRelease test target applies `app/proguard-rules-diagnostic-probe.pro` to preserve this one instrumentation seam while retaining minification for the rest of the application. This test-only keep rule and development signing mean the run is not product release or frozen-candidate evidence. An earlier cross-APK test failed with an R8 singleton ABI mismatch; after adapting the diagnostic target and explicitly assembling the target APK, the direct-sink test passed. A stale-target attempt also failed before execution because the target APK had not been rebuilt; this is a packaging failure, not behavioral evidence. All isolated packages were uninstalled after the successful run. No raw Logcat payload was retained; the test performs assertions in-process and the sanitized runner transcript is linked in the evidence index.
+
+Target APK SHA-256: `EC41F839BEF110A9F415AE53CECF026F31D32B6D604BC69DF9B40CF3292F08F1`. Instrumentation APK SHA-256: `2E2CF416BD980C25D3DDAA846F9E8985CA41540FE04514AC9A9B7451024EB1DD`. Source/rule hashes and the run record are in `diagnostic-direct-logcat-api35.md` and the evidence index. Other direct sinks, startup-before-registration, throwable/object-description variants, full reachability, iOS and frozen-candidate behavior remain open (T029/T034/T035).

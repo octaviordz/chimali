@@ -4,6 +4,9 @@ import android.content.Context
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.security.api.MasterSeedProvider
 import io.mockk.coEvery
@@ -188,6 +191,46 @@ class EncryptedDriverFactoryTest {
             databaseFile.delete()
         }
     }
+
+    @Test
+    fun `verifyIntegrity diagnostic omits runtime exception class name`(
+        @TempDir tempDir: File,
+    ) {
+        val databaseFile = File(tempDir, "integrity-runtime-type.db").apply { writeBytes(byteArrayOf(1)) }
+        every { context.getDatabasePath("integrity-runtime-type.db") } returns databaseFile
+        stubSessionOwner()
+        coEvery { masterSeedProvider.getMasterSeed() } throws AccountMarkerIllegalStateException()
+
+        val originalWriters = Logger.config.logWriterList
+        val originalSeverity = Logger.config.minSeverity
+        val records = mutableListOf<String>()
+        try {
+            Logger.setMinSeverity(Severity.Verbose)
+            Logger.setLogWriters(
+                object : LogWriter() {
+                    override fun log(
+                        severity: Severity,
+                        message: String,
+                        tag: String,
+                        throwable: Throwable?,
+                    ) {
+                        records += message
+                        throwable?.let { records += it.stackTraceToString() }
+                    }
+                },
+            )
+
+            assertFalse(factory.verifyIntegrity("integrity-runtime-type.db"), "integrity failures must fail closed")
+        } finally {
+            Logger.setLogWriters(originalWriters)
+            Logger.setMinSeverity(originalSeverity)
+        }
+
+        assertTrue(records.isNotEmpty(), "the failure diagnostic must be captured")
+        assertFalse(records.any { "AccountMarker" in it }, "runtime exception class must not reach diagnostics")
+    }
+
+    private class AccountMarkerIllegalStateException : IllegalStateException("synthetic marker")
 
     private fun assertFalse(
         condition: Boolean,

@@ -3,9 +3,12 @@ package com.chimali.core.domain.valueobject
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalEncodingApi::class)
 class CredentialIdTest {
@@ -70,6 +73,32 @@ class CredentialIdTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `decoded credential identifier bytes are borrowed only within scoped callback`() {
+        val bytes = ByteArray(16) { it.toByte() }
+        val encoded = Base64.UrlSafe.encode(bytes)
+        var observed: ByteArray? = null
+
+        val decodedLength =
+            CredentialId.withDecodedBytes(encoded) { decoded ->
+                observed = decoded
+                assertContentEquals(bytes, decoded)
+                decoded.size
+            }
+
+        assertEquals(bytes.size, decodedLength)
+        assertContentEquals(ByteArray(bytes.size), observed)
+
+        assertFailsWith<IllegalStateException> {
+            CredentialId.withDecodedBytes(encoded) { decoded ->
+                observed = decoded
+                error("synthetic borrower failure")
+            }
+        }
+        assertContentEquals(ByteArray(bytes.size), observed)
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `fromEncoded rejects malformed base64url and decoded lengths outside the contract`() {
         assertFailsWith<IllegalArgumentException> { CredentialId.fromEncoded("not+base64") }
         assertFailsWith<IllegalArgumentException> {
@@ -82,11 +111,34 @@ class CredentialIdTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `malformed encoded credential identifier does not retain decoder failure`() {
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                CredentialId.fromEncoded("synthetic-invalid-credential-marker+")
+            }
+
+        assertEquals("CredentialId must be valid Base64URL", failure.message)
+        assertNull(failure.cause)
+        assertFalse("synthetic-invalid-credential-marker" in failure.toString())
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `equals correctly compares internal values`() {
         val bytes = ByteArray(CredentialId.CREDENTIAL_ID_SIZE_BYTES) { it.toByte() }
         val id1 = CredentialId.fromEncoded(Base64.UrlSafe.encode(bytes))
         val id2 = CredentialId.fromEncoded(Base64.UrlSafe.encode(bytes.clone()))
 
         assertEquals(id1, id2, "CredentialIds with identical encoded byte arrays should be equal")
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `diagnostic representation does not disclose encoded credential identifier`() {
+        val encoded = Base64.UrlSafe.encode(ByteArray(16) { (it + 1).toByte() })
+        val id = CredentialId.fromEncoded(encoded)
+
+        assertFalse(id.toString().contains(encoded))
+        assertEquals("CredentialId([redacted])", id.toString())
     }
 }

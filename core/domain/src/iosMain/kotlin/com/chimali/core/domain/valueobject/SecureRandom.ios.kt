@@ -9,8 +9,9 @@ import platform.Security.kSecRandomDefault
 @OptIn(ExperimentalForeignApi::class)
 internal actual fun generateSecureRandomBytes(size: Int): ByteArray {
     val bytes = ByteArray(size)
-    bytes.usePinned { pinned ->
-        SecRandomCopyBytes(kSecRandomDefault, size.toULong(), pinned.addressOf(0))
+    return fillSecureRandomBytes(bytes) { output ->
+        output.usePinned { pinned ->
+            SecRandomCopyBytes(kSecRandomDefault, size.toULong(), pinned.addressOf(0))
+        }
     }
-    return bytes
 }

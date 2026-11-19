@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException", "UnusedParameter")
+
 package com.chimali.fido2.data.transport
 
 import android.bluetooth.BluetoothDevice
@@ -347,42 +349,49 @@ class BleGattTransport(
         startedAtNanos: Long,
         operation: String,
     ) {
-        notificationWriter.markResponseTransmissionStarted(message.sessionGeneration)
-        val fragments =
-            FidoBleFraming.fragmentResponse(
-                CMD_MSG,
-                result.responseBytes,
-                sessionOwner.notifyCapacity,
-            )
-        var index = 0
-        var accepted = true
-        var sessionCurrent = true
-        var terminalNotificationQueued = false
-        while (index < fragments.size && accepted && sessionCurrent) {
-            val isTerminalFragment = index == fragments.lastIndex
-            accepted =
-                notificationWriter.enqueue(
-                    fragments[index],
-                    isKeepalive = false,
-                    sessionGeneration = message.sessionGeneration,
-                    onDeliveryResult =
-                        if (isTerminalFragment) {
-                            { delivered ->
-                                try {
-                                    logDiagnosticCompletion(operation, startedAtNanos, delivered)
-                                } finally {
-                                    notificationWriter.resetResponseTransmission(message.sessionGeneration)
-                                }
-                            }
-                        } else {
-                            null
-                        },
+        var fragments: List<ByteArray>? = null
+        try {
+            notificationWriter.markResponseTransmissionStarted(message.sessionGeneration)
+            val responseFragments =
+                FidoBleFraming.fragmentResponse(
+                    CMD_MSG,
+                    result.responseBytes,
+                    sessionOwner.notifyCapacity,
                 )
-            if (isTerminalFragment && accepted) terminalNotificationQueued = true
-            index++
-            sessionCurrent = sessionOwner.isSessionCurrent(message.sessionGeneration)
+            fragments = responseFragments
+            var index = 0
+            var accepted = true
+            var sessionCurrent = true
+            var terminalNotificationQueued = false
+            while (index < responseFragments.size && accepted && sessionCurrent) {
+                val isTerminalFragment = index == responseFragments.lastIndex
+                accepted =
+                    notificationWriter.enqueue(
+                        responseFragments[index],
+                        isKeepalive = false,
+                        sessionGeneration = message.sessionGeneration,
+                        onDeliveryResult =
+                            if (isTerminalFragment) {
+                                { delivered ->
+                                    try {
+                                        logDiagnosticCompletion(operation, startedAtNanos, delivered)
+                                    } finally {
+                                        notificationWriter.resetResponseTransmission(message.sessionGeneration)
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                    )
+                if (isTerminalFragment && accepted) terminalNotificationQueued = true
+                index++
+                sessionCurrent = sessionOwner.isSessionCurrent(message.sessionGeneration)
+            }
+            if (!terminalNotificationQueued) logDiagnosticNotQueued(operation, startedAtNanos)
+        } finally {
+            fragments?.forEach { it.fill(0) }
+            result.responseBytes.fill(0)
         }
-        if (!terminalNotificationQueued) logDiagnosticNotQueued(operation, startedAtNanos)
     }
 
     private fun logDiagnosticCompletion(
@@ -447,8 +456,8 @@ class BleGattTransport(
         } catch (failure: CancellationException) {
             Logger.i { "BleGattTransport: In-flight CTAP command was cancelled" }
             throw failure
-        } catch (failure: Exception) {
-            Logger.e(failure) { "BleGattTransport: CTAP operation failed; returning CTAP2_ERR_OTHER" }
+        } catch (_: Exception) {
+            Logger.e { "BleGattTransport: CTAP operation failed; returning CTAP2_ERR_OTHER" }
             RawCtapResult(byteArrayOf(RawCtapOperationImpl.CTAP2_ERR_OTHER))
         }
 
@@ -471,7 +480,7 @@ class BleGattTransport(
         status: Int,
     ) {
         if (activeHostAddress != device.address) {
-            Logger.d { "BleGattTransport: Ignoring notification callback from inactive peer ${device.address}" }
+            Logger.d { "BleGattTransport: Ignoring notification callback from inactive peer" }
             return
         }
         notificationWriter.onNotificationSent(status == BluetoothGatt.GATT_SUCCESS)
@@ -495,7 +504,7 @@ class BleGattTransport(
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
                 if (activeHostAddress != null && activeHostAddress != device.address) {
-                    Logger.d { "BleGattTransport: Ignoring stale disconnect callback from ${device.address}" }
+                    Logger.d { "BleGattTransport: Ignoring stale disconnect callback" }
                     return
                 }
                 if (activeHostAddress == device.address) {
@@ -548,7 +557,7 @@ class BleGattTransport(
     }
 
     internal fun onBluetoothUnavailable(failure: Throwable) {
-        Logger.e(failure) { "BleGattTransport: Bluetooth became unavailable during an active BLE session" }
+        Logger.e { "BleGattTransport: Bluetooth became unavailable during an active BLE session" }
         isStarted = false
         cancelReceiveTimeout()
         cancelCurrentMessage()

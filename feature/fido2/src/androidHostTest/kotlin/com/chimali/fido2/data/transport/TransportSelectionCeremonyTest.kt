@@ -1,5 +1,6 @@
 package com.chimali.fido2.data.transport
 
+import androidx.lifecycle.ViewModelStore
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.domain.repository.BluetoothTransportMode
 import com.chimali.fido2.domain.repository.Fido2SettingsRepository
@@ -29,6 +30,10 @@ import kotlinx.coroutines.withTimeout
 /** Verifies saving a future process choice does not interrupt an admitted host ceremony. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TransportSelectionCeremonyTest {
+    private val ownedFixtures = mutableListOf<Fixture>()
+    private val viewModelStore = ViewModelStore()
+    private var nextViewModelKey = 0
+
     private enum class CeremonyKind {
         Registration,
         Authentication,
@@ -81,6 +86,13 @@ class TransportSelectionCeremonyTest {
                 responses += response.copyOf()
             }
         }
+
+        fun clearTestState() {
+            responses.forEach { it.fill(0) }
+            responses.clear()
+            responseHandles.clear()
+            mutableConnectionState.value = Fido2ConnectionState.Idle
+        }
     }
 
     private class SettingsRepository(
@@ -114,8 +126,36 @@ class TransportSelectionCeremonyTest {
 
     @AfterTest
     fun resetDispatcher() {
+        viewModelStore.clear()
+        ownedFixtures.forEach { fixture ->
+            fixture.active.clearTestState()
+            fixture.inactive.clearTestState()
+            fixture.process.close()
+        }
+        ownedFixtures.clear()
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun `transport teardown clears retained synthetic response copies`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val transport = CeremonyTransport(BluetoothTransportMode.FIDO_BLE)
+            val operation = async { transport.performHostCeremony(CeremonyKind.Authentication, "teardown") }
+            runCurrent()
+            transport.userApproval.complete(Unit)
+            val callerResponse = operation.await()
+            val retainedResponse = transport.responses.single()
+
+            try {
+                transport.clearTestState()
+
+                assertContentEquals(ByteArray(retainedResponse.size), retainedResponse)
+                assertFalse(callerResponse.all { it == 0.toByte() })
+            } finally {
+                callerResponse.fill(0)
+            }
+        }
 
     @Test
     @Req("FR-BT-SEL-030", "FR-BT-SEL-040", "FR-BT-SEL-060", "TR-BT-SEL-030")
@@ -150,18 +190,31 @@ class TransportSelectionCeremonyTest {
                     fixture.active.userApproval.complete(Unit)
                     val actualResponse = withTimeout(SYNCHRONIZATION_TIMEOUT_MS) { operation.await() }
                     val expectedResponse = responseFor(originalHandle)
-
-                    assertContentEquals(expectedResponse, actualResponse)
-                    assertEquals(listOf(originalHandle), fixture.active.responseHandles)
-                    assertEquals(1, fixture.active.responses.size)
-                    assertContentEquals(expectedResponse, fixture.active.responses.single())
-                    assertEquals(if (kind == CeremonyKind.Registration) 1 else 0, fixture.active.credentialMutations)
-                    assertEquals(1, fixture.active.committedInteractionEvents)
-                    assertEquals(0, fixture.active.disconnectCalls)
-                    assertEquals(0, fixture.inactive.connectCalls)
-                    assertFalse(fixture.inactive.ceremonyStarted.isCompleted)
-                    fixture.process.disconnect()
-                    fixture.process.close()
+                    try {
+                        assertContentEquals(expectedResponse, actualResponse)
+                        assertEquals(listOf(originalHandle), fixture.active.responseHandles)
+                        assertEquals(1, fixture.active.responses.size)
+                        assertContentEquals(expectedResponse, fixture.active.responses.single())
+                        assertEquals(
+                            if (kind ==
+                                CeremonyKind.Registration
+                            ) {
+                                1
+                            } else {
+                                0
+                            },
+                            fixture.active.credentialMutations,
+                        )
+                        assertEquals(1, fixture.active.committedInteractionEvents)
+                        assertEquals(0, fixture.active.disconnectCalls)
+                        assertEquals(0, fixture.inactive.connectCalls)
+                        assertFalse(fixture.inactive.ceremonyStarted.isCompleted)
+                        fixture.process.disconnect()
+                        fixture.process.close()
+                    } finally {
+                        actualResponse.fill(0)
+                        expectedResponse.fill(0)
+                    }
                 }
             }
         }
@@ -234,12 +287,13 @@ class TransportSelectionCeremonyTest {
         process.startSnapshot()
         testScope.advanceUntilIdle()
         val viewModel = TransportSettingsViewModel(repository, process)
+        viewModelStore.put("transport-settings-${nextViewModelKey++}", viewModel)
         testScope.advanceUntilIdle()
         assertTrue(process.connect().isSuccess)
         testScope.runCurrent()
         val active = if (mode == BluetoothTransportMode.FIDO_BLE) ble else classic
         val inactive = if (mode == BluetoothTransportMode.FIDO_BLE) classic else ble
-        return Fixture(mode, active, inactive, process, viewModel)
+        return Fixture(mode, active, inactive, process, viewModel).also(ownedFixtures::add)
     }
 
     private fun BluetoothTransportMode.otherMode(): BluetoothTransportMode =
@@ -251,6 +305,13 @@ class TransportSelectionCeremonyTest {
     private companion object {
         const val SYNCHRONIZATION_TIMEOUT_MS = 1000L
 
-        fun responseFor(handle: String): ByteArray = byteArrayOf(0x00) + handle.encodeToByteArray()
+        fun responseFor(handle: String): ByteArray {
+            val handleBytes = handle.encodeToByteArray()
+            return try {
+                byteArrayOf(0x00) + handleBytes
+            } finally {
+                handleBytes.fill(0)
+            }
+        }
     }
 }

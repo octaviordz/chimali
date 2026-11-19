@@ -9,6 +9,9 @@ import java.util.UUID
  */
 @Req("TR-BLE-010", "TR-BLE-020", "FR-BLE-010", "FR-BLE-020", "FR-BLE-050")
 internal object FidoBleFraming {
+    internal var beforeResponseFrameCopyForTest: ((ByteArray) -> Unit)? = null
+    internal var beforeResponseFrameAdmissionForTest: ((ByteArray) -> Unit)? = null
+
     /** Standard FIDO BLE Service UUID (16-bit 0xFFFD). */
     val FIDO_SERVICE_UUID: UUID = UUID.fromString("0000FFFD-0000-1000-8000-00805F9B34FB")
 
@@ -108,11 +111,17 @@ internal object FidoBleFraming {
         chunkSize: Int,
     ): ByteArray {
         val frame = ByteArray(INIT_HEADER_SIZE + chunkSize)
-        frame[0] = command
-        frame[1] = ((totalLength shr BYTE_SHIFT) and BYTE_MASK).toByte()
-        frame[2] = (totalLength and BYTE_MASK).toByte()
-        System.arraycopy(data, offset, frame, INIT_HEADER_SIZE, chunkSize)
-        return frame
+        var transferred = false
+        try {
+            frame[0] = command
+            frame[1] = ((totalLength shr BYTE_SHIFT) and BYTE_MASK).toByte()
+            frame[2] = (totalLength and BYTE_MASK).toByte()
+            beforeResponseFrameCopyForTest?.invoke(frame)
+            System.arraycopy(data, offset, frame, INIT_HEADER_SIZE, chunkSize)
+            return frame.also { transferred = true }
+        } finally {
+            if (!transferred) frame.fill(0)
+        }
     }
 
     /**
@@ -126,9 +135,15 @@ internal object FidoBleFraming {
         chunkSize: Int,
     ): ByteArray {
         val frame = ByteArray(CONT_HEADER_SIZE + chunkSize)
-        frame[0] = (sequence and SEQUENCE_MASK).toByte()
-        System.arraycopy(data, offset, frame, CONT_HEADER_SIZE, chunkSize)
-        return frame
+        var transferred = false
+        try {
+            frame[0] = (sequence and SEQUENCE_MASK).toByte()
+            beforeResponseFrameCopyForTest?.invoke(frame)
+            System.arraycopy(data, offset, frame, CONT_HEADER_SIZE, chunkSize)
+            return frame.also { transferred = true }
+        } finally {
+            if (!transferred) frame.fill(0)
+        }
     }
 
     /**
@@ -154,36 +169,56 @@ internal object FidoBleFraming {
     ): List<ByteArray> {
         val totalLength = payload.size
         val frames = mutableListOf<ByteArray>()
+        var transferred = false
 
-        val firstChunkSize = minOf(totalLength, notifyCapacity - INIT_HEADER_SIZE)
-        frames.add(
-            encodeInitializationFrame(
-                command = command,
-                totalLength = totalLength,
-                data = payload,
-                offset = 0,
-                chunkSize = firstChunkSize,
-            ),
-        )
-
-        var sentBytes = firstChunkSize
-        var seq = 0
-
-        while (sentBytes < totalLength) {
-            val chunkSize = minOf(totalLength - sentBytes, notifyCapacity - CONT_HEADER_SIZE)
-            frames.add(
-                encodeContinuationFrame(
-                    sequence = seq,
-                    data = payload,
-                    offset = sentBytes,
-                    chunkSize = chunkSize,
-                ),
-            )
-            sentBytes += chunkSize
-            seq = nextSequence(seq)
+        fun admitFrame(frame: ByteArray) {
+            var admitted = false
+            try {
+                beforeResponseFrameAdmissionForTest?.invoke(frame)
+                frames.add(frame)
+                admitted = true
+            } finally {
+                if (!admitted) frame.fill(0)
+            }
         }
 
-        return frames
+        try {
+            val firstChunkSize = minOf(totalLength, notifyCapacity - INIT_HEADER_SIZE)
+            admitFrame(
+                encodeInitializationFrame(
+                    command = command,
+                    totalLength = totalLength,
+                    data = payload,
+                    offset = 0,
+                    chunkSize = firstChunkSize,
+                ),
+            )
+
+            var sentBytes = firstChunkSize
+            var seq = 0
+
+            while (sentBytes < totalLength) {
+                val chunkSize = minOf(totalLength - sentBytes, notifyCapacity - CONT_HEADER_SIZE)
+                admitFrame(
+                    encodeContinuationFrame(
+                        sequence = seq,
+                        data = payload,
+                        offset = sentBytes,
+                        chunkSize = chunkSize,
+                    ),
+                )
+                sentBytes += chunkSize
+                seq = nextSequence(seq)
+            }
+
+            transferred = true
+            return frames
+        } finally {
+            if (!transferred) {
+                frames.forEach { frame -> frame.fill(0) }
+                frames.clear()
+            }
+        }
     }
 
     /**

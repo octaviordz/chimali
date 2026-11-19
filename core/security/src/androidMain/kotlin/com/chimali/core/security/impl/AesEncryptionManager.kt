@@ -11,6 +11,9 @@ import org.koin.core.annotation.Single
 class AesEncryptionManager : EncryptionManager {
     private val random = SecureRandom()
 
+    /** Host-test observer for retaining operation-local arrays and verifying terminal cleanup. */
+    internal var temporaryBufferObserver: ((ByteArray) -> Unit)? = null
+
     companion object {
         private const val ALGORITHM = "AES/GCM/NoPadding"
         private const val TAG_LENGTH = 128
@@ -22,29 +25,52 @@ class AesEncryptionManager : EncryptionManager {
         key: ByteArray,
     ): ByteArray {
         val iv = ByteArray(IV_LENGTH)
-        random.nextBytes(iv)
-        val cipher = Cipher.getInstance(ALGORITHM)
-        val spec = GCMParameterSpec(TAG_LENGTH, iv)
-        val keySpec = SecretKeySpec(key, "AES")
+        var encryptedBytes: ByteArray? = null
+        try {
+            temporaryBufferObserver?.invoke(iv)
+            random.nextBytes(iv)
+            val cipher = Cipher.getInstance(ALGORITHM)
+            val spec = GCMParameterSpec(TAG_LENGTH, iv)
+            val keySpec = SecretKeySpec(key, "AES")
 
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec)
-        val ciphertext = cipher.doFinal(plaintext)
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, spec)
+            val encrypted = cipher.doFinal(plaintext)
+            encryptedBytes = encrypted
+            temporaryBufferObserver?.invoke(encrypted)
 
-        return iv + ciphertext
+            return ByteArray(iv.size + encrypted.size).also { output ->
+                iv.copyInto(output)
+                encrypted.copyInto(output, destinationOffset = iv.size)
+            }
+        } finally {
+            iv.fill(0)
+            encryptedBytes?.fill(0)
+        }
     }
 
     override fun decrypt(
         ciphertext: ByteArray,
         key: ByteArray,
     ): ByteArray {
-        val iv = ciphertext.sliceArray(0 until IV_LENGTH)
-        val encryptedData = ciphertext.sliceArray(IV_LENGTH until ciphertext.size)
+        var iv: ByteArray? = null
+        var encryptedData: ByteArray? = null
+        try {
+            val ownedIv = ciphertext.sliceArray(0 until IV_LENGTH)
+            iv = ownedIv
+            temporaryBufferObserver?.invoke(ownedIv)
+            val ownedEncryptedData = ciphertext.sliceArray(IV_LENGTH until ciphertext.size)
+            encryptedData = ownedEncryptedData
+            temporaryBufferObserver?.invoke(ownedEncryptedData)
 
-        val cipher = Cipher.getInstance(ALGORITHM)
-        val spec = GCMParameterSpec(TAG_LENGTH, iv)
-        val keySpec = SecretKeySpec(key, "AES")
+            val cipher = Cipher.getInstance(ALGORITHM)
+            val spec = GCMParameterSpec(TAG_LENGTH, ownedIv)
+            val keySpec = SecretKeySpec(key, "AES")
 
-        cipher.init(Cipher.DECRYPT_MODE, keySpec, spec)
-        return cipher.doFinal(encryptedData)
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, spec)
+            return cipher.doFinal(ownedEncryptedData)
+        } finally {
+            iv?.fill(0)
+            encryptedData?.fill(0)
+        }
     }
 }

@@ -72,6 +72,12 @@ CREATE INDEX idx_user_consent_record_rp_id_index ON user_consent_record(rp_id_in
 CREATE INDEX idx_user_consent_record_timestamp ON user_consent_record(timestamp);
 CREATE INDEX idx_bluetooth_hid_session_is_active ON bluetooth_hid_session(is_active);
 
+delete_all_relying_parties:
+DELETE FROM relying_party;
+
+delete_all_user_consent_records:
+DELETE FROM user_consent_record;
+
 -- Views for common queries
 CREATE VIEW credential_summary AS
 SELECT

@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- The audit observer does not execute LeakCanary assertions. Its provider initializes
+             before the instrumentation multidex loader and crashes in the separate test process. -->
+        <provider
+            android:name="leakcanary.internal.LeakCanaryFileProvider"
+            tools:node="remove" />
+    </application>
+</manifest>

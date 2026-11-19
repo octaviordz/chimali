@@ -39,9 +39,10 @@ data class AssertionObject(
     val numberOfCredentials: Int? = null,
     /** Timestamp of when this assertion was produced. */
     val timestamp: Instant = TimeProvider().now(),
-    /** ID of the credential that was used. Convenience field derived from [credential]. */
-    val credentialId: String = credential?.getIdBase64Url() ?: "",
 ) {
+    /** Compatibility projection for UI/navigation callers; the immutable encoding is not retained here. */
+    val credentialId: String get() = credential?.getIdBase64Url() ?: ""
+
     companion object {
         private const val MIN_AUTH_DATA_SIZE = 37
         private const val FLAGS_OFFSET = 32

@@ -37,7 +37,7 @@ class Fido2ErrorHandlerTest {
         val ui = Fido2ErrorHandler.handle(exception)
 
         assertEquals("Verification failed", ui.title)
-        assertEquals("Too many attempts", ui.message)
+        assertEquals("Could not verify your identity. Please try again.", ui.message)
         assertTrue(ui.isRetryable)
         assertEquals(ERR_OPERATION_DENIED, ui.ctap2ErrorCode)
     }
@@ -57,7 +57,7 @@ class Fido2ErrorHandlerTest {
     fun `handle maps domain errors exhaustively`() {
         val denied = Fido2ErrorHandler.handle(DomainError.OperationDenied("User denied"))
         assertEquals("Operation denied", denied.title)
-        assertEquals("User denied", denied.message)
+        assertEquals("The operation was denied. Please try again.", denied.message)
         assertEquals(ERR_OPERATION_DENIED, denied.ctap2ErrorCode)
 
         val notFound = Fido2ErrorHandler.handle(DomainError.NotFound("Credential not found"))
@@ -79,6 +79,35 @@ class Fido2ErrorHandlerTest {
         val other = Fido2ErrorHandler.handle(DomainError.ValidationError("Validation failed"))
         assertEquals("Unexpected error", other.title)
         assertEquals(ERR_UNEXPECTED, other.ctap2ErrorCode)
+    }
+
+    @Test
+    fun `error details are not copied into user-facing messages`() {
+        val marker = "synthetic-rp-id-provider-error-marker"
+        val errors =
+            listOf(
+                DomainError.OperationDenied(marker),
+                DomainError.NotFound(marker),
+                DomainError.DatabaseError(marker),
+                DomainError.CryptoError(marker),
+                DomainError.NetworkError(marker),
+                DomainError.ValidationError(marker),
+                Fido2Exception.UserVerificationFailed(marker),
+                Fido2Exception.CredentialCreationNotAllowed(marker),
+                Fido2Exception.CredentialStorageFailed(marker),
+                Fido2Exception.RegistrationFailed(marker),
+                IllegalStateException(marker),
+            )
+
+        errors.forEach { error ->
+            val ui =
+                when (error) {
+                    is DomainError -> Fido2ErrorHandler.handle(error)
+                    is Throwable -> Fido2ErrorHandler.handle(error)
+                    else -> error("Unexpected test error type")
+                }
+            assertFalse(ui.message.contains(marker), "${error::class.simpleName} must be mapped to safe UI text")
+        }
     }
 
     @Test

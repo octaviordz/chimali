@@ -57,11 +57,46 @@ class PasskeyCredential internal constructor(
         credProtectPolicy: Int = 1,
         label: String? = null,
     ) : this(
+        id,
+        withOwnedCredentialTextInputs(
+            rpId.value,
+            userId.value,
+            userName,
+            userDisplayName,
+        ) { rpIdOwner, userIdOwner, userNameOwner, userDisplayNameOwner ->
+            CredentialTextInputs(rpIdOwner, userIdOwner, userNameOwner, userDisplayNameOwner)
+        },
+        publicKey,
+        signCount,
+        createdAt,
+        lastUsedAt,
+        aaguid,
+        credentialId,
+        coseAlgorithm,
+        derivationProfile,
+        credProtectPolicy,
+        label,
+    )
+
+    private constructor(
+        id: CredentialId,
+        textInputs: CredentialTextInputs,
+        publicKey: PublicKey,
+        signCount: Long,
+        createdAt: Instant,
+        lastUsedAt: Instant,
+        aaguid: ByteArray,
+        credentialId: ByteArray,
+        coseAlgorithm: Int,
+        derivationProfile: String,
+        credProtectPolicy: Int,
+        label: String?,
+    ) : this(
         id = id,
-        rpId = SensitiveCredentialText.copyOf(rpId.value),
-        userId = SensitiveCredentialText.copyOf(userId.value),
-        userName = SensitiveCredentialText.copyOf(userName),
-        userDisplayName = SensitiveCredentialText.copyOf(userDisplayName),
+        rpId = textInputs.rpId,
+        userId = textInputs.userId,
+        userName = textInputs.userName,
+        userDisplayName = textInputs.userDisplayName,
         publicKey = publicKey,
         signCount = signCount,
         createdAt = createdAt,
@@ -72,6 +107,13 @@ class PasskeyCredential internal constructor(
         derivationProfile = derivationProfile,
         credProtectPolicy = credProtectPolicy,
         label = label,
+    )
+
+    private class CredentialTextInputs(
+        val rpId: SensitiveCredentialText,
+        val userId: SensitiveCredentialText,
+        val userName: SensitiveCredentialText,
+        val userDisplayName: SensitiveCredentialText,
     )
 
     init {
@@ -184,35 +226,19 @@ class PasskeyCredential internal constructor(
             userName.toBoundaryString()
         }
 
-    /** Explicitly erase all application-owned RP/account text for this credential instance. */
+    /** Erases RP/account text and the mutable credential-ID buffer owned by this instance. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun eraseSensitiveText() {
         rpId.erase()
         userId.erase()
         userName.erase()
         userDisplayName.erase()
+        credentialId.fill(0)
     }
 
     /** Creates an independent sensitive-text owner for a distinct UI or transport lifetime. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    fun copyWithIndependentSensitiveText(): PasskeyCredential =
-        PasskeyCredential(
-            id = id,
-            rpId = rpId.copyOwner(),
-            userId = userId.copyOwner(),
-            userName = userName.copyOwner(),
-            userDisplayName = userDisplayName.copyOwner(),
-            publicKey = publicKey,
-            signCount = signCount,
-            createdAt = createdAt,
-            lastUsedAt = lastUsedAt,
-            aaguid = aaguid.copyOf(),
-            credentialId = credentialId.copyOf(),
-            coseAlgorithm = coseAlgorithm,
-            derivationProfile = derivationProfile,
-            credProtectPolicy = credProtectPolicy,
-            label = label,
-        )
+    fun copyWithIndependentSensitiveText(): PasskeyCredential = copy()
 
     /** Compares public identity and sensitive metadata by value. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -282,23 +308,32 @@ class PasskeyCredential internal constructor(
         credProtectPolicy: Int = this.credProtectPolicy,
         label: String? = this.label,
     ): PasskeyCredential =
-        PasskeyCredential(
-            id = id,
-            rpId = rpId.copyOwner(),
-            userId = userId.copyOwner(),
-            userName = userName.copyOwner(),
-            userDisplayName = userDisplayName.copyOwner(),
-            publicKey = publicKey,
-            signCount = signCount,
-            createdAt = createdAt,
-            lastUsedAt = lastUsedAt,
-            aaguid = aaguid,
-            credentialId = credentialId,
-            coseAlgorithm = coseAlgorithm,
-            derivationProfile = derivationProfile,
-            credProtectPolicy = credProtectPolicy,
-            label = label,
-        )
+        withOwnedPasskeyCredentialCopies(
+            rpId,
+            userId,
+            userName,
+            userDisplayName,
+            aaguid,
+            credentialId,
+        ) { rpIdCopy, userIdCopy, userNameCopy, userDisplayNameCopy, aaguidCopy, credentialIdCopy ->
+            PasskeyCredential(
+                id = id,
+                rpId = rpIdCopy,
+                userId = userIdCopy,
+                userName = userNameCopy,
+                userDisplayName = userDisplayNameCopy,
+                publicKey = publicKey,
+                signCount = signCount,
+                createdAt = createdAt,
+                lastUsedAt = lastUsedAt,
+                aaguid = aaguidCopy,
+                credentialId = credentialIdCopy,
+                coseAlgorithm = coseAlgorithm,
+                derivationProfile = derivationProfile,
+                credProtectPolicy = credProtectPolicy,
+                label = label,
+            )
+        }
 
     private fun SensitiveCredentialText.trimmedContentEquals(other: String): Boolean {
         var ownEnd = length
@@ -573,6 +608,99 @@ class PasskeyCredential internal constructor(
                 credProtectPolicy = credProtectPolicy,
                 label = label,
             )
+        }
+    }
+}
+
+/** Stages mutable text copies made by the compatibility constructor until its holder is built. */
+internal fun <T> withOwnedCredentialTextInputs(
+    rpId: CharSequence,
+    userId: CharSequence,
+    userName: CharSequence,
+    userDisplayName: CharSequence,
+    copyText: (CharSequence) -> SensitiveCredentialText = { SensitiveCredentialText.copyOf(it) },
+    build: (
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+    ) -> T,
+): T {
+    var rpIdCopy: SensitiveCredentialText? = null
+    var userIdCopy: SensitiveCredentialText? = null
+    var userNameCopy: SensitiveCredentialText? = null
+    var userDisplayNameCopy: SensitiveCredentialText? = null
+    var transferred = false
+    try {
+        rpIdCopy = copyText(rpId)
+        userIdCopy = copyText(userId)
+        userNameCopy = copyText(userName)
+        userDisplayNameCopy = copyText(userDisplayName)
+        return build(
+            requireNotNull(rpIdCopy),
+            requireNotNull(userIdCopy),
+            requireNotNull(userNameCopy),
+            requireNotNull(userDisplayNameCopy),
+        ).also { transferred = true }
+    } finally {
+        if (!transferred) {
+            rpIdCopy?.erase()
+            userIdCopy?.erase()
+            userNameCopy?.erase()
+            userDisplayNameCopy?.erase()
+        }
+    }
+}
+
+/** Keeps copied passkey owners staged through model construction, erasing them on failed transfer. */
+internal fun <T> withOwnedPasskeyCredentialCopies(
+    rpId: SensitiveCredentialText,
+    userId: SensitiveCredentialText,
+    userName: SensitiveCredentialText,
+    userDisplayName: SensitiveCredentialText,
+    aaguid: ByteArray,
+    credentialId: ByteArray,
+    copyText: (SensitiveCredentialText) -> SensitiveCredentialText = { it.copyOwner() },
+    copyBytes: (ByteArray) -> ByteArray = { it.copyOf() },
+    build: (
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+        SensitiveCredentialText,
+        ByteArray,
+        ByteArray,
+    ) -> T,
+): T {
+    var rpIdCopy: SensitiveCredentialText? = null
+    var userIdCopy: SensitiveCredentialText? = null
+    var userNameCopy: SensitiveCredentialText? = null
+    var userDisplayNameCopy: SensitiveCredentialText? = null
+    var aaguidCopy: ByteArray? = null
+    var credentialIdCopy: ByteArray? = null
+    var transferred = false
+    try {
+        rpIdCopy = copyText(rpId)
+        userIdCopy = copyText(userId)
+        userNameCopy = copyText(userName)
+        userDisplayNameCopy = copyText(userDisplayName)
+        aaguidCopy = copyBytes(aaguid)
+        credentialIdCopy = copyBytes(credentialId)
+        return build(
+            requireNotNull(rpIdCopy),
+            requireNotNull(userIdCopy),
+            requireNotNull(userNameCopy),
+            requireNotNull(userDisplayNameCopy),
+            requireNotNull(aaguidCopy),
+            requireNotNull(credentialIdCopy),
+        ).also { transferred = true }
+    } finally {
+        if (!transferred) {
+            rpIdCopy?.erase()
+            userIdCopy?.erase()
+            userNameCopy?.erase()
+            userDisplayNameCopy?.erase()
+            aaguidCopy?.fill(0)
+            credentialIdCopy?.fill(0)
         }
     }
 }

@@ -1,0 +1,9 @@
+Configured diagnostic probe — current `clipboardAudit` target
+Date: 2026-11-15 (America/Mexico_City)
+Target: debug-enabled isolated audit variant `com.chimali.clipboardaudit`; expectedDebug=true.
+Device: API 35 AOSP emulator `emulator-5554` only.
+Procedure: serial-scoped `am instrument` invocation of `ConfiguredFidoDiagnosticPrivacyTest#configuredWritersRedactSyntheticValuesAndOmitThrowableDetails` with generated synthetic password/seed/tag/throwable fields. Result: `OK (1 test)`. The assertions verified local-file redaction for INFO/password, WARN/seed, ERROR/password, fixed throwable wording, and absence of the generated marker.
+External Logcat scan: 3 run-tagged lines; all 3 contained `[REDACTED]`. No generated marker or marker-bearing tag was present. The run-scoped surrounding records included `[throwable details omitted]`; no synthetic exception class or stack marker was present. Raw Logcat lines and generated values were not retained.
+Target APK SHA-256: F4BCB412EDB1DB0315D18E432C92D526776EFB49D1AC41053D4B351BCDA05C90
+Instrumentation APK SHA-256: 11AC9B9BAAD2DCF477008B9776841B7F38EC86D95C94A89783A1035DA9E41069
+Limitations: debug-enabled clipboard-audit target, not release-equivalent; one API 35 emulator run; no writer rejection/rotation/fallback test and no complete diagnostic-emitter or destination matrix. The app exited before a PID-scoped Logcat read; the retained buffer was searched by the unique synthetic run ID and only aggregate findings were retained. T034 remains open.

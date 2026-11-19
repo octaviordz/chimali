@@ -2,6 +2,7 @@ package com.chimali.fido2.data.crypto
 
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.fido2.testing.CapturedDiagnostics
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.util.Arrays
@@ -10,6 +11,7 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
@@ -30,6 +32,21 @@ class HmacSecretProcessorZeroingTest {
         }
     }
 
+    private class SyntheticSensitiveExtension
+
+    @Test
+    fun `unsupported extension diagnostics omit runtime class description`() =
+        runTest {
+            val diagnostics = CapturedDiagnostics()
+            try {
+                assertNull(processor.process("credential", SyntheticSensitiveExtension()))
+                assertTrue(diagnostics.size > 0)
+                diagnostics.assertNoSensitiveValues(SyntheticSensitiveExtension::class.simpleName!!)
+            } finally {
+                diagnostics.close()
+            }
+        }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun `process preserves borrowed salt`() =
@@ -47,6 +64,49 @@ class HmacSecretProcessorZeroingTest {
 
             assertContentEquals(expected, actual)
             assertContentEquals(borrowedSalt, salt, "Borrowed caller salt must remain unchanged")
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `sensitive CBOR salt owner remains readable through HMAC processing then request cleanup erases it`() =
+        runTest {
+            val codec = CborCodec()
+            val originalSalt = ByteArray(32) { (it + 1).toByte() }
+            val encodedRequest =
+                codec.encodeToFido2Format(
+                    mapOf(
+                        "extensions" to
+                            mapOf(
+                                HmacSecretProcessor.EXTENSION_KEY to
+                                    mapOf("saltEnc" to originalSalt),
+                            ),
+                    ),
+                )
+            val decodedRequest = codec.decodeSensitiveRequest(encodedRequest)
+            var output: ByteArray? = null
+            val rootCopy = ByteArray(32) { 0x41.toByte() }
+            try {
+                stubSessionOwner()
+                coEvery { masterSeedProvider.getMasterSeed() } returns rootCopy
+
+                val extensions = decodedRequest["extensions"] as Map<*, *>
+                val extension = extensions[HmacSecretProcessor.EXTENSION_KEY] as Map<*, *>
+                val decodedSalt = extension["saltEnc"] as ByteArray
+
+                assertContentEquals(originalSalt, decodedSalt, "Sensitive decoder must retain the active input")
+                output = processor.process("synthetic-credential", extension)
+                assertTrue(output != null, "HMAC processing must consume the decoded salt")
+                assertTrue(decodedSalt.any { it != 0.toByte() }, "The request owner remains alive during use")
+                assertTrue(rootCopy.all { it == 0.toByte() }, "The processor must erase its owned root copy")
+
+                codec.eraseDecodedRequestValues(decodedRequest)
+                assertTrue(decodedSalt.all { it == 0.toByte() }, "Request terminal cleanup must erase the salt owner")
+            } finally {
+                output?.fill(0)
+                codec.eraseDecodedRequestValues(decodedRequest)
+                encodedRequest.fill(0)
+                originalSalt.fill(0)
+            }
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -89,15 +149,22 @@ class HmacSecretProcessorZeroingTest {
         credentialId: String,
         salts: ByteArray,
     ): ByteArray {
-        val secret = hmac(root, "hmac-secret".toByteArray() + credentialId.toByteArray())
+        val domainSeparator = "hmac-secret".toByteArray()
+        val credentialBytes = credentialId.toByteArray()
+        val credentialInput = domainSeparator + credentialBytes
+        domainSeparator.fill(0)
+        credentialBytes.fill(0)
+        var secret: ByteArray? = null
         return try {
+            secret = hmac(root, credentialInput)
             ByteArray(salts.size).also { output ->
-                outputFirstHalf(secret, salts, output, 0)
-                outputFirstHalf(secret, salts, output, 32)
+                outputFirstHalf(requireNotNull(secret), salts, output, 0)
+                if (salts.size > 32) outputFirstHalf(requireNotNull(secret), salts, output, 32)
             }
         } finally {
-            Arrays.fill(root, 0)
-            Arrays.fill(secret, 0)
+            credentialInput.fill(0)
+            root.fill(0)
+            secret?.fill(0)
         }
     }
 
@@ -108,10 +175,13 @@ class HmacSecretProcessorZeroingTest {
         offset: Int,
     ) {
         val salt = salts.copyOfRange(offset, offset + 32)
+        var hmacOutput: ByteArray? = null
         try {
-            hmac(secret, salt).copyInto(output, offset)
+            hmacOutput = hmac(secret, salt)
+            requireNotNull(hmacOutput).copyInto(output, destinationOffset = offset)
         } finally {
             Arrays.fill(salt, 0)
+            hmacOutput?.fill(0)
         }
     }
 

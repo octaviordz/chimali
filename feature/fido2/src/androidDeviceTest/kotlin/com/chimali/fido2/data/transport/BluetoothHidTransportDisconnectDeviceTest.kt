@@ -102,19 +102,23 @@ class BluetoothHidTransportDisconnectDeviceTest {
                     lookupTokenService = HmacMetadataLookupTokenService(),
                     encryptedMetadataService = AesGcmEncryptedMetadataService(),
                 )
+            val credentialIdBytes = ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { CREDENTIAL_ID_FILL }
             val credentialId =
-                CredentialId.fromByteArray(
-                    ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { CREDENTIAL_ID_FILL },
-                )
+                try {
+                    CredentialId.fromByteArray(credentialIdBytes)
+                } finally {
+                    credentialIdBytes.fill(0)
+                }
+            val storedPublicKeyEncoding = ByteArray(P256_PUBLIC_KEY_ENCODING_SIZE)
             val summary =
-                CredentialSummary(
+                CredentialSummary.fromRpId(
                     id = credentialId.encoded,
                     rpId = RpId(RP_ID),
                     credentialId = credentialId,
                     lastUsedAt = Clock.System.now(),
                     coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
                     derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
-                    storedPublicKeyEncoding = ByteArray(P256_PUBLIC_KEY_ENCODING_SIZE),
+                    storedPublicKeyEncoding = storedPublicKeyEncoding,
                 )
             val credentialRepository = candidateRepository(listOf(summary))
             val uiEventBus = Fido2UiEventBus()
@@ -189,40 +193,42 @@ class BluetoothHidTransportDisconnectDeviceTest {
                         .first()
                 }
             var pendingGeneration: Long? = null
+            var pendingRequest: Fido2UiEvent.AuthenticationRequested? = null
+            val channelId =
+                byteArrayOf(
+                    CHANNEL_ID_BYTE_0,
+                    CHANNEL_ID_BYTE_1,
+                    CHANNEL_ID_BYTE_2,
+                    CHANNEL_ID_BYTE_3,
+                )
+            var messagePayload: ByteArray? = null
+            val clientDataHash = ByteArray(CLIENT_DATA_HASH_SIZE) { it.toByte() }
 
             try {
                 // This lifecycle test dispatches a parsed request directly instead of running
                 // CTAPHID_INIT, so register its synthetic CID in the current transport session.
                 transport.registerChannelForTest(
-                    byteArrayOf(
-                        CHANNEL_ID_BYTE_0,
-                        CHANNEL_ID_BYTE_1,
-                        CHANNEL_ID_BYTE_2,
-                        CHANNEL_ID_BYTE_3,
-                    ),
+                    channelId,
                 )
+                val encodedRequest =
+                    cborCodec.encodeToFido2Format(
+                        mapOf(
+                            "1" to RP_ID,
+                            "2" to clientDataHash,
+                            "5" to mapOf(USER_VERIFICATION_OPTION to true),
+                        ),
+                    )
+                messagePayload = byteArrayOf(ASSERTION_COMMAND) + encodedRequest
+                encodedRequest.fill(0)
                 transport.dispatchMessage(
                     CtapHidMessage(
-                        channelId =
-                            byteArrayOf(
-                                CHANNEL_ID_BYTE_0,
-                                CHANNEL_ID_BYTE_1,
-                                CHANNEL_ID_BYTE_2,
-                                CHANNEL_ID_BYTE_3,
-                            ),
+                        channelId = channelId,
                         command = CTAPHID_CBOR,
-                        payload =
-                            byteArrayOf(ASSERTION_COMMAND) +
-                                cborCodec.encodeToFido2Format(
-                                    mapOf(
-                                        "1" to RP_ID,
-                                        "2" to ByteArray(CLIENT_DATA_HASH_SIZE) { it.toByte() },
-                                        "5" to mapOf(USER_VERIFICATION_OPTION to true),
-                                    ),
-                                ),
+                        payload = requireNotNull(messagePayload),
                     ),
                 )
                 val request = withTimeout(TEST_TIMEOUT_MILLIS) { eventReceived.await() }
+                pendingRequest = request
                 assertNotNull("The real GetAssertion handler must publish its pending UI request", request)
                 assertTrue(request.options.userVerification == RequestUserVerificationRequirement.REQUIRED)
                 assertFalse("The user decision must remain pending until disconnect", request.deferred.isCompleted)
@@ -244,6 +250,19 @@ class BluetoothHidTransportDisconnectDeviceTest {
                 )
             } finally {
                 eventReceived.cancelAndJoin()
+                pendingRequest?.let { request ->
+                    request.deferred.cancel()
+                    request.userInteractionCompleted.cancel()
+                    request.options.clientDataHash.fill(0)
+                    request.options.eraseSensitiveText()
+                }
+                runCatching { transport.disconnect() }
+                messagePayload?.fill(0)
+                channelId.fill(0)
+                clientDataHash.fill(0)
+                summary.eraseSensitiveText()
+                storedPublicKeyEncoding.fill(0)
+                parser.reset()
                 provider.clearSession()
                 recoveryFile.parentFile?.deleteRecursively()
             }

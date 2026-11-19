@@ -7,7 +7,7 @@ import com.chimali.fido2.bluetooth.CTAPHID_PING
 import com.chimali.fido2.bluetooth.CtapHidMessage
 import com.chimali.fido2.bluetooth.HidReportParser
 import io.mockk.coEvery
-import io.mockk.verify
+import io.mockk.every
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -37,6 +37,11 @@ class BluetoothHidTransportSessionGenerationTest {
                     sendQueueDispatcher = StandardTestDispatcher(senderScheduler),
                     useRealWrapper = true,
                 ) { fixture ->
+                    val rejectedChannelSnapshots = mutableListOf<Pair<ByteArray, Byte>>()
+                    every { fixture.responses.hidErrorResponse(any(), any()) } answers {
+                        rejectedChannelSnapshots += firstArg<ByteArray>().copyOf() to secondArg()
+                        emptyList()
+                    }
                     val predecessorCleanupStarted = CompletableDeferred<Unit>()
                     val releasePredecessorCleanup = CompletableDeferred<Unit>()
                     val predecessorHandlerStarted = CompletableDeferred<Unit>()
@@ -112,12 +117,13 @@ class BluetoothHidTransportSessionGenerationTest {
                             lifecycle.requestReport(predecessorCid, CTAPHID_PING, byteArrayOf(0x41)),
                         )
                         runCurrent()
-                        verify(exactly = 1) {
-                            fixture.responses.hidErrorResponse(
-                                match { it.contentEquals(predecessorCid) },
-                                INVALID_CHANNEL,
-                            )
-                        }
+                        assertEquals(
+                            1,
+                            rejectedChannelSnapshots.count { (cid, status) ->
+                                cid.contentEquals(predecessorCid) && status == INVALID_CHANNEL
+                            },
+                        )
+                        rejectedChannelSnapshots.forEach { (cid) -> cid.fill(0) }
                         assertEquals(
                             beforeStaleControl,
                             fixture.sent.size,

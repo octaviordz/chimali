@@ -73,6 +73,16 @@ class CborCodecTest {
     fun `sensitive decoding erases map key owners and ignores unknown nested text fields`() {
         val owners = mutableListOf<SensitiveCredentialText>()
         val observedCodec = CborCodec().apply { onDecodedTextOwnerForTest = owners::add }
+
+        fun isErased(owner: SensitiveCredentialText): Boolean {
+            val characters = owner.copyCharacters()
+            return try {
+                characters.all { it == '\u0000' }
+            } finally {
+                characters.fill('\u0000')
+            }
+        }
+
         val encoded =
             observedCodec.encodeToFido2Format(
                 mapOf(
@@ -94,12 +104,111 @@ class CborCodecTest {
         assertTrue(
             owners
                 .filterNot { it === retainedName }
-                .all { owner -> owner.copyCharacters().all { it == '\u0000' } },
+                .all(::isErased),
         )
 
         observedCodec.eraseDecodedRequestValues(decoded)
 
-        assertTrue(owners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
+        assertTrue(owners.all(::isErased))
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `sensitive decoding preserves hmac salt input until request cleanup`() {
+        val byteOwners = mutableListOf<ByteArray>()
+        val observedCodec = CborCodec().apply { onDecodedByteStringForTest = byteOwners::add }
+        val saltEnc = ByteArray(32) { 0x5A.toByte() }
+        val encoded =
+            observedCodec.encodeToFido2Format(
+                mapOf(
+                    "1" to "example.com",
+                    "2" to ByteArray(32) { 0x31.toByte() },
+                    "4" to mapOf("hmac-secret" to mapOf("saltEnc" to saltEnc)),
+                ),
+            )
+
+        val decoded = observedCodec.decodeSensitiveRequest(encoded)
+        val extensions = decoded.getValue("4") as Map<*, *>
+        val hmacSecret = extensions["hmac-secret"] as? Map<*, *>
+        assertNotNull(hmacSecret)
+        val decodedSalt = hmacSecret!!["saltEnc"] as? ByteArray
+        assertNotNull(decodedSalt)
+
+        assertContentEquals(saltEnc, decodedSalt!!)
+
+        observedCodec.eraseDecodedRequestValues(decoded)
+
+        assertTrue(byteOwners.all { owner -> owner.all { it == 0.toByte() } })
+        assertTrue(decodedSalt.all { it == 0.toByte() })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decoder erases partial text and byte owners when a non-format failure interrupts decoding`() {
+        val textOwners = mutableListOf<SensitiveCredentialText>()
+        val textCodec =
+            CborCodec().apply {
+                onDecodedTextOwnerForTest = { owner ->
+                    textOwners += owner
+                    if (owner.contentEquals("sensitive-marker")) {
+                        error("synthetic observer failure")
+                    }
+                }
+            }
+        val textInput = textCodec.encodeToFido2Format(mapOf("2" to mapOf("name" to "sensitive-marker")))
+
+        assertFailsWith<IllegalStateException> { textCodec.decodeSensitiveRequest(textInput) }
+        assertTrue(textOwners.isNotEmpty())
+        assertTrue(textOwners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
+
+        val byteOwners = mutableListOf<ByteArray>()
+        val byteCodec =
+            CborCodec().apply {
+                onDecodedByteStringForTest = { owner ->
+                    byteOwners += owner
+                    error("synthetic observer failure")
+                }
+            }
+        val byteInput = byteCodec.encodeToFido2Format(mapOf("1" to byteArrayOf(1, 2, 3, 4)))
+
+        assertFailsWith<IllegalStateException> { byteCodec.decodeSensitiveRequest(byteInput) }
+        assertTrue(byteOwners.isNotEmpty())
+        assertTrue(byteOwners.all { owner -> owner.all { it == 0.toByte() } })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `decoder erases text and byte owners when owner-list admission fails`() {
+        val textOwners = mutableListOf<SensitiveCredentialText>()
+        val textCodec =
+            CborCodec().apply {
+                beforeDecodedTextOwnerAdmissionForTest = { owner ->
+                    textOwners += owner
+                    error("synthetic text owner admission failure")
+                }
+            }
+        val textInput = textCodec.encodeToFido2Format(mapOf("2" to mapOf("name" to "admission-marker")))
+
+        assertFailsWith<IllegalStateException> { textCodec.decodeSensitiveRequest(textInput) }
+        assertTrue(textOwners.isNotEmpty())
+        assertTrue(textOwners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
+
+        val byteOwners = mutableListOf<ByteArray>()
+        val byteCodec =
+            CborCodec().apply {
+                beforeDecodedByteStringAdmissionForTest = { owner ->
+                    byteOwners += owner
+                    error("synthetic byte owner admission failure")
+                }
+            }
+        val byteInput = byteCodec.encodeToFido2Format(mapOf("1" to byteArrayOf(1, 2, 3, 4)))
+
+        assertFailsWith<IllegalStateException> { byteCodec.decodeSensitiveRequest(byteInput) }
+        assertTrue(byteOwners.isNotEmpty())
+        assertTrue(byteOwners.all { owner -> owner.all { it == 0.toByte() } })
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -201,6 +310,31 @@ class CborCodecTest {
         observedCodec.encodeToFido2Format(mapOf("synthetic-key" to "synthetic-sensitive-value-雪"))
 
         assertEquals(2, erasedTextBuffers.size)
+        assertTrue(erasedTextBuffers.all { bytes -> bytes.all { it == 0.toByte() } })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `CBOR map encoding erases copied key and UTF-8 scratch when key admission fails`() {
+        val copiedKeys = mutableListOf<ByteArray>()
+        val erasedTextBuffers = mutableListOf<ByteArray>()
+        val observedCodec =
+            CborCodec().apply {
+                onTemporaryTextBytesErasedForTest = erasedTextBuffers::add
+                beforeEncodedMapKeyAdmissionForTest = { key ->
+                    copiedKeys += key
+                    error("synthetic encoded map-key admission failure")
+                }
+            }
+
+        assertFailsWith<IllegalStateException> {
+            observedCodec.encodeToFido2Format(mapOf("synthetic-sensitive-key" to "value"))
+        }
+
+        assertEquals(1, copiedKeys.size)
+        assertTrue(copiedKeys.all { key -> key.all { it == 0.toByte() } })
+        assertTrue(erasedTextBuffers.isNotEmpty())
         assertTrue(erasedTextBuffers.all { bytes -> bytes.all { it == 0.toByte() } })
     }
 

@@ -28,9 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -97,13 +95,16 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                         "initial corpus connection",
                         connectionAttempts,
                     )
-                initial.sendMessage(vectors.makeCredentialRequest)
-                initial.assertResponse(vectors.makeCredentialResponse, "MakeCredential")
-                initial.sendMessage(vectors.getAssertionRequest)
-                initial.assertResponse(vectors.getAssertionResponse, "GetAssertion")
-                initial.sendMessage(vectors.getAssertionRequest)
-                initial.awaitProcessingKeepalive()
-                initial.disconnect()
+                try {
+                    initial.sendMessage(vectors.makeCredentialRequest)
+                    initial.assertResponse(vectors.makeCredentialResponse, "MakeCredential")
+                    initial.sendMessage(vectors.getAssertionRequest)
+                    initial.assertResponse(vectors.getAssertionResponse, "GetAssertion")
+                    initial.sendMessage(vectors.getAssertionRequest)
+                    initial.awaitProcessingKeepalive()
+                } finally {
+                    initial.disconnect()
+                }
 
                 repeat(CLIENT_CYCLE_COUNT) { index ->
                     val cycle = index + 1
@@ -143,27 +144,19 @@ class FidoBlePhysicalCorpusClientDeviceTest {
         description: String,
         connectionAttempts: AtomicInteger,
     ): AuthenticatedFidoGattClient {
-        var lastFailure: Exception? = null
         repeat(CLIENT_GATT_SETUP_ATTEMPTS) { attempt ->
             try {
                 val advertiser = discoverMiFidoAdvertiser(scanContext)
-                assertEquals(
-                    "Mi advertiser identity changed during $description",
-                    expectedAddress,
-                    advertiser.address,
-                )
+                assertTrue("Mi advertiser identity changed during $description", expectedAddress == advertiser.address)
                 connectionAttempts.incrementAndGet()
                 return AuthenticatedFidoGattClient.connect(advertiser, gattContext)
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 throw cancellation
-            } catch (failure: SecurityException) {
-                lastFailure = failure
+            } catch (_: SecurityException) {
                 if (attempt + 1 < CLIENT_GATT_SETUP_ATTEMPTS) delay(SETUP_RETRY_DELAY_MILLIS)
-            } catch (failure: IllegalStateException) {
-                lastFailure = failure
+            } catch (_: IllegalStateException) {
                 if (attempt + 1 < CLIENT_GATT_SETUP_ATTEMPTS) delay(SETUP_RETRY_DELAY_MILLIS)
-            } catch (failure: IllegalArgumentException) {
-                lastFailure = failure
+            } catch (_: IllegalArgumentException) {
                 if (attempt + 1 < CLIENT_GATT_SETUP_ATTEMPTS) delay(SETUP_RETRY_DELAY_MILLIS)
             } catch (interrupted: InterruptedException) {
                 Thread.currentThread().interrupt()
@@ -172,7 +165,6 @@ class FidoBlePhysicalCorpusClientDeviceTest {
         }
         throw AssertionError(
             "Could not establish $description after $CLIENT_GATT_SETUP_ATTEMPTS setup attempts",
-            lastFailure,
         )
     }
 
@@ -190,21 +182,28 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                 index,
                 frame,
                 ->
-                writeStatuses.clear()
-                @Suppress("DEPRECATION")
-                run {
-                    controlPoint.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    controlPoint.value = frame
-                    assertTrue(
-                        "FIDO control-point write ${index + 1} was rejected",
-                        gatt.writeCharacteristic(controlPoint),
+                try {
+                    writeStatuses.clear()
+                    @Suppress("DEPRECATION")
+                    run {
+                        controlPoint.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                        controlPoint.value = frame
+                        assertTrue(
+                            "FIDO control-point write ${index + 1} was rejected",
+                            gatt.writeCharacteristic(controlPoint),
+                        )
+                    }
+                    assertEquals(
+                        "FIDO control-point write ${index + 1} failed",
+                        BluetoothGatt.GATT_SUCCESS,
+                        writeStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS),
                     )
+                } finally {
+                    frame.fill(0)
+                    @Suppress("DEPRECATION")
+                    run { controlPoint.value = null }
+                    writeStatuses.clear()
                 }
-                assertEquals(
-                    "FIDO control-point write ${index + 1} failed",
-                    BluetoothGatt.GATT_SUCCESS,
-                    writeStatuses.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-                )
             }
         }
 
@@ -215,38 +214,56 @@ class FidoBlePhysicalCorpusClientDeviceTest {
             FidoBleFraming
                 .fragmentResponse(BleGattTransport.CMD_MSG, response, notificationCapacity)
                 .forEachIndexed { index, expected ->
-                    var actual: ByteArray
-                    do {
-                        actual =
+                    try {
+                        var actual =
                             notifications.poll(CLIENT_RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                 ?: throw AssertionError("$description timed out at response fragment ${index + 1}")
-                    } while (actual.firstOrNull() == FidoBleFraming.CMD_KEEPALIVE)
-                    val actualHex = actual.joinToString(" ") { "%02X".format(it) }
-                    assertArrayEquals(
-                        "$description physical fragment ${index + 1} differed; actual=$actualHex",
-                        expected,
-                        actual,
-                    )
+                        while (actual.firstOrNull() == FidoBleFraming.CMD_KEEPALIVE) {
+                            actual.fill(0)
+                            actual =
+                                notifications.poll(CLIENT_RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                    ?: throw AssertionError(
+                                        "$description timed out at response fragment ${index + 1}",
+                                    )
+                        }
+                        val matches = expected.contentEquals(actual)
+                        val actualSize = actual.size
+                        actual.fill(0)
+                        assertTrue(
+                            "$description physical fragment ${index + 1} differed (received $actualSize bytes)",
+                            matches,
+                        )
+                    } finally {
+                        expected.fill(0)
+                    }
                 }
         }
 
         fun awaitProcessingKeepalive() {
             val status = notifications.poll(CLIENT_RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            assertNotNull("Interrupted CTAP request did not begin before the peer disconnect", status)
-            assertEquals(
-                "Expected CTAP processing keepalive before disconnect",
-                FidoBleFraming.CMD_KEEPALIVE,
-                status!![0],
-            )
+            try {
+                assertTrue(
+                    "Expected CTAP processing keepalive before disconnect",
+                    status?.firstOrNull() == FidoBleFraming.CMD_KEEPALIVE,
+                )
+            } finally {
+                status?.fill(0)
+            }
         }
 
         fun disconnect() {
-            gatt.disconnect()
-            assertTrue(
-                "Authenticated FIDO GATT connection did not close",
-                disconnected.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
-            )
-            gatt.close()
+            try {
+                gatt.disconnect()
+                assertTrue(
+                    "Authenticated FIDO GATT connection did not close",
+                    disconnected.await(CLIENT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS),
+                )
+            } finally {
+                gatt.close()
+                notifications.forEach { it.fill(0) }
+                notifications.clear()
+                writeStatuses.clear()
+            }
         }
 
         companion object {
@@ -397,10 +414,14 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                     }
                     val lengthResult = readResults.poll(CLIENT_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     check(lengthResult?.first == BluetoothGatt.GATT_SUCCESS) { "ASUS control-point-length read failed" }
-                    val length = requireNotNull(lengthResult?.second) { "Mi control-point length was missing" }
+                    val length = requireNotNull(lengthResult.second) { "Mi control-point length was missing" }
                     val writeCapacity =
-                        ((length[0].toInt() and BYTE_MASK) shl BYTE_SHIFT) or
-                            (length[1].toInt() and BYTE_MASK)
+                        try {
+                            ((length[0].toInt() and BYTE_MASK) shl BYTE_SHIFT) or
+                                (length[1].toInt() and BYTE_MASK)
+                        } finally {
+                            length.fill(0)
+                        }
                     check(writeCapacity >= BleSessionOwner.MIN_CAPACITY) {
                         "Invalid FIDO control-point capacity $writeCapacity"
                     }
@@ -416,8 +437,17 @@ class FidoBlePhysicalCorpusClientDeviceTest {
                     )
                 } finally {
                     if (!clientReady) {
-                        gatt.disconnect()
-                        gatt.close()
+                        try {
+                            gatt.disconnect()
+                        } finally {
+                            gatt.close()
+                            notifications.forEach { it.fill(0) }
+                            notifications.clear()
+                            readResults.forEach { it.second?.fill(0) }
+                            readResults.clear()
+                            writeStatuses.clear()
+                            descriptorStatuses.clear()
+                        }
                     }
                 }
             }

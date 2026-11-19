@@ -21,6 +21,54 @@ class RelyingPartyOwnershipTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `model construction failure erases both staged owners`() {
+        val id = "https://sensitive.example".toCharArray()
+        val name = "Sensitive Service".toCharArray()
+
+        assertFailsWith<IllegalStateException> {
+            RelyingParty.fromOwnedTextWithFactory(
+                SensitiveText.takeOwnership(id),
+                SensitiveText.takeOwnership(name),
+            ) { _, _ -> error("synthetic wrapper construction failure") }
+        }
+
+        assertTrue(id.all { it == '\u0000' })
+        assertTrue(name.all { it == '\u0000' })
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `RP copy erases its first staged owner if creating the second fails`() {
+        val rp =
+            RelyingParty.fromOwnedText(
+                SensitiveText.copyOf("https://sensitive.example"),
+                SensitiveText.copyOf("Sensitive Service"),
+            )
+        val stagedOwners = mutableListOf<SensitiveText>()
+        var ownerCount = 0
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                rp.copyWithOwnerFactory(
+                    ownerFactory = { source ->
+                        ownerCount++
+                        if (ownerCount == 2) error("synthetic second-owner copy failure")
+                        SensitiveText.copyOf(source).also(stagedOwners::add)
+                    },
+                )
+            }
+
+            assertTrue(stagedOwners.single().all { it == '\u0000' })
+            assertTrue(rp.idText.contentEquals("https://sensitive.example"))
+            assertTrue(rp.nameText.contentEquals("Sensitive Service"))
+        } finally {
+            rp.eraseSensitiveText()
+            stagedOwners.forEach(SensitiveText::erase)
+        }
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `RP copy remains live after source disposal and diagnostics redact both owners`() {
         val rp =
             RelyingParty.fromOwnedText(

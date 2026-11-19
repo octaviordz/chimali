@@ -37,15 +37,8 @@ data class PublicKeyCredentialDescriptor(
         }
     }
 
-    /**
-     * Returns the credential ID as a base64 URL-safe string.
-     */
+    /** Returns the credential ID as a Base64URL string for CTAP response compatibility. */
     fun getIdBase64Url(): String = id.encoded
-
-    /**
-     * Returns the credential ID as a hex string.
-     */
-    fun getIdHex(): String = id.toByteArray().joinToString("") { "%02x".format(it) }
 
     /**
      * Checks if this descriptor supports specific transport.

@@ -1,7 +1,7 @@
 package com.chimali.feature.vault.internal.payload
 
 /** FR-VAULT-026: owns its arrays; copies transfer independent ownership. */
-data class CustomField(
+class CustomField(
     val name: CharArray,
     val value: CharArray,
     val isConcealed: Boolean,
@@ -23,6 +23,13 @@ data class CustomField(
             name = name.copyOf(),
             value = value.copyOf(),
         )
+
+    /** Default arrays are copied; explicitly supplied arrays transfer to the returned owner. */
+    fun copy(
+        name: CharArray = this.name.copyOf(),
+        value: CharArray = this.value.copyOf(),
+        isConcealed: Boolean = this.isConcealed,
+    ): CustomField = CustomField(name, value, isConcealed)
 
     override fun toString(): String = "CustomField([redacted])"
 

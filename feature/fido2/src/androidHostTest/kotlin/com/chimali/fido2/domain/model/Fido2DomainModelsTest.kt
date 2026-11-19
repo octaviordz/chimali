@@ -4,6 +4,7 @@ import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
 import com.chimali.core.domain.valueobject.UserId
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -92,7 +93,6 @@ class Fido2DomainModelsTest {
         assertEquals(PublicKeyCredentialType.PUBLIC_KEY, descriptor.type)
         assertEquals(credId, descriptor.id)
         assertEquals(credId.encoded, descriptor.getIdBase64Url())
-        assertTrue(descriptor.getIdHex().isNotEmpty())
         assertTrue(descriptor.supportsTransport(AuthenticatorTransport.INTERNAL))
         assertFalse(descriptor.supportsTransport(AuthenticatorTransport.USB))
         assertEquals(2, descriptor.getSupportedTransports().size)
@@ -156,12 +156,9 @@ class Fido2DomainModelsTest {
                 icon = "https://example.com/bob.png",
             )
 
-        assertEquals(userId, user.id)
         assertEquals("bob@example.com", user.name)
         assertEquals("Bob Dylan", user.displayName)
         assertEquals("https://example.com/bob.png", user.icon)
-        assertEquals(userId.value, user.getIdBase64Url())
-        assertEquals("0a0b0c", user.getIdHex())
         assertTrue(user.hasIcon())
         assertEquals("Bob Dylan", user.getSafeDisplayName())
         assertEquals("PublicKeyCredentialUserEntity([sensitive account fields redacted])", user.toString())
@@ -182,6 +179,14 @@ class Fido2DomainModelsTest {
         assertNotNull(nameOwner)
         assertNotNull(displayNameOwner)
         assertNotNull(encodedIdOwner)
+        val encodedId = encodedIdOwner.copyCharacters()
+        val expectedEncodedId = userId.value.toCharArray()
+        try {
+            assertContentEquals(expectedEncodedId, encodedId)
+        } finally {
+            encodedId.fill('\u0000')
+            expectedEncodedId.fill('\u0000')
+        }
 
         val copiedUser = user.copy(displayName = "Robert Zimmerman")
         assertEquals("Robert Zimmerman", copiedUser.displayName)
@@ -190,7 +195,16 @@ class Fido2DomainModelsTest {
         user.eraseSensitiveText()
         assertTrue(user.name.all { it == '\u0000' })
         assertTrue(user.displayName.all { it == '\u0000' })
-        assertTrue(user.getIdHex().all { it == '0' })
+        val idBytesField =
+            PublicKeyCredentialUserEntity::class.java
+                .getDeclaredField("idBytes")
+                .apply { isAccessible = true }
+        assertTrue((idBytesField.get(user) as ByteArray).all { it == 0.toByte() })
+        nameOwner.erase()
+        displayNameOwner.erase()
+        encodedIdOwner.erase()
+        userNoIcon.eraseSensitiveText()
+        copiedUser.eraseSensitiveText()
     }
 
     @Test
@@ -220,6 +234,23 @@ class Fido2DomainModelsTest {
         assertFailsWith<IllegalArgumentException> {
             PublicKeyCredentialUserEntity(validId, "name", "display", "https://example.com/" + "A".repeat(2050))
         }
+    }
+
+    @Test
+    fun `publicKeyCredentialUserEntity factory failure erases every transferred owner`() {
+        val idBytes = ByteArray(16) { 0x5A.toByte() }
+        val name = SensitiveCredentialText.copyOf("synthetic-user")
+        val displayName = SensitiveCredentialText.copyOf("Synthetic User")
+
+        assertFailsWith<IllegalStateException> {
+            PublicKeyCredentialUserEntity.fromSensitiveOwnersWithFactory(idBytes, name, displayName) { _, _, _ ->
+                error("synthetic entity construction failure")
+            }
+        }
+
+        assertTrue(idBytes.all { it == 0.toByte() })
+        assertTrue(name.all { it == '\u0000' })
+        assertTrue(displayName.all { it == '\u0000' })
     }
 
     @Test
@@ -257,10 +288,10 @@ class Fido2DomainModelsTest {
                 icon = "https://example.com/logo.png",
             )
 
-        assertEquals(rpId, rp.id)
+        assertTrue(rp.idText.contentEquals(rpId.value))
         assertEquals("Example Corp", rp.name)
-        assertEquals("example.com", rp.getDomain())
-        assertEquals("Example Corp", rp.getSafeName())
+        assertFalse(PublicKeyCredentialRpEntity::class.java.declaredMethods.any { it.name == "getDomain" })
+        assertFalse(PublicKeyCredentialRpEntity::class.java.declaredMethods.any { it.name == "getSafeName" })
         assertEquals("PublicKeyCredentialRpEntity([sensitive RP fields redacted])", rp.toString())
 
         val idOwner = rp.copyIdOwner()
@@ -297,6 +328,41 @@ class Fido2DomainModelsTest {
         }
     }
 
+    @Test
+    fun `publicKeyCredentialRpEntity factory failure erases both transferred owners`() {
+        val id = SensitiveCredentialText.copyOf("example.com")
+        val name = SensitiveCredentialText.copyOf("Example RP")
+
+        assertFailsWith<IllegalStateException> {
+            PublicKeyCredentialRpEntity.fromSensitiveOwnersWithFactory(id, name) { _, _ ->
+                error("synthetic entity construction failure")
+            }
+        }
+
+        assertTrue(id.all { it == '\u0000' })
+        assertTrue(name.all { it == '\u0000' })
+    }
+
+    @Test
+    fun `publicKeyCredentialRpEntity create erases first staged copy if second copy fails`() {
+        val stagedOwners = mutableListOf<SensitiveCredentialText>()
+        var ownerCount = 0
+
+        assertFailsWith<IllegalStateException> {
+            PublicKeyCredentialRpEntity.createWithOwnerFactory(
+                RpId("example.com"),
+                "Example RP",
+                ownerFactory = { source ->
+                    ownerCount++
+                    if (ownerCount == 2) error("synthetic RP name copy failure")
+                    SensitiveCredentialText.copyOf(source).also(stagedOwners::add)
+                },
+            )
+        }
+
+        assertTrue(stagedOwners.single().all { it == '\u0000' })
+    }
+
     // ── AssertionObject ─────────────────────────────────────────────────────
 
     @Test
@@ -306,6 +372,7 @@ class Fido2DomainModelsTest {
         val assertion = AssertionObject.createTest(credentialId = credId, rpId = rpId)
 
         assertEquals(credId.encoded, assertion.credentialId)
+        assertFalse(AssertionObject::class.java.declaredFields.any { it.name == "credentialId" })
         assertEquals(1L, assertion.extractSignCount())
         assertTrue(assertion.isUserPresent())
         assertTrue(assertion.isUserVerified())

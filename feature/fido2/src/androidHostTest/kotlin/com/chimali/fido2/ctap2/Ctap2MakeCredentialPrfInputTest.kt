@@ -12,6 +12,7 @@ import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import io.mockk.every
 import io.mockk.mockk
+import kotlin.test.AfterTest
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,6 +29,11 @@ class Ctap2MakeCredentialPrfInputTest {
     private val ceremonyLock = mockk<CeremonyLock>(relaxed = true)
     private val channelId = byteArrayOf(1, 2, 3, 4)
 
+    @AfterTest
+    fun clearChannelFixture() {
+        channelId.fill(0)
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @ParameterizedTest
@@ -40,43 +46,69 @@ class Ctap2MakeCredentialPrfInputTest {
             realCodec.onDecodedByteStringForTest = decodedByteStrings::add
             realCodec.onDecodedTextOwnerForTest = decodedTextOwners::add
             val realHandler = Ctap2MakeCredentialHandler(realCodec, reportParser, uiEventBus, ceremonyLock)
+            val challenge = ByteArray(32)
+            val userId = byteArrayOf(1)
             val hmacSecret =
                 buildMap<Long, ByteArray> {
                     put(1L, ByteArray(32) { 0x31 })
                     if (mode.startsWith("two")) put(2L, ByteArray(32) { 0x52 })
                 }
-            val request =
-                mapOf(
-                    "1" to ByteArray(32),
-                    "2" to mapOf("id" to "example.com", "name" to "Example"),
-                    "3" to mapOf("id" to byteArrayOf(1), "name" to "user", "displayName" to "User"),
-                    "4" to listOf(mapOf("alg" to -7L)),
-                    "6" to mapOf("credProtect" to 2L, "hmac-secret" to hmacSecret),
-                )
-            val encoded = realCodec.encodeToFido2Format(request)
-            every { ceremonyLock.tryLock() } returns true
-            every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
-            every { uiEventBus.dispatch(any()) } answers {
-                val event = firstArg<Fido2UiEvent.RegistrationRequested>()
-                assertEquals(mapOf("credProtect" to 2), event.options.extensions)
+            var encoded: ByteArray? = null
+            var packetPayload: ByteArray? = null
+            try {
+                val request =
+                    mapOf(
+                        "1" to challenge,
+                        "2" to mapOf("id" to "example.com", "name" to "Example"),
+                        "3" to mapOf("id" to userId, "name" to "user", "displayName" to "User"),
+                        "4" to listOf(mapOf("alg" to -7L)),
+                        "6" to mapOf("credProtect" to 2L, "hmac-secret" to hmacSecret),
+                    )
+                val requestBytes = realCodec.encodeToFido2Format(request)
+                encoded = requestBytes
+                every { ceremonyLock.tryLock() } returns true
+                every { reportParser.encodeResponse(any()) } answers { listOf(firstArg<CtapHidMessage>().payload) }
+                every { uiEventBus.dispatch(any()) } answers {
+                    val event = firstArg<Fido2UiEvent.RegistrationRequested>()
+                    assertEquals(mapOf("credProtect" to 2), event.options.extensions)
+                    if (mode.endsWith("cancellation")) {
+                        event.deferred.cancel(CancellationException("synthetic T156 cancellation"))
+                    } else {
+                        event.deferred.complete(Outcome.Error(DomainError.OperationDenied("synthetic T156 failure")))
+                    }
+                    Unit
+                }
+
+                val payload = byteArrayOf(0x01) + requestBytes
+                packetPayload = payload
                 if (mode.endsWith("cancellation")) {
-                    event.deferred.cancel(CancellationException("synthetic T156 cancellation"))
+                    assertFailsWith<CancellationException> {
+                        realHandler.handle(CtapHidMessage(channelId, 0x10, payload))
+                    }
                 } else {
-                    event.deferred.complete(Outcome.Error(DomainError.OperationDenied("synthetic T156 failure")))
+                    realHandler.handle(CtapHidMessage(channelId, 0x10, payload))
                 }
-                Unit
-            }
 
-            if (mode.endsWith("cancellation")) {
-                assertFailsWith<CancellationException> {
-                    realHandler.handle(CtapHidMessage(channelId, 0x10, byteArrayOf(0x01) + encoded))
+                assertTrue(decodedByteStrings.isNotEmpty())
+                decodedByteStrings.forEach { bytes -> assertContentEquals(ByteArray(bytes.size), bytes) }
+                decodedTextOwners.forEach { owner ->
+                    val copy = owner.copyCharacters()
+                    try {
+                        assertTrue(copy.all { it == '\u0000' })
+                    } finally {
+                        copy.fill('\u0000')
+                    }
                 }
-            } else {
-                realHandler.handle(CtapHidMessage(channelId, 0x10, byteArrayOf(0x01) + encoded))
+            } finally {
+                hmacSecret.values.forEach { it.fill(0) }
+                challenge.fill(0)
+                userId.fill(0)
+                encoded?.fill(0)
+                packetPayload?.fill(0)
+                decodedByteStrings.forEach { it.fill(0) }
+                decodedByteStrings.clear()
+                decodedTextOwners.forEach(SensitiveCredentialText::erase)
+                decodedTextOwners.clear()
             }
-
-            assertTrue(decodedByteStrings.isNotEmpty())
-            decodedByteStrings.forEach { bytes -> assertContentEquals(ByteArray(bytes.size), bytes) }
-            assertTrue(decodedTextOwners.all { owner -> owner.copyCharacters().all { it == '\u0000' } })
         }
 }

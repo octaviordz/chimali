@@ -15,7 +15,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
-import com.chimali.core.common.result.exceptionOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.fido2.data.transport.Fido2Transport
 import com.chimali.fido2.data.transport.ProcessTransportSelection
@@ -40,6 +39,83 @@ private const val CHANNEL_ID = "fido2_transport_channel"
 private const val NOTIFICATION_ID = 1001
 private const val AUTH_REQUEST_CHANNEL_ID = "fido2_auth_requests"
 private const val AUTH_REQUEST_NOTIF_ID = 1002
+internal const val AUTH_REQUEST_PUBLIC_TITLE = "Chimali Authenticator"
+internal const val AUTH_REQUEST_PUBLIC_TEXT = "A passkey request is waiting. Unlock Chimali to review it."
+
+/** Removes an authentication notification whose in-memory request owner died with the process. */
+internal fun clearStaleAuthenticationRequestNotification(context: Context) {
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager.cancel(AUTH_REQUEST_NOTIF_ID)
+}
+
+/** Tracks which request currently owns the replaceable authentication notification. */
+internal class AuthenticationNotificationRequestTracker {
+    private val lock = Any()
+    private var activeRequest: Job? = null
+    private var closed = false
+
+    /** Serializes posting with completion/shutdown cancellation so an old cancel cannot win. */
+    fun trackAndPublish(
+        request: Job,
+        publish: () -> Unit,
+    ): Boolean =
+        synchronized(lock) {
+            if (closed || !request.isActive) {
+                false
+            } else {
+                activeRequest = request
+                publish()
+                true
+            }
+        }
+
+    /** Removes the notification only if [request] still owns it, atomically with replacements. */
+    fun completeAndRemove(
+        request: Job,
+        remove: () -> Unit,
+    ): Boolean =
+        synchronized(lock) {
+            if (activeRequest !== request) {
+                false
+            } else {
+                activeRequest = null
+                remove()
+                true
+            }
+        }
+
+    /** Prevents future posts and removes any existing notification during service shutdown. */
+    fun shutdown(remove: () -> Unit) {
+        synchronized(lock) {
+            closed = true
+            activeRequest = null
+            remove()
+        }
+    }
+}
+
+@Req("FR-008", "FR-009")
+internal enum class TransportLifecycleFailure {
+    CONNECT,
+    DISCONNECT,
+    RETRY_CLEANUP,
+    RETRY_CONNECT,
+}
+
+@Req("FR-008", "FR-009")
+internal fun logTransportLifecycleFailure(
+    failure: Result<Unit>,
+    operation: TransportLifecycleFailure,
+) {
+    if (failure.isSuccess) return
+    when (operation) {
+        TransportLifecycleFailure.CONNECT -> Logger.e { "Transport connect failed" }
+        TransportLifecycleFailure.DISCONNECT -> Logger.w { "Transport disconnect failed" }
+        TransportLifecycleFailure.RETRY_CLEANUP ->
+            Logger.w { "Transport cleanup before retry failed" }
+        TransportLifecycleFailure.RETRY_CONNECT -> Logger.e { "Transport retry failed" }
+    }
+}
 
 /**
  * Foreground Service that keeps the Bluetooth HID transport alive while
@@ -96,6 +172,7 @@ class Fido2TransportService : Service() {
     private var startJob: Job? = null
     private var eventCollectorJob: Job? = null
     private var startRequested = false
+    private val authNotificationRequests = AuthenticationNotificationRequestTracker()
 
     /** Returns no binder; this service is controlled through explicit start and stop intents. */
     @Req("FR-HID-010", "FR-HID-030")
@@ -140,6 +217,8 @@ class Fido2TransportService : Service() {
         startRequested = false
         startJob?.cancel()
         eventCollectorJob?.cancel()
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        authNotificationRequests.shutdown { notificationManager.cancel(AUTH_REQUEST_NOTIF_ID) }
         scope.cancel()
         super.onDestroy()
     }
@@ -161,7 +240,7 @@ class Fido2TransportService : Service() {
                     if (!startRequested) return@withLock
                     val result = transport.connect()
                     if (result.isFailure) {
-                        Logger.e(result.exceptionOrNull()) { "Transport connect failed" }
+                        logTransportLifecycleFailure(result, TransportLifecycleFailure.CONNECT)
                         startRequested = false
                         eventCollectorJob?.cancel()
                         eventCollectorJob = null
@@ -185,7 +264,7 @@ class Fido2TransportService : Service() {
                     eventCollectorJob?.cancel()
                     eventCollectorJob = null
                     val result = transport.disconnect()
-                    if (result.isFailure) Logger.w(result.exceptionOrNull()) { "Transport disconnect failed" }
+                    if (result.isFailure) logTransportLifecycleFailure(result, TransportLifecycleFailure.DISCONNECT)
                 }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -203,14 +282,14 @@ class Fido2TransportService : Service() {
                 withContext(Dispatchers.Main.immediate) { promoteToForeground() }
                 val disconnectResult = transport.disconnect()
                 if (disconnectResult.isFailure) {
-                    Logger.w(disconnectResult.exceptionOrNull()) { "Transport cleanup before retry failed" }
+                    logTransportLifecycleFailure(disconnectResult, TransportLifecycleFailure.RETRY_CLEANUP)
                 }
                 (transport as? ProcessTransportSelection)?.retryActivation()
                 startRequested = true
                 ensureEventCollector()
                 val result = transport.connect()
                 if (result.isFailure) {
-                    Logger.e(result.exceptionOrNull()) { "Transport retry failed" }
+                    logTransportLifecycleFailure(result, TransportLifecycleFailure.RETRY_CONNECT)
                     startRequested = false
                     eventCollectorJob?.cancel()
                     eventCollectorJob = null
@@ -322,12 +401,11 @@ class Fido2TransportService : Service() {
     }
 
     private fun showAuthRequestNotification(event: Fido2UiEvent) {
-        val (title, text) =
+        val (title, text) = authRequestNotificationContent(event)
+        val requestJob =
             when (event) {
-                is Fido2UiEvent.RegistrationRequested ->
-                    "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
-                is Fido2UiEvent.AuthenticationRequested ->
-                    "Sign In" to "Windows is requesting a passkey for ${event.options.rpId.value}. Tap to authenticate."
+                is Fido2UiEvent.RegistrationRequested -> event.deferred
+                is Fido2UiEvent.AuthenticationRequested -> event.deferred
             }
 
         val launchIntent =
@@ -343,22 +421,60 @@ class Fido2TransportService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
 
-        val notification =
-            NotificationCompat
-                .Builder(this, AUTH_REQUEST_CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(android.R.drawable.ic_lock_lock)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setAutoCancel(true)
-                .setFullScreenIntent(pendingIntent, true)
-                .build()
+        val notification = buildAuthenticationRequestNotification(this, title, text, pendingIntent)
 
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(AUTH_REQUEST_NOTIF_ID, notification)
+        val posted =
+            authNotificationRequests.trackAndPublish(requestJob) {
+                nm.notify(AUTH_REQUEST_NOTIF_ID, notification)
+            }
+        if (posted) {
+            requestJob.invokeOnCompletion {
+                authNotificationRequests.completeAndRemove(requestJob) {
+                    nm.cancel(AUTH_REQUEST_NOTIF_ID)
+                }
+            }
+        }
     }
 }
+
+internal fun buildAuthenticationRequestNotification(
+    context: Context,
+    title: String,
+    text: String,
+    pendingIntent: PendingIntent?,
+): Notification {
+    val publicVersion =
+        NotificationCompat
+            .Builder(context, AUTH_REQUEST_CHANNEL_ID)
+            .setContentTitle(AUTH_REQUEST_PUBLIC_TITLE)
+            .setContentText(AUTH_REQUEST_PUBLIC_TEXT)
+            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .build()
+
+    return NotificationCompat
+        .Builder(context, AUTH_REQUEST_CHANNEL_ID)
+        .setContentTitle(title)
+        .setContentText(text)
+        .setSmallIcon(android.R.drawable.ic_lock_lock)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+        .setPublicVersion(publicVersion)
+        .setAutoCancel(true)
+        .setFullScreenIntent(pendingIntent, true)
+        .build()
+}
+
+internal fun authRequestNotificationContent(event: Fido2UiEvent): Pair<String, String> =
+    when (event) {
+        is Fido2UiEvent.RegistrationRequested ->
+            "Register Passkey" to "Windows is requesting to register a passkey. Tap to authenticate."
+        is Fido2UiEvent.AuthenticationRequested ->
+            "Sign In" to
+                "Windows is requesting a passkey for ${event.options.rpIdForTextBoundary()}. Tap to authenticate."
+    }
 
 internal fun hasConnectedDeviceForegroundServicePrerequisites(
     sdkInt: Int,

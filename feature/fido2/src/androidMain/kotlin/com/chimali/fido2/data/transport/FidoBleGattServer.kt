@@ -512,7 +512,7 @@ class FidoBleGattServer(
                 null,
             )
         }
-        Logger.w { "FidoBleGattServer: rejected unauthenticated GATT request (bondState=$bondState)" }
+        Logger.w { "FidoBleGattServer: rejected unauthenticated GATT request" }
         if (bondState == BluetoothDevice.BOND_BONDING) {
             // Pairing is still in progress. Keep the GATT session so the host can retry after bonding completes.
             return

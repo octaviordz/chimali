@@ -87,6 +87,10 @@ class Fido2CryptoServiceTest {
 
     @AfterTest
     fun tearDown() {
+        issuedRootCopies.forEach { it.fill(0) }
+        issuedParentPairs.forEach(HdkKeyPair::erasePrivateKey)
+        issuedRootCopies.clear()
+        issuedParentPairs.clear()
         root.fill(0)
         parentPrivate.fill(0)
         parentPublic.fill(0)

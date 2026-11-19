@@ -23,7 +23,7 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_GEN_ERROR")
 
-    /** Alias used by CredentialStorageService / RegisterCredentialUseCase. */
+    /** Legacy key-generation alias retained for compatibility; also used by RegisterCredentialUseCase. */
     class KeyGenerationFailed(
         message: String,
         cause: Throwable? = null,
@@ -34,7 +34,7 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "SIGNATURE_ERROR")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class SignatureFailed(
         message: String,
         cause: Throwable? = null,
@@ -46,7 +46,7 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "SIGNING_FAILED")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class SignatureVerificationFailed(
         message: String,
         cause: Throwable? = null,
@@ -57,17 +57,19 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "UNSUPPORTED_ALGORITHM")
 
-    /** Alias used by CredentialStorageService / RegisterCredentialUseCase. */
+    /** Legacy key-generation alias retained for compatibility; also used by RegisterCredentialUseCase. */
+    @Suppress("UNUSED_PARAMETER")
     class UnsupportedAlgorithm(
         algorithm: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Unsupported algorithm: $algorithm", cause, "UNSUPPORTED_ALGORITHM")
+    ) : Fido2Exception("Unsupported algorithm", cause, "UNSUPPORTED_ALGORITHM")
 
     /** Used by RegisterCredentialUseCase. */
+    @Suppress("UNUSED_PARAMETER")
     class UnsupportedCurve(
         curve: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Unsupported elliptic curve: $curve", cause, "UNSUPPORTED_CURVE")
+    ) : Fido2Exception("Unsupported elliptic curve", cause, "UNSUPPORTED_CURVE")
 
     // ── Key Storage ───────────────────────────────────────────────────────────
 
@@ -76,49 +78,50 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEYSTORE_ERROR")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyStorageFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_STORAGE_FAILED")
 
-    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
+    @Suppress("UNUSED_PARAMETER")
     class KeyNotFound(
         alias: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Key not found: $alias", cause, "KEY_NOT_FOUND")
+    ) : Fido2Exception("Key not found", cause, "KEY_NOT_FOUND")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyDeletionFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_DELETION_FAILED")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyRotationFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_ROTATION_FAILED")
 
-    /** Alias used by CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyDerivationFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_DERIVATION_FAILED")
 
-    /** Alias used by CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyCleanupFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_CLEANUP_FAILED")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyExportFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "KEY_EXPORT_FAILED")
 
-    /** Alias used by CredentialStorageService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class KeyImportFailed(
         message: String,
         cause: Throwable? = null,
@@ -126,30 +129,31 @@ sealed class Fido2Exception(
 
     // ── Encryption / Decryption ───────────────────────────────────────────────
 
-    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class EncryptionFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "ENCRYPTION_FAILED")
 
-    /** Alias used by CredentialStorageService / CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class DecryptionFailed(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "DECRYPTION_FAILED")
 
-    /** Alias used by CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
     class InvalidEncryptedData(
         message: String,
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "INVALID_ENCRYPTED_DATA")
 
-    /** Alias used by CredentialEncryptionService. */
+    /** Legacy crypto-service alias retained for compatibility. */
+    @Suppress("UNUSED_PARAMETER")
     class RpIdMismatch(
         expected: String,
         actual: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("RP-ID mismatch: expected=$expected actual=$actual", cause, "RP_ID_MISMATCH")
+    ) : Fido2Exception("RP-ID mismatch", cause, "RP_ID_MISMATCH")
 
     // ── Database / Storage ────────────────────────────────────────────────────
 
@@ -170,15 +174,17 @@ sealed class Fido2Exception(
         cause: Throwable? = null,
     ) : Fido2Exception(message, cause, "CREDENTIAL_ERROR")
 
+    @Suppress("UNUSED_PARAMETER")
     class CredentialNotFoundException(
         credentialId: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Credential not found: $credentialId", cause, "CREDENTIAL_NOT_FOUND")
+    ) : Fido2Exception("Credential not found", cause, "CREDENTIAL_NOT_FOUND")
 
+    @Suppress("UNUSED_PARAMETER")
     class DuplicateCredentialException(
         rpId: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Duplicate credential for RP: $rpId", cause, "DUPLICATE_CREDENTIAL")
+    ) : Fido2Exception("Duplicate credential for RP", cause, "DUPLICATE_CREDENTIAL")
 
     /** Alias used by CredentialRepositoryImpl / RegisterCredentialUseCase. */
     class CredentialStorageFailed(
@@ -187,10 +193,11 @@ sealed class Fido2Exception(
     ) : Fido2Exception(message, cause, "CREDENTIAL_STORAGE_FAILED")
 
     /** Alias used by CredentialRepositoryImpl. */
+    @Suppress("UNUSED_PARAMETER")
     class CredentialNotFound(
         credentialId: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Credential not found: $credentialId", cause, "CREDENTIAL_NOT_FOUND")
+    ) : Fido2Exception("Credential not found", cause, "CREDENTIAL_NOT_FOUND")
 
     /** Alias used by CredentialRepositoryImpl. */
     class CredentialUpdateFailed(
@@ -236,10 +243,11 @@ sealed class Fido2Exception(
     ) : Fido2Exception(message, cause, "RP_ERROR")
 
     /** Alias used by CredentialRepositoryImpl. */
+    @Suppress("UNUSED_PARAMETER")
     class RelyingPartyBlocked(
         rpId: String,
         cause: Throwable? = null,
-    ) : Fido2Exception("Relying party is blocked: $rpId", cause, "RP_BLOCKED")
+    ) : Fido2Exception("Relying party is blocked", cause, "RP_BLOCKED")
 
     /** Alias used by CredentialRepositoryImpl. */
     class RelyingPartyUpdateFailed(

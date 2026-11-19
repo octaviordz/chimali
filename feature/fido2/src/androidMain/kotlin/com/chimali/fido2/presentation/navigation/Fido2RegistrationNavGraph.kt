@@ -30,7 +30,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun Fido2RegistrationNavGraph(
     onRegistrationComplete: (credentialId: String) -> Unit,
     onRegistrationCancelled: () -> Unit,
-    onAuthenticationComplete: (credentialId: String) -> Unit = {},
+    onAuthenticationComplete: () -> Unit = {},
     onAuthenticationCancelled: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onExternalCeremonyRequest: () -> Unit = {},
@@ -61,7 +61,8 @@ fun Fido2RegistrationNavGraph(
                             navController.navigate(Fido2Destinations.AUTHENTICATION_ROUTE)
                         },
                         onEditDevice = { macAddress ->
-                            navController.navigate("${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/$macAddress")
+                            pairedViewModel.beginEditingDevice(macAddress)
+                            navController.navigate(Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE)
                         },
                         onOpenSettings = onOpenSettings,
                         pairedDevicesViewModel = pairedViewModel,
@@ -88,9 +89,9 @@ fun Fido2RegistrationNavGraph(
 
                 composable(Fido2Destinations.AUTHENTICATION_ROUTE) {
                     AuthenticationPromptScreen(
-                        onSuccess = { credentialId ->
+                        onSuccess = {
                             navController.popBackStack()
-                            onAuthenticationComplete(credentialId)
+                            onAuthenticationComplete()
                         },
                         onCancel = {
                             navController.popBackStack()
@@ -108,11 +109,7 @@ fun Fido2RegistrationNavGraph(
                     )
                 }
 
-                composable(
-                    route = "${Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE}/{macAddress}",
-                ) { backStackEntry ->
-                    val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-
+                composable(route = Fido2Destinations.EDIT_PAIRED_DEVICE_ROUTE) { backStackEntry ->
                     // Scope the ViewModel to the HOME_ROUTE so it's shared with PairedDevicesSection
                     // This ensures that onDeleteTriggered calls pendingRemove on the same instance
                     // that the list is observing, so the snackbar shows up when we pop back.
@@ -124,7 +121,6 @@ fun Fido2RegistrationNavGraph(
                         koinViewModel(viewModelStoreOwner = parentBackStackEntry)
 
                     com.chimali.fido2.presentation.ui.EditPairedDeviceScreen(
-                        macAddress = macAddress,
                         onNavigateUp = { navController.popBackStack() },
                         viewModel = viewModel,
                     )

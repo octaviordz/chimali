@@ -78,7 +78,7 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
  */
 @Composable
 fun AuthenticationPromptScreen(
-    onSuccess: (credentialId: String) -> Unit,
+    onSuccess: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSettings: () -> Unit = {},
@@ -104,7 +104,7 @@ fun AuthenticationPromptScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is AuthenticationEffect.NavigateBack -> updatedOnCancel()
-                is AuthenticationEffect.NavigateToSuccess -> updatedOnSuccess(effect.assertion.credentialId)
+                AuthenticationEffect.NavigateToSuccess -> updatedOnSuccess()
                 is AuthenticationEffect.CancelSystemPrompt -> {
                     if (activePrompt?.first == effect.promptId) {
                         activePrompt?.second?.cancelAuthentication()

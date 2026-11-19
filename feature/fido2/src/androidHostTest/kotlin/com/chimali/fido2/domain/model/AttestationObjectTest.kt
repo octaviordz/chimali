@@ -1,5 +1,6 @@
 package com.chimali.fido2.domain.model
 
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,10 +17,29 @@ import kotlin.test.assertTrue
  * - createAttCa() produces an "attCA" format object (T037)
  */
 class AttestationObjectTest {
-    private val validRpIdHash = ByteArray(32) { 0x01 }
-    private val validAaguid = ByteArray(16) { 0x02 }
-    private val validCredentialId = ByteArray(32) { 0x03 }
-    private val validPublicKey = ByteArray(77) { 0x04 } // Typical COSE ES256 key size
+    private val ownedBuffers = mutableListOf<ByteArray>()
+    private val ownedClientData = mutableListOf<ClientData>()
+    private val ownedAttestations = mutableListOf<AttestationObject>()
+
+    private fun ownedBytes(
+        size: Int,
+        value: Byte = 0,
+    ): ByteArray = ByteArray(size) { value }.also(ownedBuffers::add)
+
+    private val validRpIdHash = ownedBytes(32, 0x01)
+    private val validAaguid = ownedBytes(16, 0x02)
+    private val validCredentialId = ownedBytes(32, 0x03)
+    private val validPublicKey = ownedBytes(77, 0x04) // Typical COSE ES256 key size
+
+    @AfterTest
+    fun eraseSyntheticAttestationFixtures() {
+        ownedAttestations.forEach(AttestationObject::eraseSensitiveData)
+        ownedClientData.forEach(ClientData::eraseSensitiveData)
+        ownedBuffers.forEach { it.fill(0) }
+        ownedAttestations.clear()
+        ownedClientData.clear()
+        ownedBuffers.clear()
+    }
 
     private fun makeAuthData(
         aaguid: ByteArray = validAaguid,
@@ -27,16 +47,21 @@ class AttestationObjectTest {
         publicKey: ByteArray = validPublicKey,
     ) = AuthenticatorData.create(
         rpIdHash = validRpIdHash,
+        flags = ownedBytes(1),
         aaguid = aaguid,
         credentialId = credentialId,
         publicKey = publicKey,
     )
 
-    private fun makeClientData() =
-        ClientData.create(
-            challenge = ByteArray(32),
-            origin = "example.com",
-        )
+    private fun makeClientData(): ClientData {
+        val clientData =
+            ClientData.create(
+                challenge = ownedBytes(32),
+                origin = "example.com",
+            )
+        ownedClientData.add(clientData)
+        return clientData
+    }
 
     // ── AuthData contents ─────────────────────────────────────────────────────
 
@@ -73,12 +98,12 @@ class AttestationObjectTest {
         assertTrue(original == equal)
         assertTrue(original.hashCode() == equal.hashCode())
         assertFalse(original.equals("not authenticator data"))
-        assertFalse(original == makeAuthData().copy(rpIdHash = ByteArray(32) { 0x05 }))
-        assertFalse(original == makeAuthData().copy(flags = byteArrayOf(0x04)))
+        assertFalse(original == makeAuthData().copy(rpIdHash = ownedBytes(32, 0x05)))
+        assertFalse(original == makeAuthData().copy(flags = ownedBytes(1, 0x04)))
         assertFalse(original == makeAuthData().copy(counter = 1L))
-        assertFalse(original == makeAuthData().copy(aaguid = ByteArray(16) { 0x06 }))
-        assertFalse(original == makeAuthData().copy(credentialId = ByteArray(32) { 0x07 }))
-        assertFalse(original == makeAuthData().copy(publicKey = ByteArray(77) { 0x08 }))
+        assertFalse(original == makeAuthData().copy(aaguid = ownedBytes(16, 0x06)))
+        assertFalse(original == makeAuthData().copy(credentialId = ownedBytes(32, 0x07)))
+        assertFalse(original == makeAuthData().copy(publicKey = ownedBytes(77, 0x08)))
     }
 
     // ── AttestationObject construction ────────────────────────────────────────
@@ -93,6 +118,7 @@ class AttestationObjectTest {
                 attStmt = AttestationStatement.create(alg = AttestationStatement.COSE_ALG_ES256, fmt = "packed"),
                 clientData = makeClientData(),
             )
+        ownedAttestations.add(obj)
         assertNotNull(obj)
         assertEquals("packed", obj.fmt)
         assertTrue(obj.isPacked())
@@ -106,6 +132,7 @@ class AttestationObjectTest {
                 authData = makeAuthData(),
                 clientData = makeClientData(),
             )
+        ownedAttestations.add(obj)
         assertNotNull(obj)
         assertEquals("none", obj.fmt)
         assertTrue(obj.isSelfAttested())
@@ -120,6 +147,7 @@ class AttestationObjectTest {
                 attStmt = AttestationStatement.create(alg = AttestationStatement.COSE_ALG_ES256, fmt = "attCA"),
                 clientData = makeClientData(),
             )
+        ownedAttestations.add(obj)
         assertNotNull(obj)
         assertEquals("attCA", obj.fmt)
     }

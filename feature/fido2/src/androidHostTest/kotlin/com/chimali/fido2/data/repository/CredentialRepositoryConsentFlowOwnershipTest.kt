@@ -20,8 +20,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
 @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -40,7 +43,7 @@ class CredentialRepositoryConsentFlowOwnershipTest {
                 assertOwned(consent)
             }
 
-            assertTrue(row.rp_id.all { it == 0.toByte() })
+            assertRowErased(row)
             val received = requireNotNull(retained)
             assertOwned(received)
             received.eraseSensitiveText()
@@ -64,7 +67,7 @@ class CredentialRepositoryConsentFlowOwnershipTest {
             }
 
             assertErased(requireNotNull(retained))
-            assertContentEquals(ByteArray(row.rp_id.size), row.rp_id)
+            assertRowErased(row)
         }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -85,7 +88,41 @@ class CredentialRepositoryConsentFlowOwnershipTest {
             }
 
             assertErased(requireNotNull(retained))
-            assertContentEquals(ByteArray(row.rp_id.size), row.rp_id)
+            assertRowErased(row)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    @Test
+    fun `t157 active joined borrower keeps emitted consent readable until it finishes`() =
+        runTest {
+            val row = consentRow()
+            val repository = repository(row)
+            var retained: UserConsentRecord? = null
+
+            repository.getRecentUserConsent(null, 1).collect { consent ->
+                retained = consent
+                coroutineScope {
+                    val borrowerAdmitted = CompletableDeferred<Unit>()
+                    val releaseBorrower = CompletableDeferred<Unit>()
+                    val borrower =
+                        launch {
+                            borrowerAdmitted.complete(Unit)
+                            releaseBorrower.await()
+                            assertOwned(consent)
+                        }
+
+                    borrowerAdmitted.await()
+                    assertOwned(consent)
+                    releaseBorrower.complete(Unit)
+                    borrower.join()
+                }
+                assertOwned(consent)
+            }
+
+            assertRowErased(row)
+            assertOwned(requireNotNull(retained))
+            requireNotNull(retained).eraseSensitiveText()
         }
 
     private fun repository(row: User_consent_record): CredentialRepositoryImpl {
@@ -115,9 +152,14 @@ class CredentialRepositoryConsentFlowOwnershipTest {
             operation_type = "AUTHENTICATION",
             pin_used = 0,
             rp_id = "https://synthetic.example".encodeToByteArray(),
-            rp_id_index = null,
+            rp_id_index = byteArrayOf(11, 12, 13, 14),
             user_agent = null,
         )
+
+    private fun assertRowErased(row: User_consent_record) {
+        assertContentEquals(ByteArray(row.rp_id.size), row.rp_id)
+        row.rp_id_index?.let { index -> assertContentEquals(ByteArray(index.size), index) }
+    }
 
     private fun assertOwned(consent: UserConsentRecord) {
         val chars = consent.rpIdText.copyCharacters()

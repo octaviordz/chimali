@@ -1,3 +1,6 @@
+// Raw storage/codec exceptions are deliberately discarded after cancellation is rethrown.
+@file:Suppress("SwallowedException", "TooGenericExceptionCaught")
+
 package com.chimali.core.data.eventsourcing
 
 import com.chimali.core.database.VaultDatabase
@@ -7,8 +10,8 @@ import com.chimali.core.domain.eventsourcing.vault.VaultState
 import com.chimali.core.domain.repository.SnapshotRepository
 import com.chimali.core.security.api.EncryptionManager
 import com.chimali.core.security.api.EventStoreKeyProvider
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
 import org.koin.core.annotation.Single
 
 /**
@@ -21,18 +24,6 @@ class SnapshotRepositoryImpl(
     private val encryptionManager: EncryptionManager,
     private val keyProvider: EventStoreKeyProvider,
 ) : SnapshotRepository {
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-        }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <T> getSerializer(kind: EventKind): KSerializer<T> =
-        when (kind) {
-            EventKind.VAULT_ENTRY -> VaultState.serializer() as KSerializer<T>
-            else -> throw IllegalArgumentException("Unsupported aggregate kind: $kind")
-        }
-
     override suspend fun <T> save(
         kind: EventKind,
         snapshot: Snapshot<T>,
@@ -45,10 +36,10 @@ class SnapshotRepositoryImpl(
             val key = keyProvider.getEventStoreKey("chimali_vault_es_v1").also { ownedKey = it }
 
             database.transaction {
-                val stateSerializer = getSerializer<T>(kind)
-                val snapshotSerializer = Snapshot.serializer(stateSerializer)
-                val payloadJson = json.encodeToString(snapshotSerializer, snapshot)
-                val plaintext = payloadJson.encodeToByteArray().also { ownedPlaintext = it }
+                @Suppress("UNCHECKED_CAST")
+                val vaultSnapshot =
+                    snapshot as? Snapshot<VaultState> ?: throw IllegalArgumentException("Unsupported Vault snapshot")
+                val plaintext = VaultMutableJsonCodec.encodeSnapshot(vaultSnapshot).also { ownedPlaintext = it }
                 val encryptedPayload = encryptionManager.encrypt(plaintext, key)
 
                 database.vaultQueries.insert_snapshot(
@@ -65,8 +56,14 @@ class SnapshotRepositoryImpl(
                 )
             }
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Result.failure(IllegalStateException("Vault snapshot storage operation failed"))
+        } catch (e: SerializationException) {
+            Result.failure(SerializationException("Vault snapshot serialization failed"))
+        } catch (e: Exception) {
+            Result.failure(IllegalStateException("Vault snapshot save failed"))
         } finally {
             ownedPlaintext?.fill(0)
             ownedKey?.fill(0)
@@ -88,14 +85,19 @@ class SnapshotRepositoryImpl(
             } else {
                 val key = keyProvider.getEventStoreKey("chimali_vault_es_v1").also { ownedKey = it }
                 val decryptedPayload = encryptionManager.decrypt(row.payload, key).also { ownedPlaintext = it }
-                val stateSerializer = getSerializer<T>(kind)
-                val snapshotSerializer = Snapshot.serializer(stateSerializer)
 
-                val result = json.decodeFromString(snapshotSerializer, decryptedPayload.decodeToString())
+                @Suppress("UNCHECKED_CAST")
+                val result = VaultMutableJsonCodec.decodeSnapshot(decryptedPayload) as Snapshot<T>
                 Result.success(result)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: android.database.SQLException) {
-            Result.failure(e)
+            Result.failure(IllegalStateException("Vault snapshot storage operation failed"))
+        } catch (e: SerializationException) {
+            Result.failure(SerializationException("Vault snapshot serialization failed"))
+        } catch (e: Exception) {
+            Result.failure(IllegalStateException("Vault snapshot load failed"))
         } finally {
             ownedPlaintext?.fill(0)
             ownedKey?.fill(0)

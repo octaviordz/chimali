@@ -6,6 +6,7 @@ import com.chimali.core.common.annotation.Req
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.util.UUID
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -21,6 +22,8 @@ import kotlinx.coroutines.test.runTest
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Req("FR-BLE-050", "FR-BLE-060", "TR-BLE-020", "TR-BLE-040")
 class FidoBleCancellationTest {
+    private val ownedBuffers = mutableListOf<ByteArray>()
+
     private lateinit var sessionOwner: BleSessionOwner
     private lateinit var fakeAdvertiser: FakeBleAdvertiserController
     private lateinit var fakeSender: FakeResponseSender
@@ -72,19 +75,48 @@ class FidoBleCancellationTest {
             onNotificationSentCallback?.invoke()
             return true
         }
+
+        fun clearNotifications() {
+            sentNotifications.forEach { it.fill(0) }
+            sentNotifications.clear()
+            onNotificationSentCallback = null
+        }
+    }
+
+    private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
+
+    @AfterTest
+    fun tearDown() {
+        if (::fakeSender.isInitialized) fakeSender.clearNotifications()
+        if (::sessionOwner.isInitialized) sessionOwner.disconnectHost(DEVICE_ADDRESS)
+        ownedBuffers.forEach { it.fill(0) }
+        ownedBuffers.clear()
     }
 
     @BeforeTest
     fun setUp() {
         testDevice = mockk(relaxed = true)
         sessionOwner = BleSessionOwner()
-        sessionOwner.connectHost("11:22:33:44:55:66")
+        sessionOwner.connectHost(DEVICE_ADDRESS)
         sessionOwner.selectRevision(0x20)
         sessionOwner.setNotificationsEnabled(true)
 
         fakeAdvertiser = FakeBleAdvertiserController()
         fakeSender = FakeResponseSender()
         rawCtapOperation = mockk()
+    }
+
+    @Test
+    fun `teardown erases tracked packet and retained notification buffers`() {
+        val packet = own(byteArrayOf(0x83.toByte(), 0x01))
+        fakeSender.notifyCharacteristicChanged(testDevice, mockk(), false, packet)
+        val notificationCopy = fakeSender.sentNotifications.single()
+
+        tearDown()
+
+        assertContentEquals(ByteArray(packet.size), packet)
+        assertContentEquals(ByteArray(notificationCopy.size), notificationCopy)
+        assertTrue(fakeSender.sentNotifications.isEmpty())
     }
 
     @Test
@@ -116,12 +148,12 @@ class FidoBleCancellationTest {
             transport.connect()
 
             // 1. Send first CMD_MSG
-            val msg1 = byteArrayOf(0x83.toByte(), 0x00, 0x02, 0x01, 0x02)
+            val msg1 = own(byteArrayOf(0x83.toByte(), 0x00, 0x02, 0x01, 0x02))
             transport.onPacketReceived(msg1)
             runCurrent()
 
             // 2. Overlapping CMD_MSG while operation is in-flight must be rejected with ERR_BUSY
-            val msg2 = byteArrayOf(0x83.toByte(), 0x00, 0x02, 0x03, 0x04)
+            val msg2 = own(byteArrayOf(0x83.toByte(), 0x00, 0x02, 0x03, 0x04))
             transport.onPacketReceived(msg2)
             runCurrent()
 
@@ -132,7 +164,7 @@ class FidoBleCancellationTest {
             assertEquals(0x06.toByte(), busyPacket[3]) // ERR_BUSY
 
             // 3. Send valid CMD_CANCEL (empty payload) - must bypass BUSY and cancel operation
-            val cancelPacket = byteArrayOf(0xBE.toByte(), 0x00, 0x00)
+            val cancelPacket = own(byteArrayOf(0xBE.toByte(), 0x00, 0x00))
             transport.onPacketReceived(cancelPacket)
             runCurrent()
 
@@ -170,7 +202,9 @@ class FidoBleCancellationTest {
                 )
             fakeSender.onNotificationSentCallback = { transport.onNotificationSent(true) }
             transport.connect()
-            transport.onPacketReceived(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CMD_GET_ASSERTION))
+            transport.onPacketReceived(
+                own(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CMD_GET_ASSERTION)),
+            )
             runCurrent()
             val notificationsBeforeRadioLoss = fakeSender.sentNotifications.size
 
@@ -201,12 +235,14 @@ class FidoBleCancellationTest {
             fakeSender.onNotificationSentCallback = { transport.onNotificationSent(true) }
             transport.connect()
 
-            transport.onPacketReceived(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CMD_GET_INFO))
+            transport.onPacketReceived(
+                own(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CMD_GET_INFO)),
+            )
             runCurrent()
 
             assertEquals(1, fakeSender.sentNotifications.size)
             assertContentEquals(
-                byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CTAP2_ERR_OTHER),
+                own(byteArrayOf(0x83.toByte(), 0x00, 0x01, RawCtapOperationImpl.CTAP2_ERR_OTHER)),
                 fakeSender.sentNotifications.single(),
             )
             transport.disconnect()
@@ -229,7 +265,7 @@ class FidoBleCancellationTest {
             transport.connect()
 
             // CMD_CANCEL with 1 byte payload (invalid length)
-            val malformedCancel = byteArrayOf(0xBE.toByte(), 0x00, 0x01, 0xFF.toByte())
+            val malformedCancel = own(byteArrayOf(0xBE.toByte(), 0x00, 0x01, 0xFF.toByte()))
             transport.onPacketReceived(malformedCancel)
             runCurrent()
 
@@ -239,7 +275,7 @@ class FidoBleCancellationTest {
             assertEquals(0x03.toByte(), errResponse[3]) // ERR_INVALID_LEN
 
             // A malformed transport header must also produce a BLE framing error.
-            transport.onPacketReceived(byteArrayOf(0x83.toByte(), 0x00))
+            transport.onPacketReceived(own(byteArrayOf(0x83.toByte(), 0x00)))
             runCurrent()
             assertEquals(2, fakeSender.sentNotifications.size)
             val framingError = fakeSender.sentNotifications[1]
@@ -263,17 +299,17 @@ class FidoBleCancellationTest {
                 )
 
             // First packet is taken in-flight
-            val largePayload1 = ByteArray(1000) { 0x01 }
+            val largePayload1 = own(ByteArray(1000) { 0x01 })
             val accepted1 = writer.enqueue(largePayload1, isKeepalive = false, sessionGeneration = 1L)
             assertTrue(accepted1)
 
             // Second packet is retained (1000 in-flight + 200 queued <= 1224 max capacity)
-            val largePayload2 = ByteArray(200) { 0x02 }
+            val largePayload2 = own(ByteArray(200) { 0x02 })
             val accepted2 = writer.enqueue(largePayload2, isKeepalive = false, sessionGeneration = 1L)
             assertTrue(accepted2)
 
             // Third packet would push outstanding bytes to 1000 + 200 + 50 > 1224 bytes
-            val largePayload3 = ByteArray(50) { 0x03 }
+            val largePayload3 = own(ByteArray(50) { 0x03 })
             val accepted3 = writer.enqueue(largePayload3, isKeepalive = false, sessionGeneration = 1L)
             assertFalse(accepted3, "Enqueueing past maximum capacity must be rejected")
         }
@@ -291,7 +327,7 @@ class FidoBleCancellationTest {
                     onSessionStalled = { _ -> stalled = true },
                 )
 
-            val packet = byteArrayOf(0x01, 0x02, 0x03)
+            val packet = own(byteArrayOf(0x01, 0x02, 0x03))
             writer.enqueue(packet, isKeepalive = false, sessionGeneration = 1L)
             runCurrent()
             assertFalse(stalled, "Must not stall immediately upon send")
@@ -306,4 +342,8 @@ class FidoBleCancellationTest {
             runCurrent()
             assertTrue(stalled, "Must trigger onSessionStalled at 5000ms timeout")
         }
+
+    private companion object {
+        const val DEVICE_ADDRESS = "11:22:33:44:55:66"
+    }
 }

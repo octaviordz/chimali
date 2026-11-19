@@ -148,7 +148,7 @@ class BleSessionOwner(
     fun connectHost(address: String): Boolean =
         synchronized(lock) {
             if (activeDeviceAddress != null && activeDeviceAddress != address) {
-                Logger.w { "BleSessionOwner: Rejected second host $address (active=$activeDeviceAddress)" }
+                Logger.w { "BleSessionOwner: Rejected second host while a session is active" }
                 return false
             }
             activeDeviceAddress = address

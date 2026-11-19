@@ -41,18 +41,31 @@ class CborCodec {
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal var onDecodedByteStringForTest: ((ByteArray) -> Unit)? = null
 
+    /** Test-only failure injection immediately before a decoded byte-string owner is admitted. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal var beforeDecodedByteStringAdmissionForTest: ((ByteArray) -> Unit)? = null
+
     /** Test-only observer for decoded text owners, including map keys erased during parsing. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal var onDecodedTextOwnerForTest: ((SensitiveCredentialText) -> Unit)? = null
+
+    /** Test-only failure injection immediately before a decoded text owner is admitted. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal var beforeDecodedTextOwnerAdmissionForTest: ((SensitiveCredentialText) -> Unit)? = null
 
     /** Test-only observer for temporary UTF-8 buffers after they are erased. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal var onTemporaryTextBytesErasedForTest: ((ByteArray) -> Unit)? = null
 
+    /** Test-only failure injection immediately before a copied map key is admitted to its cleanup list. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal var beforeEncodedMapKeyAdmissionForTest: ((ByteArray) -> Unit)? = null
+
     private val encodingEngine =
         CborEncodingEngine(
             onIntermediateBufferErased = { onIntermediateBufferErasedForTest?.invoke(it) },
             onTemporaryTextBytesErased = { onTemporaryTextBytesErasedForTest?.invoke(it) },
+            beforeEncodedMapKeyAdmission = { beforeEncodedMapKeyAdmissionForTest?.invoke(it) },
         )
 
     companion object {
@@ -116,6 +129,7 @@ class CborCodec {
                 "extensions",
                 "credProtect",
                 "hmac-secret",
+                "saltEnc",
                 "prf",
                 "allowList",
                 "allowCredentials",
@@ -145,6 +159,36 @@ class CborCodec {
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun decodeSensitiveRequest(data: ByteArray): Map<String, Any> = decodeMap(data, sensitiveTextValues = true)
 
+    private fun retainDecodedByteString(
+        bytes: ByteArray,
+        owners: MutableList<ByteArray>,
+    ): ByteArray {
+        var retained = false
+        try {
+            beforeDecodedByteStringAdmissionForTest?.invoke(bytes)
+            owners.add(bytes)
+            retained = true
+        } finally {
+            if (!retained) bytes.fill(0)
+        }
+        return bytes
+    }
+
+    private fun retainDecodedTextOwner(
+        owner: SensitiveCredentialText,
+        owners: MutableList<SensitiveCredentialText>,
+    ): SensitiveCredentialText {
+        var retained = false
+        try {
+            beforeDecodedTextOwnerAdmissionForTest?.invoke(owner)
+            owners.add(owner)
+            retained = true
+        } finally {
+            if (!retained) owner.erase()
+        }
+        return owner
+    }
+
     private fun decodeMap(
         data: ByteArray,
         sensitiveTextValues: Boolean,
@@ -152,20 +196,22 @@ class CborCodec {
         if (data.isEmpty() || data.size > MAX_CBOR_INPUT_BYTES) return emptyMap()
         val decodedByteStrings = mutableListOf<ByteArray>()
         val decodedTextOwners = mutableListOf<SensitiveCredentialText>()
+        var ownershipTransferred = false
         return try {
             val (value, nextOffset) =
                 decodeItem(data, 0, 0, decodedByteStrings, decodedTextOwners, sensitiveTextValues)
             if (nextOffset != data.size) malformedCbor("Trailing CBOR data")
             @Suppress("UNCHECKED_CAST")
-            (value as? Map<String, Any>)
-                ?: emptyMap<String, Any>().also {
-                    decodedByteStrings.eraseAll()
-                    decodedTextOwners.forEach(SensitiveCredentialText::erase)
-                }
+            val decodedMap = value as? Map<String, Any> ?: return emptyMap()
+            ownershipTransferred = true
+            decodedMap
         } catch (_: MalformedCborException) {
-            decodedByteStrings.eraseAll()
-            decodedTextOwners.forEach(SensitiveCredentialText::erase)
             emptyMap()
+        } finally {
+            if (!ownershipTransferred) {
+                decodedByteStrings.eraseAll()
+                decodedTextOwners.forEach(SensitiveCredentialText::erase)
+            }
         }
     }
 
@@ -234,8 +280,7 @@ class CborCodec {
             MAJOR_TYPE_NEGATIVE_INT -> Pair(-argument - 1L, pos) // negative integer
             MAJOR_TYPE_BYTE_STRING -> { // byte string
                 val len = checkedLength(data, pos, argument)
-                val bytes = data.copyOfRange(pos, pos + len)
-                decodedByteStrings += bytes
+                val bytes = retainDecodedByteString(data.copyOfRange(pos, pos + len), decodedByteStrings)
                 onDecodedByteStringForTest?.invoke(bytes)
                 Pair(bytes, pos + len)
             }
@@ -249,9 +294,9 @@ class CborCodec {
                         } catch (_: java.nio.charset.CharacterCodingException) {
                             malformedCbor("Malformed CBOR UTF-8 text")
                         }
-                    decodedTextOwners += owner
-                    onDecodedTextOwnerForTest?.invoke(owner)
-                    return Pair(owner, pos + len)
+                    val retainedOwner = retainDecodedTextOwner(owner, decodedTextOwners)
+                    onDecodedTextOwnerForTest?.invoke(retainedOwner)
+                    return Pair(retainedOwner, pos + len)
                 }
                 val str =
                     try {

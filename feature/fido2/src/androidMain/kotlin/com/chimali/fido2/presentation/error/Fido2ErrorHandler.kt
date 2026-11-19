@@ -26,7 +26,7 @@ object Fido2ErrorHandler {
             is DomainError.OperationDenied ->
                 ErrorUi(
                     title = "Operation denied",
-                    message = error.message,
+                    message = "The operation was denied. Please try again.",
                     isRetryable = true,
                     ctap2ErrorCode = 0x29,
                 )
@@ -34,7 +34,7 @@ object Fido2ErrorHandler {
             is DomainError.NotFound ->
                 ErrorUi(
                     title = "Not found",
-                    message = error.message,
+                    message = "The requested credential could not be found.",
                     isRetryable = false,
                     ctap2ErrorCode = 0x2E,
                 )
@@ -42,7 +42,7 @@ object Fido2ErrorHandler {
             is DomainError.DatabaseError ->
                 ErrorUi(
                     title = "Database error",
-                    message = "Could not access local storage. ${error.message}",
+                    message = "Could not access local storage. Please try again.",
                     isRetryable = true,
                     ctap2ErrorCode = 0x17,
                 )
@@ -50,7 +50,7 @@ object Fido2ErrorHandler {
             is DomainError.CryptoError ->
                 ErrorUi(
                     title = "Security error",
-                    message = "Could not perform cryptographic operation. ${error.message}",
+                    message = "Could not perform the security operation. Please try again.",
                     isRetryable = true,
                     ctap2ErrorCode = 0x17,
                 )
@@ -58,7 +58,7 @@ object Fido2ErrorHandler {
             is DomainError.NetworkError ->
                 ErrorUi(
                     title = "Connection error",
-                    message = "Communication with the host was interrupted. ${error.message}",
+                    message = "Communication with the host was interrupted. Please try again.",
                     isRetryable = true,
                     ctap2ErrorCode = 0x07,
                 )
@@ -66,7 +66,7 @@ object Fido2ErrorHandler {
             else ->
                 ErrorUi(
                     title = "Unexpected error",
-                    message = error.message,
+                    message = "An unexpected error occurred. Please try again.",
                     isRetryable = true,
                     ctap2ErrorCode = 0x7F,
                 )
@@ -81,7 +81,7 @@ object Fido2ErrorHandler {
             is Fido2Exception.UserVerificationFailed ->
                 ErrorUi(
                     title = "Verification failed",
-                    message = error.message ?: "Could not verify your identity. Please try again.",
+                    message = "Could not verify your identity. Please try again.",
                     isRetryable = true,
                     // CTAP2_ERR_OPERATION_DENIED
                     ctap2ErrorCode = 0x29,
@@ -109,7 +109,7 @@ object Fido2ErrorHandler {
             is Fido2Exception.CredentialCreationNotAllowed ->
                 ErrorUi(
                     title = "Passkey not allowed",
-                    message = error.message ?: "This site doesn't allow creating a new passkey at this time.",
+                    message = "This site doesn't allow creating a new passkey at this time.",
                     isRetryable = false,
                     // CTAP2_ERR_CREDENTIAL_EXCLUDED
                     ctap2ErrorCode = 0x22,
@@ -164,9 +164,7 @@ object Fido2ErrorHandler {
             ->
                 ErrorUi(
                     title = "Storage error",
-                    message =
-                        "Could not save your passkey. " +
-                            "${error.message ?: "Please check available storage and try again."}",
+                    message = "Could not save your passkey. Please check available storage and try again.",
                     isRetryable = true,
                     // CTAP2_ERR_PIN_POLICY_VIOLATION
                     ctap2ErrorCode = 0x27,
@@ -189,7 +187,7 @@ object Fido2ErrorHandler {
             is Fido2Exception.RegistrationFailed ->
                 ErrorUi(
                     title = "Registration failed",
-                    message = error.message ?: "Passkey registration failed. Please try again.",
+                    message = "Passkey registration failed. Please try again.",
                     isRetryable = true,
                     // CTAP2_ERR_PROCESSING
                     ctap2ErrorCode = 0x17,
@@ -199,7 +197,7 @@ object Fido2ErrorHandler {
             else ->
                 ErrorUi(
                     title = "Unexpected error",
-                    message = error.message ?: "An unexpected error occurred. Please try again.",
+                    message = "An unexpected error occurred. Please try again.",
                     isRetryable = true,
                     // CTAP1_ERR_OTHER
                     ctap2ErrorCode = 0x7F,

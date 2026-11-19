@@ -41,9 +41,10 @@ object PrivacyLogScrubber {
 
     // Compile once and scan once rather than compiling and scanning for every keyword. The
     // scrubber runs on the logging path, including CTAP/HID handling, so avoid repeated work.
+    private val sensitiveKeywordsPattern = SENSITIVE_KEYWORDS.joinToString("|") { Regex.escape(it) }
     private val SENSITIVE_KEYWORD_PATTERN =
         Regex(
-            """(?i)(${SENSITIVE_KEYWORDS.joinToString("|") { Regex.escape(it) }})\s*[:=]\s*([^\s,;&]+)""",
+            """(?is)\b($sensitiveKeywordsPattern)\b(?:[ \t]*(?:[:=][ \t]*|[ \t]+(?:is|was)[ \t]+)).*""",
         )
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -56,8 +57,9 @@ object PrivacyLogScrubber {
         // 2. Scrub Key Material (Hex / Base64)
         scrubbed = KEY_MATERIAL_PATTERN.replace(scrubbed, REDACTED)
 
-        // 3. Simple Keyword Based Value Redaction
-        // Replaces patterns like "seed=abandon..." or "password: blah"
+        // 3. A sensitive field can contain punctuation that looks like a log delimiter. Redact
+        // the complete remainder of its message so punctuation or embedded newlines cannot
+        // expose a value suffix. This also handles common prose forms such as "password is ...".
         scrubbed = scrubbed.replace(SENSITIVE_KEYWORD_PATTERN, "$1=$REDACTED")
 
         return scrubbed

@@ -122,13 +122,13 @@ class Fido2SettingsRepositoryImpl(
             }
         } catch (e: java.security.GeneralSecurityException) {
             invalidateLegacyPrefsCache(openedLegacyPrefs)
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
+            Logger.e { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
         } catch (e: java.io.IOException) {
             invalidateLegacyPrefsCache(openedLegacyPrefs)
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
+            Logger.e { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
         } catch (e: SecurityException) {
             invalidateLegacyPrefsCache(openedLegacyPrefs)
-            Logger.e(e) { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
+            Logger.e { "Failed to read legacy EncryptedSharedPreferences for FIDO2 settings — treating as missing" }
         }
 
         // If not in legacy or already migrated, check DataStore
@@ -171,8 +171,8 @@ class Fido2SettingsRepositoryImpl(
         dataStore.data
             .map { prefs ->
                 mapPrefsToTransportPreferenceResult(prefs)
-            }.catch { error ->
-                emit(TransportPreferenceResult.ReadError(error))
+            }.catch { _ ->
+                emit(TransportPreferenceResult.ReadError)
             }
 
     @Req("FR-BT-SEL-010", "TR-BT-SEL-010")
@@ -182,8 +182,8 @@ class Fido2SettingsRepositoryImpl(
             mapPrefsToTransportPreferenceResult(prefs)
         } catch (e: CancellationException) {
             throw e
-        } catch (e: IOException) {
-            TransportPreferenceResult.ReadError(e)
+        } catch (_: IOException) {
+            TransportPreferenceResult.ReadError
         }
 
     private fun mapPrefsToTransportPreferenceResult(prefs: UserPreferences): TransportPreferenceResult {
@@ -229,9 +229,9 @@ class Fido2SettingsRepositoryImpl(
                 )
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: IOException) {
-                Logger.e(e) { "Failed to update transport preference to $transportCode" }
-                TransportSaveResult.WriteError(e)
+            } catch (_: IOException) {
+                Logger.e { "Failed to update transport preference" }
+                TransportSaveResult.WriteError
             }
         }
     }

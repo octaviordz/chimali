@@ -82,13 +82,13 @@ class HmacSecretProcessor(
                     }
                     is ByteArray -> extensionData // direct salt (simplified mode)
                     else -> {
-                        Logger.w { "hmac-secret: unexpected extension data type ${extensionData::class.simpleName}" }
+                        Logger.w { "hmac-secret: unsupported extension input" }
                         return null
                     }
                 }
 
             if ((saltEnc.size != SALT_SIZE) && (saltEnc.size != (SALT_SIZE * 2))) {
-                Logger.w { "hmac-secret: invalid saltEnc length ${saltEnc.size} (expected 32 or 64)" }
+                Logger.w { "hmac-secret: invalid saltEnc length" }
                 return null
             }
 

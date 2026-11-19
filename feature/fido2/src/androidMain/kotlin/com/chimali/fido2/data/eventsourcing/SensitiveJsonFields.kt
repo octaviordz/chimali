@@ -39,29 +39,47 @@ internal object SensitiveJsonFields {
         serializeSanitized: (OutputStream) -> Unit,
     ): ByteArray {
         val sanitized = encodeToErasableJsonBytes(serializeSanitized)
-        val output =
-            ErasableJsonBuffer(
-                sanitized.size +
-                    fields.values.sumOf { it.size * MAX_ESCAPED_UTF8_BYTES_PER_CHARACTER + JSON_DELIMITER_COUNT },
-            )
+        return encodeSanitized(fields, sanitized)
+    }
+
+    /** Replaces selected sanitized fields and consumes [sanitized], including allocation failures. */
+    internal fun encodeSanitized(
+        fields: Map<String, CharArray>,
+        sanitized: ByteArray,
+    ): ByteArray {
+        var output: ErasableJsonBuffer? = null
         return try {
+            var outputCapacity = sanitized.size
+            fields.values.forEach { value ->
+                val valueCapacity =
+                    Math.addExact(
+                        Math.multiplyExact(value.size, MAX_ESCAPED_UTF8_BYTES_PER_CHARACTER),
+                        JSON_DELIMITER_COUNT,
+                    )
+                outputCapacity = Math.addExact(outputCapacity, valueCapacity)
+            }
+            val outputBuffer = ErasableJsonBuffer(outputCapacity)
+            output = outputBuffer
             var cursor = 0
             fields.forEach { (name, value) ->
                 val placeholder = "\"$name\":\"\"".encodeToByteArray()
-                val match = sanitized.indexOf(placeholder, cursor)
-                require(match >= cursor) { "Sensitive JSON field placeholder missing" }
-                val prefixLength = placeholder.size - JSON_DELIMITER_COUNT
-                output.write(sanitized, cursor, match + prefixLength - cursor)
-                writeJsonStringContents(output, value)
-                output.write(placeholder.last().toInt())
-                cursor = match + placeholder.size
-                placeholder.fill(0)
+                try {
+                    val match = sanitized.indexOf(placeholder, cursor)
+                    require(match >= cursor) { "Sensitive JSON field placeholder missing" }
+                    val prefixLength = placeholder.size - JSON_DELIMITER_COUNT
+                    outputBuffer.write(sanitized, cursor, match + prefixLength - cursor)
+                    writeJsonStringContents(outputBuffer, value)
+                    outputBuffer.write(placeholder.last().toInt())
+                    cursor = match + placeholder.size
+                } finally {
+                    placeholder.fill(0)
+                }
             }
-            output.write(sanitized, cursor, sanitized.size - cursor)
-            output.copyToOwnedBytes()
+            outputBuffer.write(sanitized, cursor, sanitized.size - cursor)
+            outputBuffer.copyToOwnedBytes()
         } finally {
             sanitized.fill(0)
-            output.erase()
+            output?.erase()
         }
     }
 
@@ -223,13 +241,13 @@ internal object SensitiveJsonFields {
 
         fun parse() {
             skipWhitespace()
-            parseValue(objectPath = emptyList(), depth = 0, propertyName = null, capture = false)
+            parseValue(objectPathIndex = 0, depth = 0, propertyName = null, capture = false)
             skipWhitespace()
             require(cursor == document.size) { "Trailing JSON data" }
         }
 
         private fun parseValue(
-            objectPath: List<String>?,
+            objectPathIndex: Int?,
             depth: Int,
             propertyName: String?,
             capture: Boolean,
@@ -237,7 +255,7 @@ internal object SensitiveJsonFields {
             skipWhitespace()
             require(!capture || current() == '"') { "Sensitive JSON field must be a string" }
             when (current()) {
-                '{' -> parseObject(objectPath, depth + 1)
+                '{' -> parseObject(objectPathIndex, depth + 1)
                 '[' -> parseArray(depth + 1)
                 '"' -> {
                     if (capture) {
@@ -258,7 +276,7 @@ internal object SensitiveJsonFields {
         }
 
         private fun parseObject(
-            objectPath: List<String>?,
+            objectPathIndex: Int?,
             depth: Int,
         ) {
             require(depth <= MAX_JSON_NESTING_DEPTH) { "JSON nesting exceeds the supported depth" }
@@ -270,14 +288,22 @@ internal object SensitiveJsonFields {
                 require(current() == '"') { "Expected object property" }
                 val name = parseString().characters
                 val sensitiveName = fieldNames.firstOrNull { name.contentEqualsText(it) }
-                val propertyName = name.concatToString()
+                val selectedPath = objectPathIndex == fieldObjectPath.size
+                val childPathIndex =
+                    objectPathIndex?.let { matchedPathLength ->
+                        if (matchedPathLength < fieldObjectPath.size &&
+                            name.contentEqualsText(fieldObjectPath[matchedPathLength])
+                        ) {
+                            matchedPathLength + 1
+                        } else {
+                            null
+                        }
+                    }
                 name.fill('\u0000')
                 skipWhitespace()
                 expect(':')
-                val selectedPath = objectPath != null && objectPath == fieldObjectPath
                 val capture = selectedPath && sensitiveName != null
-                val childPath = objectPath?.let { it + propertyName }
-                parseValue(childPath, depth, sensitiveName, capture)
+                parseValue(childPathIndex, depth, sensitiveName, capture)
                 skipWhitespace()
                 if (take('}')) return
                 expect(',')
@@ -290,7 +316,7 @@ internal object SensitiveJsonFields {
             skipWhitespace()
             if (take(']')) return
             while (true) {
-                parseValue(objectPath = null, depth = depth, propertyName = null, capture = false)
+                parseValue(objectPathIndex = null, depth = depth, propertyName = null, capture = false)
                 skipWhitespace()
                 if (take(']')) return
                 expect(',')

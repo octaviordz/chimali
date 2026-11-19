@@ -26,6 +26,7 @@ import com.chimali.fido2.domain.service.CeremonyLock
 import com.chimali.fido2.presentation.navigation.Fido2UiEvent
 import com.chimali.fido2.presentation.navigation.Fido2UiEventBus
 import com.chimali.fido2.util.performance.Fido2OperationTraceContext
+import com.chimali.fido2.util.performance.LatencyOperation
 import com.chimali.fido2.util.performance.LatencyProfiler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
@@ -62,6 +63,10 @@ class Ctap2MakeCredentialHandler(
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
     internal var onTemporaryRequestOwnerCreatedForTest: ((SensitiveCredentialText) -> Unit)? = null
+
+    /** Test-only failure injection immediately before a fallback request owner is admitted for cleanup. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    internal var beforeTemporaryRequestOwnerAdmissionForTest: ((SensitiveCredentialText) -> Unit)? = null
 
     companion object {
         // CTAPHID command codes
@@ -245,10 +250,12 @@ class Ctap2MakeCredentialHandler(
         val cid = message.channelId
 
         val rawResult = handleRaw(message.payload)
-
-        val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and COMMAND_MASK, rawResult.responseBytes)
-
-        return hidReportParser.encodeResponse(responseMsg)
+        return try {
+            val responseMsg = CtapHidMessage(cid, CTAPHID_CBOR.toInt() and COMMAND_MASK, rawResult.responseBytes)
+            hidReportParser.encodeResponse(responseMsg)
+        } finally {
+            rawResult.responseBytes.fill(0)
+        }
     }
 
     // ── Request decoding ──────────────────────────────────────────────────────
@@ -259,12 +266,26 @@ class Ctap2MakeCredentialHandler(
         val temporaryOwners = mutableListOf<SensitiveCredentialText>()
 
         fun ownTemporary(owner: SensitiveCredentialText): SensitiveCredentialText {
-            temporaryOwners += owner
+            var admitted = false
+            try {
+                beforeTemporaryRequestOwnerAdmissionForTest?.invoke(owner)
+                temporaryOwners.add(owner)
+                admitted = true
+            } finally {
+                if (!admitted) owner.erase()
+            }
 
             onTemporaryRequestOwnerCreatedForTest?.invoke(owner)
 
             return owner
         }
+
+        fun sensitiveText(value: Any?): SensitiveCredentialText? =
+            when (value) {
+                is SensitiveCredentialText -> value
+                is String -> ownTemporary(SensitiveCredentialText.copyOf(value))
+                else -> null
+            }
 
         try {
             if (map.isEmpty()) throw Fido2Exception.InvalidFormatException("MakeCredential request is not a valid map")
@@ -394,16 +415,6 @@ class Ctap2MakeCredentialHandler(
         }
     }
 
-    private fun sensitiveText(value: Any?): SensitiveCredentialText? =
-
-        when (value) {
-            is SensitiveCredentialText -> value
-
-            is String -> SensitiveCredentialText.copyOf(value)
-
-            else -> null
-        }
-
     /** Parses the supported registration booleans while distinguishing absent from malformed options. */
 
     @Req("NFR-SEC-041", "TR-AUTH-031")
@@ -527,30 +538,40 @@ class Ctap2MakeCredentialHandler(
 
         val userInteractionCompleted = CompletableDeferred<Unit>()
 
+        val uiOwnedOptions = makeCredentialOptions.copyWithIndependentSensitiveOwners()
+
+        val registrationEvent =
+            Fido2UiEvent.RegistrationRequested(uiOwnedOptions, deferred, userInteractionCompleted).also {
+                it.traceContext = currentCoroutineContext()[Fido2OperationTraceContext]
+            }
+
+        var registrationEventDispatched = false
+
         Logger.d("Dispatching RegistrationRequested event to UI")
 
-        LatencyProfiler.startUserInteraction("MakeCredential")
-
-        uiEventBus.dispatch(
-            Fido2UiEvent.RegistrationRequested(makeCredentialOptions, deferred, userInteractionCompleted).also {
-                it.traceContext = currentCoroutineContext()[Fido2OperationTraceContext]
-            },
-        )
-
-        onKeepalive?.invoke(0x02.toByte())
-
-        Logger.d("Event dispatched — awaiting user response via deferred")
+        LatencyProfiler.startUserInteraction(LatencyOperation.MAKE_CREDENTIAL)
 
         // NFR-PERF-030: close the user window at prompt confirmation, before application work resumes.
 
         val makeCredentialResult =
 
             try {
-                LatencyProfiler.untilUserInteractionCompletes("MakeCredential", userInteractionCompleted) {
-                    kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
-                        deferred.await()
+                uiEventBus.dispatch(registrationEvent)
+                registrationEventDispatched = true
+
+                onKeepalive?.invoke(0x02.toByte())
+
+                Logger.d("Event dispatched — awaiting user response via deferred")
+
+                LatencyProfiler
+                    .untilUserInteractionCompletes(
+                        LatencyOperation.MAKE_CREDENTIAL,
+                        userInteractionCompleted,
+                    ) {
+                        kotlinx.coroutines.withTimeout(makeCredentialOptions.getSafeTimeout()) {
+                            deferred.await()
+                        }
                     }
-                }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 Logger.e { "MakeCredential timed out after ${makeCredentialOptions.getSafeTimeout()}ms" }
 
@@ -562,6 +583,9 @@ class Ctap2MakeCredentialHandler(
                 deferred.cancel(cancellation)
 
                 throw cancellation
+            } finally {
+                if (deferred.isActive) deferred.cancel()
+                if (!registrationEventDispatched) uiOwnedOptions.eraseSensitiveText()
             }
 
         Logger.d {
@@ -594,21 +618,22 @@ class Ctap2MakeCredentialHandler(
 
         val result = (makeCredentialResult as Outcome.Success).data
 
+        var responseCbor: ByteArray? = null
         return try {
             val attestation = result.attestationObject
 
-            Logger.d { "Encoding MakeCredential response for credId=${attestation.authData.credentialId.size}bytes" }
+            val encodedResponse = encodeAttestationResponse(attestation)
+            responseCbor = encodedResponse
 
-            val responseCbor = encodeAttestationResponse(attestation)
-
-            val responsePayload = byteArrayOf(CTAP2_OK) + responseCbor
+            val responsePayload = byteArrayOf(CTAP2_OK) + encodedResponse
 
             Logger.d { "MakeCredential response ready payloadLen=${responsePayload.size}" }
 
             com.chimali.fido2.data.transport
                 .RawCtapResult(responsePayload, presenceRequired = true)
         } finally {
-            result.eraseSensitiveText()
+            responseCbor?.fill(0)
+            result.eraseSensitiveData()
         }
     }
 
@@ -661,7 +686,7 @@ class Ctap2MakeCredentialHandler(
                 RESP_ATT_STMT to buildAttestationStatementMap(attestation.attStmt),
             )
 
-        Logger.d { "encodeAttestationResponse: fmt=${attestation.fmt} authDataLen=${authDataBytes.size}" }
+        Logger.d { "encodeAttestationResponse: attestation encoded authDataLen=${authDataBytes.size}" }
 
         val encoded = cborCodec.encodeToFido2Format(responseMap)
 

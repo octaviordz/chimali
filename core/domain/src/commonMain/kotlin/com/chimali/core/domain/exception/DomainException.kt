@@ -14,10 +14,14 @@ sealed class DomainException : Exception() {
     data class ValidationError(
         val field: String,
         override val message: String,
-    ) : DomainException()
+    ) : DomainException() {
+        override fun toString(): String = "ValidationError"
+    }
 
     data class RepositoryError(
         override val message: String,
         override val cause: Throwable? = null,
-    ) : DomainException()
+    ) : DomainException() {
+        override fun toString(): String = "RepositoryError"
+    }
 }

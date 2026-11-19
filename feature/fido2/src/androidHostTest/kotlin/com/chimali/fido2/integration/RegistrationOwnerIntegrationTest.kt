@@ -25,6 +25,7 @@ import com.chimali.fido2.presentation.viewmodel.RegistrationEffect
 import com.chimali.fido2.presentation.viewmodel.RegistrationIntent
 import com.chimali.fido2.presentation.viewmodel.RegistrationPromptViewModel
 import com.chimali.fido2.presentation.viewmodel.RegistrationState
+import com.chimali.fido2.presentation.viewmodel.withSensitiveTextOwnerCopies
 import com.chimali.fido2.testing.CapturedDiagnostics
 import com.chimali.fido2.testing.testCredentialIdFromLabel
 import com.chimali.fido2.util.performance.Fido2OperationTraceContext
@@ -35,6 +36,7 @@ import io.mockk.mockk
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
@@ -44,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalForInheritanceCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
@@ -60,7 +63,29 @@ import org.junit.jupiter.params.provider.ValueSource
 
 @Req("NFR-SEC-041", "TR-AUTH-031")
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass") // End-to-end cases share the same registration owner lifecycle fixture.
 class RegistrationOwnerIntegrationTest {
+    @Test
+    fun `partial prompt state owner creation erases owners not transferred`() {
+        val rpId = SensitiveCredentialText.copyOf("rp.example")
+        val rpName = SensitiveCredentialText.copyOf("Example RP")
+
+        assertFailsWith<IllegalStateException> {
+            withSensitiveTextOwnerCopies(
+                ownerFactories =
+                    listOf(
+                        { rpId },
+                        { rpName },
+                        { throw IllegalStateException("synthetic owner copy failure") },
+                    ),
+                transfer = { it },
+            )
+        }
+
+        assertOwnerErased(rpId)
+        assertOwnerErased(rpName)
+    }
+
     private lateinit var registerCredentialUseCase: RegisterCredentialUseCase
     private lateinit var userVerificationService: UserVerificationService
     private lateinit var masterSeedProvider: MasterSeedProvider
@@ -577,6 +602,81 @@ class RegistrationOwnerIntegrationTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `replaced request options remain owned until cancelled registration child joins`() =
+        runTest {
+            val firstOptions = createOptions().copy(challenge = ByteArray(32) { 1 })
+            val response = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
+            val useCaseEntered = CompletableDeferred<Unit>()
+            val childUnwind = CompletableDeferred<Unit>()
+            coEvery { registerCredentialUseCase(firstOptions, true) } coAnswers {
+                useCaseEntered.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) { childUnwind.await() }
+                }
+            }
+
+            uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(firstOptions, response))
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.ConfirmRegistration)
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess(1L))
+            advanceUntilIdle()
+            useCaseEntered.await()
+
+            viewModel.handleIntent(RegistrationIntent.InitRegistration(createOptions()))
+            advanceUntilIdle()
+            assertTrue(firstOptions.challenge.any { it != 0.toByte() })
+            assertTrue(firstOptions.user.name.length > 0)
+
+            childUnwind.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(firstOptions.challenge.all { it == 0.toByte() })
+            assertIs<RegistrationState.AwaitingUserConsent>(viewModel.state.value)
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `disposed presenter options remain owned until cancelled registration child joins`() =
+        runTest {
+            val options = createOptions().copy(challenge = ByteArray(32) { 1 })
+            val response = CompletableDeferred<Outcome<MakeCredentialResult, DomainError>>()
+            val useCaseEntered = CompletableDeferred<Unit>()
+            val childUnwind = CompletableDeferred<Unit>()
+            coEvery { registerCredentialUseCase(options, true) } coAnswers {
+                useCaseEntered.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) { childUnwind.await() }
+                }
+            }
+
+            uiEventBus.dispatch(Fido2UiEvent.RegistrationRequested(options, response))
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.ConfirmRegistration)
+            advanceUntilIdle()
+            viewModel.handleIntent(RegistrationIntent.UserVerificationSuccess(1L))
+            advanceUntilIdle()
+            useCaseEntered.await()
+
+            androidx.lifecycle.ViewModelStore().apply {
+                put("registration-held-borrower", viewModel)
+                clear()
+            }
+            advanceUntilIdle()
+            assertTrue(options.challenge.any { it != 0.toByte() })
+            assertTrue(options.user.name.isNotEmpty())
+
+            childUnwind.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(options.challenge.all { it == 0.toByte() })
+            assertTrue(options.user.name.all { it == '\u0000' })
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `foreground loss cancels pending verification and completes CTAP without starting registration`() =
         runTest {
             val options = createOptions()
@@ -645,6 +745,7 @@ class RegistrationOwnerIntegrationTest {
     private fun mockCredentialResult(ownerCredential: PasskeyCredential): MakeCredentialResult =
         MakeCredentialResult(
             mockk<com.chimali.fido2.domain.model.AttestationObject> {
+                every { eraseSensitiveData() } returns Unit
                 every { clientData } returns
                     com.chimali.fido2.domain.model.ClientData.create(
                         challenge = ByteArray(32),

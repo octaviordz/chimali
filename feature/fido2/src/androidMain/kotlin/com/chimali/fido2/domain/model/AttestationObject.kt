@@ -50,6 +50,20 @@ data class AttestationObject(
      */
     fun isPacked(): Boolean = fmt == FORMAT_PACKED
 
+    /** Erases mutable response buffers owned by this attestation after its final consumer finishes. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveData() {
+        authData.rpIdHash.fill(0)
+        authData.flags.fill(0)
+        authData.aaguid.fill(0)
+        authData.credentialId.fill(0)
+        authData.publicKey.fill(0)
+        attStmt.attCert?.fill(0)
+        attStmt.authData?.fill(0)
+        attStmt.x5c?.forEach { it.fill(0) }
+        clientData.eraseSensitiveData()
+    }
+
     companion object {
         private const val FORMAT_PACKED = "packed"
         private const val FORMAT_FIDO_U2F = "fido-u2f"
@@ -437,11 +451,14 @@ data class AttestationStatement(
  */
 class ClientData private constructor(
     val type: String,
-    val challenge: ByteArray,
+    challenge: ByteArray,
     private val originOwner: SensitiveCredentialText,
     val isCrossOrigin: Boolean,
     val timestamp: Instant,
 ) {
+    /** ClientData owns an independent copy; callers retain their input challenge. */
+    val challenge: ByteArray = challenge.copyOf()
+
     /** Copies a compatibility origin into a mutable owner; production uses createFromText. */
     constructor(type: String, challenge: ByteArray, origin: String, isCrossOrigin: Boolean, timestamp: Instant) :
         this(type, challenge, SensitiveCredentialText.copyOf(origin), isCrossOrigin, timestamp)
@@ -456,6 +473,7 @@ class ClientData private constructor(
         try {
             validate()
         } catch (failure: IllegalArgumentException) {
+            challenge.fill(0)
             originOwner.erase()
             throw failure
         }
@@ -464,6 +482,13 @@ class ClientData private constructor(
     /** Erases the origin owned by this response sidecar; the challenge remains a public binding. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun eraseSensitiveText() = originOwner.erase()
+
+    /** Erases mutable response binding arrays and the separately owned origin text. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun eraseSensitiveData() {
+        challenge.fill(0)
+        originOwner.erase()
+    }
 
     /** Redacts the origin in diagnostic formatting. */
     @Req("NFR-SEC-041", "TR-AUTH-031")

@@ -56,6 +56,15 @@ class CredentialPersistenceCeremonyTest {
         testId: String,
     ): File = File(filesDirectory, RECOVERY_STORE_RELATIVE_PATH.format(testId))
 
+    private fun syntheticUserId(value: String): UserId {
+        val bytes = value.encodeToByteArray()
+        return try {
+            UserId.fromByteArray(bytes)
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
     fun persistentCeremoniesRecoverForEverySupportedSignatureAlgorithm() =
@@ -102,6 +111,8 @@ class CredentialPersistenceCeremonyTest {
                 algorithmIds.forEachIndexed { position, algorithmId ->
                     val challenge = ByteArray(REGISTRATION_CHALLENGE_SIZE) { (position + it).toByte() }
                     var attestationMessage: ByteArray? = null
+                    var attestationAuthData: ByteArray? = null
+                    var attestationSignature: ByteArray? = null
                     try {
                         val parameters =
                             when (algorithmId) {
@@ -121,7 +132,7 @@ class CredentialPersistenceCeremonyTest {
                                         rp = PublicKeyCredentialRpEntity.create(rpId, "Synthetic Algorithms"),
                                         user =
                                             PublicKeyCredentialUserEntity.create(
-                                                UserId.fromByteArray("synthetic-user-$algorithmId".encodeToByteArray()),
+                                                syntheticUserId("synthetic-user-$algorithmId"),
                                                 "synthetic-$algorithmId",
                                                 "Synthetic Algorithm User",
                                             ),
@@ -136,19 +147,22 @@ class CredentialPersistenceCeremonyTest {
                         publicKeys += credential.publicKey.encoded.copyOf()
                         val attestationStatement = result.attestationObject.attStmt
                         val signatureAlgorithm = signatureAlgorithm(algorithmId)
-                        val attestationSignature = requireNotNull(attestationStatement.attCert)
-                        attestationMessage = requireNotNull(attestationStatement.authData) + challenge
+                        attestationSignature = requireNotNull(attestationStatement.attCert)
+                        attestationAuthData = requireNotNull(attestationStatement.authData)
+                        attestationMessage = requireNotNull(attestationAuthData) + challenge
                         verifySignature(
                             signatureAlgorithm,
                             credential.publicKey,
                             requireNotNull(attestationMessage),
-                            attestationSignature,
+                            requireNotNull(attestationSignature),
                         )
                         assertEquals(algorithmId, credential.coseAlgorithm)
                         assertEquals(profileForAlgorithm(algorithmId), credential.derivationProfile)
                     } finally {
                         challenge.fill(0)
                         attestationMessage?.fill(0)
+                        attestationAuthData?.fill(0)
+                        attestationSignature?.fill(0)
                     }
                 }
 
@@ -176,6 +190,7 @@ class CredentialPersistenceCeremonyTest {
                         ByteArray(ASSERTION_CHALLENGE_SIZE) { (index + ASSERTION_CHALLENGE_START + it).toByte() }
                     var assertionMessage: ByteArray? = null
                     var assertionSignature: ByteArray? = null
+                    var assertionAuthData: ByteArray? = null
                     try {
                         val result =
                             provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
@@ -189,7 +204,8 @@ class CredentialPersistenceCeremonyTest {
                                     ),
                                 ).getOrThrow()
                             }
-                        assertionMessage = result.authData + assertionChallenge
+                        assertionAuthData = result.authData
+                        assertionMessage = requireNotNull(assertionAuthData) + assertionChallenge
                         assertionSignature = result.signature
                         verifySignature(
                             signatureAlgorithm(algorithmId),
@@ -202,6 +218,7 @@ class CredentialPersistenceCeremonyTest {
                         assertionChallenge.fill(0)
                         assertionMessage?.fill(0)
                         assertionSignature?.fill(0)
+                        assertionAuthData?.fill(0)
                     }
                 }
             } finally {
@@ -210,6 +227,7 @@ class CredentialPersistenceCeremonyTest {
                 context.deleteDatabase(databaseName)
                 recoveryFile.parentFile?.deleteRecursively()
                 publicKeys.forEach { it.fill(0) }
+                credentialIds.clear()
             }
         }
 
@@ -301,6 +319,12 @@ class CredentialPersistenceCeremonyTest {
             var registeredPublicKey: ByteArray? = null
             var attestationMessage: ByteArray? = null
             var assertionMessage: ByteArray? = null
+            var attestationAuthData: ByteArray? = null
+            var attestationSignature: ByteArray? = null
+            var assertionAuthData: ByteArray? = null
+            var assertionSignature: ByteArray? = null
+            var mismatchedPublicKey: ByteArray? = null
+            var persistedPublicKeyAfterFailure: ByteArray? = null
             try {
                 val firstStore =
                     createCredentialRepository(context, provider, databaseName, lookupTokens, encryptedMetadata)
@@ -322,7 +346,7 @@ class CredentialPersistenceCeremonyTest {
                                 rp = PublicKeyCredentialRpEntity.create(rpId, "Synthetic Device Test"),
                                 user =
                                     PublicKeyCredentialUserEntity.create(
-                                        UserId.fromByteArray("synthetic-user".encodeToByteArray()),
+                                        syntheticUserId("synthetic-user"),
                                         "user",
                                         "Synthetic User",
                                     ),
@@ -337,14 +361,15 @@ class CredentialPersistenceCeremonyTest {
                     registrationResult.credential.publicKey.encoded
                         .copyOf()
                 val attestation = registrationResult.attestationObject
-                val attestationSignature = requireNotNull(attestation.attStmt.attCert)
-                attestationMessage = requireNotNull(attestation.attStmt.authData) + registrationChallenge
+                attestationSignature = requireNotNull(attestation.attStmt.attCert)
+                attestationAuthData = requireNotNull(attestation.attStmt.authData)
+                attestationMessage = requireNotNull(attestationAuthData) + registrationChallenge
                 val attestationVerifier = Signature.getInstance("SHA256withECDSA")
                 attestationVerifier.initVerify(registrationResult.credential.publicKey)
                 attestationVerifier.update(requireNotNull(attestationMessage))
                 assertTrue(
                     "The registered key must verify its self-attestation",
-                    attestationVerifier.verify(attestationSignature),
+                    attestationVerifier.verify(requireNotNull(attestationSignature)),
                 )
 
                 driver.close()
@@ -380,13 +405,15 @@ class CredentialPersistenceCeremonyTest {
                             ),
                         ).getOrThrow()
                     }
-                assertionMessage = assertionResult.authData + assertionChallenge
+                assertionAuthData = assertionResult.authData
+                assertionMessage = requireNotNull(assertionAuthData) + assertionChallenge
+                assertionSignature = assertionResult.signature
                 val assertionVerifier = Signature.getInstance("SHA256withECDSA")
                 assertionVerifier.initVerify(recoveredCredential.publicKey)
                 assertionVerifier.update(requireNotNull(assertionMessage))
                 assertTrue(
                     "The recovered registered key must verify its assertion",
-                    assertionVerifier.verify(assertionResult.signature),
+                    assertionVerifier.verify(requireNotNull(assertionSignature)),
                 )
                 assertEquals(1L, recoveredStore.second.getSignCount(credentialId).getOrThrow())
 
@@ -402,7 +429,7 @@ class CredentialPersistenceCeremonyTest {
                         CredentialKeyDescriptor.COSE_ES256,
                         CredentialKeyDescriptor.P256_PROFILE,
                     )
-                val mismatchedPublicKey =
+                mismatchedPublicKey =
                     provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
                         val generated = crypto.generateCredentialPublicKey(otherDescriptor).getOrThrow()
                         crypto.decodePublicKey(otherDescriptor, generated.publicKey).encoded
@@ -410,7 +437,7 @@ class CredentialPersistenceCeremonyTest {
                 val encodedMismatch =
                     java.util.Base64
                         .getEncoder()
-                        .encodeToString(mismatchedPublicKey)
+                        .encodeToString(requireNotNull(mismatchedPublicKey))
                 recoveredStore.first.execute(
                     identifier = null,
                     sql = "UPDATE passkey_credential SET public_key = ? WHERE id = ?",
@@ -436,7 +463,7 @@ class CredentialPersistenceCeremonyTest {
                     mismatchAssertion is Outcome.Error,
                 )
                 assertEquals(1L, recoveredStore.second.getSignCount(credentialId).getOrThrow())
-                val persistedPublicKeyAfterFailure =
+                persistedPublicKeyAfterFailure =
                     provider.withSessionOwner(ownerKind = MasterSeedOwnerKind.AUTHENTICATOR) {
                         recoveredStore.second
                             .getCredentialSummariesForRp(rpId)
@@ -444,9 +471,7 @@ class CredentialPersistenceCeremonyTest {
                             .single()
                             .storedPublicKeyEncoding
                     }
-                assertArrayEquals(mismatchedPublicKey, persistedPublicKeyAfterFailure)
-                mismatchedPublicKey.fill(0)
-                persistedPublicKeyAfterFailure.fill(0)
+                assertArrayEquals(requireNotNull(mismatchedPublicKey), requireNotNull(persistedPublicKeyAfterFailure))
             } finally {
                 provider.clearSession()
                 driver?.close()
@@ -457,6 +482,12 @@ class CredentialPersistenceCeremonyTest {
                 registeredPublicKey?.fill(0)
                 attestationMessage?.fill(0)
                 assertionMessage?.fill(0)
+                attestationAuthData?.fill(0)
+                attestationSignature?.fill(0)
+                assertionAuthData?.fill(0)
+                assertionSignature?.fill(0)
+                mismatchedPublicKey?.fill(0)
+                persistedPublicKeyAfterFailure?.fill(0)
             }
         }
 }

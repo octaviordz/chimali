@@ -1,7 +1,7 @@
 package com.chimali.feature.vault.internal.payload
 
 /** FR-VAULT-026: owns its arrays; copies transfer independent ownership. */
-data class CreditCardPayload(
+class CreditCardPayload(
     val title: CharArray,
     val cardholderName: CharArray,
     val cardNumber: CharArray,
@@ -41,6 +41,18 @@ data class CreditCardPayload(
             notes = notes?.copyOf(),
             customFields = customFields?.map { it.copyForEditing() },
         )
+
+    /** Default arrays and nested fields are copied; explicitly supplied owners transfer to the result. */
+    fun copy(
+        title: CharArray = this.title.copyOf(),
+        cardholderName: CharArray = this.cardholderName.copyOf(),
+        cardNumber: CharArray = this.cardNumber.copyOf(),
+        expirationDate: CharArray = this.expirationDate.copyOf(),
+        cvv: CharArray = this.cvv.copyOf(),
+        notes: CharArray? = this.notes?.copyOf(),
+        customFields: List<CustomField>? = this.customFields?.map { it.copyForEditing() },
+    ): CreditCardPayload =
+        CreditCardPayload(title, cardholderName, cardNumber, expirationDate, cvv, notes, customFields)
 
     override fun toString(): String = "CreditCardPayload([redacted])"
 

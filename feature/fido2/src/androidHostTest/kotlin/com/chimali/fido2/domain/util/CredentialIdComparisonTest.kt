@@ -3,6 +3,8 @@ package com.chimali.fido2.domain.util
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.valueobject.CredentialId
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -40,5 +42,26 @@ class CredentialIdComparisonTest {
         val bytes = ByteArray(CredentialId.MAX_CREDENTIAL_ID_BYTES) { (it * 31).toByte() }
 
         assertTrue(CredentialId.fromByteArray(bytes).matchesCredentialId(CredentialId.fromByteArray(bytes.copyOf())))
+    }
+
+    @Test
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    fun `decoded credential ID bytes are erased after normal and exceptional borrowers`() {
+        val id = CredentialId.fromByteArray(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES) { it.toByte() })
+        var observed: ByteArray? = null
+
+        withCredentialIdBytes(id) { bytes ->
+            observed = bytes
+            assertTrue(bytes.any { it != 0.toByte() })
+        }
+        assertContentEquals(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES), observed)
+
+        assertFailsWith<IllegalStateException> {
+            withCredentialIdBytes(id) { bytes ->
+                observed = bytes
+                error("synthetic borrower failure")
+            }
+        }
+        assertContentEquals(ByteArray(CredentialId.MIN_CREDENTIAL_ID_BYTES), observed)
     }
 }

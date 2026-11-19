@@ -3,9 +3,11 @@ package com.chimali.core.security.impl
 import com.chimali.core.security.api.EncryptedMetadataService
 import java.security.SecureRandom
 import kotlin.test.assertFailsWith
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -29,6 +31,64 @@ class AesGcmEncryptedMetadataServiceTest {
         service.provisionKey(testKey)
     }
 
+    @AfterEach
+    fun tearDown() {
+        service.clearKey()
+        testKey.fill(0)
+    }
+
+    @Test
+    fun `encrypt erases nonce and intermediate ciphertext after assembling caller output`() {
+        val plaintext = "synthetic-encrypted-metadata".toByteArray()
+        val plaintextSnapshot = plaintext.copyOf()
+        val associatedData = "synthetic-rp-context".toByteArray()
+        val associatedDataSnapshot = associatedData.copyOf()
+        val ownedBuffers = mutableListOf<ByteArray>()
+
+        val envelope =
+            service.encryptObserved(plaintext, associatedData) { ownedBuffers.addAll(it) }
+
+        assertEquals(2, ownedBuffers.size)
+        assertTrue(ownedBuffers.all { buffer -> buffer.all { it == 0.toByte() } })
+        assertArrayEquals(plaintextSnapshot, plaintext)
+        assertArrayEquals(associatedDataSnapshot, associatedData)
+        assertTrue(envelope.any { it != 0.toByte() })
+    }
+
+    @Test
+    fun `decrypt erases nonce and ciphertext slice after successful decryption`() {
+        val plaintext = "synthetic-decrypted-metadata".toByteArray()
+        val associatedData = "synthetic-rp-context".toByteArray()
+        val envelope = service.encrypt(plaintext, associatedData)
+        val envelopeSnapshot = envelope.copyOf()
+        val ownedBuffers = mutableListOf<ByteArray>()
+
+        val decrypted =
+            service.decryptObserved(envelope, associatedData) { ownedBuffers.addAll(it) }
+
+        assertEquals(2, ownedBuffers.size)
+        assertTrue(ownedBuffers.all { buffer -> buffer.all { it == 0.toByte() } })
+        assertArrayEquals(plaintext, decrypted)
+        assertArrayEquals(envelopeSnapshot, envelope)
+        decrypted.fill(0)
+    }
+
+    @Test
+    fun `decrypt erases nonce and ciphertext slice after authentication failure`() {
+        val plaintext = "synthetic-decrypted-metadata".toByteArray()
+        val envelope = service.encrypt(plaintext, "expected-rp".toByteArray())
+        val ownedBuffers = mutableListOf<ByteArray>()
+
+        assertFailsWith<SecurityException> {
+            service.decryptObserved(envelope, "different-rp".toByteArray()) {
+                ownedBuffers.addAll(it)
+            }
+        }
+
+        assertEquals(2, ownedBuffers.size)
+        assertTrue(ownedBuffers.all { buffer -> buffer.all { it == 0.toByte() } })
+    }
+
     @Test
     fun `encrypt and decrypt with associated data succeeds`() {
         val plaintext = "test_value".toByteArray()
@@ -48,6 +108,31 @@ class AesGcmEncryptedMetadataServiceTest {
         val decrypted = service.decrypt(ciphertext, null)
 
         assertArrayEquals(plaintext, decrypted)
+    }
+
+    @Test
+    fun `encrypted metadata borrows inputs and returns independently owned arrays`() {
+        val plaintext = "synthetic-sensitive-metadata".toByteArray()
+        val plaintextSnapshot = plaintext.copyOf()
+        val associatedData = "synthetic-rp-context".toByteArray()
+        val associatedDataSnapshot = associatedData.copyOf()
+
+        val ciphertext = service.encrypt(plaintext, associatedData)
+        val ciphertextSnapshot = ciphertext.copyOf()
+        val decrypted = service.decrypt(ciphertext, associatedData)
+
+        assertFalse(plaintext === ciphertext)
+        assertFalse(ciphertext === decrypted)
+        assertArrayEquals(plaintextSnapshot, plaintext)
+        assertArrayEquals(associatedDataSnapshot, associatedData)
+        assertArrayEquals(ciphertextSnapshot, ciphertext)
+        assertArrayEquals(plaintextSnapshot, decrypted)
+
+        plaintext.fill(0)
+        associatedData.fill(0)
+        ciphertext.fill(0)
+        assertArrayEquals(plaintextSnapshot, decrypted)
+        decrypted.fill(0)
     }
 
     @Test

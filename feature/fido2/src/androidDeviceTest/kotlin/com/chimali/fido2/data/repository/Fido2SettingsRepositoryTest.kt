@@ -11,6 +11,7 @@ import com.chimali.core.common.datastore.UserPreferences
 import com.chimali.core.common.datastore.createUserPreferencesDataStore
 import java.io.File
 import java.io.IOException
+import java.security.KeyStore
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -181,31 +182,43 @@ class Fido2SettingsRepositoryTest {
             val testId = UUID.randomUUID().toString()
             val isolatedContext = IsolatedSettingsContext(testContext, testId)
             val dataStoreDirectory = File(testContext.filesDir, "fido2-settings-tests/$testId")
-            check(dataStoreDirectory.mkdirs())
             val dataStoreFile = File(dataStoreDirectory, "user-preferences.pb")
             val dataStore = createUserPreferencesDataStore { dataStoreFile.absolutePath }
-            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-            val legacyPrefs =
-                EncryptedSharedPreferences.create(
-                    LEGACY_PREFS_FILE_NAME,
-                    masterKeyAlias,
-                    isolatedContext,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-                )
+            var masterKeyAlias: String? = null
+            var legacyPrefs: SharedPreferences? = null
             try {
+                check(dataStoreDirectory.mkdirs())
+                masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+                legacyPrefs =
+                    EncryptedSharedPreferences.create(
+                        LEGACY_PREFS_FILE_NAME,
+                        requireNotNull(masterKeyAlias),
+                        isolatedContext,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                    )
                 block(
                     SettingsFixture(
                         isolatedContext,
                         dataStore,
-                        legacyPrefs,
+                        requireNotNull(legacyPrefs),
                         Fido2SettingsRepositoryImpl(isolatedContext, dataStore),
                     ),
                 )
             } finally {
-                legacyPrefs.edit().clear().commit()
-                isolatedContext.deleteIsolatedSharedPreferences(LEGACY_PREFS_FILE_NAME)
-                dataStoreDirectory.deleteRecursively()
+                try {
+                    legacyPrefs?.edit()?.clear()?.commit()
+                    isolatedContext.deleteIsolatedSharedPreferences(LEGACY_PREFS_FILE_NAME)
+                    dataStoreDirectory.deleteRecursively()
+                } finally {
+                    val alias = masterKeyAlias
+                    if (alias != null) {
+                        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                        keyStore.load(null)
+                        if (keyStore.containsAlias(alias)) keyStore.deleteEntry(alias)
+                        check(!keyStore.containsAlias(alias))
+                    }
+                }
             }
         }
 
@@ -220,6 +233,8 @@ class Fido2SettingsRepositoryTest {
         base: Context,
         private val testId: String,
     ) : ContextWrapper(base) {
+        override fun getApplicationContext(): Context = this
+
         override fun getSharedPreferences(
             name: String,
             mode: Int,

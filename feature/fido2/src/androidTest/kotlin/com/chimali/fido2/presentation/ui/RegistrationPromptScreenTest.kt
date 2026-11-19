@@ -1,6 +1,5 @@
 package com.chimali.fido2.presentation.ui
 
-import com.chimali.core.common.annotation.Req
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -13,8 +12,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.chimali.core.common.annotation.Req
+import com.chimali.fido2.domain.model.SensitiveCredentialText
 import com.chimali.fido2.domain.service.VerificationMethod
 import com.chimali.fido2.presentation.viewmodel.RegistrationState
+import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,6 +31,33 @@ import org.junit.Test
 class RegistrationPromptScreenTest {
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    private val textOwners = mutableListOf<SensitiveCredentialText>()
+
+    private fun sensitiveText(value: String) = SensitiveCredentialText.copyOf(value).also(textOwners::add)
+
+    private fun consentState(
+        rpId: String,
+        rpName: String,
+        userName: String,
+        userDisplayName: String,
+        availableMethod: VerificationMethod,
+    ) = RegistrationState.AwaitingUserConsent(
+        rpId = sensitiveText(rpId),
+        rpName = sensitiveText(rpName),
+        userName = sensitiveText(userName),
+        userDisplayName = sensitiveText(userDisplayName),
+        availableMethod = availableMethod,
+    )
+
+    @After
+    fun clearSyntheticConsentState() {
+        composeTestRule.setContent {}
+        textOwners.forEach { owner ->
+            owner.erase()
+            assertTrue(owner.all { it == '\u0000' })
+        }
+        textOwners.clear()
+    }
 
     // ── AwaitingUserConsent state ─────────────────────────────────────────────
 
@@ -41,12 +71,12 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = "example.com",
-                        rpName = "Example Corp",
-                        userName = "alice@example.com",
-                        userDisplayName = "Alice",
-                        availableMethod = VerificationMethod.BIOMETRIC,
+                    consentState(
+                        "example.com",
+                        "Example Corp",
+                        "alice@example.com",
+                        "Alice",
+                        VerificationMethod.BIOMETRIC,
                     ),
                 onConfirm = {},
                 onCancel = {},
@@ -74,13 +104,7 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = "example.com",
-                        rpName = "Example Corp",
-                        userName = "alice@example.com",
-                        userDisplayName = "Alice",
-                        availableMethod = VerificationMethod.NONE,
-                    ),
+                    consentState("example.com", "Example Corp", "alice@example.com", "Alice", VerificationMethod.NONE),
                 onConfirm = {},
                 onCancel = {},
                 onRetry = {},
@@ -104,13 +128,7 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = "example.com",
-                        rpName = "Example",
-                        userName = "user@example.com",
-                        userDisplayName = "User",
-                        availableMethod = VerificationMethod.NONE,
-                    ),
+                    consentState("example.com", "Example", "user@example.com", "User", VerificationMethod.NONE),
                 onConfirm = {},
                 onCancel = {},
                 onRetry = {},
@@ -119,7 +137,6 @@ class RegistrationPromptScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Confirm registration button").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Cancel registration button").assertIsDisplayed()
-    }
     }
 
     /**
@@ -133,13 +150,7 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = "example.com",
-                        rpName = "Example",
-                        userName = "u",
-                        userDisplayName = "U",
-                        availableMethod = VerificationMethod.NONE,
-                    ),
+                    consentState("example.com", "Example", "u", "U", VerificationMethod.NONE),
                 onConfirm = { confirmCalled = true },
                 onCancel = {},
                 onRetry = {},
@@ -161,13 +172,7 @@ class RegistrationPromptScreenTest {
         composeTestRule.setContent {
             RegistrationPromptContent(
                 state =
-                    RegistrationState.AwaitingUserConsent(
-                        rpId = "example.com",
-                        rpName = "Example",
-                        userName = "u",
-                        userDisplayName = "U",
-                        availableMethod = VerificationMethod.NONE,
-                    ),
+                    consentState("example.com", "Example", "u", "U", VerificationMethod.NONE),
                 onConfirm = {},
                 onCancel = { cancelCalled = true },
                 onRetry = {},

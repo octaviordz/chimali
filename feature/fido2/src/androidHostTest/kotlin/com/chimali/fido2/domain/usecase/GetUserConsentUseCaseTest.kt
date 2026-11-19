@@ -22,6 +22,7 @@ import com.chimali.fido2.testing.testCredentialIdFromLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,6 +31,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -121,7 +125,7 @@ class GetUserConsentUseCaseTest {
                 val consentRecord = result.getOrThrow()
                 assertNotNull(consentRecord)
                 assertEquals(ConsentOperationType.REGISTRATION, consentRecord.operationType)
-                assertEquals(testRpId, consentRecord.rpId)
+                assertTrue(consentRecord.rpIdText.contentEquals(testRpId.value))
                 assertEquals(
                     testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk").encoded,
                     consentRecord.credentialId?.encoded,
@@ -300,6 +304,33 @@ class GetUserConsentUseCaseTest {
 
                 assertEquals(1, retrievedRecords.size)
                 assertEquals(ConsentOperationType.REGISTRATION, retrievedRecords.first().operationType)
+                assertTrue(registrationConsent.rpIdText.contentEquals(testRpId.value))
+                assertTrue(authConsent.rpIdText.all { it == '\u0000' })
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase accepted consent owner when downstream collector fails`() =
+            runTest {
+                val consent =
+                    UserConsentRecord.create(
+                        id = "collector_failure_consent",
+                        operationType = ConsentOperationType.REGISTRATION,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns flowOf(consent)
+
+                val failure =
+                    runCatching {
+                        getUserConsentUseCase
+                            .getConsentRecordsByOperationType(ConsentOperationType.REGISTRATION)
+                            .collect { error("synthetic downstream collector failure") }
+                    }.exceptionOrNull()
+
+                assertTrue(failure is IllegalStateException)
+                assertTrue(consent.rpIdText.all { it == '\u0000' })
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -335,6 +366,8 @@ class GetUserConsentUseCaseTest {
 
                 assertEquals(1, retrievedRecords.size)
                 assertEquals(targetCredentialId, retrievedRecords.first().credentialId)
+                assertTrue(targetConsent.rpIdText.contentEquals(testRpId.value))
+                assertTrue(otherConsent.rpIdText.all { it == '\u0000' })
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -367,7 +400,9 @@ class GetUserConsentUseCaseTest {
                 val retrievedRecords = result.toList()
 
                 assertEquals(1, retrievedRecords.size)
-                assertEquals(targetRpId, retrievedRecords.first().rpId)
+                assertTrue(retrievedRecords.first().rpIdText.contentEquals(targetRpId.value))
+                assertTrue(targetConsent.rpIdText.contentEquals(targetRpId.value))
+                assertTrue(otherConsent.rpIdText.all { it == '\u0000' })
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -405,6 +440,8 @@ class GetUserConsentUseCaseTest {
                 assertEquals(1, retrievedRecords.size)
                 assertTrue(retrievedRecords.first().timestamp > startTime)
                 assertTrue(retrievedRecords.first().timestamp < endTime)
+                assertTrue(inRangeConsent.rpIdText.contentEquals(testRpId.value))
+                assertTrue(outOfRangeConsent.rpIdText.all { it == '\u0000' })
             }
     }
 
@@ -454,9 +491,8 @@ class GetUserConsentUseCaseTest {
                 ) // Only pure BIOMETRIC (not BIOMETRIC_AND_PIN)
                 assertEquals(EXPECTED_PIN_1, result.pinConsents) // Only pure PIN (not BIOMETRIC_AND_PIN)
                 assertEquals(EXPECTED_COMBINED_1, result.combinedConsents)
-                assertEquals(EXPECTED_RP_COUNT_2, result.consentsByRp.size) // Two different RPs
-                assertTrue(result.consentsByRp.containsKey(testRpId))
-                assertTrue(result.consentsByRp.containsKey(RpId("https://other.com")))
+                assertEquals(EXPECTED_RP_COUNT_2, result.uniqueRelyingParties)
+                assertTrue(consentRecords.all { record -> record.rpIdText.all { it == '\u0000' } })
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -479,9 +515,53 @@ class GetUserConsentUseCaseTest {
                 assertEquals(1, result.totalConsents)
                 assertEquals(1, result.registrationConsents)
                 assertEquals(0, result.authenticationConsents)
-                assertEquals(1, result.consentsByRp.size)
-                assertTrue(result.consentsByRp.containsKey(testRpId))
-                assertEquals(1, result.consentsByRp[testRpId])
+                assertEquals(1, result.uniqueRelyingParties)
+                assertTrue(targetRpConsent.rpIdText.all { it == '\u0000' })
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase already collected owners when statistics flow fails`() =
+            runTest {
+                val consent =
+                    UserConsentRecord.create(
+                        id = "stats_flow_failure",
+                        operationType = ConsentOperationType.REGISTRATION,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns
+                    flow {
+                        emit(consent)
+                        error("synthetic consent source failure")
+                    }
+
+                val failure =
+                    runCatching { getUserConsentUseCase.getConsentStatistics() }.exceptionOrNull()
+
+                assertTrue(failure is IllegalStateException)
+                assertTrue(consent.rpIdText.all { it == '\u0000' })
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase the current owner when statistics collection rejects admission`() =
+            runTest {
+                val consent =
+                    UserConsentRecord.create(
+                        id = "stats_admission_failure",
+                        operationType = ConsentOperationType.REGISTRATION,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+
+                assertThrows<IllegalStateException> {
+                    admitOwnedConsentRecord(consent) { false }
+                }
+
+                consent.assertRpIdErased()
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -549,6 +629,73 @@ class GetUserConsentUseCaseTest {
                     )
 
                 assertTrue(result)
+                assertTrue(recentConsent.rpIdText.all { it == '\u0000' })
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase each consent owner when checking recent consent`() =
+            runTest {
+                val otherOperation =
+                    UserConsentRecord.create(
+                        id = "other_operation_consent",
+                        operationType = ConsentOperationType.CREDENTIAL_UPDATE,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+                val matchingOperation =
+                    UserConsentRecord.create(
+                        id = "matching_operation_consent",
+                        operationType = ConsentOperationType.REGISTRATION,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns
+                    flowOf(otherOperation, matchingOperation)
+
+                val result =
+                    getUserConsentUseCase.isRecentConsentGranted(
+                        rpId = testRpId,
+                        operationType = ConsentOperationType.REGISTRATION,
+                        minutes = RECENT_MIN_5.toInt(),
+                    )
+
+                assertTrue(result)
+                assertTrue(otherOperation.rpIdText.all { it == '\u0000' })
+                assertTrue(matchingOperation.rpIdText.all { it == '\u0000' })
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase collected consent owners when recent check flow fails`() =
+            runTest {
+                val consent =
+                    UserConsentRecord.create(
+                        id = "recent_check_flow_failure",
+                        operationType = ConsentOperationType.REGISTRATION,
+                        rpId = testRpId,
+                        isBiometricUsed = true,
+                        isPinUsed = false,
+                    )
+                coEvery { credentialRepository.getRecentUserConsent(any(), any()) } returns
+                    flow {
+                        emit(consent)
+                        error("synthetic recent consent source failure")
+                    }
+
+                val failure =
+                    runCatching {
+                        getUserConsentUseCase.isRecentConsentGranted(
+                            rpId = testRpId,
+                            operationType = ConsentOperationType.REGISTRATION,
+                            minutes = RECENT_MIN_5.toInt(),
+                        )
+                    }.exceptionOrNull()
+
+                assertTrue(failure is IllegalStateException)
+                assertTrue(consent.rpIdText.all { it == '\u0000' })
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -616,16 +763,20 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should fail when rp id is invalid`() =
             runTest {
+                val marker = "invalid-rp-marker-SEC065-ERR-010"
                 val result =
                     getUserConsentUseCase(
-                        rpId = RpId("invalid-rp-id"),
+                        rpId = RpId(marker),
                         operationType = ConsentOperationType.REGISTRATION,
                         credentialId = testCredentialIdFromLabel("dGVzdF9jcmVkZW50aWFsX2lk"),
                         isVerificationRequired = true,
                     )
 
                 assertTrue(result.isFailure)
-                assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+                val error = result.exceptionOrNull()
+                assertTrue(error is IllegalArgumentException)
+                assertEquals("RP ID must be a valid domain or HTTPS origin", error.message)
+                assertFalse(error.message.orEmpty().contains(marker))
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -690,11 +841,13 @@ class GetUserConsentUseCaseTest {
         @Test
         fun `should fail when consent storage fails`() =
             runTest {
-                coEvery { credentialRepository.saveUserConsent(any()) } returns
+                val marker = "synthetic-consent-storage-private-marker"
+                val savedOwner = slot<UserConsentRecord>()
+                coEvery { credentialRepository.saveUserConsent(capture(savedOwner)) } returns
                     Outcome.Error(
                         DomainError.StorageError(
-                            "Consent storage failed",
-                            Fido2Exception.ConsentStorageFailed("Consent storage failed"),
+                            marker,
+                            Fido2Exception.ConsentStorageFailed(marker),
                         ),
                     )
 
@@ -707,7 +860,34 @@ class GetUserConsentUseCaseTest {
                     )
 
                 assertTrue(result.isFailure)
-                assertTrue(result.exceptionOrNull() is Fido2Exception.ConsentStorageFailed)
+                val error = result.exceptionOrNull()
+                assertTrue(error is Fido2Exception.ConsentStorageFailed)
+                assertEquals("Failed to save consent", error.message)
+                assertFalse(error.message.orEmpty().contains(marker))
+                savedOwner.captured.assertRpIdErased()
+            }
+
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `should erase consent owner when repository call is cancelled`() =
+            runTest {
+                val savedOwner = slot<UserConsentRecord>()
+                coEvery { credentialRepository.saveUserConsent(capture(savedOwner)) } throws
+                    CancellationException("synthetic repository cancellation")
+
+                var caught: CancellationException? = null
+                try {
+                    getUserConsentUseCase(
+                        rpId = testRpId,
+                        operationType = ConsentOperationType.REGISTRATION,
+                        isVerificationRequired = false,
+                    )
+                } catch (cancellation: CancellationException) {
+                    caught = cancellation
+                }
+
+                assertNotNull(caught)
+                savedOwner.captured.assertRpIdErased()
             }
     }
 
@@ -804,7 +984,7 @@ class GetUserConsentUseCaseTest {
 
                 assertTrue(result.isSuccess)
                 val consentRecord = result.getOrThrow()
-                assertEquals(httpRpId, consentRecord.rpId)
+                assertTrue(consentRecord.rpIdText.contentEquals(httpRpId.value))
             }
 
         /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -821,12 +1001,16 @@ class GetUserConsentUseCaseTest {
                 assertEquals(0, result.biometricConsents)
                 assertEquals(0, result.pinConsents)
                 assertEquals(0, result.combinedConsents)
-                assertEquals(0, result.consentsByRp.size)
+                assertEquals(0, result.uniqueRelyingParties)
                 assertEquals(0, result.recentConsents)
                 assertEquals(0.0, result.averageConsentsPerDay)
                 assertEquals(ConsentMethod.NONE, result.getMostUsedMethod())
                 assertEquals(0, result.getTotalVerificationMethods())
             }
+    }
+
+    private fun UserConsentRecord.assertRpIdErased() {
+        assertTrue((0 until rpIdText.length).all { rpIdText[it] == '\u0000' })
     }
 
     private companion object {

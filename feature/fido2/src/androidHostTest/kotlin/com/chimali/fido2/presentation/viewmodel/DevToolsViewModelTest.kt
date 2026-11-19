@@ -1,17 +1,18 @@
 package com.chimali.fido2.presentation.viewmodel
 
 import androidx.lifecycle.ViewModelStore
-import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.security.api.HdkKeyPair
 import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedProvider
+import com.chimali.fido2.testing.CapturedDiagnostics
+import io.mockk.clearMocks
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -19,12 +20,16 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 
@@ -33,17 +38,28 @@ import org.junit.jupiter.api.Nested
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DevToolsViewModelTest {
+    private val ownedMnemonicBuffers = mutableListOf<CharArray>()
+    private val ownedSeedBuffers = mutableListOf<ByteArray>()
+
+    private fun own(mnemonic: CharArray): CharArray {
+        ownedMnemonicBuffers += mnemonic
+        return mnemonic
+    }
+
+    private fun own(seed: ByteArray): ByteArray {
+        ownedSeedBuffers += seed
+        return seed
+    }
+
     private val dispatcher = UnconfinedTestDispatcher()
     private val mockProvider: MasterSeedProvider = mockk()
-    private val mockClipboard: ClipboardManagerService = mockk(relaxed = true)
 
     private companion object {
         private const val SEED_SIZE_64 = 64
         private const val MNEMONIC_WORD_COUNT = 24
     }
 
-    private val fakeWords = (1..MNEMONIC_WORD_COUNT).map { "word$it" }
-    private val fakeMnemonic = fakeWords.joinToString(" ").toCharArray()
+    private val fakeMnemonic = own((1..MNEMONIC_WORD_COUNT).joinToString(" ") { "word$it" }.toCharArray())
     private val viewModelStore = ViewModelStore()
 
     private lateinit var viewModel: DevToolsViewModel
@@ -51,16 +67,16 @@ class DevToolsViewModelTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        coEvery { mockProvider.getMasterSeed() } returns ByteArray(SEED_SIZE_64)
+        coEvery { mockProvider.getMasterSeed() } returns own(ByteArray(SEED_SIZE_64))
         coEvery { mockProvider.getDeviceKeyPair() } returns mockk<HdkKeyPair>(relaxed = true)
-        coEvery { mockProvider.getMnemonic() } answers { fakeMnemonic.copyOf() }
+        coEvery { mockProvider.getMnemonic() } answers { own(fakeMnemonic.copyOf()) }
         coEvery {
             mockProvider.withSessionOwner(any(), any(), any<suspend (Long) -> Unit>())
         } coAnswers {
             thirdArg<suspend (Long) -> Unit>().invoke(1L)
         }
         coEvery { mockProvider.importMnemonic(any()) } returns ImportMnemonicResult.Created
-        viewModel = DevToolsViewModel(mockProvider, mockClipboard)
+        viewModel = DevToolsViewModel(mockProvider)
         viewModelStore.put("dev-tools", viewModel)
     }
 
@@ -68,6 +84,22 @@ class DevToolsViewModelTest {
     fun tearDown() {
         viewModelStore.clear()
         Dispatchers.resetMain()
+        ownedMnemonicBuffers.forEach { it.fill('\u0000') }
+        ownedMnemonicBuffers.clear()
+        ownedSeedBuffers.forEach { it.fill(0) }
+        ownedSeedBuffers.clear()
+        clearMocks(mockProvider)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesOwnedMnemonicArrays() {
+        val fixture = own(charArrayOf('s', 'y', 'n', 't', 'h'))
+        val seedFixture = own(ByteArray(SEED_SIZE_64) { 0x2A })
+
+        tearDown()
+
+        assertTrue(fixture.all { it == '\u0000' })
+        assertTrue(seedFixture.all { it == 0.toByte() })
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -138,18 +170,16 @@ class DevToolsViewModelTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun `copy requires a revealed mnemonic and uses the sensitive clipboard policy`() =
+    fun `mnemonic clipboard export fails closed`() =
         runTest {
-            viewModel.onIntent(DevToolsIntent.CopyToClipboard)
-            coVerify(exactly = 0) { mockClipboard.copySensitiveData(any(), any(), any()) }
-
             viewModel.onIntent(DevToolsIntent.LoadMnemonic)
             val ownedWords = requireNotNull(viewModel.state.value.mnemonicWords)
             viewModel.onIntent(DevToolsIntent.CopyToClipboard)
 
-            coVerify(exactly = 1) {
-                mockClipboard.copySensitiveData("Chimali Master Seed", fakeMnemonic.concatToString(), 60_000L)
-            }
+            assertEquals(
+                DevToolsEffect.ShowSnackbar("Mnemonic clipboard export is disabled."),
+                viewModel.effects.first(),
+            )
             assertContentEquals(fakeMnemonic, ownedWords)
 
             viewModel.onIntent(DevToolsIntent.ClearMnemonic)
@@ -164,10 +194,9 @@ class DevToolsViewModelTest {
     @Test
     fun `reveal replacement erases the previous mutable mnemonic owner`() =
         runTest {
-            val first = fakeMnemonic.copyOf()
+            val first = own(fakeMnemonic.copyOf())
             val second =
-                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
-                    .toCharArray()
+                own(fakeMnemonic.copyOf().also { it[0] = 'v' })
             coEvery { mockProvider.getMnemonic() } returnsMany listOf(first, second)
 
             viewModel.onIntent(DevToolsIntent.LoadMnemonic)
@@ -203,7 +232,7 @@ class DevToolsViewModelTest {
                 awaitCancellation()
             }
 
-            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(fakeMnemonic.copyOf()))
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(own(fakeMnemonic.copyOf())))
             importEntered.await()
             val imported = captured.captured
 
@@ -215,10 +244,93 @@ class DevToolsViewModelTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `replacing import preserves borrowed input until provider cleanup completes`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val previous = own(fakeMnemonic.copyOf())
+            val replacement = own(fakeMnemonic.copyOf())
+            val providerEntered = CompletableDeferred<Unit>()
+            val cleanupEntered = CompletableDeferred<Unit>()
+            val releaseCleanup = CompletableDeferred<Unit>()
+            coEvery { mockProvider.importMnemonic(any()) } coAnswers {
+                val borrowed = firstArg<CharArray>()
+                if (borrowed === previous) {
+                    providerEntered.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        withContext(NonCancellable) {
+                            cleanupEntered.complete(Unit)
+                            releaseCleanup.await()
+                        }
+                    }
+                }
+                ImportMnemonicResult.Created
+            }
+
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(previous))
+            runCurrent()
+            providerEntered.await()
+
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(replacement))
+
+            assertTrue(
+                previous.any { it != '\u0000' },
+                "An admitted provider borrower keeps its input until completion",
+            )
+            runCurrent()
+            cleanupEntered.await()
+            assertTrue(previous.any { it != '\u0000' }, "Provider cleanup may still read the borrowed input")
+
+            releaseCleanup.complete(Unit)
+            runCurrent()
+
+            assertTrue(previous.all { it == '\u0000' }, "The cancelled import is erased after borrower completion")
+            assertTrue(replacement.all { it == '\u0000' }, "The replacement provider consumes and erases its input")
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `disposing import preserves borrowed input until provider cleanup completes`() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val imported = own(fakeMnemonic.copyOf())
+            val providerEntered = CompletableDeferred<Unit>()
+            val cleanupEntered = CompletableDeferred<Unit>()
+            val releaseCleanup = CompletableDeferred<Unit>()
+            coEvery { mockProvider.importMnemonic(any()) } coAnswers {
+                providerEntered.complete(Unit)
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) {
+                        cleanupEntered.complete(Unit)
+                        releaseCleanup.await()
+                    }
+                }
+            }
+
+            viewModel.onIntent(DevToolsIntent.RecoverFromSeed(imported))
+            runCurrent()
+            providerEntered.await()
+
+            viewModelStore.clear()
+            runCurrent()
+            cleanupEntered.await()
+            assertTrue(imported.any { it != '\u0000' }, "Disposal must not erase an active provider borrow")
+
+            releaseCleanup.complete(Unit)
+            runCurrent()
+
+            assertTrue(imported.all { it == '\u0000' }, "The disposed import is erased after provider completion")
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `disposing before scheduled import starts erases the transferred input`() =
         runTest {
             Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-            val imported = fakeMnemonic.copyOf()
+            val imported = own(fakeMnemonic.copyOf())
 
             viewModel.onIntent(DevToolsIntent.RecoverFromSeed(imported))
 
@@ -252,7 +364,7 @@ class DevToolsViewModelTest {
     @Test
     fun `RecoverFromSeed with 24 words emits success state`() =
         runTest {
-            val mnemonic = fakeMnemonic.copyOf()
+            val mnemonic = own(fakeMnemonic.copyOf())
             viewModel.onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))
 
             val state = viewModel.state.value
@@ -266,7 +378,7 @@ class DevToolsViewModelTest {
     @Test
     fun `RecoverFromSeed with fewer than 24 words sets error`() =
         runTest {
-            val mnemonic = "word1 word2".toCharArray()
+            val mnemonic = own("word1 word2".toCharArray())
             viewModel.onIntent(DevToolsIntent.RecoverFromSeed(mnemonic))
 
             val state = viewModel.state.value
@@ -300,6 +412,23 @@ class DevToolsViewModelTest {
      */
     @Nested
     inner class BiometricLockoutTests {
+        /** @see NFR-SEC-041 and TR-AUTH-031 */
+        @Test
+        fun `biometric diagnostic omits platform error code`() =
+            runTest {
+                CapturedDiagnostics().use { logs ->
+                    viewModel.onIntent(
+                        DevToolsIntent.BiometricError(
+                            errorCode = 2718,
+                            message = "Synthetic biometric status marker",
+                        ),
+                    )
+
+                    assertTrue(logs.containsMessage("Biometric error received"))
+                    logs.assertNoSensitiveValues("2718", "Synthetic biometric status marker")
+                }
+            }
+
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @Test
         fun `T148c BiometricError LOCKOUT clears mnemonic and sets error`() =

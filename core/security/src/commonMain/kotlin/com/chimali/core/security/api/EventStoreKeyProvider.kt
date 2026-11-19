@@ -12,7 +12,9 @@ interface EventStoreKeyProvider {
      * Derives a 32-byte (256-bit) AES key for the given [aggregateLabel].
      *
      * @param aggregateLabel A unique label for the storage domain (e.g. "chimali_vault_es_v1").
-     * @return 32 bytes of key material.
+     * @return An independently owned 32-byte key buffer. Ownership transfers to the caller;
+     *   the provider retains no reference, and the caller must erase the returned buffer in
+     *   `finally` after the cryptographic operation, including failure and cancellation paths.
      * @throws IllegalStateException if the master seed is not initialized.
      */
     suspend fun getEventStoreKey(aggregateLabel: String): ByteArray

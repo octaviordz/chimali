@@ -1,5 +1,5 @@
 # ProGuard rules for Instrumentation Tests (shrunkDebugAndroidTest)
-# We keep all of AndroidX and Kotlin in the test APK to ensure stability 
+# We keep all of AndroidX and Kotlin in the test APK to ensure stability
 # during instrumentation runs while the app APK remains optimized.
 
 # Preserve all classes in the test packages to ensure the instrumentation runner can find them.
@@ -24,3 +24,10 @@
 -keepclassmembers class kotlinx.coroutines.** { *; }
 
 -keepattributes Signature,AnnotationDefault,EnclosingMethod,InnerClasses,SourceFile,LineNumberTable,*Annotation*
+
+# LeakCanary references these optional integrations even though the app does not include them.
+-dontwarn android.support.v4.app.Fragment
+-dontwarn android.support.v4.app.FragmentActivity
+-dontwarn android.support.v4.app.FragmentManager$FragmentLifecycleCallbacks
+-dontwarn android.support.v4.app.FragmentManager
+-dontwarn androidx.work.multiprocess.RemoteListenableWorker

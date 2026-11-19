@@ -1,13 +1,16 @@
 package com.chimali.fido2.data.crypto
 
+import com.chimali.core.common.result.Outcome
 import com.chimali.core.common.result.getOrNull
 import com.chimali.core.common.result.isFailure
 import com.chimali.core.common.result.isSuccess
 import com.chimali.fido2.util.crypto.BouncyCastleLoader
 import java.security.KeyPairGenerator
+import java.security.Security
 import java.util.Base64
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -76,9 +79,36 @@ class PublicKeyDecoderTest {
     }
 
     @Test
+    fun `decode ensures bundled provider is registered before EdDSA lookup`() {
+        val kpg = KeyPairGenerator.getInstance("Ed25519", BouncyCastleProvider.PROVIDER_NAME)
+        val publicKeyBytes = kpg.generateKeyPair().public.encoded
+        val base64Key = Base64.getEncoder().encodeToString(publicKeyBytes)
+        val previousProvider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+
+        try {
+            val result = decoder.decodePublicKey(base64Key, COSE_ALG_EDDSA)
+
+            assertTrue(result.isSuccess)
+            assertTrue(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) is BouncyCastleProvider)
+        } finally {
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+            previousProvider?.let { Security.insertProviderAt(it, 1) }
+        }
+    }
+
+    @Test
     fun `decode fails for invalid base64`() {
         val result = decoder.decodePublicKey("not-base64-!!!", COSE_ALG_ES256)
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `decode failure does not retain provider throwable`() {
+        val result = decoder.decodePublicKey("not-base64-!!!", COSE_ALG_ES256)
+
+        assertTrue(result is Outcome.Error)
+        assertNull((result as Outcome.Error).error.cause)
     }
 
     @Test

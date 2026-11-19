@@ -45,6 +45,14 @@ internal const val CTAP2_ERR_PIN_INVALID: Byte = 0x31.toByte()
 
 private const val CMD_CBOR_BARE = CTAPHID_CBOR and 0x7F // 0x10
 private const val KEEPALIVE_STATUS_PROCESSING: Byte = 0x01
+private const val FLAG_ATTESTED_CREDENTIAL_DATA = 0x40
+private const val COUNTER_BYTES = 4
+private const val CREDENTIAL_ID_LENGTH_BYTES = 2
+private const val BYTE_MASK = 0xFF
+private const val COUNTER_BYTE_MASK = 0xFFL
+private const val BYTE_SHIFT_24 = 24
+private const val BYTE_SHIFT_16 = 16
+private const val BYTE_SHIFT_8 = 8
 
 /**
  * Builds properly encoded CTAP2 response [CtapHidMessage]s and their corresponding
@@ -73,13 +81,7 @@ class Ctap2ResponseBuilder(
         private const val KEY_TRANSPORTS = "9"
         private const val KEY_ALGORITHMS = "10"
 
-        // Bitwise flags
-        private const val FLAG_AT_MASK = 0x40
-
-        // Shifts and masks
-        private const val SHIFT_24 = 24
-        private const val SHIFT_16 = 16
-        private const val SHIFT_8 = 8
+        // Masks and radix
         private const val BYTE_MASK = 0xFF
 
         // Response defaults
@@ -101,18 +103,17 @@ class Ctap2ResponseBuilder(
     fun makeCredentialResponse(
         cid: ByteArray,
         attestation: AttestationObject,
-    ): List<ByteArray> {
-        val authDataBytes = serializeAuthData(attestation.authData)
-        // CTAP2 §6.1 integer keys: 1=fmt, 2=authData, 3=attStmt
-        val responseMap: Map<String, Any> =
-            mapOf(
-                KEY_FMT to attestation.fmt,
-                // raw ByteArray, not List
-                KEY_AUTH_DATA to authDataBytes,
-                KEY_ATT_STMT to serializeAttStmt(attestation.attStmt),
-            )
-        return successCborPackets(cid, responseMap)
-    }
+    ): List<ByteArray> =
+        withSerializedAuthenticatorData(attestation.authData) { authDataBytes ->
+            // CTAP2 §6.1 integer keys: 1=fmt, 2=authData, 3=attStmt
+            val responseMap: Map<String, Any> =
+                mapOf(
+                    KEY_FMT to attestation.fmt,
+                    KEY_AUTH_DATA to authDataBytes,
+                    KEY_ATT_STMT to serializeAttStmt(attestation.attStmt),
+                )
+            successCborPackets(cid, responseMap)
+        }
 
     // ── GetInfo response ──────────────────────────────────────────────────────
 
@@ -241,35 +242,16 @@ class Ctap2ResponseBuilder(
         cid: ByteArray,
         responseMap: Map<String, Any>,
     ): List<ByteArray> {
-        val encoded = cborCodec.encodeToFido2Format(responseMap)
-        val payload = byteArrayOf(CTAP2_OK) + encoded
-        val msg = CtapHidMessage(cid, CMD_CBOR_BARE, payload)
-        return hidReportParser.encodeResponse(msg)
-    }
-
-    /**
-     * Serialises [AuthenticatorData] to bytes per WebAuthn §6.1:
-     *   rpIdHash(32) | flags(1) | signCount(4 BE) | attestedCredData
-     */
-    private fun serializeAuthData(authData: AuthenticatorData): ByteArray {
-        val out = mutableListOf<Byte>()
-        out.addAll(authData.rpIdHash.toList()) // 32 bytes
-        out.addAll(authData.flags.toList()) // 1 byte
-        val cnt = authData.counter
-        out.add(((cnt shr SHIFT_24) and BYTE_MASK.toLong()).toByte())
-        out.add(((cnt shr SHIFT_16) and BYTE_MASK.toLong()).toByte())
-        out.add(((cnt shr SHIFT_8) and BYTE_MASK.toLong()).toByte())
-        out.add((cnt and BYTE_MASK.toLong()).toByte())
-        // Attested credential data (bit6 of flags)
-        if (authData.flags.isNotEmpty() && (authData.flags[0].toInt() and FLAG_AT_MASK) != 0) {
-            out.addAll(authData.aaguid.toList())
-            val idLen = authData.credentialId.size
-            out.add(((idLen shr SHIFT_8) and BYTE_MASK).toByte())
-            out.add((idLen and BYTE_MASK).toByte())
-            out.addAll(authData.credentialId.toList())
-            out.addAll(authData.publicKey.toList())
+        var encoded: ByteArray? = null
+        return try {
+            encoded = cborCodec.encodeToFido2Format(responseMap)
+            withCtapSuccessStatus(requireNotNull(encoded)) { payload ->
+                val msg = CtapHidMessage(cid, CMD_CBOR_BARE, payload)
+                hidReportParser.encodeResponse(msg)
+            }
+        } finally {
+            encoded?.fill(0)
         }
-        return out.toByteArray()
     }
 
     /**
@@ -311,4 +293,74 @@ class Ctap2ResponseBuilder(
             CTAP2_ERR_PIN_INVALID -> "CTAP2_ERR_PIN_INVALID (0x31)"
             else -> "UNKNOWN (0x${code.toInt().and(BYTE_MASK).toString(HEX_RADIX).uppercase()})"
         }
+}
+
+/** Supplies serialized authenticator data for one operation and erases it on every exit. */
+internal fun <T> withSerializedAuthenticatorData(
+    authData: AuthenticatorData,
+    block: (ByteArray) -> T,
+): T {
+    val serialized = serializeAuthenticatorData(authData)
+    return try {
+        block(serialized)
+    } finally {
+        serialized.fill(0)
+    }
+}
+
+/** Serializes authenticator data into one exact-size application-owned array. */
+private fun serializeAuthenticatorData(authData: AuthenticatorData): ByteArray {
+    val includeAttestedData =
+        authData.flags.isNotEmpty() && (authData.flags[0].toInt() and FLAG_ATTESTED_CREDENTIAL_DATA) != 0
+    var size = Math.addExact(Math.addExact(authData.rpIdHash.size, authData.flags.size), COUNTER_BYTES)
+    if (includeAttestedData) {
+        size = Math.addExact(size, authData.aaguid.size)
+        size = Math.addExact(size, CREDENTIAL_ID_LENGTH_BYTES)
+        size = Math.addExact(size, authData.credentialId.size)
+        size = Math.addExact(size, authData.publicKey.size)
+    }
+
+    val output = ByteArray(size)
+    var offset = 0
+    var transferred = false
+    try {
+        authData.rpIdHash.copyInto(output, offset)
+        offset += authData.rpIdHash.size
+        authData.flags.copyInto(output, offset)
+        offset += authData.flags.size
+        val counter = authData.counter
+        output[offset++] = ((counter shr BYTE_SHIFT_24) and COUNTER_BYTE_MASK).toByte()
+        output[offset++] = ((counter shr BYTE_SHIFT_16) and COUNTER_BYTE_MASK).toByte()
+        output[offset++] = ((counter shr BYTE_SHIFT_8) and COUNTER_BYTE_MASK).toByte()
+        output[offset++] = (counter and COUNTER_BYTE_MASK).toByte()
+        if (includeAttestedData) {
+            authData.aaguid.copyInto(output, offset)
+            offset += authData.aaguid.size
+            val credentialIdLength = authData.credentialId.size
+            output[offset++] = ((credentialIdLength shr BYTE_SHIFT_8) and BYTE_MASK).toByte()
+            output[offset++] = (credentialIdLength and BYTE_MASK).toByte()
+            authData.credentialId.copyInto(output, offset)
+            offset += authData.credentialId.size
+            authData.publicKey.copyInto(output, offset)
+        }
+        transferred = true
+        return output
+    } finally {
+        if (!transferred) output.fill(0)
+    }
+}
+
+/** Adds the CTAP success status for HID encoding and erases the temporary payload on return. */
+internal fun <T> withCtapSuccessStatus(
+    encodedBody: ByteArray,
+    block: (ByteArray) -> T,
+): T {
+    val payload = ByteArray(Math.addExact(encodedBody.size, 1))
+    payload[0] = CTAP2_OK
+    encodedBody.copyInto(payload, 1)
+    return try {
+        block(payload)
+    } finally {
+        payload.fill(0)
+    }
 }

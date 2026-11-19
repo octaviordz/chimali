@@ -1,5 +1,6 @@
 package com.chimali.core.domain.eventsourcing.vault
 
+import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.eventsourcing.DomainEvent
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -32,6 +33,11 @@ sealed interface VaultEvent : DomainEvent {
             payload: ByteArray,
             identityId: String,
         ) : this(aggregateId, sequenceNumber, timestamp, type, title.toCharArray(), payload, identityId)
+
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        override fun toString(): String =
+            "Created(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp, " +
+                "type=<redacted>, title=<redacted>, payload=<redacted>, identityId=<redacted>)"
     }
 
     /**
@@ -53,6 +59,11 @@ sealed interface VaultEvent : DomainEvent {
             title: String,
             payload: ByteArray?,
         ) : this(aggregateId, sequenceNumber, timestamp, title.toCharArray(), payload)
+
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        override fun toString(): String =
+            "Updated(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp, " +
+                "title=<redacted>, payload=<redacted>)"
     }
 
     /**
@@ -63,7 +74,11 @@ sealed interface VaultEvent : DomainEvent {
         override val aggregateId: String,
         override val sequenceNumber: Long,
         override val timestamp: Instant,
-    ) : VaultEvent
+    ) : VaultEvent {
+        @Req("NFR-SEC-041", "TR-AUTH-031")
+        override fun toString(): String =
+            "Deleted(aggregateId=<redacted>, sequenceNumber=$sequenceNumber, timestamp=$timestamp)"
+    }
 }
 
 /** Clears event-owned sensitive text after the state has made its own copy. */

@@ -1,0 +1,11 @@
+# FIDO navigation paired-address owner review and correction
+
+**Date:** 2026-11-17  
+**Scope:** `Fido2RegistrationNavGraph` edit-host navigation route.  
+**Classification:** `CLS-FIDO-004`; UI boundary `BND-UI-008`.
+
+The graph originally interpolated the selected paired host MAC address into the `edit-host/{macAddress}` route, then read the argument and passed it to `EditPairedDeviceScreen`. This created an additional transient representation in navigation/back-stack state beyond the paired-device repository and UI owners already listed in the registers.
+
+The route now uses only the fixed `edit-host` destination. `PairedDevicesViewModel` transfers the selected address through a screen-scoped `StateFlow`; explicit back/save/delete exits clear it, `DisposableEffect` clears it when the screen leaves composition, and ViewModel disposal clears it as a final fallback. The editor clears its lifecycle-collected state when stopped. The targeted host suite passes all four `PairedDevicesViewModelOwnershipTest` cases, including explicit release and ViewModel disposal. `:feature:fido2:compileAndroidDeviceTest` and `:feature:fido2:ktlintCheck` pass. The Compose lifecycle test source compiles but was not run on a device.
+
+The app no longer puts the address in the Navigation route or route arguments. The address remains in the paired-device owner and temporarily in the selected editor `StateFlow`/screen projection until exit or lifecycle release. Saving starts an `updateAlias` coroutine that borrows the address until the use-case call completes or the ViewModel scope is cancelled; the new barrier regression clears the editor selection, confirms the admitted borrower can still use the address, then releases and verifies borrower completion. Delete hands off the existing device owner through the pending-removal event path. This does not prove immutable String reclamation. Process recreation, Android lifecycle execution, framework text copies, diagnostics and heap behavior remain unverified. The focused XML report SHA-256 is `e37c9cffe4d61fea94c9d18d317a7f361a50a2a39a5b5f936b3ee0969cc6b675`. Inventory usage `U-FIDO-PAIRED-NAVIGATION-ADDRESS-001` records the corrected source owner and these limits; T005/T006/T015/T027 remain applicable.

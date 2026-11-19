@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.chimali.feature.vault.ui.model.LabelUiModel
 import java.util.UUID
 
@@ -44,7 +48,21 @@ fun LabelManagerScreen(
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
 ) {
-    var newLabelName by remember { mutableStateOf("") }
+    val newLabelNameState = remember { mutableStateOf("") }
+    var newLabelName by newLabelNameState
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, newLabelNameState) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) newLabelNameState.value = ""
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            newLabelNameState.value = ""
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -52,7 +70,14 @@ fun LabelManagerScreen(
             TopAppBar(
                 title = { Text("Manage Labels") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    TextButton(
+                        onClick = {
+                            newLabelNameState.value = ""
+                            onBack()
+                        },
+                    ) {
+                        Text("Back")
+                    }
                 },
             )
         },
@@ -80,8 +105,9 @@ fun LabelManagerScreen(
                 IconButton(
                     onClick = {
                         if (newLabelName.isNotBlank()) {
-                            onCreateLabel(newLabelName, "#FF0000") // Placeholder exact color
-                            newLabelName = ""
+                            val submittedName = newLabelName
+                            newLabelNameState.value = ""
+                            onCreateLabel(submittedName, "#FF0000") // Placeholder exact color
                         }
                     },
                     enabled = newLabelName.isNotBlank(),

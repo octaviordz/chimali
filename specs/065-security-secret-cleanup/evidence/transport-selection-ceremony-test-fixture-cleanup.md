@@ -1,0 +1,5 @@
+# Transport selection ceremony test fixture cleanup
+
+`TransportSelectionCeremonyTest` runs registration/authentication flows against synthetic host transports. Each completed caller response is zeroed in `finally`; the transport clears its retained response copies and synthetic handle list; `@AfterTest` clears the `ViewModelStore`, closes all tracked process-selection owners, clears both transport fixtures and resets the test Main dispatcher. A teardown regression verifies a retained transport response copy is zeroed while the returned caller-owned response remains independently owned and is explicitly erased by its caller.
+
+Validation: all 3 focused transport-selection cases pass with zero failures/errors; the complete FIDO Android host suite passes 1,309 tests across 172 XML reports with zero failures/errors/skips; and `:feature:fido2:ktlintCheck` passes. These are synthetic host lifecycle fixtures; they do not certify Android Bluetooth framework state or physical transport behavior.

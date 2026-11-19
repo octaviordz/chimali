@@ -78,6 +78,8 @@ class SQLiteMCDriverIntegrationTest {
         val dbName = "encrypted_vault.db"
         val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
         val keyBytes = ByteArray(32) { (it + 1).toByte() }
+        val keyCopy1 = keyBytes.copyOf()
+        val keyCopy2 = keyBytes.copyOf()
 
         val factory =
             SQLiteMCDriver.Factory(
@@ -87,44 +89,58 @@ class SQLiteMCDriverIntegrationTest {
                 filesystem(DatabasesDir(tempDir))
             }
 
-        val rawKey1 = Key.raw(key = keyBytes.copyOf(), salt = salt, fillKey = true)
-        val driver1 = factory.createBlocking(rawKey1)
+        var driver1: SQLiteMCDriver? = null
+        var driver2: SQLiteMCDriver? = null
+        try {
+            driver1 = factory.createBlocking(Key.raw(key = keyCopy1, salt = salt, fillKey = true))
+            val check1 =
+                driver1
+                    .executeQuery(
+                        identifier = null,
+                        sql = "PRAGMA integrity_check",
+                        mapper = { cursor ->
+                            val hasRow = cursor.next().value
+                            QueryResult.Value(if (hasRow) cursor.getString(0) else null)
+                        },
+                        parameters = 0,
+                    ).value
+            assertEquals("ok", check1?.lowercase())
+            driver1.close()
+            driver1 = null
 
-        val check1 =
-            driver1
-                .executeQuery(
-                    identifier = null,
-                    sql = "PRAGMA integrity_check",
-                    mapper = { cursor ->
-                        val hasRow = cursor.next().value
-                        QueryResult.Value(if (hasRow) cursor.getString(0) else null)
-                    },
-                    parameters = 0,
-                ).value
-        assertEquals("ok", check1?.lowercase())
-        driver1.close()
+            val dbFile = File(tempDir, dbName)
+            assertTrue(dbFile.exists(), "Encrypted database file must exist on disk")
+            assertTrue(dbFile.length() > 0, "Encrypted database file must not be empty")
 
-        val dbFile = File(tempDir, dbName)
-        assertTrue(dbFile.exists(), "Encrypted database file must exist on disk")
-        assertTrue(dbFile.length() > 0, "Encrypted database file must not be empty")
-
-        // Reopen with the same key
-        val rawKey2 = Key.raw(key = keyBytes.copyOf(), salt = salt, fillKey = true)
-        val driver2 = factory.createBlocking(rawKey2)
-
-        val check2 =
-            driver2
-                .executeQuery(
-                    identifier = null,
-                    sql = "PRAGMA integrity_check",
-                    mapper = { cursor ->
-                        val hasRow = cursor.next().value
-                        QueryResult.Value(if (hasRow) cursor.getString(0) else null)
-                    },
-                    parameters = 0,
-                ).value
-        assertEquals("ok", check2?.lowercase())
-        driver2.close()
+            driver2 = factory.createBlocking(Key.raw(key = keyCopy2, salt = salt, fillKey = true))
+            val check2 =
+                driver2
+                    .executeQuery(
+                        identifier = null,
+                        sql = "PRAGMA integrity_check",
+                        mapper = { cursor ->
+                            val hasRow = cursor.next().value
+                            QueryResult.Value(if (hasRow) cursor.getString(0) else null)
+                        },
+                        parameters = 0,
+                    ).value
+            assertEquals("ok", check2?.lowercase())
+        } finally {
+            try {
+                driver2?.close()
+            } finally {
+                try {
+                    driver1?.close()
+                } finally {
+                    keyCopy1.fill(0)
+                    keyCopy2.fill(0)
+                    keyBytes.fill(0)
+                    salt.fill(0)
+                    assertTrue(keyCopy1.all { it == 0.toByte() } && keyCopy2.all { it == 0.toByte() })
+                    assertTrue(keyBytes.all { it == 0.toByte() } && salt.all { it == 0.toByte() })
+                }
+            }
+        }
     }
 
     /**
@@ -145,6 +161,8 @@ class SQLiteMCDriverIntegrationTest {
         val salt = "chimali_db_salt".toByteArray(Charsets.UTF_8).copyOf(16)
         val correctKey = ByteArray(32) { (it + 1).toByte() }
         val wrongKey = ByteArray(32) { (it + 99).toByte() }
+        val correctKeyCopy = correctKey.copyOf()
+        val wrongKeyCopy = wrongKey.copyOf()
 
         val factory =
             SQLiteMCDriver.Factory(
@@ -154,15 +172,25 @@ class SQLiteMCDriverIntegrationTest {
                 filesystem(DatabasesDir(tempDir))
             }
 
-        // Create with correct key
-        val rawKey = Key.raw(key = correctKey.copyOf(), salt = salt, fillKey = true)
-        val driver = factory.createBlocking(rawKey)
-        driver.close()
+        try {
+            val driver = factory.createBlocking(Key.raw(key = correctKeyCopy, salt = salt, fillKey = true))
+            driver.close()
 
-        // Attempting to open with mismatched key must throw
-        org.junit.jupiter.api.assertThrows<IllegalStateException> {
-            val wrongRawKey = Key.raw(key = wrongKey.copyOf(), salt = salt, fillKey = true)
-            factory.createBlocking(wrongRawKey)
+            org.junit.jupiter.api.assertThrows<IllegalStateException> {
+                factory.createBlocking(Key.raw(key = wrongKeyCopy, salt = salt, fillKey = true))
+            }
+        } finally {
+            correctKeyCopy.fill(0)
+            wrongKeyCopy.fill(0)
+            correctKey.fill(0)
+            wrongKey.fill(0)
+            salt.fill(0)
+            assertTrue(correctKeyCopy.all { it == 0.toByte() } && wrongKeyCopy.all { it == 0.toByte() })
+            assertTrue(
+                correctKey.all { it == 0.toByte() } &&
+                    wrongKey.all { it == 0.toByte() } &&
+                    salt.all { it == 0.toByte() },
+            )
         }
     }
 }

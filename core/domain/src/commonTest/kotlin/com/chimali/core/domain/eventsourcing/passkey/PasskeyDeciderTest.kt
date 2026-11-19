@@ -3,6 +3,7 @@ package com.chimali.core.domain.eventsourcing.passkey
 import com.chimali.core.common.annotation.Req
 import com.chimali.core.domain.model.CredentialKeyDescriptor
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -89,6 +90,187 @@ class PasskeyDeciderTest {
         assertEquals(CredentialKeyDescriptor.COSE_ES256, event.coseAlgorithm)
         assertEquals(CredentialKeyDescriptor.P256_PROFILE, event.derivationProfile)
     }
+
+    @Test
+    @Req("FR-003", "NFR-SEC-041", "TR-AUTH-031")
+    fun `registration command and event own independent credential ID buffers`() {
+        val commandCredentialId = ByteArray(32) { (it + 1).toByte() }
+        val expectedCredentialId = commandCredentialId.copyOf()
+        val command = registrationCommand(credentialId = commandCredentialId)
+        val event = decider.decide(decider.initialState, command).single() as PasskeyEvent.Registered
+
+        assertFalse(command.credentialId === event.credentialId)
+        command.eraseSensitiveMetadata()
+        assertContentEquals(ByteArray(32), commandCredentialId)
+        assertContentEquals(expectedCredentialId, event.credentialId)
+
+        event.eraseSensitiveMetadata()
+        assertContentEquals(ByteArray(32), event.credentialId)
+    }
+
+    @Test
+    @Req("FR-003", "NFR-SEC-041", "TR-AUTH-031")
+    fun `event and each evolved state own independent credential ID buffers`() {
+        val eventCredentialId = ByteArray(32) { (it + 1).toByte() }
+        val expectedCredentialId = eventCredentialId.copyOf()
+        val event = registeredEvent(credentialId = eventCredentialId)
+        val registeredState = decider.evolve(decider.initialState, event)
+
+        assertFalse(event.credentialId === registeredState.credentialId)
+        event.eraseSensitiveMetadata()
+        assertContentEquals(ByteArray(32), eventCredentialId)
+        assertContentEquals(expectedCredentialId, registeredState.credentialId)
+
+        val authenticatedState =
+            decider.evolve(
+                registeredState,
+                PasskeyEvent.Authenticated("test-id", 2L, Clock.System.now(), 7L),
+            )
+        assertFalse(registeredState.credentialId === authenticatedState.credentialId)
+        registeredState.eraseSensitiveMetadata()
+        assertContentEquals(expectedCredentialId, authenticatedState.credentialId)
+
+        val deletedState =
+            decider.evolve(
+                authenticatedState,
+                PasskeyEvent.Deleted("test-id", 3L, Clock.System.now()),
+            )
+        assertFalse(authenticatedState.credentialId === deletedState.credentialId)
+        authenticatedState.eraseSensitiveMetadata()
+        assertContentEquals(expectedCredentialId, deletedState.credentialId)
+        deletedState.eraseSensitiveMetadata()
+        assertContentEquals(ByteArray(32), deletedState.credentialId)
+    }
+
+    @Test
+    @Req("FR-003", "FR-004", "NFR-SEC-041", "TR-AUTH-031")
+    fun `partial passkey metadata copies erase staged arrays and preserve source arrays`() {
+        for (failureAt in 1..5) {
+            val rpId = "rp.example".toCharArray()
+            val userId = "synthetic-user".toCharArray()
+            val userName = "account".toCharArray()
+            val displayName = "Synthetic User".toCharArray()
+            val credentialId = byteArrayOf(1, 2, 3)
+            val sources = listOf(rpId.copyOf(), userId.copyOf(), userName.copyOf(), displayName.copyOf())
+            val expectedCredentialId = credentialId.copyOf()
+            val stagedCharacters = mutableListOf<CharArray>()
+            val stagedBytes = mutableListOf<ByteArray>()
+            var copyAttempt = 0
+
+            try {
+                assertFailsWith<IllegalStateException> {
+                    withOwnedPasskeyMetadata(
+                        rpId = rpId,
+                        userId = userId,
+                        userName = userName,
+                        userDisplayName = displayName,
+                        credentialId = credentialId,
+                        copyCharacters = { value ->
+                            check(++copyAttempt != failureAt) { "synthetic metadata copy failure" }
+                            value.copyOf().also(stagedCharacters::add)
+                        },
+                        copyBytes = { value ->
+                            check(++copyAttempt != failureAt) { "synthetic metadata copy failure" }
+                            value.copyOf().also(stagedBytes::add)
+                        },
+                        build = { _, _, _, _, _ -> error("Synthetic event/state construction failure") },
+                    )
+                }
+
+                assertEquals(failureAt, copyAttempt)
+                stagedCharacters.forEach { assertContentEquals(CharArray(it.size), it) }
+                stagedBytes.forEach { assertContentEquals(ByteArray(it.size), it) }
+                assertContentEquals(sources[0], rpId)
+                assertContentEquals(sources[1], userId)
+                assertContentEquals(sources[2], userName)
+                assertContentEquals(sources[3], displayName)
+                assertContentEquals(expectedCredentialId, credentialId)
+            } finally {
+                rpId.fill('\u0000')
+                userId.fill('\u0000')
+                userName.fill('\u0000')
+                displayName.fill('\u0000')
+                credentialId.fill(0)
+                sources.forEach { it.fill('\u0000') }
+                expectedCredentialId.fill(0)
+            }
+        }
+    }
+
+    @Test
+    @Req("FR-003", "FR-004", "NFR-SEC-041", "TR-AUTH-031")
+    fun `passkey event or state construction failure erases every staged copy`() {
+        val rpId = "rp.example".toCharArray()
+        val userId = "synthetic-user".toCharArray()
+        val userName = "account".toCharArray()
+        val displayName = "Synthetic User".toCharArray()
+        val credentialId = byteArrayOf(1, 2, 3)
+        val stagedCharacters = mutableListOf<CharArray>()
+        val stagedBytes = mutableListOf<ByteArray>()
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                withOwnedPasskeyMetadata(
+                    rpId = rpId,
+                    userId = userId,
+                    userName = userName,
+                    userDisplayName = displayName,
+                    credentialId = credentialId,
+                    copyCharacters = { value -> value.copyOf().also(stagedCharacters::add) },
+                    copyBytes = { value -> value.copyOf().also(stagedBytes::add) },
+                    build = { stagedRpId, stagedUserId, stagedName, stagedDisplayName, stagedCredentialId ->
+                        val registeredEvent =
+                            PasskeyEvent.Registered(
+                                aggregateId = "synthetic-id",
+                                sequenceNumber = 1L,
+                                timestamp = Clock.System.now(),
+                                rpId = stagedRpId,
+                                userId = stagedUserId,
+                                userName = stagedName,
+                                userDisplayName = stagedDisplayName,
+                                credentialId = stagedCredentialId,
+                                publicKey = "synthetic-public-key",
+                                aaguid = "synthetic-aaguid",
+                                signCount = 0L,
+                            )
+                        check(listOf(registeredEvent).single() === registeredEvent)
+                        error("Synthetic event-list admission failure")
+                    },
+                )
+            }
+
+            stagedCharacters.forEach { assertContentEquals(CharArray(it.size), it) }
+            stagedBytes.forEach { assertContentEquals(ByteArray(it.size), it) }
+            assertContentEquals("rp.example".toCharArray(), rpId)
+            assertContentEquals("synthetic-user".toCharArray(), userId)
+            assertContentEquals("account".toCharArray(), userName)
+            assertContentEquals("Synthetic User".toCharArray(), displayName)
+            assertContentEquals(byteArrayOf(1, 2, 3), credentialId)
+        } finally {
+            rpId.fill('\u0000')
+            userId.fill('\u0000')
+            userName.fill('\u0000')
+            displayName.fill('\u0000')
+            credentialId.fill(0)
+        }
+    }
+
+    private fun registeredEvent(credentialId: ByteArray) =
+        PasskeyEvent.Registered(
+            aggregateId = "test-id",
+            sequenceNumber = 1L,
+            timestamp = Clock.System.now(),
+            rpId = "example.com",
+            userId = "user-123",
+            userName = "user@example.com",
+            userDisplayName = "User Name",
+            credentialId = credentialId,
+            publicKey = "public-key",
+            aaguid = "aaguid",
+            signCount = 0L,
+            coseAlgorithm = CredentialKeyDescriptor.COSE_ES256,
+            derivationProfile = CredentialKeyDescriptor.P256_PROFILE,
+        )
 
     /**
      * @see NFR-SEC-041
@@ -429,15 +611,16 @@ class PasskeyDeciderTest {
     }
 
     private fun registrationCommand(
-        coseAlgorithm: Int,
-        derivationProfile: String,
+        coseAlgorithm: Int = CredentialKeyDescriptor.COSE_ES256,
+        derivationProfile: String = CredentialKeyDescriptor.P256_PROFILE,
+        credentialId: ByteArray = credentialIdBytes,
     ) = PasskeyCommand.Register(
         id = "test-id",
         rpId = "example.com",
         userId = "user-123",
         userName = "user@example.com",
         userDisplayName = "User Name",
-        credentialId = credentialIdBytes,
+        credentialId = credentialId,
         publicKey = "public-key",
         aaguid = "aaguid",
         signCount = 0L,

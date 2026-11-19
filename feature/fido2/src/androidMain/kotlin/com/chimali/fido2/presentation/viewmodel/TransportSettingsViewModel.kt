@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -84,7 +86,7 @@ class TransportSettingsViewModel(
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: IOException) {
-                Logger.e(failure) { "TransportSettingsViewModel: Failed to read transport settings" }
+                Logger.e { "TransportSettingsViewModel: Failed to read transport settings" }
                 _state.value =
                     _state.value.copy(
                         savedChoice = null,
@@ -121,7 +123,7 @@ class TransportSettingsViewModel(
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: IOException) {
-                Logger.e(failure) { "TransportSettingsViewModel: Failed to save transport settings" }
+                Logger.e { "TransportSettingsViewModel: Failed to save transport settings" }
                 _state.value =
                     _state.value.copy(
                         saveError = "write_failed",

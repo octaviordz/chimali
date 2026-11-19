@@ -1,3 +1,5 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
@@ -140,7 +142,7 @@ class RawCtapOperationImpl(
             val payload = responseBuilder.buildGetInfoRawPayload(info)
             RawCtapResult(payload)
         } catch (failure: Fido2Exception) {
-            Logger.e(failure) { "RawCtapOperation: GetInfo failed: ${failure.message}" }
+            Logger.e { "RawCtapOperation: GetInfo failed; returning CTAP2_ERR_OTHER" }
             RawCtapResult(byteArrayOf(0x30.toByte()))
         }
 }

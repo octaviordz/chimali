@@ -19,7 +19,9 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.android.annotation.KoinViewModel
@@ -59,11 +62,13 @@ class CredentialManagementViewModel(
     @Req("NFR-SEC-041", "TR-AUTH-031")
     val effect: SharedFlow<CredentialManagementEffect> = _effect.asSharedFlow()
 
-    private val _removalEvents = MutableSharedFlow<PasskeyCredential>()
+    private val _removalEvents = Channel<CredentialId>(Channel.BUFFERED)
 
-    /** Credential owners temporarily transferred to the undo/removal UI flow. */
+    /** One-shot, non-secret notifications; the pending-removal map retains credential ownership. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
-    val removalEvents: SharedFlow<PasskeyCredential> = _removalEvents.asSharedFlow()
+    val removalEvents: Flow<CredentialId> = _removalEvents.receiveAsFlow()
+    private val pendingRemovalOwners = mutableMapOf<CredentialId, PasskeyCredential>()
+    private val deleteAllCommittedIds = mutableSetOf<CredentialId>()
 
     private val searchQuery =
         MutableStateFlow(CredentialSearchQuery(0L, SensitiveCredentialText.copyOf("")))
@@ -74,6 +79,7 @@ class CredentialManagementViewModel(
     private var requestGeneration: Long = 0L
     private var pageRequestGeneration: Long? = null
     private var activeSearchJob: Job? = null
+    private var screenActive: Boolean = true
 
     init {
         observeCredentials()
@@ -82,8 +88,25 @@ class CredentialManagementViewModel(
     /** Applies a management intent while preserving the ViewModel's credential-owner lifetimes. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     fun onIntent(intent: CredentialManagementIntent) {
+        if (!screenActive &&
+            intent != CredentialManagementIntent.ScreenStarted &&
+            intent != CredentialManagementIntent.ScreenStopped &&
+            intent != CredentialManagementIntent.RefreshCredentials
+        ) {
+            return
+        }
         when (intent) {
+            CredentialManagementIntent.ScreenStarted -> {
+                if (!screenActive) {
+                    screenActive = true
+                    onIntent(CredentialManagementIntent.RefreshCredentials)
+                }
+            }
+
+            CredentialManagementIntent.ScreenStopped -> suspendScreenOwners()
+
             is CredentialManagementIntent.RefreshCredentials -> {
+                screenActive = true
                 requestGeneration += 1L
                 activeSearchJob?.cancel()
                 val replaced = fullCredentialList
@@ -158,7 +181,7 @@ class CredentialManagementViewModel(
                 .collectLatest { request ->
                     val queryOwner = request.query
                     val generation = request.generation
-                    if (generation != requestGeneration) return@collectLatest
+                    if (generation != requestGeneration || !screenActive) return@collectLatest
                     if (queryOwner.isBlank()) {
                         val replaced = fullCredentialList
                         currentOffset = 0L
@@ -217,7 +240,10 @@ class CredentialManagementViewModel(
                             return@onSuccess
                         }
                         val replaced = fullCredentialList
-                        fullCredentialList = fullCredentialList + newItems
+                        fullCredentialList =
+                            combineOwnedCredentialPage(fullCredentialList, newItems) { current, incoming ->
+                                current + incoming
+                            }
                         currentOffset = offset + newItems.size
                         val hasMore = newItems.size >= pageSize
 
@@ -233,13 +259,13 @@ class CredentialManagementViewModel(
                             )
                         }
                         eraseCredentialsNoLongerOwned(replaced)
-                    }.onFailure { e ->
+                    }.onFailure { _ ->
                         if (generation == requestGeneration) {
                             _state.update {
                                 it.copy(
                                     isPaginating = false,
                                     isLoading = false,
-                                    error = e.message,
+                                    error = "Credential loading failed",
                                 )
                             }
                         }
@@ -306,20 +332,63 @@ class CredentialManagementViewModel(
         eraseCredentialsNoLongerOwned(dismissed)
     }
 
+    /** Drops screen-session credential and query owners when the management UI stops. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    private fun suspendScreenOwners() {
+        screenActive = false
+        requestGeneration += 1L
+        activeSearchJob?.cancel()
+        activeSearchJob = null
+        pageRequestGeneration = null
+
+        val ownedCredentials = Collections.newSetFromMap(IdentityHashMap<PasskeyCredential, Boolean>())
+        ownedCredentials.addAll(fullCredentialList)
+        ownedCredentials.addAll(_state.value.credentials)
+        _state.value.selectedCredential?.let(ownedCredentials::add)
+        _state.value.credentialToDelete?.let(ownedCredentials::add)
+        ownedCredentials.addAll(pendingRemovalOwners.values)
+
+        fullCredentialList = emptyList()
+        pendingRemovalOwners.clear()
+        deleteAllCommittedIds.clear()
+        _state.value = CredentialManagementState()
+        while (_removalEvents.tryReceive().isSuccess) {
+            // Discard stale one-shot identifiers; no removal is committed while stopped.
+        }
+
+        val previousQuery = searchQuery.value
+        searchQuery.value =
+            CredentialSearchQuery(
+                requestGeneration,
+                SensitiveCredentialText.copyOf(""),
+            )
+        previousQuery.query.erase()
+        ownedCredentials.forEach(PasskeyCredential::eraseSensitiveText)
+    }
+
     private fun deleteCredential(credentialId: CredentialId) {
         viewModelScope.launch {
-            logger.i { "Initiating deletion for credential: $credentialId" }
-            val credential = _state.value.credentials.find { it.id == credentialId }
+            logger.i { "Initiating credential deletion" }
             _state.update { it.copy(isLoading = true, credentialToDelete = null) }
             val result = deleteCredentialUseCase(credentialId)
             if (result.isSuccess) {
-                logger.i { "Successfully deleted credential: $credentialId" }
-                val replacedLastDeleted = _state.value.lastDeleted
-                _state.update { it.copy(isLoading = false, lastDeleted = credential) }
-                replacedLastDeleted?.let { eraseCredentialsNoLongerOwned(listOf(it)) }
+                logger.i { "Credential deletion completed" }
+                val removed =
+                    fullCredentialList.filter { it.id == credentialId } +
+                        _state.value.credentials.filter { it.id == credentialId }
+                fullCredentialList = fullCredentialList.filterNot { it.id == credentialId }
+                _state.update {
+                    it.copy(
+                        credentials = it.credentials.filterNot { item -> item.id == credentialId },
+                        selectedCredential = it.selectedCredential?.takeUnless { item -> item.id == credentialId },
+                        credentialToDelete = it.credentialToDelete?.takeUnless { item -> item.id == credentialId },
+                        isLoading = false,
+                    )
+                }
+                eraseCredentialsNoLongerOwned(removed)
                 _effect.emit(CredentialManagementEffect.ShowToast("Credential deleted"))
             } else {
-                logger.e { "Failed to delete credential: $credentialId" }
+                logger.e { "Credential deletion failed" }
                 _state.update { it.copy(isLoading = false, error = "Failed to delete credential") }
             }
         }
@@ -333,7 +402,22 @@ class CredentialManagementViewModel(
             val result = useCase()
             if (result.isSuccess) {
                 logger.i { "Successfully deleted all credentials" }
-                _state.update { it.copy(isLoading = false) }
+                val removed =
+                    fullCredentialList +
+                        _state.value.credentials +
+                        listOfNotNull(_state.value.selectedCredential, _state.value.credentialToDelete)
+                deleteAllCommittedIds.addAll(pendingRemovalOwners.keys)
+                fullCredentialList = emptyList()
+                _state.update {
+                    it.copy(
+                        credentials = emptyList(),
+                        selectedCredential = null,
+                        credentialToDelete = null,
+                        isLoading = false,
+                        isShowDeleteAllWarning = false,
+                    )
+                }
+                eraseCredentialsNoLongerOwned(removed)
                 _effect.emit(CredentialManagementEffect.ShowToast("All credentials deleted"))
             } else {
                 logger.e { "Failed to delete all credentials" }
@@ -343,34 +427,50 @@ class CredentialManagementViewModel(
     }
 
     private fun pendingRemove(credential: PasskeyCredential) {
-        logger.i { "Pending removal for credential: ${credential.id}" }
+        logger.i { "Credential removal pending" }
+        pendingRemovalOwners[credential.id] = credential
         _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds + credential.id) }
         updateStateWithFilteredCredentials()
         viewModelScope.launch {
-            _removalEvents.emit(credential)
+            _removalEvents.send(credential.id)
         }
     }
 
     private fun undoRemove(credentialId: CredentialId) {
-        logger.i { "Undoing removal for credential: $credentialId" }
+        logger.i { "Credential removal undo requested" }
         _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
-        updateStateWithFilteredCredentials()
+        if (deleteAllCommittedIds.remove(credentialId)) {
+            pendingRemovalOwners.remove(credentialId)?.let { eraseCredentialsNoLongerOwned(listOf(it)) }
+        } else {
+            updateStateWithFilteredCredentials()
+            pendingRemovalOwners.remove(credentialId)?.let { eraseCredentialsNoLongerOwned(listOf(it)) }
+        }
     }
 
     private fun commitRemove(credentialId: CredentialId) {
         viewModelScope.launch {
-            logger.i { "Committing removal for credential: $credentialId" }
+            logger.i { "Committing credential removal" }
+            if (deleteAllCommittedIds.remove(credentialId)) {
+                _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
+                pendingRemovalOwners.remove(credentialId)?.let { eraseCredentialsNoLongerOwned(listOf(it)) }
+                return@launch
+            }
             val result = deleteCredentialUseCase(credentialId)
-            _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
             if (result.isSuccess) {
-                logger.i { "Successfully committed removal for credential: $credentialId" }
-                // Item is already gone from _fullCredentialList because the flow from repository
-                // should emit the new state. If repository is not reactive, we'd need to manually
-                // remove from _fullCredentialList.
+                logger.i { "Credential removal commit completed" }
+                val removed = fullCredentialList.filter { it.id == credentialId }
+                val pendingOwner = pendingRemovalOwners.remove(credentialId)
+                fullCredentialList = fullCredentialList.filterNot { it.id == credentialId }
+                _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
+                updateStateWithFilteredCredentials()
+                eraseCredentialsNoLongerOwned(removed + listOfNotNull(pendingOwner))
             } else {
-                logger.e { "Failed to commit removal for credential: $credentialId" }
+                logger.e { "Credential removal commit failed" }
+                val pendingOwner = pendingRemovalOwners.remove(credentialId)
+                _state.update { it.copy(pendingDeleteIds = it.pendingDeleteIds - credentialId) }
                 _effect.emit(CredentialManagementEffect.ShowToast("Failed to delete credential"))
                 updateStateWithFilteredCredentials() // Restore view
+                pendingOwner?.let { eraseCredentialsNoLongerOwned(listOf(it)) }
             }
         }
     }
@@ -385,8 +485,9 @@ class CredentialManagementViewModel(
         ownedCredentials.addAll(_state.value.credentials)
         _state.value.selectedCredential?.let(ownedCredentials::add)
         _state.value.credentialToDelete?.let(ownedCredentials::add)
-        _state.value.lastDeleted?.let(ownedCredentials::add)
+        ownedCredentials.addAll(pendingRemovalOwners.values)
         ownedCredentials.forEach(PasskeyCredential::eraseSensitiveText)
+        _removalEvents.cancel()
         super.onCleared()
     }
 
@@ -397,7 +498,7 @@ class CredentialManagementViewModel(
         retained.addAll(_state.value.credentials)
         _state.value.selectedCredential?.let(retained::add)
         _state.value.credentialToDelete?.let(retained::add)
-        _state.value.lastDeleted?.let(retained::add)
+        retained.addAll(pendingRemovalOwners.values)
         candidates.forEach { credential ->
             if (credential !in retained) credential.eraseSensitiveText()
         }
@@ -414,11 +515,30 @@ private data class CredentialSearchQuery(
     val query: SensitiveCredentialText,
 )
 
+/** Keeps a fetched page owned by the caller until the replacement page list is constructed. */
+internal fun combineOwnedCredentialPage(
+    retained: List<PasskeyCredential>,
+    incoming: List<PasskeyCredential>,
+    combine: (List<PasskeyCredential>, List<PasskeyCredential>) -> List<PasskeyCredential>,
+): List<PasskeyCredential> {
+    var transferred = false
+    try {
+        val combined = combine(retained, incoming)
+        transferred = true
+        return combined
+    } finally {
+        if (!transferred) {
+            val retainedOwners = Collections.newSetFromMap(IdentityHashMap<PasskeyCredential, Boolean>())
+            retainedOwners.addAll(retained)
+            incoming.filterNot(retainedOwners::contains).forEach(PasskeyCredential::eraseSensitiveText)
+        }
+    }
+}
+
 data class CredentialManagementState(
     val credentials: List<PasskeyCredential> = emptyList(),
     val selectedCredential: PasskeyCredential? = null,
     val credentialToDelete: PasskeyCredential? = null,
-    val lastDeleted: PasskeyCredential? = null,
     val isLoading: Boolean = false,
     val isPaginating: Boolean = false,
     val hasMore: Boolean = true,
@@ -428,6 +548,10 @@ data class CredentialManagementState(
 )
 
 sealed interface CredentialManagementIntent {
+    object ScreenStarted : CredentialManagementIntent
+
+    object ScreenStopped : CredentialManagementIntent
+
     object RefreshCredentials : CredentialManagementIntent
 
     object LoadNextPage : CredentialManagementIntent

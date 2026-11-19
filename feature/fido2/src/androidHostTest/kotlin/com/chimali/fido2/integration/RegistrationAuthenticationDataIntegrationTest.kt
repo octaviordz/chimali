@@ -22,8 +22,11 @@ import com.chimali.fido2.data.dao.UserConsentRecordDao
 import com.chimali.fido2.data.database.Fido2Database
 import com.chimali.fido2.data.repository.CredentialRepositoryImpl
 import com.chimali.fido2.data.service.CredentialMetadataProtectionService
+import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
+import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
 import com.chimali.fido2.domain.model.PublicKeyCredentialRpEntity
@@ -38,11 +41,13 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.domain.usecase.SelectCredentialUseCase
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import java.security.MessageDigest
 import java.security.Security
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -64,12 +69,56 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RegistrationAuthenticationDataIntegrationTest {
+    private val ownedByteBuffers = mutableListOf<ByteArray>()
+    private val ownedKeyPairs = mutableListOf<HdkKeyPair>()
+    private val mocksToClear = mutableListOf<Any>()
+    private val ownedRegistrationOptions = mutableListOf<MakeCredentialOptions>()
+    private val ownedAssertionOptions = mutableListOf<GetAssertionOptions>()
+    private val ownedRegistrationResults = mutableListOf<MakeCredentialResult>()
+    private val ownedAssertions = mutableListOf<AssertionObject>()
+    private val ownedPersistedCredentials = mutableListOf<PasskeyCredential>()
+
+    private fun own(bytes: ByteArray): ByteArray {
+        ownedByteBuffers += bytes
+        return bytes
+    }
+
+    private fun own(keyPair: HdkKeyPair): HdkKeyPair {
+        ownedKeyPairs += keyPair
+        return keyPair
+    }
+
+    private fun <T : Any> ownMock(mock: T): T {
+        mocksToClear += mock
+        return mock
+    }
+
+    private fun syntheticLookupToken(
+        first: CharSequence,
+        second: CharSequence,
+    ): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        listOf(first, second).forEach { value ->
+            value.forEach { character ->
+                digest.update((character.code shr 8).toByte())
+                digest.update(character.code.toByte())
+            }
+            digest.update(0)
+        }
+        return own(digest.digest())
+    }
+
+    private fun syntheticMetadataTransform(bytes: ByteArray): ByteArray =
+        own(ByteArray(bytes.size) { index -> (bytes[index].toInt() xor 0xA5).toByte() })
+
     private lateinit var database: Fido2Database
+    private lateinit var databaseDriver: JdbcSqliteDriver
     private lateinit var repository: CredentialRepositoryImpl
     private lateinit var registerUseCase: RegisterCredentialUseCase
     private lateinit var assertionUseCase: GetAssertionUseCase
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var userVerificationService: UserVerificationService
+    private lateinit var masterSeedProvider: MasterSeedProvider
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val timeProvider = TimeProvider()
@@ -81,12 +130,17 @@ class RegistrationAuthenticationDataIntegrationTest {
         private const val DUMMY_BYTE_CD = 0xCD.toByte()
     }
 
-    private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
-    private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
-            HdkKeyPair(result.privateScalar.copyOf(), result.publicKey.copyOf()).also { result.erasePrivateScalar() }
+    private val realSeed = own(ByteArray(SEED_SIZE_32) { it.toByte() })
+    private val realDeviceKeyPairDelegate =
+        lazy {
+            P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
+                HdkKeyPair(
+                    result.privateScalar.copyOf(),
+                    result.publicKey.copyOf(),
+                ).also { result.erasePrivateScalar() }
+            }
         }
-    }
+    private val realDeviceKeyPair: HdkKeyPair by realDeviceKeyPairDelegate
 
     @BeforeTest
     fun setUp() {
@@ -98,9 +152,9 @@ class RegistrationAuthenticationDataIntegrationTest {
         every { android.util.Log.i(any(), any()) } returns 0
 
         // 1. Database Setup
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        Fido2Database.Schema.create(driver)
-        database = Fido2Database(driver)
+        databaseDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        Fido2Database.Schema.create(databaseDriver)
+        database = Fido2Database(databaseDriver)
 
         // 2. DAO Setup
         // Exercise real metadata serialization and parsing; the synthetic envelope below is
@@ -108,36 +162,39 @@ class RegistrationAuthenticationDataIntegrationTest {
         val metadataProtectionService =
             CredentialMetadataProtectionService(
                 lookupTokenService =
-                    mockk {
-                        every { generateToken(any(), any()) } answers {
-                            StringBuilder()
-                                .append(firstArg<CharSequence>())
-                                .append(':')
-                                .append(secondArg<CharSequence>())
-                                .toString()
-                                .toByteArray()
-                        }
-                    },
+                    ownMock(
+                        mockk {
+                            every { generateToken(any(), any()) } answers {
+                                syntheticLookupToken(firstArg(), secondArg())
+                            }
+                        },
+                    ),
                 encryptedMetadataService =
-                    mockk {
-                        every { encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
-                        every { decrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
-                    },
+                    ownMock(
+                        mockk {
+                            every { encrypt(any(), any()) } answers { syntheticMetadataTransform(firstArg()) }
+                            every { decrypt(any(), any()) } answers { syntheticMetadataTransform(firstArg()) }
+                        },
+                    ),
             )
         val passkeyDao = PasskeyCredentialDao(database, timeProvider, metadataProtectionService)
         val rpDao = RelyingPartyDao(database, timeProvider, metadataProtectionService)
         val consentDao = UserConsentRecordDao(database, metadataProtectionService)
 
         // 3. Crypto Setup
-        val masterSeedProvider: MasterSeedProvider =
-            mockk {
-                every { sessionGeneration() } returns 1L
-                every { isSessionGenerationCurrent(any()) } returns true
-                coEvery { getMasterSeed() } answers { realSeed.copyOf() }
-                coEvery {
-                    getDeviceKeyPair()
-                } answers { HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf()) }
-            }
+        masterSeedProvider =
+            ownMock(
+                mockk {
+                    every { sessionGeneration() } returns 1L
+                    every { isSessionGenerationCurrent(any()) } returns true
+                    coEvery { getMasterSeed() } answers { own(realSeed.copyOf()) }
+                    coEvery {
+                        getDeviceKeyPair()
+                    } answers {
+                        own(HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf()))
+                    }
+                },
+            )
 
         cryptoService =
             Fido2CryptoService(
@@ -149,24 +206,28 @@ class RegistrationAuthenticationDataIntegrationTest {
 
         // 4. Repository Setup
         val publicKeyDecoder: com.chimali.fido2.data.crypto.PublicKeyDecoder =
-            mockk {
-                val dummyKey =
-                    java.security.KeyPairGenerator
-                        .getInstance(
-                            "EC",
-                        ).apply { initialize(256) }
-                        .generateKeyPair()
-                        .public
-                every { decodePublicKey(any(), any()) } returns Outcome.Success(dummyKey)
-            }
+            ownMock(
+                mockk {
+                    val dummyKey =
+                        java.security.KeyPairGenerator
+                            .getInstance(
+                                "EC",
+                            ).apply { initialize(256) }
+                            .generateKeyPair()
+                            .public
+                    every { decodePublicKey(any(), any()) } returns Outcome.Success(dummyKey)
+                },
+            )
 
         val aggregateService: com.chimali.core.domain.eventsourcing.AggregateService<
             com.chimali.core.domain.eventsourcing.passkey.PasskeyCommand,
             com.chimali.core.domain.eventsourcing.passkey.PasskeyState,
         > =
-            mockk {
-                coEvery { execute(any(), any()) } returns Result.success(mockk(relaxed = true))
-            }
+            ownMock(
+                mockk {
+                    coEvery { execute(any(), any()) } returns Result.success(mockk(relaxed = true))
+                },
+            )
 
         repository =
             CredentialRepositoryImpl(
@@ -181,27 +242,31 @@ class RegistrationAuthenticationDataIntegrationTest {
 
         // 5. UseCase Setup
         userVerificationService =
-            mockk {
-                coEvery { getUserVerificationAvailability() } returns
-                    UserVerificationAvailability(
-                        isBiometricAvailable = true,
-                        isPinAvailable = true,
-                        isDeviceLockAvailable = false,
-                        supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                        maxPinLength = 8,
-                        minPinLength = 4,
-                        biometricStrength = BiometricStrength.STRONG,
-                    )
-                coEvery {
-                    isUserVerificationRequiredForText(any(), any(), any())
-                } returns ServiceVerificationRequirement.PREFERRED
-                coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
-            }
+            ownMock(
+                mockk {
+                    coEvery { getUserVerificationAvailability() } returns
+                        UserVerificationAvailability(
+                            isBiometricAvailable = true,
+                            isPinAvailable = true,
+                            isDeviceLockAvailable = false,
+                            supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
+                            maxPinLength = 8,
+                            minPinLength = 4,
+                            biometricStrength = BiometricStrength.STRONG,
+                        )
+                    coEvery {
+                        isUserVerificationRequiredForText(any(), any(), any())
+                    } returns ServiceVerificationRequirement.PREFERRED
+                    coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
+                },
+            )
 
         val settingsRepo: Fido2SettingsRepository =
-            mockk {
-                coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
-            }
+            ownMock(
+                mockk {
+                    coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
+                },
+            )
 
         val clientDataHashService = ClientDataHashService()
 
@@ -227,7 +292,65 @@ class RegistrationAuthenticationDataIntegrationTest {
 
     @AfterTest
     fun tearDown() {
+        eraseSensitiveFixtures()
+        mocksToClear.forEach { clearMocks(it) }
+        mocksToClear.clear()
+        if (::databaseDriver.isInitialized) databaseDriver.close()
         unmockkStatic(android.util.Log::class)
+    }
+
+    private fun eraseSensitiveFixtures() {
+        ownedAssertionOptions.forEach {
+            it.eraseSensitiveText()
+            it.clientDataHash.fill(0)
+        }
+        ownedAssertionOptions.clear()
+        ownedRegistrationOptions.forEach(MakeCredentialOptions::eraseSensitiveText)
+        ownedRegistrationOptions.clear()
+        ownedAssertions.forEach {
+            it.authData.fill(0)
+            it.signature.fill(0)
+        }
+        ownedAssertions.clear()
+        ownedRegistrationResults.forEach(MakeCredentialResult::eraseSensitiveData)
+        ownedRegistrationResults.clear()
+        ownedPersistedCredentials.forEach(PasskeyCredential::eraseSensitiveText)
+        ownedPersistedCredentials.clear()
+        ownedKeyPairs.forEach {
+            it.erasePrivateKey()
+            it.publicKey.fill(0)
+        }
+        ownedKeyPairs.clear()
+        if (realDeviceKeyPairDelegate.isInitialized()) {
+            realDeviceKeyPair.erasePrivateKey()
+            realDeviceKeyPair.publicKey.fill(0)
+        }
+        ownedByteBuffers.forEach { it.fill(0) }
+        ownedByteBuffers.clear()
+        realSeed.fill(0)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesOwnedIntegrationCryptoBuffers() {
+        val seedFixture = realSeed
+        val rootKeyPair = realDeviceKeyPair
+        val providerKeyPair =
+            own(
+                HdkKeyPair(
+                    privateKey = ByteArray(SEED_SIZE_32) { 0x2A },
+                    publicKey = ByteArray(65) { 0x2B },
+                ),
+            )
+        val payloadFixture = own(ByteArray(SEED_SIZE_32) { 0x2C })
+
+        eraseSensitiveFixtures()
+
+        assertTrue(seedFixture.all { it == 0.toByte() })
+        assertTrue(rootKeyPair.privateKey.all { it == 0.toByte() })
+        assertTrue(rootKeyPair.publicKey.all { it == 0.toByte() })
+        assertTrue(providerKeyPair.privateKey.all { it == 0.toByte() })
+        assertTrue(providerKeyPair.publicKey.all { it == 0.toByte() })
+        assertTrue(payloadFixture.all { it == 0.toByte() })
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -240,42 +363,41 @@ class RegistrationAuthenticationDataIntegrationTest {
 
             // 1. Registration
             val makeOptions =
-                MakeCredentialOptions.create(
-                    rp = PublicKeyCredentialRpEntity.create(id = rpId, name = "Example"),
-                    user = PublicKeyCredentialUserEntity.create(id = userId, name = "user", displayName = "User"),
-                    challenge = ByteArray(CHALLENGE_SIZE_32) { it.toByte() },
-                    pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                    selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
-                )
+                MakeCredentialOptions
+                    .create(
+                        rp = PublicKeyCredentialRpEntity.create(id = rpId, name = "Example"),
+                        user = PublicKeyCredentialUserEntity.create(id = userId, name = "user", displayName = "User"),
+                        challenge = own(ByteArray(CHALLENGE_SIZE_32) { it.toByte() }),
+                        pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+                        selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
+                    ).also(ownedRegistrationOptions::add)
 
             val regResult = registerUseCase(makeOptions)
-            if (regResult is Outcome.Error) {
-                println("Registration failed: ${regResult.error.message}")
-                regResult.error.cause?.printStackTrace()
-            }
             assertTrue(regResult.isSuccess, "Registration should succeed")
 
-            val credential = regResult.getOrThrow().credential
+            val registrationResult = regResult.getOrThrow().also(ownedRegistrationResults::add)
+            val credential = registrationResult.credential
             val credId = credential.id
 
-            val savedCred = repository.getCredentialById(credId)
+            val savedCred = repository.getCredentialById(credId)?.also(ownedPersistedCredentials::add)
             assertTrue(savedCred != null, "Credential should be found in database")
             assertEquals(credId, savedCred.id)
             assertEquals(rpId.value, savedCred.rpId.toBoundaryString())
 
             // 2. Authentication
             val authOptions =
-                GetAssertionOptions.create(
-                    rpId = rpId,
-                    clientDataHash = ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_CD },
-                    userVerification = UserVerificationRequirement.PREFERRED,
-                    allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = credId)),
-                )
+                GetAssertionOptions
+                    .create(
+                        rpId = rpId,
+                        clientDataHash = own(ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_CD }),
+                        userVerification = UserVerificationRequirement.PREFERRED,
+                        allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = credId)),
+                    ).also(ownedAssertionOptions::add)
 
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess, "Authentication should succeed using persisted credential")
 
-            val assertion = authResult.getOrThrow()
+            val assertion = authResult.getOrThrow().also(ownedAssertions::add)
             assertEquals(credId.encoded, assertion.credentialId)
         }
 
@@ -297,23 +419,25 @@ class RegistrationAuthenticationDataIntegrationTest {
 
             // 1. Registration using the migrated DAO (rp_id_index + encrypted_metadata written)
             val makeOptions =
-                MakeCredentialOptions.create(
-                    rp = PublicKeyCredentialRpEntity.create(id = rpId, name = "Migrated Example"),
-                    user =
-                        PublicKeyCredentialUserEntity.create(
-                            id = userId,
-                            name = "migrated",
-                            displayName = "Migrated User",
-                        ),
-                    challenge = ByteArray(CHALLENGE_SIZE_32) { (it + 1).toByte() },
-                    pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
-                    selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
-                )
+                MakeCredentialOptions
+                    .create(
+                        rp = PublicKeyCredentialRpEntity.create(id = rpId, name = "Migrated Example"),
+                        user =
+                            PublicKeyCredentialUserEntity.create(
+                                id = userId,
+                                name = "migrated",
+                                displayName = "Migrated User",
+                            ),
+                        challenge = own(ByteArray(CHALLENGE_SIZE_32) { (it + 1).toByte() }),
+                        pubKeyCredParams = PublicKeyCredentialParameters.createES256P256(),
+                        selectedAlgId = CredentialKeyDescriptor.COSE_ES256,
+                    ).also(ownedRegistrationOptions::add)
 
             val regResult = registerUseCase(makeOptions)
             assertTrue(regResult.isSuccess, "Registration with migrated schema should succeed")
 
-            val credential = regResult.getOrThrow().credential
+            val registrationResult = regResult.getOrThrow().also(ownedRegistrationResults::add)
+            val credential = registrationResult.credential
             val credId = credential.id
 
             // 2. Verify token columns were populated (migration-compatible write path)
@@ -325,17 +449,18 @@ class RegistrationAuthenticationDataIntegrationTest {
 
             // 3. Authentication using the persisted credential
             val authOptions =
-                GetAssertionOptions.create(
-                    rpId = rpId,
-                    clientDataHash = ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_CD },
-                    userVerification = UserVerificationRequirement.PREFERRED,
-                    allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = credId)),
-                )
+                GetAssertionOptions
+                    .create(
+                        rpId = rpId,
+                        clientDataHash = own(ByteArray(CHALLENGE_SIZE_32) { DUMMY_BYTE_CD }),
+                        userVerification = UserVerificationRequirement.PREFERRED,
+                        allowCredentials = listOf(PublicKeyCredentialDescriptor.create(id = credId)),
+                    ).also(ownedAssertionOptions::add)
 
             val authResult = assertionUseCase(authOptions)
             assertTrue(authResult.isSuccess, "Authentication with migrated credential should succeed")
 
-            val assertion = authResult.getOrThrow()
+            val assertion = authResult.getOrThrow().also(ownedAssertions::add)
             assertEquals(credId.encoded, assertion.credentialId)
         }
 }

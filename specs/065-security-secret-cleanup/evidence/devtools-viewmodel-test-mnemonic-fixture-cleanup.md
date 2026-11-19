@@ -1,0 +1,5 @@
+# DevTools ViewModel mnemonic test fixture cleanup
+
+`DevToolsViewModelTest` exercises reveal, replacement, copy-disabled, import, cancellation and disposal behavior with synthetic mnemonic arrays and a synthetic 64-byte seed response. The fixture owner now tracks every mutable mnemonic/import copy and seed byte array. Unconditional `@AfterEach` clears the ViewModelStore before zeroing tracked arrays, resets the test dispatcher, then clears MockK provider answers and invocation history. The direct teardown regression confirms both character and byte fixtures are zeroed. Existing borrower-barrier cases continue to assert that import input remains readable until the provider finishes cleanup and is erased afterward.
+
+Validation: the focused class passes 16 tests; the full FIDO Android host suite passes 1,302 tests across 171 XML reports with zero failures, errors, or skips. `:feature:fido2:ktlintCheck` passes. This covers synthetic host-test values and test fixture lifetime only; it does not establish provider/native, Compose/framework, device, heap or production mnemonic/seed cleanup.

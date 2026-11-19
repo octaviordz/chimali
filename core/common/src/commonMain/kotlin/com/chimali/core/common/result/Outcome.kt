@@ -24,9 +24,11 @@ package com.chimali.core.common.result
  * suspend fun fetchData(): Outcome<MyData, DomainError> =
  *     try {
  *         Outcome.Success(api.getData())
- *     } catch (e: IOException) {
- *         Logger.e(e) { "Network failure" }
- *         Outcome.Error(DomainError.NetworkError("Network failure", e))
+ *     } catch (_: IOException) {
+ *         // Do not attach a throwable to logs or returned errors unless every downstream
+ *         // diagnostic destination has been reviewed for its message and cause content.
+ *         Logger.e { "Network failure" }
+ *         Outcome.Error(DomainError.NetworkError("Network failure"))
  *     }
  *
  * // ViewModel
@@ -52,6 +54,8 @@ sealed interface Outcome<out D, out E : DomainError> {
      *
      * Note: `Outcome<Nothing, E>` — no data type can be instantiated,
      * so callers only need to handle [Error] on this branch.
+     * The error may contain an untrusted message and retained cause; do not log or stringify
+     * the whole value. Map it to a reviewed fixed diagnostic or user-facing category instead.
      */
     data class Error<out E : DomainError>(
         val error: E,

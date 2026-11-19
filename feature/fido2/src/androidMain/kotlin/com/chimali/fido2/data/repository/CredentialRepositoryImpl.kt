@@ -390,23 +390,25 @@ class CredentialRepositoryImpl(
     override suspend fun validateCredentialCreationForText(
         rpId: CharSequence,
         userId: CharSequence,
-    ): Outcome<Unit, DomainError> =
-        try {
-            val rows = passkeyCredentialDao.getCredentialsByRpText(rpId).first()
+    ): Outcome<Unit, DomainError> {
+        val rows =
             try {
-                val count = countOwnedUserCredentials(rows, userId)
-                if (count >= MAX_USER_CREDENTIALS_PER_RP) {
-                    Outcome.Error(DomainError.OperationDenied("Too many credentials for this user and RP"))
-                } else {
-                    Outcome.Success(Unit)
-                }
-            } finally {
-                rows.forEach { it.eraseSensitiveMetadata() }
+                passkeyCredentialDao.getCredentialsByRpText(rpId).first()
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Credential creation validation failed" }
+                return Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
             }
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Credential creation validation failed" }
-            Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
+        try {
+            val count = countOwnedUserCredentials(rows, userId)
+            return if (count >= MAX_USER_CREDENTIALS_PER_RP) {
+                Outcome.Error(DomainError.OperationDenied("Too many credentials for this user and RP"))
+            } else {
+                Outcome.Success(Unit)
+            }
+        } finally {
+            rows.forEach { it.eraseSensitiveMetadata() }
         }
+    }
 
     private fun countOwnedUserCredentials(
         rows: List<PasskeyCredentialEntity>,
@@ -465,11 +467,13 @@ class CredentialRepositoryImpl(
             // The callback borrows currentRp and transfers ownership of its result to this method.
             val resultRp = update(loadedRp)
             updatedRp = resultRp
-            relyingPartyDao.updateRelyingParty(resultRp)
+            try {
+                relyingPartyDao.updateRelyingParty(resultRp)
+            } catch (_: android.database.SQLException) {
+                Logger.e { "CredentialRepository: Failed to update relying party" }
+                return Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
+            }
             Outcome.Success(Unit)
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to update relying party" }
-            Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
         } finally {
             // An identity result is one owner and must be erased only once.
             if (updatedRp !== currentRp) updatedRp?.eraseSensitiveText()
@@ -600,7 +604,7 @@ class CredentialRepositoryImpl(
                         is Outcome.Success -> Unit
                     }
             }
-            // Finalize: relyingPartyDao.deleteAll() / userConsentRecordDao.deleteAll() once DAOs support it
+            relyingPartyDao.clearAuthenticatorMetadata()
             Outcome.Success(Unit)
         } catch (_: android.database.SQLException) {
             Logger.e { "CredentialRepository: Failed to reset authenticator" }
@@ -622,18 +626,4 @@ class CredentialRepositoryImpl(
             credentials.forEach(PasskeyCredential::eraseSensitiveText)
         }
     }
-
-    /** Implements [CredentialRepository.updateLabel] through the aggregate and protected projections. */
-    @Req("NFR-SEC-041", "TR-AUTH-031")
-    override suspend fun updateLabel(
-        credentialId: CredentialId,
-        label: String?,
-    ): Outcome<Unit, DomainError> =
-        try {
-            passkeyCredentialDao.updateLabel(credentialId, label)
-            Outcome.Success(Unit)
-        } catch (_: android.database.SQLException) {
-            Logger.e { "CredentialRepository: Failed to update credential label" }
-            Outcome.Error(DomainError.DatabaseError(STORAGE_OPERATION_FAILED))
-        }
 }

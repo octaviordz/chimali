@@ -44,10 +44,8 @@ class UserConsentRecordBehaviorTest {
         assertFalse(consent.isForCredential(CredentialId.fromByteArray(ByteArray(16) { (it + 1).toByte() })))
         assertTrue(consent.isForRelyingParty(RpId("HTTPS://EXAMPLE.COM")))
         assertFalse(consent.isForRelyingParty(RpId("https://other.example")))
-        assertEquals(id.encoded, consent.getSafeCredentialId())
         assertTrue(consent.isRegistrationConsent())
         assertFalse(consent.isAuthenticationConsent())
-        assertEquals("N/A", record().getSafeCredentialId())
         assertTrue(record().isAuthenticationConsent())
     }
 
@@ -82,6 +80,16 @@ class UserConsentRecordBehaviorTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
+    fun `invalid IP validation message does not expose the supplied value`() {
+        val marker = "private-ip-marker-SEC065-ERR-011"
+        val error = assertFailsWith<IllegalArgumentException> { record(ipAddress = marker) }
+
+        assertEquals("Invalid IP address format", error.message)
+        assertFalse(error.message.orEmpty().contains(marker))
+    }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
     fun `record rejects blank and oversized user agent and device ID`() {
         assertFailsWith<IllegalArgumentException> { record(userAgent = " ") }
         assertFailsWith<IllegalArgumentException> {
@@ -110,12 +118,12 @@ class UserConsentRecordBehaviorTest {
     @Test
     fun `eraseSensitiveText erases the owned RP buffer`() {
         val consent = record(rpId = "https://example.com")
-        assertEquals("https://example.com", consent.rpId.value)
+        assertTrue(consent.rpIdText.contentEquals("https://example.com"))
 
         consent.eraseSensitiveText()
 
         val erasedExpected = "\u0000".repeat("https://example.com".length)
-        assertEquals(erasedExpected, consent.rpIdText.toBoundaryString())
+        assertTrue(consent.rpIdText.contentEquals(erasedExpected))
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -128,9 +136,9 @@ class UserConsentRecordBehaviorTest {
 
         copied.eraseSensitiveText()
 
-        assertEquals("https://example.com", original.rpId.value)
+        assertTrue(original.rpIdText.contentEquals("https://example.com"))
         val erasedExpected = "\u0000".repeat("https://example.com".length)
-        assertEquals(erasedExpected, copied.rpIdText.toBoundaryString())
+        assertTrue(copied.rpIdText.contentEquals(erasedExpected))
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -145,7 +153,7 @@ class UserConsentRecordBehaviorTest {
 
         assertEquals("from-text-id", consent.id)
         assertEquals(ConsentOperationType.REGISTRATION, consent.operationType)
-        assertEquals("https://fido.org", consent.rpId.value)
+        assertTrue(consent.rpIdText.contentEquals("https://fido.org"))
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -177,7 +185,7 @@ class UserConsentRecordBehaviorTest {
             "\u0000".repeat("https://example.com".length),
             requireNotNull(rejectedOwner).toBoundaryString(),
         )
-        assertEquals("https://example.com", valid.rpId.value)
+        assertTrue(valid.rpIdText.contentEquals("https://example.com"))
     }
 
     private fun record(

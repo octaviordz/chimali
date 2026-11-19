@@ -1,0 +1,5 @@
+# Passkey snapshot validation test fixture cleanup
+
+`PasskeyAggregateSnapshotValidationTest` exercises partially initialized synthetic persisted states and replays a registration event for each case. Its unconditional teardown now erases every partial state's mutable metadata and credential-ID arrays, both the source and copied registration-event credential-ID arrays, the restored state, and MockK answers/call history. The regression also verifies that the rejected partial credential-ID buffer is zeroed before replay.
+
+Validation: the focused class passes 1 test; the complete FIDO Android host suite passes 1,305 tests across 171 XML reports with zero failures, errors, or skips; and `:feature:fido2:ktlintCheck` passes. The Mi A2/API 29 clipboard audit run is recorded separately in `evidence/clipboard-device.md`; it does not validate this host fixture. This evidence covers synthetic host objects only; immutable strings, production persistence, provider/native copies, heap reachability and device/runtime behavior remain outside this test.

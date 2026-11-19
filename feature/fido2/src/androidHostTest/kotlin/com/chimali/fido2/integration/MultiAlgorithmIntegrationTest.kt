@@ -19,8 +19,10 @@ import com.chimali.fido2.data.crypto.CborCodec
 import com.chimali.fido2.data.crypto.ClientDataHashService
 import com.chimali.fido2.data.crypto.Fido2CryptoService
 import com.chimali.fido2.data.crypto.PostQuantumCrypto
+import com.chimali.fido2.domain.model.AssertionObject
 import com.chimali.fido2.domain.model.GetAssertionOptions
 import com.chimali.fido2.domain.model.MakeCredentialOptions
+import com.chimali.fido2.domain.model.MakeCredentialResult
 import com.chimali.fido2.domain.model.PasskeyCredential
 import com.chimali.fido2.domain.model.PublicKeyCredentialDescriptor
 import com.chimali.fido2.domain.model.PublicKeyCredentialParameters
@@ -39,6 +41,7 @@ import com.chimali.fido2.domain.service.UserVerificationService
 import com.chimali.fido2.domain.usecase.GetAssertionUseCase
 import com.chimali.fido2.domain.usecase.RegisterCredentialUseCase
 import com.chimali.fido2.domain.usecase.SelectCredentialUseCase
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -62,11 +65,36 @@ import org.junit.jupiter.api.Assertions.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MultiAlgorithmIntegrationTest {
+    private val ownedByteBuffers = mutableListOf<ByteArray>()
+    private val ownedKeyPairs = mutableListOf<HdkKeyPair>()
+    private val ownedRegistrationOptions = mutableListOf<MakeCredentialOptions>()
+    private val ownedAssertionOptions = mutableListOf<GetAssertionOptions>()
+    private val ownedRegistrationResults = mutableListOf<MakeCredentialResult>()
+    private val ownedAssertions = mutableListOf<AssertionObject>()
+    private val mocksToClear = mutableListOf<Any>()
+
+    private fun own(bytes: ByteArray): ByteArray {
+        ownedByteBuffers += bytes
+        return bytes
+    }
+
+    private fun own(keyPair: HdkKeyPair): HdkKeyPair {
+        ownedKeyPairs += keyPair
+        return keyPair
+    }
+
+    private fun <T : Any> ownMock(mock: T): T {
+        mocksToClear += mock
+        return mock
+    }
+
     private lateinit var cryptoService: Fido2CryptoService
     private lateinit var repository: MultiAlgInMemoryCredentialRepository
     private lateinit var registerUseCase: RegisterCredentialUseCase
     private lateinit var assertionUseCase: GetAssertionUseCase
     private lateinit var userVerificationService: UserVerificationService
+    private lateinit var masterSeedProvider: MasterSeedProvider
+    private lateinit var settingsRepository: Fido2SettingsRepository
     private val postQuantumCrypto = PostQuantumCrypto()
 
     companion object {
@@ -79,12 +107,17 @@ class MultiAlgorithmIntegrationTest {
         private const val DUMMY_BYTE_CD = 0xCD.toByte()
     }
 
-    private val realSeed = ByteArray(SEED_SIZE_32) { it.toByte() }
-    private val realDeviceKeyPair: HdkKeyPair by lazy {
-        P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
-            HdkKeyPair(result.privateScalar.copyOf(), result.publicKey.copyOf()).also { result.erasePrivateScalar() }
+    private val realSeed = own(ByteArray(SEED_SIZE_32) { it.toByte() })
+    private val realDeviceKeyPairDelegate =
+        lazy {
+            P256ParentKeyDerivation.deriveFromPrk(realSeed).let { result ->
+                HdkKeyPair(
+                    result.privateScalar.copyOf(),
+                    result.publicKey.copyOf(),
+                ).also { result.erasePrivateScalar() }
+            }
         }
-    }
+    private val realDeviceKeyPair: HdkKeyPair by realDeviceKeyPairDelegate
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @BeforeTest
@@ -99,15 +132,17 @@ class MultiAlgorithmIntegrationTest {
         every { android.util.Log.w(any(), any<String>(), any()) } returns 0
         every { android.util.Log.i(any(), any()) } returns 0
 
-        val masterSeedProvider: MasterSeedProvider =
-            mockk {
-                every { sessionGeneration() } returns 1L
-                every { isSessionGenerationCurrent(any()) } returns true
-                coEvery { getMasterSeed() } answers { realSeed.copyOf() }
-                coEvery { getDeviceKeyPair() } answers {
-                    HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf())
-                }
-            }
+        masterSeedProvider =
+            ownMock(
+                mockk {
+                    every { sessionGeneration() } returns 1L
+                    every { isSessionGenerationCurrent(any()) } returns true
+                    coEvery { getMasterSeed() } answers { own(realSeed.copyOf()) }
+                    coEvery { getDeviceKeyPair() } answers {
+                        own(HdkKeyPair(realDeviceKeyPair.privateKey.copyOf(), realDeviceKeyPair.publicKey.copyOf()))
+                    }
+                },
+            )
 
         cryptoService =
             Fido2CryptoService(
@@ -120,29 +155,33 @@ class MultiAlgorithmIntegrationTest {
         repository = MultiAlgInMemoryCredentialRepository()
 
         userVerificationService =
-            mockk {
-                coEvery { getUserVerificationAvailability() } returns
-                    UserVerificationAvailability(
-                        isBiometricAvailable = true,
-                        isPinAvailable = true,
-                        isDeviceLockAvailable = false,
-                        supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
-                        maxPinLength = MAX_PIN_LENGTH,
-                        minPinLength = MIN_PIN_LENGTH,
-                        biometricStrength = BiometricStrength.STRONG,
-                    )
-                coEvery {
-                    isUserVerificationRequiredForText(any(), any(), any())
-                } returns ServiceVerificationRequirement.PREFERRED
-                coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
-            }
+            ownMock(
+                mockk {
+                    coEvery { getUserVerificationAvailability() } returns
+                        UserVerificationAvailability(
+                            isBiometricAvailable = true,
+                            isPinAvailable = true,
+                            isDeviceLockAvailable = false,
+                            supportedBiometricTypes = listOf(BiometricType.FINGERPRINT),
+                            maxPinLength = MAX_PIN_LENGTH,
+                            minPinLength = MIN_PIN_LENGTH,
+                            biometricStrength = BiometricStrength.STRONG,
+                        )
+                    coEvery {
+                        isUserVerificationRequiredForText(any(), any(), any())
+                    } returns ServiceVerificationRequirement.PREFERRED
+                    coEvery { recordUserConsent(any()) } returns Outcome.Success(Unit)
+                },
+            )
 
         val selectCredentialUseCase = SelectCredentialUseCase()
 
-        val settingsRepository: Fido2SettingsRepository =
-            mockk {
-                coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
-            }
+        settingsRepository =
+            ownMock(
+                mockk {
+                    coEvery { getMaxCredentialCount() } returns MAX_CREDENTIALS
+                },
+            )
 
         val clientDataHashService = ClientDataHashService()
 
@@ -167,7 +206,63 @@ class MultiAlgorithmIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        eraseSensitiveFixtures()
+        mocksToClear.forEach { clearMocks(it) }
+        mocksToClear.clear()
         unmockkStatic(android.util.Log::class)
+    }
+
+    private fun eraseSensitiveFixtures() {
+        ownedAssertionOptions.forEach {
+            it.eraseSensitiveText()
+            it.clientDataHash.fill(0)
+        }
+        ownedAssertionOptions.clear()
+        ownedRegistrationOptions.forEach(MakeCredentialOptions::eraseSensitiveText)
+        ownedRegistrationOptions.clear()
+        ownedRegistrationResults.forEach(MakeCredentialResult::eraseSensitiveData)
+        ownedRegistrationResults.clear()
+        ownedAssertions.forEach {
+            it.authData.fill(0)
+            it.signature.fill(0)
+        }
+        ownedAssertions.clear()
+        if (::repository.isInitialized) repository.clear()
+        ownedKeyPairs.forEach {
+            it.erasePrivateKey()
+            it.publicKey.fill(0)
+        }
+        ownedKeyPairs.clear()
+        if (realDeviceKeyPairDelegate.isInitialized()) {
+            realDeviceKeyPair.erasePrivateKey()
+            realDeviceKeyPair.publicKey.fill(0)
+        }
+        ownedByteBuffers.forEach { it.fill(0) }
+        ownedByteBuffers.clear()
+        realSeed.fill(0)
+    }
+
+    @Test
+    fun fixtureCleanup_erasesOwnedCryptoInputsAndKeys() {
+        val seedFixture = realSeed
+        val rootKeyPair = realDeviceKeyPair
+        val providerKeyPair =
+            own(
+                HdkKeyPair(
+                    privateKey = ByteArray(SEED_SIZE_32) { 0x2A },
+                    publicKey = ByteArray(65) { 0x2B },
+                ),
+            )
+        val dataFixture = own(ByteArray(SEED_SIZE_32) { 0x2C })
+
+        eraseSensitiveFixtures()
+
+        assertTrue(seedFixture.all { it == 0.toByte() })
+        assertTrue(rootKeyPair.privateKey.all { it == 0.toByte() })
+        assertTrue(rootKeyPair.publicKey.all { it == 0.toByte() })
+        assertTrue(providerKeyPair.privateKey.all { it == 0.toByte() })
+        assertTrue(providerKeyPair.publicKey.all { it == 0.toByte() })
+        assertTrue(dataFixture.all { it == 0.toByte() })
     }
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
@@ -176,6 +271,7 @@ class MultiAlgorithmIntegrationTest {
         runTest {
             val options = buildMakeCredentialOptions("user-ecdsa", "example.com", CredentialKeyDescriptor.COSE_ES256)
             val result = registerUseCase(options)
+            if (result is Outcome.Success) ownedRegistrationResults += result.data
             assertTrue(result.isSuccess)
 
             val credential = result.getOrThrow().credential
@@ -184,6 +280,7 @@ class MultiAlgorithmIntegrationTest {
 
             val authOptions = buildGetAssertionOptions("https://example.com", credential.id)
             val authResult = assertionUseCase(authOptions)
+            if (authResult is Outcome.Success) ownedAssertions += authResult.data
             assertTrue(authResult.isSuccess)
             assertCeremonySignaturesVerify(result.getOrThrow(), authResult.getOrThrow(), authOptions)
         }
@@ -194,6 +291,7 @@ class MultiAlgorithmIntegrationTest {
         runTest {
             val options = buildMakeCredentialOptions("user-ed25519", "ed25519.com", CredentialKeyDescriptor.COSE_EDDSA)
             val result = registerUseCase(options)
+            if (result is Outcome.Success) ownedRegistrationResults += result.data
             assertTrue(result.isSuccess)
 
             val credential = result.getOrThrow().credential
@@ -202,6 +300,7 @@ class MultiAlgorithmIntegrationTest {
 
             val authOptions = buildGetAssertionOptions("https://ed25519.com", credential.id)
             val authResult = assertionUseCase(authOptions)
+            if (authResult is Outcome.Success) ownedAssertions += authResult.data
             assertTrue(authResult.isSuccess)
             assertCeremonySignaturesVerify(result.getOrThrow(), authResult.getOrThrow(), authOptions)
         }
@@ -212,6 +311,7 @@ class MultiAlgorithmIntegrationTest {
         runTest {
             val options = buildMakeCredentialOptions("user-mldsa", "mldsa.com", CredentialKeyDescriptor.COSE_ML_DSA_65)
             val result = registerUseCase(options)
+            if (result is Outcome.Success) ownedRegistrationResults += result.data
             assertTrue(result.isSuccess)
 
             val credential = result.getOrThrow().credential
@@ -223,6 +323,7 @@ class MultiAlgorithmIntegrationTest {
 
             val authOptions = buildGetAssertionOptions("https://mldsa.com", credential.id)
             val authResult = assertionUseCase(authOptions)
+            if (authResult is Outcome.Success) ownedAssertions += authResult.data
             assertTrue(authResult.isSuccess)
 
             // ML-DSA signature should be very large too (>3000 bytes)
@@ -258,10 +359,10 @@ class MultiAlgorithmIntegrationTest {
         val attestationStatement = registration.attestationObject.attStmt
         assertEquals(credential.coseAlgorithm, (attestationStatement.alg as Number).toInt())
         verify(
-            requireNotNull(attestationStatement.authData) + registration.attestationObject.clientData.challenge,
+            own(requireNotNull(attestationStatement.authData) + registration.attestationObject.clientData.challenge),
             requireNotNull(attestationStatement.attCert),
         )
-        verify(assertion.authData + assertionOptions.clientDataHash, assertion.signature)
+        verify(own(assertion.authData + assertionOptions.clientDataHash), assertion.signature)
     }
 
     private fun buildMakeCredentialOptions(
@@ -269,10 +370,11 @@ class MultiAlgorithmIntegrationTest {
         rpIdHost: String,
         algId: Int,
     ): MakeCredentialOptions {
+        val userIdBytes = own(userId.encodeToByteArray())
         val rp = PublicKeyCredentialRpEntity.create(id = RpId("https://$rpIdHost"), name = rpIdHost)
         val user =
             PublicKeyCredentialUserEntity.create(
-                id = UserId.fromByteArray(userId.encodeToByteArray()),
+                id = UserId.fromByteArray(userIdBytes),
                 name = userId,
                 displayName = userId,
             )
@@ -282,13 +384,14 @@ class MultiAlgorithmIntegrationTest {
                 CredentialKeyDescriptor.COSE_EDDSA -> PublicKeyCredentialParameters.createEdDsa()
                 else -> PublicKeyCredentialParameters.createES256P256()
             }
-        return MakeCredentialOptions.create(
-            rp = rp,
-            user = user,
-            challenge = ByteArray(SEED_SIZE_32) { (it + 1).toByte() },
-            pubKeyCredParams = params,
-            selectedAlgId = algId,
-        )
+        return MakeCredentialOptions
+            .create(
+                rp = rp,
+                user = user,
+                challenge = own(ByteArray(SEED_SIZE_32) { (it + 1).toByte() }),
+                pubKeyCredParams = params,
+                selectedAlgId = algId,
+            ).also(ownedRegistrationOptions::add)
     }
 
     private fun buildGetAssertionOptions(
@@ -300,12 +403,13 @@ class MultiAlgorithmIntegrationTest {
                 PublicKeyCredentialDescriptor
                     .create(id = credId),
             )
-        return GetAssertionOptions.create(
-            rpId = RpId(rpId),
-            clientDataHash = ByteArray(SEED_SIZE_32) { DUMMY_BYTE_CD },
-            userVerification = UserVerificationRequirement.PREFERRED,
-            allowCredentials = allowList,
-        )
+        return GetAssertionOptions
+            .create(
+                rpId = RpId(rpId),
+                clientDataHash = own(ByteArray(SEED_SIZE_32) { DUMMY_BYTE_CD }),
+                userVerification = UserVerificationRequirement.PREFERRED,
+                allowCredentials = allowList,
+            ).also(ownedAssertionOptions::add)
     }
 }
 
@@ -313,21 +417,24 @@ class MultiAlgorithmIntegrationTest {
  * Thread-safe in-memory implementation of [CredentialRepository] for use in tests.
  */
 private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
+    private val returnedSummaries = mutableListOf<CredentialSummary>()
+
     override suspend fun getCredentialSummariesForRpText(
         rpId: CharSequence,
     ): Outcome<List<CredentialSummary>, DomainError> =
         Outcome.Success(
             credentials.values.filter { it.rpId.contentEquals(rpId, ignoreCase = true) }.map {
-                CredentialSummary.fromText(
-                    it.id.encoded,
-                    it.rpId,
-                    it.id,
-                    it.lastUsedAt,
-                    it.coseAlgorithm,
-                    it.derivationProfile,
-                    it.storedPublicKeyEncoding,
-                    it.credProtectPolicy,
-                )
+                CredentialSummary
+                    .fromText(
+                        it.id.encoded,
+                        it.rpId,
+                        it.id,
+                        it.lastUsedAt,
+                        it.coseAlgorithm,
+                        it.derivationProfile,
+                        it.storedPublicKeyEncoding,
+                        it.credProtectPolicy,
+                    ).also(returnedSummaries::add)
             },
         )
 
@@ -346,21 +453,30 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
             .asSequence()
             .filter { it.belongsToRelyingParty(rpId) }
             .map {
-                CredentialSummary(
-                    id = it.id.encoded,
-                    rpId = it.rpId.toRpId(),
-                    credentialId = it.id,
-                    lastUsedAt = it.lastUsedAt,
-                    coseAlgorithm = it.coseAlgorithm,
-                    derivationProfile = it.derivationProfile,
-                    storedPublicKeyEncoding = it.storedPublicKeyEncoding,
-                )
+                CredentialSummary
+                    .fromRpId(
+                        id = it.id.encoded,
+                        rpId = RpId(it.rpId.toBoundaryString()),
+                        credentialId = it.id,
+                        lastUsedAt = it.lastUsedAt,
+                        coseAlgorithm = it.coseAlgorithm,
+                        derivationProfile = it.derivationProfile,
+                        storedPublicKeyEncoding = it.storedPublicKeyEncoding,
+                    ).also(returnedSummaries::add)
             }.toList()
 
     override suspend fun saveCredential(credential: PasskeyCredential): Outcome<Unit, DomainError> {
-        credentials[credential.id.encoded] = credential.copyWithIndependentSensitiveText()
+        credentials.put(credential.id.encoded, credential.copyWithIndependentSensitiveText())?.eraseSensitiveText()
         signCounts[credential.id.encoded] = 0L
         return Outcome.Success(Unit)
+    }
+
+    fun clear() {
+        credentials.values.forEach(PasskeyCredential::eraseSensitiveText)
+        credentials.clear()
+        returnedSummaries.forEach(CredentialSummary::eraseSensitiveText)
+        returnedSummaries.clear()
+        signCounts.clear()
     }
 
     override suspend fun getCredentialById(credentialId: CredentialId): PasskeyCredential? =
@@ -508,14 +624,4 @@ private class MultiAlgInMemoryCredentialRepository : CredentialRepository {
     override suspend fun deleteAllCredentials(rpId: RpId?): Outcome<Unit, DomainError> = Outcome.Success(Unit)
 
     override suspend fun resetAuthenticator(): Outcome<Unit, DomainError> = Outcome.Success(Unit)
-
-    override suspend fun updateLabel(
-        credentialId: CredentialId,
-        label: String?,
-    ): Outcome<Unit, DomainError> {
-        credentials[credentialId.encoded]?.let {
-            credentials[credentialId.encoded] = it.copy(label = label)
-        }
-        return Outcome.Success(Unit)
-    }
 }

@@ -1,4 +1,4 @@
-@file:Suppress("MissingPermission")
+@file:Suppress("SwallowedException", "MissingPermission")
 
 package com.chimali.fido2.bluetooth
 
@@ -23,6 +23,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+
+/** Closed diagnostic labels for delayed HID reconnect scheduling. */
+internal enum class ProactiveConnectReason {
+    ALREADY_CONNECTED_ON_ADVERTISING,
+    BOND_BONDED,
+    ACL_CONNECTED,
+}
 
 /** Narrow bridge from Android HID callbacks to the wrapper's session and report ownership. */
 @Req("FR-HID-010", "FR-HID-020")
@@ -128,74 +135,36 @@ internal class BluetoothHidCallbackCoordinator(
 
     private fun publishSessionState(state: HidConnectionState) = owner.publishSessionState(state)
 
-    /** Records current HID, host, bond, and session state for lifecycle diagnosis. */
+    /** Records a fixed marker that the HID diagnostic snapshot boundary was reached. */
     @Req("FR-HID-010", "FR-HID-020")
-    fun logDiagnosticSnapshot(tag: String) {
+    fun logDiagnosticSnapshot() {
         val hid = hidDevice
         if (hid == null) {
-            Logger.d { "[DIAG:$tag] hidDevice=null, _connectionState=${currentConnectionState.value}" }
+            Logger.d { "[DIAG] HID diagnostic snapshot unavailable" }
             return
         }
-
-        try {
-            val connectedDevices = hid.getConnectedDevices()
-            val bondedDevices = bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
-            Logger.i {
-                "[DIAG:$tag] _connectionState=${currentConnectionState.value}, " +
-                    "connectedDevice=${connectedDevice?.address}, " +
-                    "pendingBondDevice=${pendingBondDevice?.address}"
-            }
-            Logger.i {
-                "[DIAG:$tag] getConnectedDevices()=[" +
-                    "${connectedDevices.joinToString { "${it.address}(state=${hid.getConnectionState(it)})" }}] " +
-                    "(count=${connectedDevices.size})"
-            }
-            Logger.i {
-                "[DIAG:$tag] bondedDevices=[${bondedDevices.joinToString { "${it.address}(bond=${it.bondState})" }}] " +
-                    "(count=${bondedDevices.size})"
-            }
-        } catch (e: SecurityException) {
-            Logger.w(e) { "[DIAG:$tag] SecurityException reading diagnostic state" }
-        } catch (e: IllegalStateException) {
-            Logger.w(e) { "[DIAG:$tag] IllegalStateException reading diagnostic state" }
-        }
+        Logger.i { "[DIAG] HID diagnostic snapshot captured" }
     }
-
-    private fun connectionStateName(state: Int): String =
-        when (state) {
-            BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED(0)"
-            BluetoothProfile.STATE_CONNECTING -> "CONNECTING(1)"
-            BluetoothProfile.STATE_CONNECTED -> "CONNECTED(2)"
-            BluetoothProfile.STATE_DISCONNECTING -> "DISCONNECTING(3)"
-            else -> "UNKNOWN($state)"
-        }
-
-    private fun bondStateName(state: Int): String =
-        when (state) {
-            BluetoothDevice.BOND_NONE -> "BOND_NONE(10)"
-            BluetoothDevice.BOND_BONDING -> "BOND_BONDING(11)"
-            BluetoothDevice.BOND_BONDED -> "BOND_BONDED(12)"
-            else -> "UNKNOWN($state)"
-        }
 
     private fun acceptConnectedDevice(device: BluetoothDevice) = owner.acceptConnectedDevice(device)
 
     /** Connects an already-bonded host after its configured Bluetooth settling delay. */
     @Req("FR-HID-010", "FR-HID-020")
+    @Suppress("UnusedParameter") // Retained to preserve caller context in the proactive connection API.
     fun scheduleProactiveConnect(
         device: BluetoothDevice,
         delayDuration: Duration,
-        reason: String,
+        reason: ProactiveConnectReason,
     ) {
         proactiveConnectJob?.cancel()
         proactiveConnectJob =
             scope.launch {
-                Logger.i { "Scheduling proactive HID connection to ${device.address} ($reason) in $delayDuration..." }
+                Logger.i { "Scheduling proactive HID connection to paired device" }
                 delay(delayDuration)
                 if (currentConnectionState.value is HidConnectionState.Advertising &&
                     device.bondState == BluetoothDevice.BOND_BONDED
                 ) {
-                    Logger.i { "Executing proactive HID connect to ${device.address} ($reason)..." }
+                    Logger.i { "Executing proactive HID connection to paired device" }
                     owner.connect(device)
                 }
             }
@@ -206,16 +175,16 @@ internal class BluetoothHidCallbackCoordinator(
             val method = device.javaClass.getMethod("isConnected")
             (method.invoke(device) as? Boolean) ?: false
         } catch (e: SecurityException) {
-            Logger.w(e) { "isAclConnected: SecurityException querying connection state for ${device.address}" }
+            Logger.w { "isAclConnected: SecurityException querying connection state for paired device" }
             false
         } catch (e: NoSuchMethodException) {
-            Logger.w(e) { "isAclConnected: isConnected method not found on ${device.address}" }
+            Logger.w { "isAclConnected: isConnected method not found on paired device" }
             false
         } catch (e: IllegalAccessException) {
-            Logger.w(e) { "isAclConnected: IllegalAccessException invoking isConnected on ${device.address}" }
+            Logger.w { "isAclConnected: IllegalAccessException invoking isConnected on paired device" }
             false
         } catch (e: InvocationTargetException) {
-            Logger.w(e) { "isAclConnected: InvocationTargetException on ${device.address}" }
+            Logger.w { "isAclConnected: InvocationTargetException on paired device" }
             false
         }
 
@@ -227,7 +196,7 @@ internal class BluetoothHidCallbackCoordinator(
             try {
                 bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()
             } catch (e: SecurityException) {
-                Logger.w(e) { "checkExistingConnections: SecurityException reading bonded devices" }
+                Logger.w { "checkExistingConnections: SecurityException reading bonded devices" }
                 emptyList()
             }
         val targetDevice =
@@ -237,29 +206,26 @@ internal class BluetoothHidCallbackCoordinator(
                         try {
                             device.bluetoothClass?.majorDeviceClass
                         } catch (e: SecurityException) {
-                            Logger.w(e) { "Failed to query bluetoothClass for ${device.address}" }
+                            Logger.w { "Failed to query bluetoothClass for paired device" }
                             null
                         }
                     val isHost =
                         majorDeviceClass != BluetoothClass.Device.Major.AUDIO_VIDEO &&
                             majorDeviceClass != BluetoothClass.Device.Major.WEARABLE
                     if (!isHost) {
-                        Logger.d {
-                            "Skipping non-host bonded device ${device.address} " +
-                                "(majorDeviceClass=$majorDeviceClass)"
-                        }
+                        Logger.d { "Skipping non-host paired device" }
                     }
                     isHost
                 }.firstOrNull { isAclConnected(it) }
         if (targetDevice != null) {
             Logger.i {
-                "Found bonded device ${targetDevice.address} already connected via ACL. " +
+                "Found a bonded device already connected via ACL. " +
                     "Initiating proactive HID connection..."
             }
             scheduleProactiveConnect(
                 device = targetDevice,
                 delayDuration = BluetoothHidConfigProvider.config.aclConnectDelay,
-                reason = "ALREADY_CONNECTED_ON_ADVERTISING",
+                reason = ProactiveConnectReason.ALREADY_CONNECTED_ON_ADVERTISING,
             )
         }
     }
@@ -279,7 +245,7 @@ internal class BluetoothHidCallbackCoordinator(
                 when (intent.action) {
                     BluetoothAdapter.ACTION_STATE_CHANGED -> {
                         val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                        Logger.d { "BluetoothAdapter state changed: $state" }
+                        Logger.d { "Bluetooth adapter state event received" }
                         if (state == BluetoothAdapter.STATE_OFF) {
                             Logger.w { "Bluetooth turned OFF — resetting HID proxy and connection state" }
                             synchronized(sessionLock) {
@@ -308,11 +274,11 @@ internal class BluetoothHidCallbackCoordinator(
                 if (profile == BluetoothProfile.HID_DEVICE) {
                     owner.hidDevice = proxy as BluetoothHidDevice
                     Logger.d { "HID_DEVICE profile proxy acquired successfully" }
-                    logDiagnosticSnapshot("PROXY_ACQUIRED")
+                    logDiagnosticSnapshot()
                     initContinuation?.takeIf { it.isActive }?.resume(Result.success(Unit))
                     initContinuation = null
                 } else {
-                    Logger.w { "onServiceConnected received for profile $profile, expected HID_DEVICE" }
+                    Logger.w { "Unexpected Bluetooth profile connected; expected HID_DEVICE" }
                 }
             }
 
@@ -410,9 +376,9 @@ internal class BluetoothHidCallbackCoordinator(
                 registered: Boolean,
             ) {
                 Logger.i {
-                    "onAppStatusChanged registered=$registered pluggedDevice=${pluggedDevice?.address ?: "null"}"
+                    "onAppStatusChanged registered=$registered pluggedDevicePresent=${pluggedDevice != null}"
                 }
-                logDiagnosticSnapshot("APP_STATUS_CHANGED")
+                logDiagnosticSnapshot()
 
                 if (registered) {
                     synchronized(sessionLock) {
@@ -425,17 +391,17 @@ internal class BluetoothHidCallbackCoordinator(
                     }
                     if (pluggedDevice != null && BluetoothHidConfigProvider.config.isPhantomDisconnectRequired) {
                         Logger.w {
-                            "Stale pluggedDevice ${pluggedDevice.address} reported at registration. " +
+                            "Stale plugged device reported at registration. " +
                                 "Disconnecting to free L2CAP socket."
                         }
                         try {
                             val isDisconnected = hidDevice?.disconnect(pluggedDevice)
                             Logger.d {
-                                "disconnect(${pluggedDevice.address}) result=$isDisconnected — " +
+                                "disconnect(paired device) result=$isDisconnected — " +
                                     "socket should be freed for new connections."
                             }
                         } catch (e: SecurityException) {
-                            Logger.e(e) { "Security error disconnecting stale device ${pluggedDevice.address}" }
+                            Logger.e { "Security error disconnecting stale device paired device" }
                         }
                     }
                     checkExistingConnectionsWhileAdvertising()
@@ -454,19 +420,17 @@ internal class BluetoothHidCallbackCoordinator(
                 device: BluetoothDevice,
                 state: Int,
             ) {
-                Logger.i {
-                    "onConnectionStateChanged device=${device.address} state=${connectionStateName(state)}"
-                }
-                logDiagnosticSnapshot("CONNECTION_STATE_CHANGED")
+                Logger.i { "Paired device connection state event received" }
+                logDiagnosticSnapshot()
 
                 when (state) {
                     BluetoothProfile.STATE_CONNECTED -> handleConnected(device)
                     BluetoothProfile.STATE_DISCONNECTED -> handleDisconnected(device)
                     BluetoothProfile.STATE_CONNECTING -> {
-                        Logger.i { "Device ${device.address} connecting..." }
+                        Logger.i { "Paired device connecting..." }
                         currentConnectionState.value = HidConnectionState.Connecting(device)
                     }
-                    BluetoothProfile.STATE_DISCONNECTING -> Logger.i { "Device ${device.address} disconnecting..." }
+                    BluetoothProfile.STATE_DISCONNECTING -> Logger.i { "Device paired device disconnecting..." }
                 }
             }
 
@@ -477,7 +441,7 @@ internal class BluetoothHidCallbackCoordinator(
                 id: Byte,
                 data: ByteArray,
             ) {
-                Logger.d { "onSetReport type=$type id=$id len=${data.size}" }
+                Logger.d { "onSetReport received payloadLen=${data.size}" }
                 enqueueIncomingReportFromDevice(device, data)
             }
 
@@ -487,7 +451,7 @@ internal class BluetoothHidCallbackCoordinator(
                 reportId: Byte,
                 data: ByteArray,
             ) {
-                Logger.d { "onInterruptData reportId=$reportId len=${data.size}" }
+                Logger.d { "onInterruptData received payloadLen=${data.size}" }
                 enqueueIncomingReportFromDevice(device, data)
             }
 
@@ -500,12 +464,12 @@ internal class BluetoothHidCallbackCoordinator(
                 try {
                     hidDevice?.replyReport(device, type, id, ByteArray(FIDO_HID_REPORT_SIZE))
                 } catch (e: SecurityException) {
-                    Logger.e(e) { "onGetReport: BLUETOOTH_CONNECT permission denied" }
+                    Logger.e { "onGetReport: BLUETOOTH_CONNECT permission denied" }
                 }
             }
 
             override fun onVirtualCableUnplug(device: BluetoothDevice) {
-                Logger.d { "onVirtualCableUnplug device=${device.address}" }
+                Logger.d { "onVirtualCableUnplug device=paired device" }
                 synchronized(sessionLock) {
                     if (connectedDevice?.address == device.address) {
                         advanceSessionGeneration()
@@ -521,26 +485,22 @@ internal class BluetoothHidCallbackCoordinator(
         @Suppress("DEPRECATION")
         val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
         val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
-        val previousBondState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.BOND_NONE)
-        Logger.i {
-            "Bond state changed: device=${device.address} " +
-                "${bondStateName(previousBondState)}→${bondStateName(bondState)}"
-        }
+        Logger.i { "Paired device bond state event received" }
 
         val hid = hidDevice
         if (hid != null) {
             try {
-                val hidState = hid.getConnectionState(device)
-                Logger.i { "  HID connection state for ${device.address}: ${connectionStateName(hidState)}" }
+                hid.getConnectionState(device)
+                Logger.i { "HID state queried for paired device" }
             } catch (e: IllegalStateException) {
-                Logger.w(e) { "  Could not query HID connection state for ${device.address}" }
+                Logger.w { "  Could not query HID connection state for paired device" }
             }
         }
-        logDiagnosticSnapshot("BOND_CHANGED")
+        logDiagnosticSnapshot()
 
         val pending = pendingBondDevice
         if (bondState == BluetoothDevice.BOND_BONDED && pending != null && pending.address == device.address) {
-            Logger.i { "Pending device ${device.address} is now BOND_BONDED — completing deferred connection." }
+            Logger.i { "Deferred paired-device connection is ready" }
             owner.pendingBondDevice = null
             acceptConnectedDevice(device)
         } else if (
@@ -551,7 +511,7 @@ internal class BluetoothHidCallbackCoordinator(
             scheduleProactiveConnect(
                 device = device,
                 delayDuration = BluetoothHidConfigProvider.config.bondConnectDelay,
-                reason = "BOND_BONDED",
+                reason = ProactiveConnectReason.BOND_BONDED,
             )
         }
     }
@@ -559,24 +519,18 @@ internal class BluetoothHidCallbackCoordinator(
     private fun handleAclConnected(intent: Intent) {
         @Suppress("DEPRECATION")
         val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE) ?: return
-        Logger.d {
-            "ACL_CONNECTED: device=${device.address} bond=${bondStateName(device.bondState)} " +
-                "currentState=${currentConnectionState.value::class.simpleName}"
-        }
+        Logger.d { "Paired device ACL connection event received" }
         val majorDeviceClass =
             try {
                 device.bluetoothClass?.majorDeviceClass
             } catch (e: SecurityException) {
-                Logger.w(e) { "Failed to query bluetoothClass for ${device.address}" }
+                Logger.w { "Failed to query bluetoothClass for paired device" }
                 null
             }
         if (majorDeviceClass == BluetoothClass.Device.Major.AUDIO_VIDEO ||
             majorDeviceClass == BluetoothClass.Device.Major.WEARABLE
         ) {
-            Logger.d {
-                "Ignoring ACL_CONNECTED for non-host device ${device.address} " +
-                    "(majorDeviceClass=$majorDeviceClass)"
-            }
+            Logger.d { "Ignoring ACL connection for non-host paired device" }
             return
         }
         if (device.bondState == BluetoothDevice.BOND_BONDED &&
@@ -585,7 +539,7 @@ internal class BluetoothHidCallbackCoordinator(
             scheduleProactiveConnect(
                 device = device,
                 delayDuration = BluetoothHidConfigProvider.config.aclConnectDelay,
-                reason = "ACL_CONNECTED",
+                reason = ProactiveConnectReason.ACL_CONNECTED,
             )
         }
     }
@@ -594,22 +548,22 @@ internal class BluetoothHidCallbackCoordinator(
         owner.proactiveConnectJob?.cancel()
         owner.proactiveConnectJob = null
         val bondState = runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)
-        Logger.i { "Device ${device.address} connected — bondState=${bondStateName(bondState)}" }
+        Logger.i { "Paired device connection received" }
         when (bondState) {
             BluetoothDevice.BOND_NONE -> {
                 Logger.w {
-                    "Rejecting connection from completely unbonded device ${device.address}. " +
+                    "Rejecting connection from completely unbonded device. " +
                         "No link key present — device has never paired."
                 }
                 try {
                     hidDevice?.disconnect(device)
                 } catch (e: SecurityException) {
-                    Logger.e(e) { "Failed to disconnect unbonded device" }
+                    Logger.e { "Failed to disconnect unbonded device" }
                 }
             }
             BluetoothDevice.BOND_BONDING -> {
                 Logger.d {
-                    "Device ${device.address} is still bonding — " +
+                    "Paired device is still bonding — " +
                         "deferring connection acceptance until BOND_BONDED."
                 }
                 owner.pendingBondDevice = device
@@ -619,9 +573,9 @@ internal class BluetoothHidCallbackCoordinator(
     }
 
     private fun handleDisconnected(device: BluetoothDevice) {
-        Logger.d { "Device disconnected: ${device.address}" }
+        Logger.d { "Device disconnected: paired device" }
         if (pendingBondDevice?.address == device.address) {
-            Logger.d { "Pending bond device ${device.address} disconnected — clearing deferred state." }
+            Logger.d { "Pending paired device disconnected — clearing deferred state." }
             owner.pendingBondDevice = null
         }
         synchronized(sessionLock) {

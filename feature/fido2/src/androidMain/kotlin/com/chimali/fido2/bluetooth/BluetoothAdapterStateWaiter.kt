@@ -16,7 +16,7 @@ internal class BluetoothAdapterStateWaiter(
     /** Returns the adapter state after a bounded wait through TURNING_ON. */
     @Req("NFR-SEC-041", "TR-AUTH-031")
     suspend fun waitForBluetoothToTurnOn(): Int {
-        var state = readBluetoothState("during initial query")
+        var state = readBluetoothState()
         var waitAttempt = 0
         while (state == BluetoothAdapter.STATE_TURNING_ON && waitAttempt < MAX_WAIT_ATTEMPTS) {
             Logger.d {
@@ -24,17 +24,17 @@ internal class BluetoothAdapterStateWaiter(
                     "(attempt ${waitAttempt + 1})..."
             }
             delay(WAIT_DELAY)
-            state = readBluetoothState("during wait")
+            state = readBluetoothState()
             waitAttempt++
         }
         return state
     }
 
-    private fun readBluetoothState(context: String): Int =
+    private fun readBluetoothState(): Int =
         try {
             adapter()?.state ?: BluetoothAdapter.ERROR
-        } catch (e: SecurityException) {
-            Logger.e(e) { "registerApp: Failed to query Bluetooth state (permission denied) $context" }
+        } catch (_: SecurityException) {
+            Logger.e { "registerApp: Failed to query Bluetooth state (permission denied)" }
             BluetoothAdapter.ERROR
         }
 

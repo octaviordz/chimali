@@ -1,5 +1,6 @@
 package com.chimali.core.domain.valueobject
 
+import com.chimali.core.common.annotation.Req
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.jvm.JvmInline
@@ -17,6 +18,10 @@ value class UserId(
     init {
         require(value.isNotBlank()) { "UserId cannot be blank" }
     }
+
+    /** Returns a fixed diagnostic form without disclosing the user identifier. */
+    @Req("NFR-SEC-041", "TR-AUTH-031")
+    override fun toString(): String = "UserId([redacted])"
 
     /**
      * Converts the Base64URL encoded string back to a ByteArray.

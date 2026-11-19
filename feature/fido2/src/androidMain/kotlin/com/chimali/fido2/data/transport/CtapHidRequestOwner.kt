@@ -1,8 +1,11 @@
+@file:Suppress("SwallowedException")
+
 package com.chimali.fido2.data.transport
 
 import co.touchlab.kermit.Logger
 import com.chimali.core.common.annotation.Req
 import com.chimali.fido2.bluetooth.CtapHidMessage
+import com.chimali.fido2.bluetooth.toHidChannelKey
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -32,7 +35,7 @@ internal class CtapHidRequestOwner(
 
     private data class RequestKey(
         val sessionGeneration: Long,
-        val channelId: String,
+        val channelId: Int,
     )
 
     private val jobs = mutableMapOf<RequestKey, Job>()
@@ -48,7 +51,7 @@ internal class CtapHidRequestOwner(
         message: CtapHidMessage,
         sessionGeneration: Long,
     ) {
-        val key = RequestKey(sessionGeneration, message.channelId.toHex())
+        val key = RequestKey(sessionGeneration, message.channelId.toHidChannelKey())
         val admittedNanos = monotonicNanos()
         var staleGeneration = false
         val operation =
@@ -69,11 +72,11 @@ internal class CtapHidRequestOwner(
                                     handleRequest(message, admittedNanos, sessionGeneration)
                                 } catch (cancellation: kotlinx.coroutines.CancellationException) {
                                     currentCoroutineContext().ensureActive()
-                                    Logger.i(cancellation) { "Discarded request after its wallet owner was fenced" }
-                                } catch (failure: Exception) {
+                                    Logger.i { "Discarded request after its wallet owner was fenced" }
+                                } catch (_: Exception) {
                                     // This per-request child of the transport SupervisorJob is an error boundary;
                                     // log the failure and keep unrelated CIDs alive. invokeOnCompletion erases input.
-                                    Logger.e(failure) { "CTAPHID request handler failed" }
+                                    Logger.e { "CTAPHID request handler failed" }
                                 }
                             }
                         jobs[key] = admittedOperation
@@ -83,13 +86,16 @@ internal class CtapHidRequestOwner(
             }
 
         if (operation == null) {
-            message.payload.fill(0)
-            if (!staleGeneration) reportChannelBusy(message.channelId, sessionGeneration)
+            try {
+                if (!staleGeneration) reportChannelBusy(message.channelId, sessionGeneration)
+            } finally {
+                message.clearMemory()
+            }
             return
         }
 
         operation.invokeOnCompletion {
-            message.payload.fill(0)
+            message.clearMemory()
             removeCompleted(key, operation)
         }
         onPayloadForTest(message.payload)
@@ -102,7 +108,7 @@ internal class CtapHidRequestOwner(
         channelId: ByteArray,
         sessionGeneration: Long,
     ) {
-        synchronized(lock) { jobs[RequestKey(sessionGeneration, channelId.toHex())] }?.cancel()
+        synchronized(lock) { jobs[RequestKey(sessionGeneration, channelId.toHidChannelKey())] }?.cancel()
     }
 
     /** Cancels only requests admitted by the ended host generation without joining callbacks. */
@@ -131,6 +137,4 @@ internal class CtapHidRequestOwner(
             if (jobs[key] === operation) jobs.remove(key)
         }
     }
-
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 }

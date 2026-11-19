@@ -1,0 +1,7 @@
+# Registration/authentication integration test fixture cleanup
+
+`RegistrationAuthenticationDataIntegrationTest` exercises registration and authentication against real FIDO use cases, metadata DAOs and an in-memory SQLite database. Its deterministic seed, derived root key, provider-returned seed/key copies, registration/assertion options, saved projection, result objects, SQL metadata arrays and assertion buffers are now tracked. Teardown erases mutable owners, clears every registered MockK answer/call history and Android Log interception, and closes the in-memory driver. A teardown regression verifies seed, root/provider key and payload buffers are zeroed.
+
+The synthetic metadata service no longer stores RP/user input directly in its reversible lookup token or encrypted metadata column: the lookup token is a deterministic SHA-256 digest over borrowed characters and the test-only metadata transform is a fixed XOR byte operation. These are deterministic test doubles, not substitutes for production encryption. The failure branch no longer prints exception messages or stack traces.
+
+Validation: the focused class passes 3 tests; the full FIDO Android host suite passes 1,303 tests across 171 XML reports with zero failures, errors, or skips. `:feature:fido2:ktlintCheck` passes. This establishes a synthetic in-memory host flow only; database/provider copies, platform crypto, persistent storage, heap roots and physical-device behavior remain open.

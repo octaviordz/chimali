@@ -99,6 +99,7 @@ class PasskeyCredentialTest {
     @Req("NFR-SEC-041", "TR-AUTH-031")
     @Test
     fun `independent credential copy keeps UI metadata after transport owner erasure`() {
+        val expectedCredentialId = testCredentialId.copyOf()
         val transportOwner =
             PasskeyCredential.create(
                 id = testCredentialIdFromLabel("passkey-credential-test"),
@@ -121,7 +122,7 @@ class PasskeyCredentialTest {
         assertEquals("Test User", uiOwner.userDisplayName.toBoundaryString())
         assertNotEquals(transportOwner.rpId, uiOwner.rpId)
         assertContentEquals(testAaguid, uiOwner.aaguid)
-        assertContentEquals(testCredentialId, uiOwner.credentialId)
+        assertContentEquals(expectedCredentialId, uiOwner.credentialId)
         uiOwner.eraseSensitiveText()
     }
 
@@ -535,11 +536,19 @@ class PasskeyCredentialTest {
                     rpId = RpId("synthetic.example"),
                     userName = "synthetic-user-name",
                 )
+            val originalAaguid = original.aaguid.copyOf()
+            val originalCredentialId = original.credentialId.copyOf()
             val copied = original.copy()
+
+            assertFalse(original.aaguid === copied.aaguid)
+            assertFalse(original.credentialId === copied.credentialId)
 
             original.eraseSensitiveText()
 
             assertEquals("\u0000".repeat("synthetic.example".length), original.rpId.toBoundaryString())
+            assertContentEquals(ByteArray(original.credentialId.size), original.credentialId)
+            assertContentEquals(originalAaguid, copied.aaguid)
+            assertContentEquals(originalCredentialId, copied.credentialId)
             assertEquals("synthetic.example", copied.rpId.toBoundaryString())
             assertEquals("synthetic-user-name", copied.userName.toBoundaryString())
             assertFalse(original.toString().contains("synthetic"))

@@ -15,12 +15,10 @@ import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.navigation.AppNavGraph
 import org.koin.android.ext.android.inject
 
+private const val MAIN_ACTIVITY_TAG = "Chimali:MainActivity"
+
 /** Hosts the wallet UI and owns only foreground reveal/import session access. */
 class MainActivity : FragmentActivity() {
-    companion object {
-        private const val TAG = "Chimali:MainActivity"
-    }
-
     private val masterSeedProvider: MasterSeedProvider by inject()
 
     private val requestPermissionLauncher =
@@ -28,10 +26,8 @@ class MainActivity : FragmentActivity() {
             ActivityResultContracts.RequestMultiplePermissions(),
         ) { permissions ->
             val allGranted = permissions.entries.all { it.value }
-            if (allGranted) {
-                android.util.Log.i(TAG, "All startup permissions granted (Nearby Devices flow).")
-            } else {
-                android.util.Log.w(TAG, "Some permissions denied at startup: $permissions")
+            if (!allGranted) {
+                logDeniedStartupPermissions(permissions)
             }
         }
 
@@ -46,7 +42,6 @@ class MainActivity : FragmentActivity() {
         // - Android 13+ (TIRAMISU, API 33): Requires 'Nearby Devices' + 'Notifications' for the foreground service.
         // - Android 12 (S, API 31): Requires 'Nearby Devices' group only.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            android.util.Log.d(TAG, "Launching Nearby Devices + Notifications permission request...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_ADVERTISE,
@@ -56,7 +51,6 @@ class MainActivity : FragmentActivity() {
                 ),
             )
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            android.util.Log.d(TAG, "Launching Nearby Devices permission request...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_ADVERTISE,
@@ -66,7 +60,6 @@ class MainActivity : FragmentActivity() {
             )
         } else {
             // Legacy permissions for Bluetooth and Location on older devices
-            android.util.Log.d(TAG, "Requesting legacy Bluetooth/Location permissions...")
             requestPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH,
@@ -93,5 +86,14 @@ class MainActivity : FragmentActivity() {
         // authenticator owners remain independently bounded to their admitted ceremony.
         masterSeedProvider.cancelSessionOwners(MasterSeedOwnerKind.FOREGROUND)
         super.onStop()
+    }
+}
+
+internal fun logDeniedStartupPermissions(
+    permissions: Map<String, Boolean>,
+    emitWarning: (tag: String, message: String) -> Unit = { tag, message -> android.util.Log.w(tag, message) },
+) {
+    if (permissions.values.any { !it }) {
+        emitWarning(MAIN_ACTIVITY_TAG, "Some startup permissions were denied at startup.")
     }
 }

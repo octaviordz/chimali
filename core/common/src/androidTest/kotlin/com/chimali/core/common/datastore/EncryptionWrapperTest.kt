@@ -2,7 +2,8 @@ package com.chimali.core.common.datastore
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -13,18 +14,24 @@ class EncryptionWrapperTest {
     fun testEncryptionAndDecryption() {
         val wrapper = EncryptionWrapper()
         val originalData = "test_sensitive_data".toByteArray()
-        val originalCopy = originalData.copyOf() // Keep a copy because encrypt zeroizes the input
+        val originalCopy = originalData.copyOf()
+        var encrypted: ByteArray? = null
+        var decrypted: ByteArray? = null
+        try {
+            val envelope = wrapper.encrypt(originalData)
+            encrypted = envelope
 
-        val encrypted = wrapper.encrypt(originalData)
-        
-        // Ensure ciphertext is different from plaintext
-        assertNotEquals(originalCopy.toList(), encrypted.toList())
+            assertFalse(originalCopy.contentEquals(envelope))
+            assertTrue(originalData.all { it == 0.toByte() })
 
-        // Ensure original array was zeroed
-        val zeroArray = ByteArray(originalCopy.size) { 0 }
-        assertArrayEquals(zeroArray, originalData)
-
-        val decrypted = wrapper.decrypt(encrypted)
-        assertArrayEquals(originalCopy, decrypted)
+            val cleartext = wrapper.decrypt(envelope)
+            decrypted = cleartext
+            assertArrayEquals(originalCopy, cleartext)
+        } finally {
+            originalData.fill(0)
+            originalCopy.fill(0)
+            encrypted?.fill(0)
+            decrypted?.fill(0)
+        }
     }
 }

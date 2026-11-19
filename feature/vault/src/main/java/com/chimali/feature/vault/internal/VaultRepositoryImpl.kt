@@ -11,6 +11,10 @@ import com.chimali.core.domain.eventsourcing.vault.clearSensitiveMemory
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultService
 import com.chimali.feature.vault.api.VaultType
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -23,39 +27,111 @@ class VaultRepositoryImpl(
     private val database: VaultDatabase,
     private val aggregateService: AggregateService<VaultCommand, VaultState>,
 ) : VaultService {
-    override suspend fun getItems(labelId: UUID?): Outcome<List<VaultItem>, DomainError> =
-        withContext(Dispatchers.IO) {
-            try {
-                val entries =
-                    if (labelId == null) {
-                        database.vaultQueries.get_vault_entries().executeAsList()
-                    } else {
-                        database.vaultQueries.get_vault_entries_by_label(labelId.toString()).executeAsList()
+    override suspend fun getItems(labelId: UUID?): Outcome<List<VaultItem>, DomainError> {
+        var stagedItems: List<VaultItem>? = null
+        try {
+            val result =
+                withContext(Dispatchers.IO) {
+                    var items: MutableList<VaultItem>? = null
+                    var transferToCaller = false
+                    try {
+                        val entries =
+                            if (labelId == null) {
+                                database.vaultQueries.get_vault_entries().executeAsList()
+                            } else {
+                                database.vaultQueries.get_vault_entries_by_label(labelId.toString()).executeAsList()
+                            }
+                        items = ArrayList(entries.size)
+                        try {
+                            entries.forEach { entry ->
+                                var title: CharArray? = null
+                                var payload: ByteArray? = null
+                                var crdtState: ByteArray? = null
+                                var item: VaultItem? = null
+                                try {
+                                    val id = UUID.fromString(entry.id)
+                                    val type = VaultType.valueOf(entry.type)
+                                    val identityId = UUID.fromString(entry.identity_id)
+                                    val ownedTitle = decodeTitle(entry.title)
+                                    title = ownedTitle
+                                    val ownedPayload = entry.encrypted_payload.copyOf()
+                                    payload = ownedPayload
+                                    val ownedCrdtState = entry.crdt_state.copyOf()
+                                    crdtState = ownedCrdtState
+                                    item =
+                                        VaultItem(
+                                            id = id,
+                                            type = type,
+                                            title = ownedTitle,
+                                            payload = ownedPayload,
+                                            crdtState = ownedCrdtState,
+                                            dateCreated = entry.date_created,
+                                            dateModified = entry.date_modified,
+                                            lastBackedUpAt = entry.last_backed_up_at,
+                                            identityId = identityId,
+                                        )
+                                    title = null
+                                    payload = null
+                                    crdtState = null
+                                    items.add(item)
+                                    item = null
+                                } finally {
+                                    title?.fill('\u0000')
+                                    payload?.fill(0)
+                                    crdtState?.fill(0)
+                                    item?.clearMemory()
+                                }
+                            }
+                            stagedItems = items
+                            transferToCaller = true
+                            Outcome.Success(items)
+                        } finally {
+                            entries.forEach { entry ->
+                                entry.title.fill(0)
+                                entry.encrypted_payload.fill(0)
+                                entry.crdt_state.fill(0)
+                            }
+                        }
+                    } catch (e: android.database.SQLException) {
+                        Logger.e { "VaultRepositoryImpl: Failed to load vault items" }
+                        Outcome.Error(DomainError.DatabaseError("Failed to load vault items"))
+                    } catch (e: IllegalArgumentException) {
+                        Logger.e { "VaultRepositoryImpl: Invalid data in vault entries" }
+                        Outcome.Error(DomainError.StorageError("Invalid vault data"))
+                    } finally {
+                        if (!transferToCaller) items?.forEach(VaultItem::clearMemory)
                     }
-
-                val items =
-                    entries.map { entry ->
-                        VaultItem(
-                            id = UUID.fromString(entry.id),
-                            type = VaultType.valueOf(entry.type),
-                            title = entry.title.decodeToString().toCharArray(),
-                            payload = entry.encrypted_payload,
-                            crdtState = entry.crdt_state,
-                            dateCreated = entry.date_created,
-                            dateModified = entry.date_modified,
-                            lastBackedUpAt = entry.last_backed_up_at,
-                            identityId = UUID.fromString(entry.identity_id),
-                        )
-                    }
-                Outcome.Success(items)
-            } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to load vault items" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to load vault items", e))
-            } catch (e: IllegalArgumentException) {
-                Logger.e(e) { "VaultRepositoryImpl: Invalid data in vault entries" }
-                Outcome.Error(DomainError.StorageError(e.message ?: "Invalid vault data", e))
-            }
+                }
+            stagedItems = null // Ownership transfers only after withContext returns to its caller.
+            return result
+        } finally {
+            stagedItems?.forEach(VaultItem::clearMemory)
         }
+    }
+
+    private fun decodeTitle(source: ByteArray): CharArray {
+        val decoded = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(source))
+        return try {
+            CharArray(decoded.remaining()).also(decoded::get)
+        } finally {
+            decoded.array().fill('\u0000')
+        }
+    }
+
+    private fun encodeTitle(source: CharArray): ByteArray {
+        val encoded =
+            StandardCharsets.UTF_8
+                .newEncoder()
+                .onMalformedInput(CodingErrorAction.REPLACE)
+                .onUnmappableCharacter(CodingErrorAction.REPLACE)
+                .encode(CharBuffer.wrap(source))
+        return try {
+            ByteArray(encoded.remaining()).also(encoded::get)
+        } finally {
+            encoded.clear()
+            while (encoded.hasRemaining()) encoded.put(0)
+        }
+    }
 
     override suspend fun saveItem(item: VaultItem): Outcome<Unit, DomainError> =
         withContext(Dispatchers.IO) {
@@ -88,7 +164,7 @@ class VaultRepositoryImpl(
                         try {
                             var titleBytes: ByteArray? = null
                             try {
-                                titleBytes = state.title.concatToString().encodeToByteArray()
+                                titleBytes = encodeTitle(state.title)
                                 database.vaultQueries.insert_vault_entry(
                                     id = state.id,
                                     doc_id = state.id,
@@ -109,19 +185,18 @@ class VaultRepositoryImpl(
                         }
                         Outcome.Success(Unit)
                     } else {
-                        val error = result.exceptionOrNull()
-                        Logger.e(error) { "VaultRepositoryImpl: Aggregate execution failed for id=${item.id}" }
-                        Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to save vault item"))
+                        Logger.e { "VaultRepositoryImpl: Aggregate execution failed while saving vault item" }
+                        Outcome.Error(DomainError.DatabaseError("Failed to save vault item"))
                     }
                 } finally {
                     command.clearSensitiveMemory()
                 }
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Database failure during save id=${item.id}" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Database error during save", e))
+                Logger.e { "VaultRepositoryImpl: Database failure during save" }
+                Outcome.Error(DomainError.DatabaseError("Database error during save"))
             } catch (e: IllegalStateException) {
-                Logger.e(e) { "VaultRepositoryImpl: State failure during save id=${item.id}" }
-                Outcome.Error(DomainError.StorageError(e.message ?: "Invalid state during save", e))
+                Logger.e { "VaultRepositoryImpl: State failure during save" }
+                Outcome.Error(DomainError.StorageError("Invalid state during save"))
             }
         }
 
@@ -133,16 +208,15 @@ class VaultRepositoryImpl(
                     database.vaultQueries.delete_vault_entry(id.toString())
                     Outcome.Success(Unit)
                 } else {
-                    val error = result.exceptionOrNull()
-                    Logger.e(error) { "VaultRepositoryImpl: Aggregate delete failed for id=$id" }
-                    Outcome.Error(DomainError.DatabaseError(error?.message ?: "Failed to delete vault item"))
+                    Logger.e { "VaultRepositoryImpl: Aggregate delete failed while deleting vault item" }
+                    Outcome.Error(DomainError.DatabaseError("Failed to delete vault item"))
                 }
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Database failure during delete id=$id" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Database error during delete", e))
+                Logger.e { "VaultRepositoryImpl: Database failure during delete" }
+                Outcome.Error(DomainError.DatabaseError("Database error during delete"))
             } catch (e: IllegalStateException) {
-                Logger.e(e) { "VaultRepositoryImpl: State failure during delete id=$id" }
-                Outcome.Error(DomainError.StorageError(e.message ?: "Invalid state during delete", e))
+                Logger.e { "VaultRepositoryImpl: State failure during delete" }
+                Outcome.Error(DomainError.StorageError("Invalid state during delete"))
             }
         }
 
@@ -162,11 +236,12 @@ class VaultRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to set item labels" }
-                Outcome.Error(DomainError.DatabaseError("Failed to save item labels", e))
+                Logger.e { "VaultRepositoryImpl: Failed to set item labels" }
+                Outcome.Error(DomainError.DatabaseError("Failed to save item labels"))
             }
         }
 
+    @Suppress("SwallowedException") // Return stable storage categories without exposing provider details.
     override suspend fun getItemLabelIds(itemId: UUID): Outcome<List<UUID>, DomainError> =
         withContext(Dispatchers.IO) {
             try {
@@ -178,9 +253,9 @@ class VaultRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: android.database.SQLException) {
-                Outcome.Error(DomainError.DatabaseError("Failed to load item labels", e))
+                Outcome.Error(DomainError.DatabaseError("Failed to load item labels"))
             } catch (e: IllegalArgumentException) {
-                Outcome.Error(DomainError.StorageError("Invalid item label data", e))
+                Outcome.Error(DomainError.StorageError("Invalid item label data"))
             }
         }
 
@@ -199,11 +274,11 @@ class VaultRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to get labels" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to get labels", e))
+                Logger.e { "VaultRepositoryImpl: Failed to get labels" }
+                Outcome.Error(DomainError.DatabaseError("Failed to get labels"))
             } catch (e: IllegalArgumentException) {
-                Logger.e(e) { "VaultRepositoryImpl: Invalid label data" }
-                Outcome.Error(DomainError.StorageError("Invalid label data", e))
+                Logger.e { "VaultRepositoryImpl: Invalid label data" }
+                Outcome.Error(DomainError.StorageError("Invalid label data"))
             }
         }
 
@@ -222,8 +297,8 @@ class VaultRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to create label" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to create label", e))
+                Logger.e { "VaultRepositoryImpl: Failed to create label" }
+                Outcome.Error(DomainError.DatabaseError("Failed to create label"))
             }
         }
 
@@ -235,8 +310,8 @@ class VaultRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: android.database.SQLException) {
-                Logger.e(e) { "VaultRepositoryImpl: Failed to delete label" }
-                Outcome.Error(DomainError.DatabaseError(e.message ?: "Failed to delete label", e))
+                Logger.e { "VaultRepositoryImpl: Failed to delete label" }
+                Outcome.Error(DomainError.DatabaseError("Failed to delete label"))
             }
         }
 }

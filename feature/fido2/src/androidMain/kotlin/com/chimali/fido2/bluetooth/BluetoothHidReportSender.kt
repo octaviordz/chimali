@@ -43,10 +43,10 @@ internal class BluetoothHidReportSender {
             Logger.d { "sendReport dispatched len=${report.size} success=$isSent" }
             isSent
         } catch (e: SecurityException) {
-            Logger.e(e) { "sendReport: BLUETOOTH_CONNECT permission denied" }
+            Logger.e { "Bluetooth HID report send permission denied" }
             false
         } catch (e: IllegalStateException) {
-            Logger.e(e) { "sendReport: Bluetooth not available — ${e.message}" }
+            Logger.e { "Bluetooth HID report send failed" }
             false
         } finally {
             report.fill(0)
