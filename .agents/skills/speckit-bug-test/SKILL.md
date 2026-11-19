@@ -6,6 +6,7 @@ compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: spec-kit-core
   source: extension:bug
+  version: 1.0.2
 ---
 
 # Bug Test Skill
