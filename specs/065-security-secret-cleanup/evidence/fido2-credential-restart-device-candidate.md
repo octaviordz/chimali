@@ -60,3 +60,6 @@ Physical-cohort runs were not attempted for the failing class (deterministic har
 | ASUS `R7AIB7002901AZ3` (API 35) | FidoBleSecurityDeviceTest, NordicBleLegacyAdvertisingDeviceTest | 5/5 pass |
 
 BLE security and legacy-advertising coverage is now candidate-bound on all three cohorts including real Bluetooth stacks on both physical devices; advertiser-discovery coverage requires dedicated BLE test hardware and remains an environment-gated open cell. Heap-root coverage remains open under T015/T027.
+## Candidate-bound fido2 BLE stress/corpus gating check (2026-11-20)
+
+`:feature:fido2:connectedAndroidDeviceTest` on `emulator-5554` (API 35) against candidate content (`fido2-androidTest.apk` `A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6`) for `FidoBleReconnectStressDeviceTest` (2 tests) and `FidoBlePhysicalCorpusClientDeviceTest` (1 test): all three **skipped** via `AssumptionViolatedException` — they require explicit opt-in instrumentation arguments (`runFidoBleReconnectStress`, `runFidoBlePhysicalCorpusServer`, `runFidoBlePhysicalCorpusClient`) and dedicated BLE hardware endpoints (a separate FIDO BLE advertiser and a separate Android GATT central). This is correct harness gating, not a product result; physical-hardware BLE stress/corpus coverage remains an open T027 cell requiring the dedicated test endpoints.
