@@ -45,7 +45,7 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `9c911f70cda9ef31624da0babb11c6afa43f6f06ea9f5f717db6a64b51325f91` |
+| `specs/065-security-secret-cleanup/tasks.md` | `662ded96da779df664fa92b9543781365300fc1f1aef1458914b34930b9ff67e` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
@@ -59,7 +59,7 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
-| `docs/security/data-classification.md` | `328b5b247d0f01bf0b06d7a629324e627e5f4ed6b54211d7d1607e21ead8ce7a` |
+| `docs/security/data-classification.md` | `b7d8f2df8c6e37b040a2dc973af05d1a81910c2ef458db3033fb76fb1c90fb36` |
 | `docs/security/platform-text-boundaries.md` | `d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847` |
 | `specs/065-security-secret-cleanup/quickstart.md` | `ae6f5ec2ec81f47bf8f0183f83d67616064b09bac8275826cb774e3d8ab965f0` |
 
