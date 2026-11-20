@@ -21,7 +21,7 @@
 | Frozen product tree | `46c871e56b4a99f075c1e6426fd320af2512e9d3` |
 | Build/scope | Commit/tree frozen with clean worktree; build outputs, source-set scope and tool fingerprints not yet recorded for the candidate |
 | Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; freeze commit `49e37f60` on top of `30825cc8713206aea35039675ca60860bf448c9e`; branch rebased onto `lab/or/chimali` on 2026-11-19 with Feature 065 delivered as commit `fe38031c9f9ee3aa4a0aee02df198d0c43813da8`; worktree clean at freeze on 2026-11-20 |
-| Candidate status | Frozen commit exists; candidate-bound gate refresh (T036/T037/T041) in progress; not yet acceptable for T042 |
+| Candidate status | Frozen candidate `49e37f60`/tree `46c871e5` with candidate-bound evidence refresh complete: T036/T037/T041 gates green, device-test inventory dispositioned, heap on emulator + ASUS API 35 + Mi A2 API 29, clipboard locked-sleep dispositioned as relock-on-sleep; residual cells (API 33, iOS, hosted CI, BLE/perf hardware) disclosed as open limitations |
 
 ## Prerequisite gate status
 
@@ -84,7 +84,7 @@ Gate findings recorded at preflight:
 
 1. No independent reviewer is assigned.
 2. Build outputs, source-set scope record and tool fingerprints for candidate `49e37f60` are not yet consolidated into a single review-scope record.
-3. Candidate-bound reruns remain partial: physical API 29/33 clipboard cohorts, iOS runtime evidence, hosted integration CI (`tools/integration-ci.ps1`), and physical-device heap evidence are outstanding; host/JVM regressions, T036 reconciliation, T037 validation, heap runs g–j (emulator), the ASUS API 35 clipboard cohort and two diagnostic probes are candidate-bound.
+3. Candidate-bound reruns remain partial: API 33 device cohort, iOS runtime evidence, hosted integration CI (`tools/integration-ci.ps1`), stay-unlocked locked-sleep device, and BLE/perf opt-in hardware are outstanding; host/JVM regressions, T036 reconciliation, T037 validation, heap on emulator + two physical devices, the full Android device-test inventory, clipboard cohorts, and diagnostic probes are candidate-bound.
 4. Disclosed items requiring adjudication: passkey terminal JavaFrame-reachable marker String (heap run h, consistent with exploratory e/f), emulator scheduled-attempt `SkippedReplaced` discrepancy, and vault disposed-stage immutable-String JavaFrame retention.
 5. T045 raw-artifact disposal is scheduled but not executed; it completes only after review.
 6. Release security acceptance remains open in `assessment.md`.
