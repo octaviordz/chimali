@@ -733,7 +733,7 @@
 | specs/065-security-secret-cleanup/evidence/cbor-map-key-scratch-cleanup.md | ffe9f49615c25e377624b400ea83309b0742fea872d12d380aa2841c3c04eb4d |
 | specs/065-security-secret-cleanup/evidence/cbor-shape-test-fixture-cleanup.md | 0b151bd9278a29538a66ffb66638d7f3d6f118e39ce47ad9e98aa62ee4695ee9 |
 | specs/065-security-secret-cleanup/evidence/clipboard-audit-minimal-app-postchange-api35.md | df43e8bf532fa7bf70e7948b8362e5f67d3e790ca93c8c5657bba5635274e8da |
-| specs/065-security-secret-cleanup/evidence/clipboard-device.md | b0e594a1e387a322e87477a1a49725a63023ca2ab2603699d4d39eb569ff8d6c |
+| specs/065-security-secret-cleanup/evidence/clipboard-device.md | ca1ce3e70645078dfdf811a9e538699b5d0538dbbed5965c3f2aecd30caabcc9 |
 | specs/065-security-secret-cleanup/evidence/clipboard-host.md | 9d9f6c66fcb0e5fe258e0484727764b4e0af6e8b483c6094203d33ddc4a80d47 |
 | specs/065-security-secret-cleanup/evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md | 638805b71109fe21540dd80a057b87d1fece21cf07f400d235804fc68f38e23e |
 | specs/065-security-secret-cleanup/evidence/configured-diagnostics-audit-current-api35.txt | f178961976fac72af3651907b9775ad83d5f85e5145d1dcb67342f5836f5e57e |
