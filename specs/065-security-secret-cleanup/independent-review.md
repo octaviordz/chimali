@@ -47,15 +47,15 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 |---|---|
 | `specs/065-security-secret-cleanup/tasks.md` | `398feadd2705fef00979d23643114d3d9f6e45825936e7410cda22c36164fbe0` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
-| `specs/065-security-secret-cleanup/assessment.md` | `4cf0c4788e6afeb99128d08b68f6a050b9876af4db8878108d2be02566897a58` |
+| `specs/065-security-secret-cleanup/assessment.md` | `e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `175d7ae231bd7e6947c8e15dfef71683d4df3daeab7284eb1439868c17acc105` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `18618c13f0afbb03b1753e7a72b0afeae01ab5f3701619fba020592dbfa3fef9` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `3a9ca29ce597c798f1db59bb2f81deab1bba1edbf781f765a2a6e4b8a54eb971` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `ca1ce3e70645078dfdf811a9e538699b5d0538dbbed5965c3f2aecd30caabcc9` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `077952e807c70455c7cd10e6980de51415596d0e1a47729b8ea0a600c84162d2` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `cc93372395363705a29af47dff7bd957179cdec33faaff6606f1a8275dab6da3` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `3f6ff7cd6f15f50d79716858459b56a64253cc398006a23f7532fa9f4cee7704` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
