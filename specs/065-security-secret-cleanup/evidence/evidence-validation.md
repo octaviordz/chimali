@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 557
-- Artifact file hashes recorded: 1562
+- Records parsed: 560
+- Artifact file hashes recorded: 1565
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 444 |
+| Passed | 447 |
 | Satisfied | 33 |
 | Unverified | 65 |
 
@@ -541,7 +541,7 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidConfig.kt | e9e03821c77bf07d5862330844d32c0d458440842f9ada99b05bac275f472d70 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt | 8248c1176315db02b90faa44359831b63355bf6440f8a084911afdd3158fcc3f |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt | 50e88e3f80dc00fd5c960fa522ad0814de220d07f50d0c22c13439240598eec0 |
-| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
+| feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2getassertionhandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
 | feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2makecredentialhandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2ResetAuthenticatorHandler.kt | e28f5881b3b4feaff7eba24a7f2aff60e6823f16c391f1b3bb6691961c2b0b30 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborCodec.kt | 8d898485bec70351bbcc10c0de15a65f9e4193d4b7d8cfa90a74439679326e5a |
@@ -845,11 +845,12 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | da7573cb371df0f92870d8f1e3dfd28a54d6a0f48dc352b31a452ff64c26da8f |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | d5c176a672b9cd1656fb94da624abd004123eacc242a48ed079b0adc3e162d8c |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-candidate-api35-20261120.md | 784dae4ee15694d81370cf42a6e5868d8e44f3e40129f50a3bf303fe8e56756c |
+| specs/065-security-secret-cleanup/evidence/heap-capture-passkey-candidate-asus-api35-20261120.md | d4a996aa5f7a405de2abc959f72c4c8c8a3c9ae643a56d68cecb5882050a186d |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261117.md | b9dd85899e6c313ca6db2cba92d02935e1d6bfd5ef0bc5f20a9900cb59585463 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261120.md | 964a6f431688cf25f34f02890b7d3c26070f3cb8353230812f931443b4b69c09 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-candidate-api35-20261120.md | 90a8e34d139da810c154cade30102ad4d7c6e30195d025b790a03fd8f6ee9e38 |
@@ -857,15 +858,17 @@
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261117.md | 4152d6937f7c2dfc10a21a4a4bd696eee0a8dd31359b2285c9b236931e81f1ae |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261120.md | 55bb5d960159f9dd21a81b66ded7fe47e87502ced2e18d5a300c1ae1dabb42b3 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-candidate-api35-20261120.md | 90f96475f522501876715985acedcd285846ed559e31a7207473f7948acde42e |
+| specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-candidate-asus-api35-20261120.md | e496d95169b6c8099f3c5c014c3a38332e98500985c2ee406c5d552bf62f33b6 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-api35-20261117.md | 07a4674a7cdcff9faf6a7cb7a3ca900153a32b0fbfc7bc705e678aaf2df9e860 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-api35-20261120.md | ad0bbb75c8f49fae16ebce6ccd2428334a6c6ce73bf130bd7d317c46ef923de2 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-candidate-api35-20261120.md | 3917fe09230d219ac8901b1c60a5f0958f4bded349e3068e5e2e2118ba1b8a37 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-candidate-asus-api35-20261120.md | 01c2f39984e962bda4461b2f355fd4e9b90b14bd97953fcfc3db1fd9a2ea5dcc |
 | specs/065-security-secret-cleanup/evidence/heap-inspection-completion-api35-20261117.md | 09bc9edad39f4c652ecbd4147dc26357495c438770451519523f9f042f660ea6 |
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control-api35-20261117.txt | caebd3cd8d05d4c692ef1b93239fa1478b32c814ef2355fc0a71a4dbe801fb5d |
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 87057dadfdd14d5f163e25350d1b4c8023c204a9c7f2212705f2f2ac6b1cb519 |
+| specs/065-security-secret-cleanup/evidence/index.md | e3281ce7b07bc18f8fd8bae01b5fb28ba7be79db45735c6275be923ae9c23b37 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -974,7 +977,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 20476d121963a157201e22f3c159982134b394b302af90c7523d3a0f4b15c4a3 |
+| specs/065-security-secret-cleanup/tasks.md | 4965b05e8e9b2f6eb769d095dc0afe6f6d4193e189f9118ded88b205def52c53 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
