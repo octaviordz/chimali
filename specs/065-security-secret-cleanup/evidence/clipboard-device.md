@@ -446,3 +446,19 @@ Run `mia2_20261120_locksleep_unlocked01` on Xiaomi Mi A2 (`2ac6876`, API 29/MIUI
 ## Candidate-content locked-sleep retry on unlocked ASUS (2026-11-20)
 
 Run `asus_20261120_locksleep_unlocked01` on ASUS AI2302 (`R7AIB7002901AZ3`, API 35, `clipboardAudit` build, keyguard observed cleared). Positive (`marker-match`) and mismatch (`replaced`) controls passed with `deviceLocked=false`; scheduled copy metadata-confirmed; case failed at `target-screen-wake` with `failureCode=SecureKeyguardRemained` — identical OS relock-on-sleep behavior to Mi A2; target `SkippedOwnershipUnavailable`. Sanitized artifact SHA-256 `2e609718c14da8a2f203ad6ab57de25ceeb33ad44d5a50c39541c66056cfe02b` under `D:\temp\sec065-clip-candidate`. Locked-sleep cell is environment-limited on both physical cohorts; not a product defect.
+## API 33 physical cohort - Motorola milanf clipboard matrix (2026-11-20)
+
+Candidate-bound `clipboardAudit` pair installed on `ZY22G3FJSX` (moto g stylus 5G 2022, Android 13/API 33; app `72DBFBED…`/test `64381241…` candidate hashes) and the full case matrix executed via `tools/security/run-clipboard-observation.ps1`:
+
+| Case | RunId | Result | Artifact SHA-256 |
+|---|---|---|---|
+| process-death | `moto_20261120_procd` | Passed | `fa18fa86301298e696ea888cc903c224481d1ad37735ca53b33e95530c4e36d7` |
+| scheduled-attempt | `moto_20261120_sched` | Passed | `dd28c3552873b7b76123cad26bed7510e387a6611083657ab9034af75b6625d8` |
+| app-switch | `moto_20261120_appswitch` | Passed (background ownership unavailable; cleanup safely skipped) | `822440efdd2326626bea344cfbb9e2509fa794ec289b95dd1d8d315fc729176c` |
+| clipboard-replaced | `moto_20261120_clipreplaced` | Passed (SkippedOwnershipUnavailable) | `c9a1face89bd615807bbb3c64da50bb237a9acee493eedf7a88ababb12b85f38` |
+| manual-clear | `moto_20261120_manualclear` | Passed (clip independently observed absent) | `be07b73fb3d5c592c5582c50c9935626c3858bd5d786880d8897308de76ea15c` |
+| repeat-copy | `moto_20261120_repeatcopy` | Passed (first generation superseded; cleanup absent) | `af4ee4c94905d9a6985790959b3e71ecc364548b69a7abbcdf78f49fbc7931c8` |
+| copy-rejected | `moto_20261120_copyreject` | Passed (admission rejected; retained clip observed) | `91ed89cb1ee0843350d0f038c3b3ec94c47fb966ce0236f65823d65b14856c26` |
+| locked-sleep | `moto_20261120_locksleep` | Unverified - `SecureKeyguardRemained` at `target-screen-wake` (identical relock-on-sleep to Mi A2/ASUS) | `362bced4a538ab2b08f7885d4bd59123730e3427dec1c01bf39a60d0d7dfe14e` |
+
+**iOS clipboard cohort: waived by requester (2026-11-20)** - no iOS device/platform available; recorded as an explicit scope waiver rather than an evidence gap. Locked-sleep remains environment-limited on all three physical cohorts by OS relock-on-sleep.

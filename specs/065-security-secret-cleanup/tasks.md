@@ -1029,3 +1029,5 @@ Progress 2026-11-20 (locked-sleep ASUS): same SecureKeyguardRemained outcome as 
 Progress 2026-11-20 (ACL re-verify): SEC065-heap restricted store re-checked - SYSTEM + octav FullControl only, inheritance disabled, 220 files. heap-artifact-access.md updated.
 
 Progress 2026-11-20 (API 33 cohort): Motorola milanf ZY22G3FJSX (Android 13/API 33) joined T027 matrix - candidate release pair installed hash-verified; StartupTest OK, VaultPasskeyWiring+ClipboardObserverIsolation OK (4), CredentialCryptoProvider OK (3). diagnostics.md section + index row added.
+
+Progress 2026-11-20 (API 33 clipboard matrix): full 8-case matrix on Motorola ZY22G3FJSX - 7 Passed, locked-sleep Unverified (SecureKeyguardRemained, same relock-on-sleep as Mi A2/ASUS). iOS clipboard cohort waived by requester (no platform). clipboard-device.md section + index row added.
