@@ -1,4 +1,4 @@
-# Feature 065 independent security review — T042 gate record
+﻿# Feature 065 independent security review — T042 gate record
 
 **Status:** `Unverified` — no independent security review has been performed. This file is a gate record only; it is not a review finding, implementation disposition, or release acceptance.
 
@@ -20,7 +20,7 @@
 | Frozen product commit | None |
 | Frozen product tree | None |
 | Build/scope | No frozen build or review scope exists |
-| Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; HEAD `78812e4d0a2d4ff422e03cd71611d6eb4ab4c57d`; tree `5cf29342a8a8b5d03dac4b701329309d75a281ce`; dirty worktree (`git status --porcelain` reported 722 entries on 2026-11-18) |
+| Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; HEAD `30825cc8713206aea35039675ca60860bf448c9e`; tree `be71549cfafa64b65f6c3ba28aadfc5e2443305d`; branch rebased onto `lab/or/chimali` on 2026-11-19 with Feature 065 delivered as commit `fe38031c9f9ee3aa4a0aee02df198d0c43813da8`; dirty worktree (`git status --porcelain` reported 43 entries on 2026-11-20) |
 | Candidate status | Exploratory only; not candidate-bound and not acceptable for T042 |
 
 ## Prerequisite gate status
@@ -30,27 +30,34 @@
 | T043 policy/register synchronization | Checked complete in `tasks.md` | BRD/TRD/quickstart reconciliation recorded; must still be rechecked if policy scope changes |
 | Frozen product-candidate identification | Missing | No clean commit/tree/build/scope has been frozen |
 | T041 final regressions | Exploratory only | `tasks.md` records focused/local passes, but final candidate-bound regressions are still required after freeze |
-| Refreshed T037 evidence validation | Exploratory only | `evidence/evidence-validation.md` explicitly states the candidate is a dirty exploratory worktree with no frozen product candidate |
+| Refreshed T037 evidence validation | Exploratory only | `evidence/evidence-validation.md` refreshed 2026-11-20: 546 records, 0 real-record errors, 1,548 artifact hashes, 5/5 synthetic rejections; candidate remains a dirty exploratory worktree |
 | T036 final source/inventory reconciliation | Open | `tasks.md` T036 remains unchecked; final reconciliation must match the frozen commit/tree |
-| T039 register synchronization | Open | `tasks.md` T039 remains unchecked |
+| T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-19 register-reference check resolved all used CLS/BND IDs, semantic reconciliation remains open |
 | T040 disposition refresh | Open | `tasks.md` T040 remains unchecked |
 | Other release gates | Open | `assessment.md` keeps physical clipboard, heap/raw-artifact, configured diagnostics, iOS runtime, candidate reconciliation, backlog disposition and retention obligations open |
 
 ## Gate preflight evidence hashes
 
-These hashes identify the dirty-worktree evidence package available at preflight on 2026-11-18. They are not candidate-bound review evidence and must be recomputed after the product candidate is frozen and the evidence package is refreshed.
+These hashes identify the dirty-worktree evidence package available at preflight on 2026-11-20 after the exploratory T037 validation refresh. They are not candidate-bound review evidence and must be recomputed after the product candidate is frozen and the evidence package is refreshed.
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `6b912b946fcb51f13f26b07d69159e6ca905d87ab74e3234ecf417bb7694d943` |
-| `specs/065-security-secret-cleanup/assessment.md` | `32da62c3ab34caf01289704f553fe63ff8b8fc80693329f5f4f443c0cb69f13e` |
-| `specs/065-security-secret-cleanup/source-inventory.json` | `8086e408bc95b21724f320e0512499e54914e3534d6a3452b1b510a9eb08ad55` |
-| `specs/065-security-secret-cleanup/evidence/index.md` | `e30f69149ecbd03e964a838e7773b4beaf89253e734a366e968a296109332c4a` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `36444ec9ce343e81f1c12712fc451b419b4df661e600a017751213cf18b00f29` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `4ee8ee204ef459cd3531ff46110d4c40fdc27667398bf68ed912be67aee524ab` |
-| `docs/backlog/security-secret-cleanup-audit.md` | `f3bc0ae63b6c13ab0068aded155cbde33436dd04a5934c6a5fb12caba36fec4d` |
+| `specs/065-security-secret-cleanup/tasks.md` | `140ad2c8103427cf1c95492a2dee7c6adac92432736312b4529467f38f333c22` |
+| `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
+| `specs/065-security-secret-cleanup/assessment.md` | `334bc71889cc76244b51f1ae6d955f0a7ab2069ef16c74665267cc503133c7fd` |
+| `specs/065-security-secret-cleanup/source-inventory.json` | `8ede002e26eee1c30ee1f4e05d8e60c13aefca54612b988f201f345063a09a37` |
+| `specs/065-security-secret-cleanup/evidence/index.md` | `cf761002f9dd7f4458b69f09380ff5ac78c8039fb3c88b4953a89269f10dac7f` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `111a9a4f3d38f50aba57b1595713ada69e8f5f83fd2454cbce349a4a9bbe653e` |
+| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `f188a197116c2fd3ffe727fe3fb21d84dc17db6038335c7ba696c1795a522b93` |
+| `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `38cfd994f6bb4b33c0a34fc2a1745ab2a7088ba9e8baacebba1e66cf7bbdd163` |
+| `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `bb4b703f3981623fc222acc02126b8f7810bc74cd6544d2e27ad157edfc1cb39` |
+| `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `5b2340e6876b4cd6b21b6186f28a24d35cf674724ab1298e705f90059d1a5d21` |
+| `docs/backlog/security-secret-cleanup-audit.md` | `7c5d32945fbeb3a4e33d697f4464c94286a155153e8677ab006a2c719af998b9` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
+| `docs/security/data-classification.md` | `328b5b247d0f01bf0b06d7a629324e627e5f4ed6b54211d7d1607e21ead8ce7a` |
+| `docs/security/platform-text-boundaries.md` | `d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847` |
 | `specs/065-security-secret-cleanup/quickstart.md` | `ae6f5ec2ec81f47bf8f0183f83d67616064b09bac8275826cb774e3d8ab965f0` |
 
 ## Required artifact access for a future review

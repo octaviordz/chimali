@@ -4,30 +4,20 @@ import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.common.datastore.EncryptionWrapper
 import com.chimali.core.common.datastore.createUserPreferencesDataStore
 import com.chimali.core.common.result.Outcome
-import com.chimali.core.clipboard.ClipboardManagerService
 import com.chimali.core.domain.valueobject.CredentialId
 import com.chimali.core.domain.valueobject.RpId
-import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.HdkKeyPair
+import com.chimali.core.security.api.ImportMnemonicResult
 import com.chimali.core.security.api.MasterSeedGenerator
 import com.chimali.core.security.api.MasterSeedOwnerKind
 import com.chimali.core.security.api.MasterSeedProvider
 import com.chimali.core.security.impl.AesGcmEncryptedMetadataService
 import com.chimali.core.security.impl.Bip39MasterSeedGenerator
 import com.chimali.core.security.impl.HmacMetadataLookupTokenService
-import com.chimali.fido2.data.crypto.WalletMasterSeedProvider
-import com.chimali.fido2.domain.model.PasskeyCredential
-import com.chimali.fido2.domain.repository.CredentialRepository
-import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
-import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
-import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
-import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
-import com.chimali.fido2.presentation.management.CredentialManagementViewModel
-import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
-import com.chimali.fido2.presentation.viewmodel.DevToolsViewModel
 import com.chimali.feature.vault.api.VaultIntent
 import com.chimali.feature.vault.api.VaultItem
 import com.chimali.feature.vault.api.VaultService
@@ -39,6 +29,16 @@ import com.chimali.feature.vault.internal.payload.CustomField
 import com.chimali.feature.vault.internal.payload.PasswordPayload
 import com.chimali.feature.vault.internal.payload.SecureNotePayload
 import com.chimali.feature.vault.internal.payload.SensitivePayload
+import com.chimali.fido2.data.crypto.WalletMasterSeedProvider
+import com.chimali.fido2.domain.model.PasskeyCredential
+import com.chimali.fido2.domain.repository.CredentialRepository
+import com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.DeleteCredentialUseCase
+import com.chimali.fido2.domain.usecase.GetAllCredentialsUseCase
+import com.chimali.fido2.domain.usecase.SearchCredentialsUseCase
+import com.chimali.fido2.presentation.management.CredentialManagementViewModel
+import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
+import com.chimali.fido2.presentation.viewmodel.DevToolsViewModel
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
@@ -328,12 +328,39 @@ class LeakCanaryMnemonicOwnerTest {
             activityClosed = true
             heapAuditSession?.checkpoint("disposed")
             assertTrue("Vault note title must be erased on ViewModel disposal", payload.title.all { it == '\u0000' })
-            assertTrue("Vault note content must be erased on ViewModel disposal", payload.content.all { it == '\u0000' })
-            assertTrue("Vault custom-field name must be erased on ViewModel disposal", customField.name.all { it == '\u0000' })
-            assertTrue("Vault custom-field value must be erased on ViewModel disposal", customField.value.all { it == '\u0000' })
+            assertTrue(
+                "Vault note content must be erased on ViewModel disposal",
+                payload.content.all { it == '\u0000' },
+            )
+            assertTrue(
+                "Vault custom-field name must be erased on ViewModel disposal",
+                customField.name.all {
+                    it ==
+                        '\u0000'
+                },
+            )
+            assertTrue(
+                "Vault custom-field value must be erased on ViewModel disposal",
+                customField.value.all {
+                    it ==
+                        '\u0000'
+                },
+            )
             assertTrue("Stored vault title must be erased on ViewModel disposal", item.title.all { it == '\u0000' })
-            assertTrue("Stored vault payload bytes must be erased on ViewModel disposal", item.payload.all { it == 0.toByte() })
-            assertTrue("Stored vault CRDT bytes must be erased on ViewModel disposal", item.crdtState.all { it == 0.toByte() })
+            assertTrue(
+                "Stored vault payload bytes must be erased on ViewModel disposal",
+                item.payload.all {
+                    it ==
+                        0.toByte()
+                },
+            )
+            assertTrue(
+                "Stored vault CRDT bytes must be erased on ViewModel disposal",
+                item.crdtState.all {
+                    it ==
+                        0.toByte()
+                },
+            )
             notePayload = null
             vaultItem = null
             viewModel = null
@@ -358,8 +385,10 @@ class LeakCanaryMnemonicOwnerTest {
         val activityScenario = launchHeapAuditOwnerHostActivity()
         heapAuditSession?.checkpoint("baseline")
         val runSuffix = sessionId ?: UUID.randomUUID().toString()
+
         fun marker(label: String) = "SEC065_${label}_$runSuffix"
-        val passwordField = CustomField(marker("PW_FIELD_NAME").toCharArray(), marker("PW_FIELD_VALUE").toCharArray(), true)
+        val passwordField =
+            CustomField(marker("PW_FIELD_NAME").toCharArray(), marker("PW_FIELD_VALUE").toCharArray(), true)
         val cardField = CustomField(marker("CC_FIELD_NAME").toCharArray(), marker("CC_FIELD_VALUE").toCharArray(), true)
         val passwordPayload =
             PasswordPayload(
@@ -389,9 +418,27 @@ class LeakCanaryMnemonicOwnerTest {
             if (heapAuditSession != null && positiveControl != null) {
                 heapAuditSession.writeExpectedMarkers(
                     listOf(
-                        "PW_TITLE", "PW_USERNAME", "PW_SECRET", "PW_URI", "PW_NOTES", "PW_FIELD_NAME", "PW_FIELD_VALUE",
-                        "CC_TITLE", "CC_CARDHOLDER", "CC_NUMBER", "CC_EXPIRY", "CC_CVV", "CC_NOTES", "CC_FIELD_NAME", "CC_FIELD_VALUE",
-                        "PW_STORED_TITLE", "PW_CIPHERTEXT", "PW_CRDT", "CC_STORED_TITLE", "CC_CIPHERTEXT", "CC_CRDT",
+                        "PW_TITLE",
+                        "PW_USERNAME",
+                        "PW_SECRET",
+                        "PW_URI",
+                        "PW_NOTES",
+                        "PW_FIELD_NAME",
+                        "PW_FIELD_VALUE",
+                        "CC_TITLE",
+                        "CC_CARDHOLDER",
+                        "CC_NUMBER",
+                        "CC_EXPIRY",
+                        "CC_CVV",
+                        "CC_NOTES",
+                        "CC_FIELD_NAME",
+                        "CC_FIELD_VALUE",
+                        "PW_STORED_TITLE",
+                        "PW_CIPHERTEXT",
+                        "PW_CRDT",
+                        "CC_STORED_TITLE",
+                        "CC_CIPHERTEXT",
+                        "CC_CRDT",
                     ).map(::marker),
                     positiveControl,
                 )
@@ -680,7 +727,10 @@ class LeakCanaryMnemonicOwnerTest {
         }
 
         fun writeBinaryMarker(marker: ByteArray) {
-            OutputStreamWriter(FileOutputStream(File(directory, "expected-markers.txt"), true), StandardCharsets.UTF_8).use { writer ->
+            OutputStreamWriter(
+                FileOutputStream(File(directory, "expected-markers.txt"), true),
+                StandardCharsets.UTF_8,
+            ).use { writer ->
                 writer.write("B64:")
                 writer.write(Base64.getEncoder().encodeToString(marker))
                 writer.write("\n")

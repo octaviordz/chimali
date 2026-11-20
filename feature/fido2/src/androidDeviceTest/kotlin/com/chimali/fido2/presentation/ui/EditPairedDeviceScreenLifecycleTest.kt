@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+
+private const val UI_TIMEOUT_MS = 5_000L
 
 class EditPairedDeviceScreenLifecycleTest {
     @get:Rule
@@ -47,12 +49,12 @@ class EditPairedDeviceScreenLifecycleTest {
         aliasField.assertTextEquals("Synthetic unsaved alias")
 
         composeRule.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(UI_TIMEOUT_MS) {
             composeRule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isEmpty()
         }
 
         composeRule.runOnIdle { owner.registry.currentState = Lifecycle.State.STARTED }
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(UI_TIMEOUT_MS) {
             composeRule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNode(hasSetTextAction()).assertTextEquals("Persisted alias")

@@ -45,6 +45,7 @@ import kotlinx.coroutines.test.runTest
  * Fulfills FR-FIDO2-016.
  */
 @Req("NFR-PERF-030", "NFR-SEC-041")
+@Suppress("LargeClass")
 class Ctap2GetAssertionHandlerTest {
     private val cborCodec: CborCodec = mockk()
     private val hmacSecretProcessor: HmacSecretProcessor = mockk()
@@ -695,7 +696,7 @@ class Ctap2GetAssertionHandlerTest {
                     byteArrayOf(0x01)
                 } else {
                     retainedUserProjection = fields["4"] as Map<*, *>
-                    throw IllegalStateException("synthetic encoding failure")
+                    error("synthetic encoding failure")
                 }
             }
 

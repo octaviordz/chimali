@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+
+private const val UI_TIMEOUT_MS = 5_000L
 
 class PairedDevicesSectionLifecycleTest {
     @get:Rule
@@ -54,7 +56,7 @@ class PairedDevicesSectionLifecycleTest {
         composeRule.onNodeWithText("Device removed").assertIsDisplayed()
         composeRule.onNodeWithText("Synthetic alias").assertDoesNotExist()
         composeRule.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
-        composeRule.waitUntil(5_000) { undoneAddress.get() != null }
+        composeRule.waitUntil(UI_TIMEOUT_MS) { undoneAddress.get() != null }
 
         assertEquals(device.macAddress, undoneAddress.get())
     }

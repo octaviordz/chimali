@@ -126,6 +126,7 @@ class FidoBleAssertionTest {
 
     private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
 
+    @Suppress("TooGenericExceptionCaught")
     private fun concatBytes(vararg parts: ByteArray): ByteArray {
         val size = parts.fold(0) { total, part -> Math.addExact(total, part.size) }
         val result = ByteArray(size)

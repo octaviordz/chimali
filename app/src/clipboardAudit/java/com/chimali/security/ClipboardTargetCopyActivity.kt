@@ -2,6 +2,7 @@ package com.chimali.security
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
 import com.chimali.core.clipboard.AndroidClipboardManagerService
@@ -22,28 +23,100 @@ import org.koin.core.context.GlobalContext
 class ClipboardTargetCopyActivity : Activity() {
     private val activityScope = MainScope()
     private var copyStarted = false
+    private var repeatCopyPending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_MANUAL_CLEAR) {
+            activityScope.launch { requestManualClear() }
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_REPEAT_COPY) {
+            repeatCopyPending = true
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_UNCONFIRMED_COPY) {
+            activityScope.launch { publishSyntheticCopy(TARGET_UNCONFIRMED_TOKEN_FILE, "-unconfirmed") }
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_REJECT_COPY) {
+            activityScope.launch { publishSyntheticCopy(TARGET_REJECT_TOKEN_FILE, "-reject") }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_MANUAL_CLEAR) {
+            activityScope.launch { requestManualClear() }
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_REPEAT_COPY) {
+            repeatCopyPending = true
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_UNCONFIRMED_COPY) {
+            activityScope.launch { publishSyntheticCopy(TARGET_UNCONFIRMED_TOKEN_FILE, "-unconfirmed") }
+        }
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_REJECT_COPY) {
+            activityScope.launch { publishSyntheticCopy(TARGET_REJECT_TOKEN_FILE, "-reject") }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // The isolated audit target records sanitized manual-clear failure classes.
+    private suspend fun requestManualClear() {
+        val runId = intent.getStringExtra(EXTRA_RUN_ID) ?: "unknown"
+        var stage = "service-resolution"
+        var failureClass: String? = null
+        try {
+            val service = GlobalContext.get().get<AndroidClipboardManagerService>()
+            stage = "clear-request"
+            val result = service.clearClipboard()
+            stage = if (result.isSuccess) "clear-success" else "clear-failure"
+            failureClass = result.exceptionOrNull()?.javaClass?.simpleName
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            failureClass = failure.javaClass.simpleName
+        } finally {
+            val receipt = JSONObject().put("runId", runId).put("stage", stage)
+            failureClass?.let { receipt.put("failureClass", it) }
+            runCatching { getFileStreamPath("clipboard-manual-clear-$runId.json").writeText(receipt.toString()) }
+            finish()
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (!hasFocus || copyStarted) return
+        if (!hasFocus) return
+        if (repeatCopyPending) {
+            repeatCopyPending = false
+            activityScope.launch { publishSyntheticRepeatCopy() }
+            return
+        }
+        if (copyStarted ||
+            intent.getStringExtra(EXTRA_ACTION) in DEFERRED_ACTIONS
+        ) {
+            return
+        }
         copyStarted = true
-        activityScope.launch { publishSyntheticCopy() }
+        activityScope.launch { publishSyntheticCopy(TARGET_TOKEN_FILE, "") }
+    }
+
+    private suspend fun publishSyntheticRepeatCopy() {
+        val runId = intent.getStringExtra(EXTRA_RUN_ID)
+        if (runId.isNullOrBlank() || !RUN_ID_PATTERN.matches(runId)) {
+            writeReceipt(runId ?: "invalid", "InvalidRunId", fileSuffix = "-repeat")
+            return
+        }
+        publishSyntheticCopy(TARGET_REPEAT_TOKEN_FILE, "-repeat")
     }
 
     @Suppress("TooGenericExceptionCaught") // The isolated audit target records sanitized setup failure classes.
-    private suspend fun publishSyntheticCopy() {
+    private suspend fun publishSyntheticCopy(tokenFileName: String, fileSuffix: String) {
         val runId = intent.getStringExtra(EXTRA_RUN_ID)
         if (runId.isNullOrBlank() || !RUN_ID_PATTERN.matches(runId)) {
-            writeReceipt(runId ?: "invalid", "InvalidRunId")
+            writeReceipt(runId ?: "invalid", "InvalidRunId", fileSuffix = fileSuffix)
             return
         }
 
         try {
-            val tokenFile = getFileStreamPath(TARGET_TOKEN_FILE)
+            val tokenFile = getFileStreamPath(tokenFileName)
             val expectedToken = tokenFile.inputStream().bufferedReader().use { it.readText() }
             check(expectedToken.isNotBlank())
             check(tokenFile.delete())
@@ -72,6 +145,7 @@ class ClipboardTargetCopyActivity : Activity() {
                 runId,
                 receipt.generation,
                 receipt.scheduledElapsedMs,
+                fileSuffix,
             )
             writeReceipt(
                 runId,
@@ -81,11 +155,12 @@ class ClipboardTargetCopyActivity : Activity() {
                 publicationElapsedMs = publicationElapsedMs,
                 copyCallStartedElapsedMs = copyCallStartedElapsedMs,
                 copyCallReturnedElapsedMs = copyCallReturnedElapsedMs,
+                fileSuffix = fileSuffix,
             )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: Exception) {
-            writeReceipt(runId, "CopyUnavailable", failureClass = failure.javaClass.simpleName)
+            writeReceipt(runId, "CopyUnavailable", failureClass = failure.javaClass.simpleName, fileSuffix = fileSuffix)
         }
     }
 
@@ -98,6 +173,7 @@ class ClipboardTargetCopyActivity : Activity() {
         copyCallStartedElapsedMs: Long? = null,
         copyCallReturnedElapsedMs: Long? = null,
         failureClass: String? = null,
+        fileSuffix: String = "",
     ) {
         val receipt =
             JSONObject()
@@ -110,7 +186,7 @@ class ClipboardTargetCopyActivity : Activity() {
         copyCallStartedElapsedMs?.let { receipt.put("copyCallStartedElapsedMs", it) }
         copyCallReturnedElapsedMs?.let { receipt.put("copyCallReturnedElapsedMs", it) }
         failureClass?.let { receipt.put("failureClass", it) }
-        getFileStreamPath("clipboard-target-ready-$runId.json").writeText(receipt.toString())
+        getFileStreamPath("clipboard-target-ready-$runId$fileSuffix.json").writeText(receipt.toString())
     }
 
     override fun onDestroy() {
@@ -120,8 +196,23 @@ class ClipboardTargetCopyActivity : Activity() {
 
     companion object {
         const val EXTRA_RUN_ID = "com.chimali.security.extra.RUN_ID"
+        const val EXTRA_ACTION = "com.chimali.security.extra.ACTION"
+        const val ACTION_MANUAL_CLEAR = "manual-clear"
+        const val ACTION_REPEAT_COPY = "repeat-copy"
+        const val ACTION_UNCONFIRMED_COPY = "unconfirmed-copy"
+        const val ACTION_REJECT_COPY = "reject-copy"
         const val TARGET_TOKEN_FILE = "clipboard-target.expected"
+        const val TARGET_REPEAT_TOKEN_FILE = "clipboard-target.expected.repeat"
+        const val TARGET_UNCONFIRMED_TOKEN_FILE = "clipboard-target.expected.unconfirmed"
+        const val TARGET_REJECT_TOKEN_FILE = "clipboard-target.expected.reject"
         private val RUN_ID_PATTERN = Regex("[A-Za-z0-9_-]{1,64}")
+        private val DEFERRED_ACTIONS =
+            setOf(
+                ACTION_MANUAL_CLEAR,
+                ACTION_REPEAT_COPY,
+                ACTION_UNCONFIRMED_COPY,
+                ACTION_REJECT_COPY,
+            )
     }
 }
 
@@ -135,6 +226,7 @@ private object ClipboardAuditCleanupRecorder {
         runId: String,
         generation: Long,
         scheduledElapsedMs: Long,
+        fileSuffix: String = "",
     ) {
         scope.launch {
             service.cleanupStatuses.collect { statuses ->
@@ -147,7 +239,10 @@ private object ClipboardAuditCleanupRecorder {
                             .put("scheduledElapsedMs", scheduledElapsedMs)
                             .put("terminalStatusElapsedMs", SystemClock.elapsedRealtime())
                             .put("outcome", status.outcome.name)
-                    context.getFileStreamPath("clipboard-target-outcome-$runId.json").writeText(outcome.toString())
+                    context
+                        .getFileStreamPath(
+                            "clipboard-target-outcome-$runId$fileSuffix.json",
+                        ).writeText(outcome.toString())
                     service.acknowledge(generation)
                     cancel()
                 }

@@ -23,6 +23,7 @@ class Fido2AuthNotificationPrivacyDeviceTest {
         const val AUTH_REQUEST_NOTIFICATION_ID = 1002
         const val TEST_CHANNEL_ID = "fido2_auth_notification_cleanup_test"
         const val NOTIFICATION_SETTLE_TIMEOUT_MILLIS = 3_000L
+        const val NOTIFICATION_POLL_INTERVAL_MILLIS = 25L
     }
 
     @Test
@@ -108,7 +109,7 @@ class Fido2AuthNotificationPrivacyDeviceTest {
         do {
             val isActive = notificationManager.activeNotifications.any { it.id == AUTH_REQUEST_NOTIFICATION_ID }
             if (isActive == shouldBeActive) return true
-            SystemClock.sleep(25)
+            SystemClock.sleep(NOTIFICATION_POLL_INTERVAL_MILLIS)
         } while (SystemClock.elapsedRealtime() < deadline)
         return false
     }

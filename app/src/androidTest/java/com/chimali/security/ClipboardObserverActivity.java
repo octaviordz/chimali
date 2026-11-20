@@ -94,12 +94,14 @@ public final class ClipboardObserverActivity extends Activity {
         }
         KeyguardManager keyguard = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
         boolean locked = keyguard != null && keyguard.isKeyguardLocked();
+        Boolean sensitiveFlag = readSensitiveFlag(clipboard);
         try {
             JSONObject record = new JSONObject();
             record.put("runId", runId);
             record.put("elapsedRealtimeMs", SystemClock.elapsedRealtime());
             record.put("observerPid", Process.myPid());
             record.put("classification", classification);
+            record.put("sensitiveFlag", sensitiveFlag == null ? JSONObject.NULL : sensitiveFlag);
             record.put("windowFocused", hasWindowFocus());
             record.put("deviceLocked", locked);
             record.put("capabilityControl", controlResult);
@@ -158,6 +160,17 @@ public final class ClipboardObserverActivity extends Activity {
             return classify(clipboard, expected);
         } catch (SecurityException | IllegalStateException ignored) {
             return "inaccessible";
+        }
+    }
+
+    private Boolean readSensitiveFlag(ClipboardManager clipboard) {
+        if (clipboard == null) return null;
+        try {
+            ClipDescription description = clipboard.getPrimaryClipDescription();
+            if (description == null || description.getExtras() == null) return null;
+            return description.getExtras().getBoolean(ClipDescription.EXTRA_IS_SENSITIVE, false);
+        } catch (SecurityException | IllegalStateException ignored) {
+            return null;
         }
     }
 

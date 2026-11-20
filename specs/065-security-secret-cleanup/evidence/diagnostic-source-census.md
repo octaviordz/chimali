@@ -1,6 +1,6 @@
 # Diagnostic production-source census
 
-- Date: 2026-11-18
+- Date: 2026-11-20
 - Scope: current source files under `app`, `core` and `feature`, limited to production Kotlin, Java, Swift and Objective-C source sets; test source sets excluded.
 - Static token hits: 367 matches across 56 source files; 315 production source files enumerated.
 - Finding assignment: 71 distinct linked findings; each appears in a task checkbox row or a T007 crosswalk table row.

@@ -17661,7 +17661,9 @@
         "CLS-KEY-005",
         "CLS-FIDO-001"
       ],
-      "boundary_ids": [],
+      "boundary_ids": [
+        "BND-SYS-003"
+      ],
       "requirement_ids": [
         "FR-003",
         "FR-004",
@@ -21771,7 +21773,8 @@
         "CLS-KEY-001"
       ],
       "boundary_ids": [
-        "BND-UI-003"
+        "BND-UI-003",
+        "BND-UI-004"
       ],
       "requirement_ids": [
         "FR-002",
@@ -23978,7 +23981,9 @@
         "CLS-KEY-003",
         "CLS-KEY-005"
       ],
-      "boundary_ids": [],
+      "boundary_ids": [
+        "BND-SYS-003"
+      ],
       "requirement_ids": [
         "FR-003",
         "FR-004",

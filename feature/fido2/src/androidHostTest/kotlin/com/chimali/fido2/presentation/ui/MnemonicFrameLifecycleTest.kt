@@ -36,7 +36,7 @@ class MnemonicFrameLifecycleTest {
 
         withMnemonicFrameRelease(releaseFrame = { releaseCount++ }) { onComplete ->
             onComplete()
-            throw IllegalStateException("synthetic listener registration failure")
+            error("synthetic listener registration failure")
         }
 
         assertEquals(1, releaseCount)

@@ -6,11 +6,11 @@ internal fun fillSecureRandomBytes(
 ): ByteArray {
     var completed = false
     try {
-        if (fill(bytes) != 0) throw IllegalStateException("Secure random generation failed")
+        if (fill(bytes) != 0) error("Secure random generation failed")
         completed = true
         return bytes
     } catch (_: Exception) {
-        throw IllegalStateException("Secure random generation failed")
+        error("Secure random generation failed")
     } finally {
         if (!completed) bytes.fill(0)
     }

@@ -43,7 +43,10 @@ class DirectFidoPerformanceLogcatPrivacyTest {
             assertTrue("Direct-sink capture must contain its start marker", beginIndex >= 0)
             assertTrue("Direct-sink capture must contain its end marker", endIndex > beginIndex)
             val emittedSegment = logOutput.substring(beginIndex + begin.length, endIndex)
-            assertTrue("The fixed MakeCredential operation label must reach Logcat", emittedSegment.contains("operation=MakeCredential"))
+            assertTrue(
+                "The fixed MakeCredential operation label must reach Logcat",
+                emittedSegment.contains("operation=MakeCredential"),
+            )
             assertFalse("Raw synthetic packet text must not reach Logcat", emittedSegment.contains(marker))
             assertFalse("Base64 synthetic packet text must not reach Logcat", emittedSegment.contains(encodedMarker))
             assertFalse("Hex synthetic packet text must not reach Logcat", emittedSegment.contains(hexMarker))
@@ -54,13 +57,30 @@ class DirectFidoPerformanceLogcatPrivacyTest {
             Log.i(TEST_TAG, disconnectEnd)
             val disconnectOutput = instrumentation.readLogcatForProcess(Process.myPid())
             val disconnectStartIndex = disconnectOutput.lastIndexOf(disconnectBegin)
-            val disconnectEndIndex = disconnectOutput.indexOf(disconnectEnd, disconnectStartIndex + disconnectBegin.length)
+            val disconnectEndIndex =
+                disconnectOutput.indexOf(
+                    disconnectEnd,
+                    disconnectStartIndex + disconnectBegin.length,
+                )
             assertTrue("Disconnect capture must contain its start marker", disconnectStartIndex >= 0)
             assertTrue("Disconnect capture must contain its end marker", disconnectEndIndex > disconnectStartIndex)
-            val disconnectSegment = disconnectOutput.substring(disconnectStartIndex + disconnectBegin.length, disconnectEndIndex)
-            assertTrue("The fixed incomplete reason must reach Logcat", disconnectSegment.contains("incomplete=true reason=disconnect"))
-            assertFalse("Disconnect diagnostics must omit the synthetic packet text", disconnectSegment.contains(marker))
-            assertFalse("Disconnect diagnostics must omit the Base64 packet text", disconnectSegment.contains(encodedMarker))
+            val disconnectSegment =
+                disconnectOutput.substring(
+                    disconnectStartIndex + disconnectBegin.length,
+                    disconnectEndIndex,
+                )
+            assertTrue(
+                "The fixed incomplete reason must reach Logcat",
+                disconnectSegment.contains("incomplete=true reason=disconnect"),
+            )
+            assertFalse(
+                "Disconnect diagnostics must omit the synthetic packet text",
+                disconnectSegment.contains(marker),
+            )
+            assertFalse(
+                "Disconnect diagnostics must omit the Base64 packet text",
+                disconnectSegment.contains(encodedMarker),
+            )
             assertFalse("Disconnect diagnostics must omit the hex packet text", disconnectSegment.contains(hexMarker))
         } finally {
             BaselineMeasurements.disconnect()

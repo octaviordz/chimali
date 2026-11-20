@@ -1,4 +1,4 @@
-# Clipboard device and observer evidence
+﻿# Clipboard device and observer evidence
 
 **Date**: 2026-11-15 (local; latest row below)
 **Revision**: exploratory dirty worktree; latest audit APKs rebuilt from current worktree; not a frozen product candidate.
@@ -138,3 +138,246 @@ Run `codex20261117_mia2_sched_fresh02` used the Xiaomi Mi A2 (Android 10/API 29,
 Sanitized run JSON SHA-256: `6A712B1317551A2AFBC41E95B1AD8F7C86F02DE3307A2CC46C17D236578D62F3`. Target APK SHA-256: `7B17E547CD04EB4EDCD1B83CB64DC1AB9CF0AA7D978B7B9C3987CC61EEDB0B87`; observer APK SHA-256: `A76B7A65EFA74E89B37FF1B28D1B2B0F30ADC370ECFA1DBB858667BCBF664911`.
 
 This is a fresh scheduled-attempt observation for the same single API 29/OEM cohort. It does not establish behavior under lock/sleep, replacement/manual-clear races, preview/TalkBack, other cohorts, or a frozen candidate, and it does not close T027.
+### API 35 emulator locked/sleep case (2026-11-19)
+
+`tools/security/run-clipboard-observation.ps1` gained a `locked-sleep` case: after the focused synthetic publication and exact 30,000 ms schedule are confirmed, the controller injects `KEYCODE_SLEEP`, keeps polling the target outcome receipt while the screen is off, then injects `KEYCODE_WAKEUP` and dismisses the non-secure keyguard before the independent observation. The `finally` block always restores wakefulness if the run fails mid-case.
+
+Run `codex20261119_emulator_locksleep01` on AOSP API 35 emulator `emulator-5554` (dirty exploratory `clipboardAudit` build, target PID 27988, observer PID 27943, separate processes/packages). Positive and mismatch controls returned `marker-match`/`replaced`. The device slept across the scheduled deadline (`sleptDuringDeadline=true`); the target returned `SkippedOwnershipUnavailable` 76 ms after the scheduled deadline (elapsed 442,645,030 vs scheduled 442,644,954), consistent with the best-effort skip-on-uncertainty contract while screen-off ownership could not be confirmed. After wake and keyguard dismissal the independent observer classified `marker-match` at elapsed 442,651,803; ownership-checked test cleanup then returned `absent` (`clear-request-submitted`). Clipboard text was never read. The harness recorded `cleanupSucceeded=true`; both disposable audit packages were uninstalled and verified absent afterward, and the emulator was left awake.
+
+Sanitized run JSON SHA-256: `751d7ecf8f39d0533cced2289bd1b84dbd4753b7535f3bcf2b207bec2bb99799`; artifact `build/security/clipboard-observation/clipboard-observation-codex20261119_emulator_locksleep01.json`.
+
+This is one API 35 emulator screen-off observation only. It does not establish physical-device lock/sleep behavior (the Mi A2 cohort has no locked-sleep run yet), doze/idle maintenance windows, secure-lockscreen behavior, preview/TalkBack, replacement or manual-clear races, other API/OEM cohorts, or frozen-candidate behavior. T027 remains open.
+
+### API 35 emulator clipboard-replacement case (2026-11-19)
+
+`tools/security/run-clipboard-observation.ps1` gained a `clipboard-replaced` case: after the focused synthetic publication and exact 30,000 ms schedule are confirmed, the controller uses the observer `control-mismatch` mode to replace the clip with the deliberate non-matching synthetic token, then waits for the target outcome. A `ClearRequestSubmitted` outcome is treated as a scoped behavior failure because the app must not clear a clip it no longer owns; any skip outcome is recorded verbatim.
+
+Run `codex20261119_emulator_clipreplaced02` on AOSP API 35 emulator `emulator-5554` (dirty exploratory `clipboardAudit` build; separate target/observer processes). Positive and mismatch controls passed. The injected replacement was independently classified `replaced` after the deadline. The target returned `SkippedOwnershipUnavailable` 124 ms after the scheduled deadline (the observer activity launch briefly moved window focus, so the app could not confirm ownership and safely skipped rather than clearing another owner's clip). The independent observer confirmed `replaced` at elapsed 442,964,823 ms; the app did not submit a clear request, so no ownership-checked teardown was needed for the app marker. The observer's own synthetic replacement token remains on the emulator clipboard until the next copy; it is non-sensitive test text. Harness `cleanupSucceeded=true`; both disposable audit packages were uninstalled and verified absent.
+
+Sanitized run JSON SHA-256: `381ae748a02f404641dc40054be90820d2c62e6fd76775da64a55e0d8f9b1949`; artifact `build/security/clipboard-observation/clipboard-observation-codex20261119_emulator_clipreplaced02.json`.
+
+An earlier same-case attempt `codex20261119_emulator_clipreplaced01` returned `Unverified`: the first controller revision incorrectly required `SkippedReplaced`, but the observer activity's focus change produced the also-valid `SkippedOwnershipUnavailable` skip; the controller was corrected to accept any non-clear terminal outcome and to fail only on `ClearRequestSubmitted`. Report SHA-256 `e681b7f3aa0b65d1abd78f0a0f1ff131475ca183c25e189fd403313432bae48c` is retained.
+
+This is one API 35 emulator replacement-observation case only. It does not establish that the app detects token-level replacement while retaining foreground ownership (the observer launch itself backgrounded the target), physical-device behavior, manual-clear races, preview/TalkBack, other cohorts, or frozen-candidate behavior. T027 remains open.
+
+### Physical API 29 locked/sleep attempt (2026-11-19, Unverified)
+
+Run `codex20261119_mia2_locksleep01` used the physical Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`) with the new `locked-sleep` controller case. The target confirmed sensitive metadata, published the synthetic marker with an exact 30,000 ms schedule, and the device slept across the deadline. The target returned `SkippedOwnershipUnavailable` 47 ms after the scheduled deadline (elapsed 297,104,177 vs scheduled 297,104,130), consistent with the best-effort skip-on-uncertainty contract while screen-off ownership could not be confirmed. The run then could not complete independent observation: after `KEYCODE_WAKEUP`, the MIUI secure keyguard remained (`mDreamingLockscreen=true`; `wm dismiss-keyguard` and swipe-up did not clear it), the observer `am start -W` blocked behind the keyguard, and the hung adb call was terminated. The harness recorded `failedAt=observer-launch-observe`, `failureCode=ObserverLaunchFailed`, `cleanupSucceeded=true`; both disposable audit packages were uninstalled and verified absent.
+
+Sanitized run JSON SHA-256: `de82326e23467d3f794661b411198c23e1131daa63fd54b85884ec7851b00598`; artifact `build/security/clipboard-observation/clipboard-observation-codex20261119_mia2_locksleep01.json`.
+
+The captured target outcome is real physical-cohort data but the case is Unverified because no independent clipboard observation followed. The synthetic marker may remain on the device clipboard until the next copy; it is a non-sensitive random test token. The controller now checks `mDreamingLockscreen` after wake and fails fast with `SecureKeyguardRemained` instead of hanging in `am start -W`. Physical locked/sleep evidence therefore still requires either a device without a secure lockscreen or an approved manual unlock during the observation window; T027 remains open.
+
+### API 35 emulator five-case cohort pass (2026-11-19)
+
+A fresh complete pass of all five `run-clipboard-observation.ps1` cases ran on AOSP API 35 emulator `emulator-5554` with the current dirty exploratory `clipboardAudit` build (separate target/observer packages and processes per run; synthetic tokens only; clipboard text never read). All runs reported `cleanupSucceeded=true`; both disposable audit packages were uninstalled and verified absent afterward, and the emulator was left awake.
+
+| RunId | Case | Target outcome | Independent observation | Status |
+|---|---|---|---|---|
+| `codex20261119_emulator_sched01` | `scheduled-attempt` | `ClearRequestSubmitted` after the exact 30,000 ms deadline | `absent` while target alive/focused | Passed (scheduled cleanup observation case) |
+| `codex20261119_emulator_appswitch01` | `app-switch` | `SkippedOwnershipUnavailable` while backgrounded | `marker-match` (retained, no cleanup claimed) | Passed (background ownership unavailable; safe skip) |
+| `codex20261119_emulator_death01` | `process-death` | target force-stopped before deadline | `marker-match` (retained; teardown cleared only while token matched) | Passed (process-death observer case) |
+| `codex20261119_emulator_locksleep02` | `locked-sleep` | `SkippedOwnershipUnavailable` after deadline while screen off | `marker-match` after wake/keyguard dismissal | Passed (locked-sleep terminal outcome observation case) |
+| `codex20261119_emulator_clipreplaced03` | `clipboard-replaced` | `SkippedOwnershipUnavailable` after deadline; no clear request for a non-owned clip | `replaced` | Passed (clipboard replacement observed; cleanup skipped) |
+
+Sanitized run JSON SHA-256 values: sched01 `e74a994ff801fb0d95ed248bb9cda12a46d1c57a2628b873ed369c6588cf7d69`; appswitch01 `12613717d7565856deabb649bdd942cebc22adf77955f64b73efdd70fea46fea`; death01 `21fae6712929dca20d86a799d0d17a84cb0e2212c4690bfb74174f7dd31875fd`; locksleep02 `e44833f2bd7bb6384cb63a6fd75e88b03cc7736c1fcb87794f7527dc91ebcac5`; clipreplaced03 `3f309099338172c90e48fc060d7f016288e728a49f55c4edb7398e3bb61a4100`. Artifacts are under `build/security/clipboard-observation/clipboard-observation-codex20261119_emulator_*.json`.
+
+This is one API 35 emulator cohort pass only. It does not establish physical-device behavior (the Mi A2 locked/sleep attempt remains Unverified behind a secure keyguard), doze maintenance windows, secure lockscreen handling, sensitive-preview masking, TalkBack, clipboard history, replacement detection while the app retains foreground ownership, manual-clear races, other API/OEM cohorts, or frozen-candidate behavior. T027 remains open.
+
+### API 35 emulator manual-clear observation (2026-11-19)
+
+A new `manual-clear` case was added to `tools/security/run-clipboard-observation.ps1` and to the disposable `clipboardAudit` fixture (`ClipboardTargetCopyActivity`): after the ready barrier the controller launches the target component with `FLAG_ACTIVITY_MULTIPLE_TASK` plus `ACTION=manual-clear`, which routes through `onNewIntent`/`onCreate` to the production `AndroidClipboardManagerService.clearClipboard()` path and reports `ManualClearSubmitted`. The case requires the manual outcome before the scheduled deadline is treated as a deadline violation, and requires independent `absent` observation.
+
+Harness iteration notes (retained as Unverified records): `codex20261119_emulator_manualclear03`/`05` showed the plain `am start` delivery reaches the running top-most instance without creating a new activity, so the `onCreate`-only trigger never fired and the scheduled automatic cleanup produced `ClearRequestSubmitted`; `manualclear04` failed at the ready barrier during leftover task state; `manualclear06` failed at the ready barrier for the same reason until the target was force-stopped. The controller was corrected to launch with `-f 0x08000000` (`FLAG_ACTIVITY_MULTIPLE_TASK`) so a fresh instance runs the manual-clear path deterministically.
+
+Run `codex20261119_emulator_manualclear07` on AOSP API 35 emulator `emulator-5554` (separate target/observer packages; synthetic token only; clipboard text never read): the target returned `ManualClearSubmitted` at elapsed 446,726,419 (before the 30,000 ms deadline), the independent observer classified `absent`, positive/mismatch controls were `marker-match`/`replaced`, and `cleanupSucceeded=true`. Both disposable audit packages were uninstalled and verified absent afterward; the emulator was left awake.
+
+Sanitized run JSON SHA-256: `5c2ad822f4246a9a5f54e8f37dae2919ddd672cf3cc611b5201318adc86c1768`; artifact `build/security/clipboard-observation/clipboard-observation-codex20261119_emulator_manualclear07.json`. Fixture source `app/src/clipboardAudit/java/com/chimali/security/ClipboardTargetCopyActivity.kt` SHA-256 `8468198d290d1aa2bacdf0152d35d761ac445149e7fa84eb156b2861edf286ee`; controller SHA-256 `c29c712c75ac25ea017716ef7b99f1fa925b5cbd87bb12085477d063d644ed59`; audit target APK SHA-256 `92273a22342a6b8c2967017924d13325c6d2674cf9969a7b5fd9ee0cb704130d`.
+
+This is one API 35 emulator manual-clear case only. It does not establish physical-device manual clear, secure lockscreen, sensitive-preview masking, TalkBack, clipboard history, doze windows, other API/OEM cohorts, or frozen-candidate behavior. T027 remains open.
+
+### Physical API 29 manual-clear and clipboard-replacement observations (2026-11-19)
+
+With the Mi A2 attached and unlocked, the current `clipboardAudit` build (including the `manual-clear` fixture path) ran two additional physical cases on the Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`), separate target/observer packages, synthetic tokens only, clipboard text never read.
+
+- `codex20261119_mia2_manualclear01` (`manual-clear`): **Passed**. Target returned `ManualClearSubmitted` before the scheduled deadline; independent observer classified `absent`; controls `marker-match`/`replaced`; `cleanupSucceeded=true`. JSON SHA-256 `0e73af17e12cf99e55463c70bc565144b12c5e9a8a293dfb4d55bff2c6c7879c`.
+- `codex20261119_mia2_clipreplaced01` (`clipboard-replaced`): **Passed**. Injected non-owned replacement classified `replaced`; target returned `SkippedOwnershipUnavailable` after the deadline without clearing the non-owned clip; observer confirmed `replaced`; `cleanupSucceeded=true`. JSON SHA-256 `7e10686a364fd5b9cec013a7204c6a0d12f02ffbe4d5b6c3d6c2c5df715161ba`.
+- `codex20261119_mia2_locksleep02` (`locked-sleep`): **Unverified**. Device slept across the deadline; target returned `SkippedOwnershipUnavailable` at elapsed 359,274,453 (deadline 359,274,406); after wake the MIUI secure keyguard remained and the hardened controller failed fast with `SecureKeyguardRemained` instead of hanging. No independent observation; `cleanupSucceeded=true`. JSON SHA-256 `4c73577200b4028c17f74b11fcb09e4956e213279d4ba39cad6fb82715693a30`.
+
+Both disposable audit packages were uninstalled from the Mi A2 and verified absent; the device was left awake. Physical locked/sleep still requires a non-secure-lock device or an approved manual unlock window. These are single-cohort API 29 MIUI results; preview/TalkBack, clipboard history, doze windows, other OEM/API cohorts and frozen-candidate behavior remain open. T027 remains open.
+
+### Physical API 29 five-case cohort pass with current build (2026-11-19)
+
+A fresh pass of five `run-clipboard-observation.ps1` cases ran on the physical Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`) using the current `clipboardAudit` build that includes the `manual-clear` fixture path. Separate target/observer packages, synthetic tokens only, clipboard text never read; all runs reported `cleanupSucceeded=true` and both disposable audit packages were uninstalled and verified absent afterward. The device was left awake.
+
+| RunId | Case | Target outcome | Independent observation | Status |
+|---|---|---|---|---|
+| `codex20261119_mia2_matrix_sched01` | `scheduled-attempt` | `ClearRequestSubmitted` after the exact 30,000 ms deadline | `absent` | Passed (scheduled cleanup observation case) |
+| `codex20261119_mia2_matrix_appswitch01` | `app-switch` | `SkippedOwnershipUnavailable` while backgrounded | `marker-match` retained | Passed (background ownership unavailable; safe skip) |
+| `codex20261119_mia2_matrix_death01` | `process-death` | target force-stopped before deadline | `marker-match` retained | Passed (process-death observer case) |
+| `codex20261119_mia2_matrix_manualclear02` | `manual-clear` | `ManualClearSubmitted` before the deadline | `absent` | Passed (manual clear submitted; clipboard independently observed as absent) |
+| `codex20261119_mia2_matrix_clipreplaced02` | `clipboard-replaced` | `SkippedOwnershipUnavailable`; no clear of the non-owned clip | `replaced` preserved | Passed (clipboard replacement observed; cleanup skipped) |
+
+Sanitized run JSON SHA-256 values: sched01 `b4a6dff587ae7426ff64c019fb2567d679679d1ad5179d0cd78e40d0497c561b`; appswitch01 `798d3f52c2ce6091e9a4e7702d985af8f6f9abe7642400e782634b44da3f51d7`; death01 `8f578213bff4c07be839963fe63e57a0f75650e1b5c518776b07915978048bfd`; manualclear02 `688e5baba1df27a58e11834f3d43f17672d14d6e9a7ae8d4d70d42b3d1319e79`; clipreplaced02 `975bed563e5998bf8fc4de97e5c70e51589de81a14acee191d307ab83b1dd1d1`. Artifacts are under `build/security/clipboard-observation/clipboard-observation-codex20261119_mia2_matrix_*.json`.
+
+`locked-sleep` was not re-run: two prior physical attempts (`codex20261119_mia2_locksleep01`, `codex20261119_mia2_locksleep02`) both ended Unverified because the MIUI secure keyguard survives wake/keyguard-dismiss attempts; the deterministic blocker is unchanged. This is one physical API 29 MIUI cohort pass only; it does not establish other OEM/API cohorts, doze windows, secure lockscreen, sensitive-preview masking, TalkBack, clipboard history, or frozen-candidate behavior. T027 remains open.
+
+### Physical API 29 sensitive-preview flag observation (2026-11-19)
+
+The test-APK clipboard observer (`app/src/androidTest/java/com/chimali/security/ClipboardObserverActivity.java`) was extended to record the boolean `ClipDescription.EXTRA_IS_SENSITIVE` flag from clip description metadata only — never clip text — as `sensitiveFlag` in its sanitized result JSON. The observer APK was rebuilt (`:app:assembleClipboardAuditAndroidTest -PchimaliClipboardAudit=true`) and both audit packages reinstalled on the Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`).
+
+Run `codex20261119_mia2_sensitiveflag01` (`scheduled-attempt`, Passed): while the target's synthetic clip was still primary, the positive capability control observed `classification=marker-match` with `sensitiveFlag=true`; the mismatch control observed `replaced` with `sensitiveFlag=true` (the control clip also sets the flag); after the 30,000 ms deadline the independent observation classified `absent` with `sensitiveFlag=null`. This is direct physical-cohort evidence that `copySensitiveData()` sets `EXTRA_IS_SENSITIVE=true` in published description metadata before the scheduled clear request. JSON SHA-256 `99cea3ea27e0b5086388cdb40ae490bf55ec968c8595dd4f701825330ed16d3a`; artifact `build/security/clipboard-observation/clipboard-observation-codex20261119_mia2_sensitiveflag01.json`. Observer source SHA-256 `a0818fc7dc86eb07107289c60acffc8e4fb1ef756206aadc86f44a74bd2cf7a6`; test APK SHA-256 `22a86305d09f6861e58ffdb9238d5f8b3a21b10b7976c497121a7c10a0f7652d`; target APK SHA-256 `92273a22342a6b8c2967017924d13325c6d2674cf9969a7b5fd9ee0cb704130d`.
+
+This is one API 29 MIUI cohort observation of the sensitive flag only. It does not establish preview/masking UI behavior, TalkBack announcements, clipboard history handling, other OEM/API cohorts, locked/sleep observation, or frozen-candidate behavior. T027 remains open.
+
+### Clipboard-history provider absence check (2026-11-19)
+
+As part of the T027 clipboard-history item, package inventories were enumerated on both active cohorts: `adb -s emulator-5554 shell pm list packages` (172 packages, AOSP API 35 image) and `adb -s 2ac6876 shell pm list packages` (255 packages, Xiaomi Mi A2 Android 10/API 29 MIUI). Neither cohort has any installed package matching clipboard-manager/history patterns (`clip`, `gboard`, `keyboard`, `history`); the emulator AOSP image contains no Google apps at all. With no third-party clipboard-history provider present, history-persistence behavior cannot be exercised on these cohorts; absence of a provider is recorded as scoped applicability evidence, not as proof of behavior under a history manager. Clipboard-history coverage remains open for cohorts that include a history provider.
+
+### Repeated-copy supersession observations (2026-11-19)
+
+A seventh `repeat-copy` case was added to `tools/security/run-clipboard-observation.ps1` and to the disposable `clipboardAudit` fixture. The harness provisions a second synthetic ownership token (`clipboard-target.expected.repeat`) delivered to the target and makes it the observer-expected token, launches the target normally for generation 1, then relaunches the component with `FLAG_ACTIVITY_MULTIPLE_TASK` and `ACTION=repeat-copy`. The fixture defers the second `copySensitiveData()` call until the new instance gains window focus (an immediate copy was observed to publish `Unconfirmed` while unfocused — retained harness-iteration record `codex20261119_emu_repeatcopy01`), writes a `-repeat`-suffixed ready receipt, and records the second generation's terminal outcome to `clipboard-target-outcome-<runId>-repeat.json`. The case requires generation 1 to reach `Superseded`, generation 2 to submit its own scheduled clear request at its own 30,000 ms deadline, and independent `absent` observation.
+
+- `codex20261119_emu_repeatcopy02` (AOSP API 35 emulator `emulator-5554`): **Passed**. Generation 1 `Superseded` at elapsed 510,448,715 (its deadline was 510,473,947); generation 2 `ClearRequestSubmitted` at 510,478,098, 59 ms after its deadline 510,478,039; independent observation `absent`. JSON SHA-256 `fb4940493789285fef9afbe1394b00369e272b97ccce98018e62f929eec6a0fc`.
+- `codex20261119_mia2_repeatcopy01` (Xiaomi Mi A2, Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`): **Passed**. Generation 1 `Superseded` at elapsed 364,391,513 (deadline 364,420,826); generation 2 `ClearRequestSubmitted` at 364,421,513, 47 ms after its deadline 364,421,466; independent observation `absent`. JSON SHA-256 `dce51b555f0b06ba4a16d4cf778efaf5b148977bceb436ca3d354b6994dae0e3`.
+
+Fixture source `app/src/clipboardAudit/java/com/chimali/security/ClipboardTargetCopyActivity.kt` SHA-256 `240e680def29858e2560a9e9e77c3346c82c0def3140ef4fabc844f56cd19e01`; controller SHA-256 `a1f4867db9b3849a280f952df249ca5f77f5a513cbb383cf6fce78f8adbd7049`; audit target APK SHA-256 `def92d1f9d860bd3dffd1cc1423b5315146633be73215b3599267e832f07bbf1`. Both disposable audit packages were uninstalled from both devices and verified absent.
+
+This is repeated-copy/supersession evidence on one emulator cohort and one physical API 29 MIUI cohort only. It does not cover rejection paths, more than two generations, preview UI masking, TalkBack, doze windows, locked/sleep, other OEM/API cohorts, or frozen-candidate behavior. T027 remains open.
+
+### Copy-admission rejection observations (2026-11-19)
+
+An eighth `copy-rejected` case was added to `tools/security/run-clipboard-observation.ps1` and the `clipboardAudit` fixture to exercise the `CopyAdmissionRejected` path: `copySensitiveData()` rejects new work while an `Unconfirmed` publication is pending (or two generations are tracked). The harness provisions three synthetic tokens — generation 1 (`clipboard-target.expected`), an unconfirmed second copy (`clipboard-target.expected.unconfirmed`, launched immediately without a focus wait so publication stays `Unconfirmed`), and a third (`clipboard-target.expected.reject`) — and makes the unconfirmed token the observer-expected token. The case requires the second copy to record `Unconfirmed`, the third attempt to fail with `CopyUnavailable`/`failureClass=CopyAdmissionRejected`, and the retained second clip to be independently observed as `marker-match` (then cleared by token-checked teardown).
+
+- `codex20261119_emu_copyreject01` (AOSP API 35 emulator `emulator-5554`): **Passed**. Generation 2 published `Unconfirmed` (unfocused); the reject attempt returned `CopyUnavailable` with `failureClass=CopyAdmissionRejected`; observer classified `marker-match`; `cleanupSucceeded=true`. JSON SHA-256 `8b2e9bc63c1811d5be2011afc008cd19cd6717b33135e944b43111d0b2d62f9a`.
+- `codex20261119_mia2_copyreject01` (Xiaomi Mi A2, Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`): **Passed** with the same admission-rejection and retained-clip observations. JSON SHA-256 `140812e76d41e34921ebbb49dde34552f23b0bac5e6d38b70817f8e590d52f08`.
+
+Fixture source SHA-256 `9bac4ae930f682297116cf576ab366e08ed472d3db0470e5f0664f7d99e28a36`; controller SHA-256 `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b`; audit target APK SHA-256 `2d985aa05f2c3ccf3eda99627af5dd30876a2ebfe71c7b89a04987d57dbd5322`. Both disposable audit packages were uninstalled from both devices and verified absent.
+
+This covers the unconfirmed-pending admission rejection on one emulator and one physical API 29 cohort. It does not cover the >=2-pending-generation rejection variant, `ClipboardUnavailable`/`CopyFailed` platform rejections, preview UI masking, TalkBack, doze, locked/sleep, other cohorts, or frozen-candidate behavior. T027 remains open.
+
+### Sensitive-preview masking probe attempt — Unverified (2026-11-19)
+
+A scoped attempt was made to observe the Android system clipboard preview/overlay after a sensitive copy on the AOSP API 35 emulator (`emulator-5554`), using the `clipboardAudit` fixture with synthetic tokens only. Two observation methods were tried:
+
+- `uiautomator dump` in a tight loop during and after the copy: every captured hierarchy contained only the `com.chimali.clipboardaudit` package window (the fixture activity has no content view); no SystemUI clipboard overlay node appeared in any dump, so overlay content could not be classified.
+- `screencap -p` burst during the copy: all captured frames were byte-identical (SHA-256 `4afbd293f2629…` prefix), consistent with a static/blank display; no overlay frame was distinguishable, and image content could not be classified programmatically.
+
+No clipboard text was read at any point; the synthetic marker never appeared in any captured artifact. Because the system preview overlay was not observable through either method on this cohort, preview/masking behavior remains **Unverified** — not evidence of leakage and not evidence of suppression. Remaining options: a cohort/device where the overlay is accessible to instrumentation, a dedicated UI test asserting overlay absence, or manual visual verification. T027 remains open.
+
+### Doze-window and second-physical-device attempts (2026-11-19)
+
+**Doze (emulator-only).** `codex20261119_emu_doze01` (`scheduled-attempt`, AOSP API 35 `emulator-5554`) ran while the device was in forced deep idle (`cmd deviceidle enable` + `force-idle`; `dumpsys deviceidle` reported `mState=IDLE`, `mLightState=OVERRIDE`). **Passed**: the target still submitted `ClearRequestSubmitted` at elapsed 511,266,326 — 427 ms after its scheduled deadline 511,265,899 — and the independent observer classified `absent`. The coroutine-scheduled cleanup attempt was not deferred past the deadline under forced deep idle on this cohort. JSON SHA-256 `0bf1d74c9143ba69c785f620599d9838166e6c73f8da1ceb77ad43c6e90cd63d`. Note: `cmd deviceidle unforce` failed during a post-run system-service hiccup and the emulator was subsequently rebooted, resetting doze state; this is emulator-forced-idle evidence only, not OEM doze/battery-saver behavior. T027 remains open for physical doze cohorts.
+
+**Second physical device — blocked by secure keyguard.** A Motorola moto g stylus 5G (2022) (`ZY22G3FJSX`, Android 13/API 33, security patch 2025-03-01) is attached and would provide a new physical OEM/API cohort. `codex20261119_moto33_sched01` (`scheduled-attempt`) is **Unverified**: the device is secure-locked (`trust` reports `deviceLocked=1`; `mCurrentFocus` is the SystemUI `NotificationShade`), so the observer activity never gained window focus and wrote no result (`ObserverResultUnavailable`). No clipboard state was inspected. This cohort requires an interactive unlock before cases can run. JSON SHA-256 `7fccd37a54228863aef4cda285bcf2c7e549db53d0b59217f0b577a3f6ff2807`.
+
+### Physical doze-window observation (2026-11-19)
+
+`codex20261119_mia2_doze01` (`scheduled-attempt`) ran on the Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`) while the device was in forced deep idle (`cmd deviceidle enable` + `force-idle`; `dumpsys deviceidle` reported `mState=IDLE`, `mLightState=OVERRIDE` before the run). **Passed**: the target submitted `ClearRequestSubmitted` at elapsed 366,020,964 — 38 ms after its scheduled deadline 366,020,926 — and the independent observer classified `absent`; `cleanupSucceeded=true`. `cmd deviceidle unforce` restored `mState=ACTIVE` afterward and both disposable audit packages were uninstalled. JSON SHA-256 `a50c3ff030ffc5558ac917b6e23b2b468248fcd778b04717a114882e7f84b8c2`.
+
+This is forced-idle doze evidence on one physical API 29 MIUI cohort — the first physical doze result. It does not cover maintenance windows, OEM battery-saver/app-standby buckets, other cohorts, locked/sleep, or frozen-candidate behavior. T027 remains open.
+
+### Physical API 33 Motorola cohort pass (2026-11-19)
+
+After the device was interactively unlocked, the full `run-clipboard-observation.ps1` case set ran on the Motorola moto g stylus 5G (2022) (`ZY22G3FJSX`, Android 13/API 33, security patch 2025-03-01, `com.motorola.launcher3`) using the current `clipboardAudit` build — separate target/observer packages, synthetic tokens only, clipboard text never read. All runs reported `cleanupSucceeded=true` and both disposable audit packages were uninstalled and verified absent afterward; the device was left awake.
+
+| RunId | Case | Target outcome | Independent observation | Status |
+|---|---|---|---|---|
+| `codex20261119_moto33_sched02` | `scheduled-attempt` | `ClearRequestSubmitted` after the exact 30,000 ms deadline | `absent`; positive control `marker-match` with `sensitiveFlag=true` | Passed |
+| `codex20261119_moto33_appswitch` | `app-switch` | `SkippedOwnershipUnavailable` while backgrounded | `marker-match` retained | Passed (safe skip) |
+| `codex20261119_moto33_processdeath` | `process-death` | target force-stopped before deadline | `marker-match` retained | Passed |
+| `codex20261119_moto33_manualclear` | `manual-clear` | `ManualClearSubmitted` before the deadline | `absent` | Passed |
+| `codex20261119_moto33_clipboardreplaced` | `clipboard-replaced` | `SkippedOwnershipUnavailable`; no clear of the non-owned clip | `replaced` preserved | Passed |
+| `codex20261119_moto33_repeatcopy` | `repeat-copy` | generation 1 `Superseded`; generation 2 `ClearRequestSubmitted` at its own deadline | `absent` | Passed |
+| `codex20261119_moto33_copyrejected` | `copy-rejected` | unconfirmed publication pending; third copy `CopyAdmissionRejected` | `marker-match` retained | Passed |
+| `codex20261119_moto33_lockedsleep` | `locked-sleep` | `SkippedOwnershipUnavailable` at the deadline | none — secure keyguard remained after wake | Unverified (`SecureKeyguardRemained`) |
+
+This is the first complete non-MIUI physical cohort (Android 13/API 33) and confirms `EXTRA_IS_SENSITIVE=true` publication (`sensitiveFlag=true` in the positive control) on a second OEM. `locked-sleep` remains blocked by the device's secure keyguard — the same documented limitation as the Mi A2 — and needs a non-secure-lock device or an approved manual unlock window. These are single-device API 33 results; TalkBack, preview masking, maintenance windows, other OEM/API cohorts and frozen-candidate behavior remain open. T027 remains open.
+
+Sanitized run JSON SHA-256 values: sched02 `da57240c996154206bd77896a1d223e213f0be44c37c74cffab6146badf6fce0`; appswitch `6ba44e3f8eaa5d265ed2896c3961e49611416b0407ad5dc3768f1c9bb0a5e899`; processdeath `bc861811773a5ec4327116d87af379aaea6339c890765f49f1ccd7998f30a9ac`; manualclear `fe59300b3fbdb9caca8426a979d4408d84b5cb3f5ba27ce83ae11bcc188484f1`; clipboardreplaced `ca07ab9ef1448299063969e624ed1c3c4a23def651b5f56fc8e0be701c0c1455`; repeatcopy `29b7e50507d849abbe7c0ababdf948b0f078a43d30e36461e1d7f60765aaa4c2`; copyrejected `3f4b34331a3f2c84036e0377184d7ad15d843bdda79ea92661a178b7a657c8a1`; lockedsleep `b4817ffb57c9dad3ad7075027f9de6e39e08756984c9dab037ab5684120bf644`. Artifacts are under `build/security/clipboard-observation/clipboard-observation-codex20261119_moto33_*.json`.
+
+Follow-up preview probe on the Motorola API 33 device (2026-11-19): `dumpsys window` polling during a synthetic copy showed a SystemUI `Toast` window present, but its text content is not exposed through window dumps; a parallel `uiautomator dump` burst captured the lockscreen instead because the device re-locked on its screen timeout mid-probe (`deviceLocked=1`, `NotificationShade` focus). Preview/masking therefore remains **Unverified** on this cohort as well; `screen_off_timeout` was raised to 600000 ms and `svc power stayon true` was set to keep the device awake for future runs (original timeout value not recorded). The device requires an interactive unlock before further cases.
+### Physical API 35 ASUS cohort pass (2026-11-19)
+
+A third physical device — ASUS AI2302 (Zenfone-class, `R7AIB7002901AZ3`, Android 15/API 35, build `AQ3A.240812.002.35.0604.0404.165`, 1080x2400) — ran the full `run-clipboard-observation.ps1` case set with the current `clipboardAudit` build (separate target/observer packages, synthetic tokens only, clipboard text never read). This is the first **physical API 35** cohort — matching the emulator API level on real OEM hardware. All runs reported `cleanupSucceeded=true`; both disposable audit packages were uninstalled and verified absent afterward. No device settings were changed.
+
+| RunId | Case | Target outcome | Independent observation | Status |
+|---|---|---|---|---|
+| `asus35_sched01` | `scheduled-attempt` | `ClearRequestSubmitted` 32 ms after the exact 30,000 ms deadline | `absent`; positive control `marker-match` with `sensitiveFlag=true` | Passed |
+| `asus35_appswitch01` | `app-switch` | `SkippedOwnershipUnavailable` while backgrounded | `marker-match` retained | Passed (safe skip) |
+| `asus35_procd01` | `process-death` | target force-stopped before deadline | `marker-match` retained | Passed |
+| `asus35_manual01` | `manual-clear` | `ManualClearSubmitted` before the deadline | `absent` | Passed |
+| `asus35_replaced01` | `clipboard-replaced` | `SkippedOwnershipUnavailable`; no clear of the non-owned clip | `replaced` preserved | Passed |
+| `asus35_repeat01` | `repeat-copy` | generation 1 `Superseded`; generation 2 `ClearRequestSubmitted` at its own deadline | `absent` | Passed |
+| `asus35_reject01` | `copy-rejected` | unconfirmed publication pending; third copy `CopyAdmissionRejected` | `marker-match` retained | Passed |
+| `asus35_locksleep01` | `locked-sleep` | `SkippedOwnershipUnavailable` at the deadline | none — secure keyguard remained after wake (`SecureKeyguardRemained`, `failedAt=target-screen-wake`) | Unverified |
+
+This confirms `EXTRA_IS_SENSITIVE=true` publication (`sensitiveFlag=true` in positive controls) on a third OEM/Android combination, and the scheduled clear fired on time on physical API 35. `locked-sleep` hit the same secure-keyguard limitation as the Mi A2 and Moto — all three physical devices have secure lockscreens, so this case needs a non-secure-lock device or an approved manual unlock window. TalkBack, preview masking, maintenance windows, other cohorts and frozen-candidate behavior remain open. T027 remains open.
+
+Sanitized run JSON SHA-256 values: sched01 `9a051e43109d657d669af55bc2c87662fcf093bb1159223fe3a3d7a9c83748e1`; appswitch01 `fa15eb6fbd56ef71e0423065606390b55138eaacedac26c174598c580b797c25`; procd01 `b397788a715dc793bc8d9c0e1942ac8fc92499a75cc4724f8992032d9930664e`; manual01 `c4b72ebfc397fa7f4fc75fd455e105c587c99639a12cc872572abc616ccdf39e`; replaced01 `594a2a8d2240febfdd4ff64df1d1a65561dbbb896b4a673fcfd70ad016811b70`; repeat01 `c7f152a78a432f483555599b6bb0c9197eed5c7be617311603d4f96c78ec55a6`; reject01 `d6532b3dbc08fae55451a44d5a7457ce48f7aa8a82a640dc78cfb82fce1e206a`; locksleep01 `e5bc6dda10e5bc5423756743d73d1f0d932a845b76904747fa13b81e76561c75`. Artifacts are under `build/security/clipboard-observation/clipboard-observation-asus35_*.json`.
+
+### Physical API 29 MIUI preview-masking probe attempt (2026-11-20)
+
+A manual preview probe ran on the unlocked Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`, serial `2ac6876`) using the current `clipboardAudit` build (target APK SHA-256 `F878DAF541FF4F65272E60D05526068C07C55DF638E2FEE5E2AEF79AC30E84BB`). Two synthetic copies (`sec065preview01`, `sec065preview02`) published `synthetic-observer-password-<runId>` via `copySensitiveData`; both ready receipts confirmed `MetadataConfirmed` focused publication and both outcomes recorded `ClearRequestSubmitted` at the 30-second deadline.
+
+Capture coverage: 14 `uiautomator dump` + `screencap` pairs (~0.3-0.9 s cadence, run 1) and 20 `dumpsys window windows` polls + `screencap` pairs (~0.25-0.7 s cadence, run 2) spanning ~10 s across both copies. Findings:
+
+- `dumpsys window` showed a persistent MIUI `AssistPreviewPanel` system window (Window #3) across all polls — the OEM clipboard preview surface exists on this build.
+- `uiautomator dump` captured only `com.chimali.clipboardaudit` nodes in every frame; the preview panel is not exposed to the accessibility tree.
+- Pixel-diff analysis of all 34 screenshots against their static baselines found differences only in the status-bar region (clock/notification icons, ~160x36 px at the top-right); no frame contained a preview-panel text region. Windows OCR (Windows.Media.Ocr) of representative frames returned only status-bar text.
+- The synthetic marker `synthetic-observer-password-*` appeared in zero UI dumps and zero screenshot diff regions.
+
+Result: **no observable clipboard preview overlay containing the copied text was captured on this physical API 29 MIUI cohort.** This is bounded negative-visibility evidence, not proof of absence: the AssistPreviewPanel may render content only on clipboard *access* by another app rather than on copy, and sub-second toasts could fall between capture intervals. Preview masking therefore remains **partially verified** — first physical-cohort observation with no marker exposure — while TalkBack, other OEM preview behaviors and candidate-bound behavior stay open. Run-state files were removed from app-private storage after the probes; audit packages remain installed for subsequent T027 cases.
+
+Retained artifacts (SHA-256): `build/security/clipboard-observation/preview-mia2/p2_7.png` `7244B211240D6DDD64E81B68B60789292255E3A37FA7451950482ABA2F502F50` (only non-baseline frame, status-bar delta); `build/security/clipboard-observation/preview-mia2/scr_3.png` `5EC0C4DC88D3F41C0B947832FC0030E956384C354C2E43F63BC64336EE3908E0` (same status-bar delta); `build/security/clipboard-observation/preview-mia2/ui_1.xml` `6D79EF9373739EAA8F69FD2F584F249F52B6D37034A77A7165A6B90AA09B0014` (representative app-only hierarchy). Full frame sets remain under `build/security/clipboard-observation/preview-mia2/`.
+
+### Physical API 29 MIUI TalkBack-enabled clipboard probe (2026-11-20)
+
+With TalkBack (`com.google.android.marvin.talkback`) enabled via secure settings on the unlocked Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`), a synthetic copy (`sec065talkback02`) published `synthetic-observer-password-sec065talkback02` through `copySensitiveData`; the ready receipt confirmed `MetadataConfirmed` focused publication. `dumpsys accessibility` showed TalkBack bound with `FEEDBACK_SPOKEN` and touch exploration enabled, and logcat captured `SpeechControllerImpl` audio-focus cycles confirming active announcements during the window.
+
+Marker scan: `logcat -d -b all` returned zero lines containing `synthetic-observer-password` or the run ID; a post-copy `uiautomator dump` exposed only the blank audit activity's empty view hierarchy — no clipboard text, preview content or secret material was present in any accessibility-exposed surface. The `AssistPreviewPanel` window remained absent from the accessibility tree as in the non-TalkBack probe.
+
+Result: **bounded TalkBack-cohort evidence** — with a real accessibility service actively announcing, the sensitive copy produced no marker exposure in logcat buffers or the accessibility tree. This does not cover TalkBack's spoken rendering of the clipboard preview panel (not accessibility-exposed), clipboard-history UI, or other OEM TalkBack builds; those remain open. TalkBack was disabled and `accessibility_enabled` restored to 0 after the probe; run-state files were removed. Device-state change disclosed: TalkBack was temporarily enabled for this probe only.
+
+Retained artifact: `build/security/clipboard-observation/preview-mia2/ui_talkback.xml` SHA-256 recorded in `evidence/index.md`.
+
+### Emulator locked/sleep case — first Passed result (2026-11-20)
+
+The AOSP API 35 emulator (`dev35_aosp_atd_x86_64_Pixel_2`, `emulator-5554`, `locksettings get-disabled=true` — no secure lockscreen) ran the `locked-sleep` case via `tools/security/run-clipboard-observation.ps1`, closing the cohort gap that blocked all three physical devices (all have secure keyguards).
+
+Run `sec065emu_lockedsleep02` **Passed**: positive/mismatch controls passed (`marker-match`/`replaced`, `sensitiveFlag=true`); publication confirmed `MetadataConfirmed`; the device slept across the 30,000 ms deadline (`sleptDuringDeadline=true`); the target returned `SkippedOwnershipUnavailable` 11 ms after its scheduled deadline — the designed safe skip when clipboard ownership cannot be verified while asleep; the post-wake independent observation (~7.6 s later) classified the clip `replaced` with `sensitiveFlag=false`, i.e. the sensitive marker was not retained as primary clip content. `cleanupSucceeded=true`.
+
+Interpretation bounds: the `replaced`/`sensitiveFlag=false` post-wake state is consistent with platform-level sensitive-clipboard handling on lock (API 33+ semantics) or another writer, but the exact replacing actor was not identified — the app itself skipped without clearing. This is emulator evidence on a non-secure-lock configuration; physical locked/sleep on secure-keyguard devices, OEM doze/lock interplay and candidate-bound behavior remain open. An earlier same-case attempt (`sec065emu_lockedsleep01`, SHA-256 `44e07171e5b568ae18cbe60a623232433503c3a1e70a68fb6527b4e3daace19b`) failed at the ready barrier with `publication=Unconfirmed` — a transient publication-metadata result retained as a harness iteration, not a product outcome.
+
+Artifacts: `build/security/clipboard-observation/clipboard-observation-sec065emu_lockedsleep02.json` SHA-256 `1f5b9f4e1392592aa5fc1d07af115a72fabb01bf505d20c76877ee9bc7219ce9`; failed iteration `clipboard-observation-sec065emu_lockedsleep01.json` SHA-256 `44e07171e5b568ae18cbe60a623232433503c3a1e70a68fb6527b4e3daace19b`. Audit packages remain installed on the emulator for subsequent cases.
+
+### Physical API 35 ASUS TalkBack-enabled + ClipboardOverlay preview probe (2026-11-20)
+
+On the ASUS AI2302 (Android 15/API 35, `R7AIB7002901AZ3`), TalkBack (`com.google.android.marvin.talkback/.TalkBackService`) was temporarily enabled via secure settings — verified bound with `FEEDBACK_SPOKEN`/`FEEDBACK_HAPTIC`/`FEEDBACK_AUDIBLE`, touch exploration, and `TYPES_ALL_MASK` — and its first-run tutorial was dismissed. Fresh `clipboardAudit`/`clipboardAudit.test` APKs were installed (the previously installed target predated `ClipboardTargetCopyActivity`) and `run-as` access verified for both packages.
+
+Three synthetic copies were published through `copySensitiveData` with the controlled token handoff (same non-secret expected token in both packages' private files):
+
+- `sec065asus_tb01`: `MetadataConfirmed` focused publication; outcome `ClearRequestSubmitted` 6 ms after the scheduled deadline. TalkBack `SpeechControllerImpl` audio-focus cycles at 07:25:47–48 confirm active announcements in the window.
+- `sec065asus_tb02`: warm-intent iteration — `am start` delivered to the still-running activity via `onNewIntent`, which has no default-copy branch and `copyStarted` was already true, so no second copy occurred. Retained as a harness iteration, not a product outcome.
+- `sec065asus_tb03`: after `am force-stop` for a cold launch, `MetadataConfirmed`; the screen slept during the deadline and the target returned `SkippedOwnershipUnavailable` — consistent with the emulator locked/sleep result.
+- `sec065asus_tb04`: `MetadataConfirmed`; outcome `ClearRequestSubmitted` 19 ms after deadline.
+
+**ClipboardOverlay preview observation (tb04):** `dumpsys window windows` polls captured a SystemUI `ClipboardOverlay` window (token type 2036, `TRUSTED_OVERLAY`, `NOT_FOCUSABLE`, `SHOW_WHEN_LOCKED`, fullscreen translucent) present in frames ~1–5 (~2 s) after the copy and absent afterward; retained excerpt `window_clipboardoverlay_tb04.txt`. Its touchable region `(187,1965,385,2020)(22,2020,385,2105)(-33,2105,721,2350)` matches the pixel-diff bounding box (`x∈24–684, y∈2020–2374`) between overlay-present and post-overlay screencaps — the preview rendered bottom-left for ~2 s. Whether the overlay rendered masked content versus clip text was **not** OCR-verified; `EXTRA_IS_SENSITIVE=true` was confirmed on this cohort by the earlier eight-case matrix (`sensitiveFlag=true` positive control), and masking remains a requested rendering behavior, not verified suppression.
+
+**Marker exposure scan:** `logcat -d -b all` across the tb01 and tb04 windows returned zero lines containing `synthetic-observer-password` or the run IDs other than the `adbd` command echo of the receipt-read shell command (instrumentation artifact, not product output). All 15 `uiautomator dump` captures across both bursts were byte-identical blank audit-activity hierarchies — the `ClipboardOverlay` is **not accessibility-exposed**, matching the MIUI `AssistPreviewPanel` finding. TalkBack's `SpeechController` held audio focus through the tb04 overlay window (abandon at 07:29:09), so announcements were active while the overlay displayed; no marker text appeared in any logcat buffer or accessibility tree.
+
+Result: **bounded physical API 35 TalkBack + preview evidence** — a real accessibility service was bound and announcing during sensitive copies; the platform `ClipboardOverlay` rendered for ~2 s but is not in the accessibility tree; zero marker/runId exposure in logcat or UI dumps. This does not establish the overlay's rendered text content (masked vs. literal), TalkBack's spoken rendering of the overlay, clipboard-history UI, other OEM overlay builds, or candidate-bound behavior. An earlier screen-sleep interruption mid-burst (identical 15,580-byte frames, `uiautomator` null-root errors) is retained as an environment artifact.
+
+Device-state disclosure and restoration: TalkBack was enabled only for this probe and then disabled (`enabled_accessibility_services=null`, `accessibility_enabled=0`, `Bound services:{}` verified); `svc power stayon true` was set for the capture burst and restored to `false`; per-run private token/receipt files were deleted from both packages; `/sdcard/sec065_*` captures removed; both audit packages were uninstalled and verified absent.
+
+Artifacts under `build/security/clipboard-observation/preview-asus/` (SHA-256 recorded in `evidence/index.md`): `clipboard-target-ready-`/`clipboard-target-outcome-sec065asus_tb01|tb03|tb04.json`, `ui_talkback.xml`, `screen_talkback.png`, `screen_burst2_*.png`, `screen_burst3_*.png`, `ui_burst*.xml`, `window_clipboardoverlay_tb04.txt`.
+
+### Clipboard-history provider cohort availability check (2026-11-20)
+
+`pm list packages` was enumerated on all connected cohorts for clipboard-history/manager applications (`clipboard`, `clipper`, `paste`, `history` patterns):
+
+- Mi A2 (`2ac6876`, API 29/MIUI): only `com.chimali.clipboardaudit(.test)` and `com.google.android.gms.location.history` (Google Location History — unrelated to clipboard).
+- ASUS AI2302 (`R7AIB7002901AZ3`, API 35): only `com.google.android.gms.location.history` (audit packages were uninstalled after the TalkBack probe).
+- AOSP emulator (`emulator-5554`, API 35): only `com.chimali.clipboardaudit(.test)`.
+
+Result: **no clipboard-history or clipboard-manager application is installed on any available cohort**, so clipboard-history retention cannot be exercised without installing a third-party history provider — which would itself become an unvetted retention surface and is outside the synthetic-fixture scope. Recorded as cohort-availability evidence: history-provider behavior remains **Unverified by absence of cohort**, not by demonstrated safety. The platform `ClipboardOverlay` preview is covered separately above; GMS/other cloud clipboard sync surfaces were not enumerated and remain open.

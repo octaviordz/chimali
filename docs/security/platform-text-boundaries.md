@@ -1,4 +1,4 @@
-# Canonical Platform Text Boundary Register
+﻿# Canonical Platform Text Boundary Register
 
 **Date**: 2026-10-23  
 **Status**: Documentary Reconciliation Complete (Consolidation of Documented Boundaries)  
@@ -76,7 +76,7 @@
 
 **Registration prompt identity boundary (2026-11-17; corrected 2026-11-18):** Registration consent and its synthetic UI test are mapped under CLS-FIDO-002/BND-UI-014, separate from credential management under BND-UI-009. The registration screen renders mutable RP/user owners through Compose and passes RP name to Android BiometricPrompt; app-owned buffers/prompt references have source-level terminal cleanup, while Compose/system copies remain unverified. The registration biometric callback displays Android `errString` in UI state/snackbar without logging it; credential management uses separate fixed error wording. See Feature 065 `evidence/registration-prompt-rendering-boundary.md`.
 
-**BND-UI-002 physical clipboard follow-up (2026-11-17):** On the user-approved Xiaomi Mi A2 Android 10/API 29, one synthetic scheduled-attempt case verified sensitive metadata, a clear request 41 ms after the 30-second deadline, and an independent observer reporting the marker absent 539 ms after terminal status. This scoped observation does not close the physical cohort matrix or establish a removal guarantee. See Feature 065 `evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md` and `evidence/clipboard-device.md`.
+**BND-UI-002 physical clipboard follow-up (2026-11-17):** On the user-approved Xiaomi Mi A2 Android 10/API 29, one synthetic scheduled-attempt case verified sensitive metadata, a clear request 41 ms after the 30-second deadline, and an independent observer reporting the marker absent 539 ms after terminal status. This scoped observation does not close the physical cohort matrix or establish a removal guarantee. See Feature 065 `evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md` and `evidence/clipboard-device.md`. **Update (2026-11-19):** API 29 Mi A2 and API 33 Motorola cohorts now cover the extended case set (scheduled cleanup, app-switch, process-death, manual clear, replacement, supersession, admission rejection) plus forced-idle doze; `EXTRA_IS_SENSITIVE=true` confirmed on both; locked/sleep Unverified behind secure keyguards; preview masking and TalkBack remain open. See Feature 065 `evidence/clipboard-device.md`.
 
 
 **BND-ERR-001 scrubber update (2026-11-17):** SEC065-LOG-057 strengthens the source scrubber for labeled diagnostic values, including prose and multiword forms. The scrubber is a defensive output transformation and does not establish safe source emissions or configured sink behavior; the full diagnostic source/destination matrix remains open. See Feature 065 `evidence/privacy-scrubber-multiword-field-redaction.md`.

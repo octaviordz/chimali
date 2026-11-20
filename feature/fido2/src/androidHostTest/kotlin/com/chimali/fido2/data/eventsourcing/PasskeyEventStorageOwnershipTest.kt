@@ -41,6 +41,7 @@ import kotlinx.serialization.json.encodeToStream
 import kotlinx.serialization.json.jsonObject
 
 @OptIn(ExperimentalSerializationApi::class)
+@Suppress("LargeClass")
 class PasskeyEventStorageOwnershipTest {
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test

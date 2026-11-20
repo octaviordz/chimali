@@ -60,6 +60,7 @@ class RawCtapOperationTest {
 
     private fun own(bytes: ByteArray): ByteArray = bytes.also(ownedBuffers::add)
 
+    @Suppress("TooGenericExceptionCaught")
     private fun concatBytes(vararg parts: ByteArray): ByteArray {
         val result = ByteArray(parts.sumOf(ByteArray::size))
         try {

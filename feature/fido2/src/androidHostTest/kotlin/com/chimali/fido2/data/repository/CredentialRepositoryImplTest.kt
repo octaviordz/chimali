@@ -476,6 +476,7 @@ class CredentialRepositoryImplTest {
     }
 
     @Nested
+    @Suppress("LargeClass")
     inner class CredentialManagementTests {
         /** @see NFR-SEC-041 and TR-AUTH-031 */
         @ParameterizedTest
@@ -704,7 +705,7 @@ class CredentialRepositoryImplTest {
                 try {
                     repository.searchCredentials(query).collect { credential ->
                         emitted = credential
-                        throw IllegalStateException("synthetic downstream rejection")
+                        error("synthetic downstream rejection")
                     }
                 } catch (failure: IllegalStateException) {
                     downstreamFailureObserved = failure.message == "synthetic downstream rejection"

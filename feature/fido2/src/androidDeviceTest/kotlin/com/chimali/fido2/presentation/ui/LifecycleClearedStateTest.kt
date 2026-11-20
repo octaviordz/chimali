@@ -1,4 +1,4 @@
-package com.chimali.fido2.presentation.ui
+﻿package com.chimali.fido2.presentation.ui
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.Text
@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+
+private const val UI_TIMEOUT_MS = 5_000L
 
 class LifecycleClearedStateTest {
     @get:Rule
@@ -39,7 +41,7 @@ class LifecycleClearedStateTest {
 
         composeRule.onNodeWithText("Synthetic paired-host alias").assertIsDisplayed()
         composeRule.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
-        composeRule.waitUntil(5_000) { displayedValue.get().isEmpty() }
+        composeRule.waitUntil(UI_TIMEOUT_MS) { displayedValue.get().isEmpty() }
         assertEquals("", displayedValue.get())
         assertEquals("Synthetic paired-host alias", source.value)
 
@@ -47,7 +49,7 @@ class LifecycleClearedStateTest {
             source.value = "Replacement alias while stopped"
             owner.registry.currentState = Lifecycle.State.STARTED
         }
-        composeRule.waitUntil(5_000) { displayedValue.get() == "Replacement alias while stopped" }
+        composeRule.waitUntil(UI_TIMEOUT_MS) { displayedValue.get() == "Replacement alias while stopped" }
         assertEquals("Replacement alias while stopped", displayedValue.get())
     }
 

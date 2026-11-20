@@ -64,6 +64,7 @@ import org.junit.jupiter.params.provider.ValueSource
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Req("NFR-SEC-041")
+@Suppress("LargeClass")
 class AuthenticationIntegrationTest {
     private lateinit var getAssertionUseCase: GetAssertionUseCase
     private lateinit var userVerificationService: UserVerificationService

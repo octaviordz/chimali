@@ -44,7 +44,8 @@ class ConfiguredFidoDiagnosticPrivacyTest {
             Severity.Info,
             "Fido2",
             null,
-            "SEC065 run=$runId password=$marker,comma-suffix=$marker; semicolon-suffix=$marker\nembedded-suffix=$marker",
+            "SEC065 run=$runId password=$marker,comma-suffix=$marker; semicolon-suffix=$marker\n" +
+                "embedded-suffix=$marker",
         )
         Logger.log(
             Severity.Warn,
@@ -202,7 +203,8 @@ class ConfiguredFidoDiagnosticPrivacyTest {
 
     private fun android.app.Instrumentation.readFilteredLogcat(runId: String): String {
         val descriptor = uiAutomation.executeShellCommand("logcat -d -t 500 -v brief")
-        return ParcelFileDescriptor.AutoCloseInputStream(descriptor)
+        return ParcelFileDescriptor
+            .AutoCloseInputStream(descriptor)
             .bufferedReader()
             .useLines { lines -> lines.filter { it.contains(runId) }.joinToString(System.lineSeparator()) }
     }

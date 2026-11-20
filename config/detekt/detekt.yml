@@ -587,7 +587,8 @@ style:
   ForbiddenImport:
     active: true
     # T003 measurement branch only: numeric records must survive disabled release Kermit output.
-    excludes: ['**/util/performance/BaselineMeasurements.kt']
+    # SEC065 diagnostic tests intentionally exercise the direct android.util.Log sink.
+    excludes: ['**/util/performance/BaselineMeasurements.kt', '**/DirectFidoPerformanceLogcatPrivacyTest.kt']
     imports:
       - value: 'kotlin.io.println'
         reason: 'Use a logger instead.'
