@@ -41,3 +41,11 @@ Per-class: `CredentialPersistenceCeremonyTest` 2, `LocalProfileLifecycleTest` 7,
 | Mi A2 `2ac6876` (API 29/MIUI) | 11/11 eligible pass; `FidoBleLifecycleDeviceTest` (4 tests) not discovered on API 29 (SDK-gated at test discovery, not a failure) |
 
 Per-class on API 35 cohorts: FidoBleLifecycle 4, TransportSettingsDuringCeremony 2, EditPairedDeviceScreenLifecycle 1, PairedDevicesSectionLifecycle 1, LifecycleClearedState 1, Fido2SettingsRepository 6. Transport/UI lifecycle and settings-repository coverage now candidate-bound on all three cohorts; BLE lifecycle coverage is API 35-only pending an API 29-capable path or recorded platform limitation. Heap-root coverage remains open under T015/T027.
+## Candidate-bound fido2 dashboard-components harness failure (2026-11-20)
+
+`:feature:fido2:connectedAndroidDeviceTest` on `emulator-5554` (API 35) against candidate content (`fido2-androidTest.apk` `A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6`):
+
+- `DevelopmentToolsScreenTest` — **6/6 pass**, zero failures.
+- `AuthenticatorDashboardComponentsTest` — **1/9 pass, 8 failures**, all identical: `IllegalStateException: ComponentActivity has already set content` thrown by the `@After disposeSyntheticDeviceUi` cleanup, which calls `composeTestRule.setContent {}` after the test already populated content. With this activity/Compose version a second `setContent` on the same activity is illegal, so the cleanup itself fails every populated test. **Classified as a test-harness defect, not a product finding** — the rendered-component assertions are not reached past the cleanup throw in the reported result; a fix (dispose via a fresh rule or remove the redundant `setContent`) is recommended for a future revision and cannot be applied to the frozen candidate.
+
+Physical-cohort runs were not attempted for the failing class (deterministic harness failure); `DevelopmentToolsScreenTest` physical coverage remains open alongside the dashboard fix.
