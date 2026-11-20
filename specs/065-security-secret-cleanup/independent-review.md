@@ -55,7 +55,7 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `2347cfd586c20cd44a1fef46a4cf06b2ac894218a90ffa1a6021efb49fff9264` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `a4f0df7951bbfea180157ad759781676fe91ab222484aa64db78040ae511991f` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `872b6775e91fe1f21cfee8418e93810263e3fbb2eed65721e19257faf7b0cbde` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
