@@ -1,10 +1,10 @@
 # SHA-256 checks for the T037 validator record
 299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3  tools/security/validate-feature-065-evidence.ps1
 dfe955a2a25f5a6163837857801d78961dbbedb2224c4acbd32cf226babdcd12  specs/065-security-secret-cleanup/evidence/index.md
-d97a97d5c049911e84bc17c4a5a7bdc71b904d8a792309789b283b41f23a3b56  specs/065-security-secret-cleanup/evidence/evidence-validation.md
+bc0899a21982613cd4cd1f8f71e469c46f56cf9a53d79347869fb6fd2ba54e53  specs/065-security-secret-cleanup/evidence/evidence-validation.md
 ea83aec77632d79a22a03f4ba4ee2208146e56e319ebe7cee0f0c071caa596b9  specs/065-security-secret-cleanup/evidence/source-inventory-validation.md
 e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac  specs/065-security-secret-cleanup/assessment.md
-59ac8e1986346ec23b80bd5787b7cd60a75a89a9fe231161df3bffa7d5901783  specs/065-security-secret-cleanup/tasks.md
+d0ad50fc2beb262e71eb5e91dd0a8546906239cc11b91c2dedfb9d156d432832  specs/065-security-secret-cleanup/tasks.md
 a9745eaec6c429fab78da3bae8ee4ed5f847eacef572305abd886f5ed3ced722  specs/065-security-secret-cleanup/evidence/clipboard-device.md
 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6  specs/065-security-secret-cleanup/source-inventory.json
 f833ffdabb7a970314e3bf67c895f2d3a280673d73e4cd44b2699692e8e7f675  app/src/clipboardAudit/java/com/chimali/security/ClipboardTargetCopyActivity.kt

@@ -45,17 +45,17 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `59ac8e1986346ec23b80bd5787b7cd60a75a89a9fe231161df3bffa7d5901783` |
+| `specs/065-security-secret-cleanup/tasks.md` | `d0ad50fc2beb262e71eb5e91dd0a8546906239cc11b91c2dedfb9d156d432832` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `dfe955a2a25f5a6163837857801d78961dbbedb2224c4acbd32cf226babdcd12` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `d97a97d5c049911e84bc17c4a5a7bdc71b904d8a792309789b283b41f23a3b56` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `bc0899a21982613cd4cd1f8f71e469c46f56cf9a53d79347869fb6fd2ba54e53` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `a9745eaec6c429fab78da3bae8ee4ed5f847eacef572305abd886f5ed3ced722` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `a05469c4239dd658ea053a22855bab6a0d3ba2c019f1638fe5d44578eec509cf` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `6c1e7183eda5873770c53e72060f53e9c200793d9b81de6287db4b9875dafce0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `d4360d3924bda8c218ce0e5eb46788360803819d012ce0681f20e3c0f3cf1fdc` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `a368d2626cc925bc920ad7215aee7fd2fa7753e837c7f32d23aa5ca398e6ca9e` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
