@@ -287,7 +287,7 @@
 | core/security/src/commonMain/kotlin/com/chimali/core/security/api/MetadataLookupTokenService.kt | 4368211b9b920c0f5cf927891b32ffaab8bbae3629c4b39d425f27532a155ea4 |
 | core/security/src/test/kotlin/com/chimali/core/security/impl/AesEncryptionManagerTest.kt | c3af6ae648c4feb0a989efd0cf234528995000fa3f85812568ef5b8de169d034 |
 | core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt | 6ee6eac0e3cfe23264829f7e565a4f5c53f8ab75a0f3282fb57efcc0d6bc5b0c |
-| docs/security/data-classification.md | 328b5b247d0f01bf0b06d7a629324e627e5f4ed6b54211d7d1607e21ead8ce7a |
+| docs/security/data-classification.md | b7d8f2df8c6e37b040a2dc973af05d1a81910c2ef458db3033fb76fb1c90fb36 |
 | docs/security/platform-text-boundaries.md | d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847 |
 | feature/fido2/build.gradle.kts | 4ae8e19d1b8e9d38dff81a134660513700d4d892502ebc216ef9ca26a7245eef |
 | feature/fido2/build/generated/sqldelight/code/Fido2Database/commonMain/com/chimali/fido2/data/database/Passkey_credential.kt | 713d1e80b5837028a3a6d05a63bcc16c858b507a70577624fd5ccf2c359f51f2 |
@@ -706,7 +706,7 @@
 | feature/vault/src/test/resources/vault-legacy-v1/card.json | 0fffa5b7eef97a0d6ab17e45021f2af5984d4f2f2644f9edad15298db316054d |
 | feature/vault/src/test/resources/vault-legacy-v1/note.json | c72a66d56efdf3b0f6ced8771355a6a2fa96c6689ec887c0256750550016118d |
 | feature/vault/src/test/resources/vault-legacy-v1/password.json | 3b6be5681780f9ccd23589fc394f2f4404f74b7abd61177e8765e386b6f48dc8 |
-| specs/065-security-secret-cleanup/assessment.md | c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682 |
+| specs/065-security-secret-cleanup/assessment.md | 5ced137b75932376260d84c787923e4ad261bfe085f0c2b606457db5a9f8e710 |
 | specs/065-security-secret-cleanup/evidence/aes-encryption-manager-buffer-cleanup.md | b5a074b5e0ec2f5bc89797a30168e78b745c86e060d0cbeec26dcafe7cc3dc59 |
 | specs/065-security-secret-cleanup/evidence/aes-gcm-owned-buffer-cleanup.md | 1dd089ee63776d282616f695018657b459f8deddcf808c9ed32d010edb3760d9 |
 | specs/065-security-secret-cleanup/evidence/aggregate-service-ownership-contract.md | 424b72c1eeb6a863271372c453c548ad1695f0b8463538a22e08873ff46a9f91 |
@@ -973,7 +973,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | f761c67f8cd2c909286c9bd43540d3aa373c77f2975964f2cbb4b4f7b6f41e64 |
+| specs/065-security-secret-cleanup/tasks.md | cd4aaa9d9e3ddd5a31d236e69242a3d99cc4e09f176298e1d4ad4101602776c4 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |

@@ -50,12 +50,12 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 | `specs/065-security-secret-cleanup/assessment.md` | `5ced137b75932376260d84c787923e4ad261bfe085f0c2b606457db5a9f8e710` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `fdd4500362a2b09cfa631ed17754e87e2be613091e2dfff8841f4010b3f280a7` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `96a8071d9e6b0843099f3db4222fa67573bbe06b6d3aa092f9b4deef71eeb1d2` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `2370ac49af78e744165ce6b19aafb5c42487d412e948af6f31613be809c9aed5` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `26d28d245757ed0e110ef40fbf4374a9360475d7d7455484ed35f98f6fab6ad9` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `f5ace517937bacdf6a0d1af33e8f566e16c0a7745cc1dcda9f370ecb97e26094` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `5b2340e6876b4cd6b21b6186f28a24d35cf674724ab1298e705f90059d1a5d21` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `60ad21a6892cc5d78c3b5c192bb54519c63cac55c2ce1113d90cd6d2791c73d9` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
