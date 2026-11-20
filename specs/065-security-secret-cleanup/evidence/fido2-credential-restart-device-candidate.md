@@ -1,0 +1,20 @@
+# FIDO credential process-restart — candidate-bound device execution
+
+**Date:** 2026-11-20
+**Candidate:** commit `49e37f606c08dd51a899d4728ce23052334c608a`, tree `46c871e56b4a99f075c1e6426fd320af2512e9d3`; compiled inputs identical (documentation-only commits since freeze).
+
+## Execution
+
+`tools/run-hdk-process-restart-test.ps1 -Serial <device>` rebuilt `:feature:fido2:assembleAndroidDeviceTest` from candidate content and ran the three-phase `com.chimali.fido2.data.crypto.CredentialProcessRestartTest` (prepare synthetic credential → operating-system process restart → recover and sign → fixture cleanup) on all three cohorts:
+
+| Cohort | Prepare | Recover/sign | Result |
+|---|---|---|---|
+| `emulator-5554` (AOSP API 35) | OK (1 test, 5.208 s) | OK (1 test, 4.481 s) | "Process-restart recovery passed using a synthetic P-256 credential." |
+| Xiaomi Mi A2 `2ac6876` (API 29/MIUI) | OK (1 test, 3.9 s) | OK (1 test, 2.966 s) | Same pass message |
+| ASUS AI2302 `R7AIB7002901AZ3` (API 35) | OK (1 test, 1.62 s) | OK (1 test, 1.619 s) | Same pass message |
+
+Instrumentation APK SHA-256: `feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk` = `A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6` (candidate-content build; test package `com.chimali.fido2.test` uninstalled by the runner after each run).
+
+## Scope and limits
+
+This upgrades SEC065-FIDO-017 persistence/restart device evidence from exploratory-worktree to candidate-bound across emulator and both physical cohorts — a synthetic P-256 credential survives an operating-system process kill and signs after recovery on candidate content at API 29 and API 35. Heap-root inspection of the recovered credential, provider/JCA copies and OEM keystore behavior remain open under T015/T027. No persistent device state remains; the per-run fixture directory was cleaned by the test's `finally`.
