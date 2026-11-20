@@ -221,3 +221,13 @@ Sanitized transcripts: `build/security/clipboard-observation/direct-sink-diagnos
 Both runs: `OK (1 test)`; full `logcat -d -b all` dumps contain **zero** synthetic permission-name marker hits while the `SEC065_PERMISSION_BEGIN`/`END` boundary markers are each present once — the fixed-label denial warning is the only emission on physical hardware at both API levels.
 
 Sanitized transcripts: `build/security/clipboard-observation/permission-diagnostic-release-asus-20261120-candidate.txt` (SHA-256 `FEC9725DE2A89BCA46BF9A503CFBF3FE864E11BBB220C56133E73E3A3F695212`), `permission-diagnostic-release-mia2-20261120-candidate.txt` (SHA-256 `51EE9FD7B59E5C71418714D0B7656456DE28539F588F0D4DA0316C0BD533CCB9`); full Logcat dumps retained at `D:\temp\sec065-asus-perm.logcat.txt` (`AF0AAB130DFFF7BD11F6244C5CA499B145611F5E92C1D8DE19D71B040E7D0A77`) and `D:\temp\sec065-mia2-perm.logcat.txt` (`E71BC65372AFA75AC2AB91884E73DF34E3649B00384E26FF05FAE8CE6981E41E`), outside Git. Development/test-instrumented evidence; OEM Logcat retention and other startup emissions remain open. T034 remains open.
+## Candidate-bound physical release instrumentation cohort probes (2026-11-20)
+
+General `androidTest` classes ran against the hash-verified candidate-bound `release` APK pair on both physical cohorts — ASUS AI2302 (`R7AIB7002901AZ3`, Android 15/API 35) and Xiaomi Mi A2 (`2ac6876`, Android 10/API 29, MIUI):
+
+- `com.chimali.di.VaultPasskeyWiringTest` — OK (3 tests) on both devices.
+- `com.chimali.security.ClipboardObserverIsolationTest` — OK (1 test) on both devices.
+
+`com.chimali.StartupTest#appCreatesAndAttachesComposeContentOnStartup` **passed on `emulator-5554`** (unlocked, OK 1 test) but returned a bare `AssertionError` on **both** physical devices. Root cause is environmental, not product: `dumpsys window` shows `mDreamingLockscreen=true` on both devices and `wm dismiss-keyguard` cannot clear the secure keyguard, so `content.getChildAt(0).isShown` is false while the activity is created behind the lockscreen. Recorded as **Unverified/environment-limited** — the same secure-keyguard limitation carried by the locked-sleep clipboard cases; it requires an unlocked physical session to disposition.
+
+An initial misnamed-class invocation (`com.chimali.security.StartupTest`, `com.chimali.security.VaultPasskeyWiringTest`) failed class loading — harness usage error, not product evidence. Development/test-instrumented evidence; other emitters/destinations and iOS remain open. T034 remains open.
