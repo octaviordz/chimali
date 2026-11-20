@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 556
-- Artifact file hashes recorded: 1561
+- Records parsed: 557
+- Artifact file hashes recorded: 1562
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 443 |
+| Passed | 444 |
 | Satisfied | 33 |
 | Unverified | 65 |
 
@@ -845,7 +845,7 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | f5ace517937bacdf6a0d1af33e8f566e16c0a7745cc1dcda9f370ecb97e26094 |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | da7573cb371df0f92870d8f1e3dfd28a54d6a0f48dc352b31a452ff64c26da8f |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |
@@ -853,6 +853,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261117.md | b9dd85899e6c313ca6db2cba92d02935e1d6bfd5ef0bc5f20a9900cb59585463 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261120.md | 964a6f431688cf25f34f02890b7d3c26070f3cb8353230812f931443b4b69c09 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-candidate-api35-20261120.md | 90a8e34d139da810c154cade30102ad4d7c6e30195d025b790a03fd8f6ee9e38 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-candidate-asus-api35-20261120.md | ae9183d898d2783c56bf12386f79b1ce1e43c99d027526e380acad1b05d06de5 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261117.md | 4152d6937f7c2dfc10a21a4a4bd696eee0a8dd31359b2285c9b236931e81f1ae |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261120.md | 55bb5d960159f9dd21a81b66ded7fe47e87502ced2e18d5a300c1ae1dabb42b3 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-candidate-api35-20261120.md | 90f96475f522501876715985acedcd285846ed559e31a7207473f7948acde42e |
@@ -864,7 +865,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | fdd4500362a2b09cfa631ed17754e87e2be613091e2dfff8841f4010b3f280a7 |
+| specs/065-security-secret-cleanup/evidence/index.md | 87057dadfdd14d5f163e25350d1b4c8023c204a9c7f2212705f2f2ac6b1cb519 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -973,7 +974,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | cd4aaa9d9e3ddd5a31d236e69242a3d99cc4e09f176298e1d4ad4101602776c4 |
+| specs/065-security-secret-cleanup/tasks.md | 20476d121963a157201e22f3c159982134b394b302af90c7523d3a0f4b15c4a3 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
