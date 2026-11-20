@@ -56,7 +56,7 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
 | `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `5b2340e6876b4cd6b21b6186f28a24d35cf674724ab1298e705f90059d1a5d21` |
-| `docs/backlog/security-secret-cleanup-audit.md` | `7eee17cc5c7f8ef4fa29f8ad613d68c4f6fa7670a242e44341b25b19d13f83ef` |
+| `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
 | `docs/security/data-classification.md` | `328b5b247d0f01bf0b06d7a629324e627e5f4ed6b54211d7d1607e21ead8ce7a` |
