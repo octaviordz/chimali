@@ -402,3 +402,20 @@ This is the first complete candidate-bound physical cohort: seven of eight cases
 ## Candidate-bound emulator-5554 partial cohort (2026-11-20, same build)
 
 The same rebuilt APKs ran on `emulator-5554`: process-death (`sec065clip20261120g`), app-switch (`sec065clip20261120h`, `SkippedOwnershipUnavailable`) and locked-sleep (`sec065clip20261120` last attempt) passed; scheduled-attempt failed all six attempts (`sec065clip20261120a`–`f`, `sec065clip20261120r`) with `SkippedReplaced`/`Unconfirmed` outcomes — an emulator-specific harness/platform behavior since the identical candidate build passed scheduled-attempt on physical ASUS on the first attempt; the discrepancy is disclosed for reviewer adjudication rather than explained away. Extended cases on the emulator returned Unverified/failed and are outside the emulator's recorded cohort scope.
+
+## Candidate-bound physical API 29 Mi A2 cohort (2026-11-20)
+
+The same candidate-built `clipboardAudit` APKs were installed on the physical Xiaomi Mi A2 (Android 10/API 29, MIUI `V11.0.28.0.QDIMIXM`, `2ac6876`) and the full case matrix ran with RunIds `sec065clipmia2a`–`h`; sanitized JSON artifacts are retained under `D:\temp\sec065-clip-mia2\` pending evidence-index hash registration.
+
+| Case | RunId | Result |
+|---|---|---|
+| scheduled-attempt | `sec065clipmia2a` | Passed — scheduled cleanup observation case |
+| process-death | `sec065clipmia2b` | Passed — process-death observer case |
+| app-switch | `sec065clipmia2c` | Passed — background interruption; synthetic marker remained, no cleanup outcome observed (honest skip variant) |
+| clipboard-replaced | `sec065clipmia2d` | Passed — `SkippedOwnershipUnavailable`, no clear request submitted |
+| manual-clear | `sec065clipmia2e` | Passed — `ManualClearSubmitted`; clipboard independently observed absent |
+| repeat-copy | `sec065clipmia2f` | Passed — first generation `Superseded`; scheduled cleanup observed as absent |
+| copy-rejected | `sec065clipmia2g` | Passed — copy admission rejected while unconfirmed work pending; retained clip observed |
+| locked-sleep | `sec065clipmia2h` | Unverified — secure keyguard limitation, consistent with all prior physical cohorts |
+
+This is the second complete candidate-bound physical cohort (API 29 MIUI): seven of eight cases passed on hardware against the frozen candidate. Combined with the ASUS API 35 cohort, candidate-bound physical coverage now spans API 29 and API 35; the API 33 Motorola cohort device was not attached and remains open, as do clipboard-history providers, TalkBack/overlay content verification and iOS. T027 remains open.

@@ -30,13 +30,13 @@
 | T043 policy/register synchronization | Checked complete in `tasks.md` | BRD/TRD/quickstart reconciliation recorded; must still be rechecked if policy scope changes |
 | Frozen product-candidate identification | Partial | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree; build outputs, source-set scope and tool fingerprints still to be recorded |
 | T041 final regressions | Candidate-bound host/JVM pass | `tools/local-ci.ps1 -NoFix` plus forced `--rerun-tasks` test execution at the frozen candidate: 262 suites / 1,770 tests / 0 failures / 0 errors / 0 skipped; recorded in `evidence/regression.md`. Device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, iOS and hosted CI remain under separate gates |
-| Refreshed T037 evidence validation | Candidate-bound refresh complete | `evidence/evidence-validation.md` refreshed 2026-11-20 after candidate-bound evidence: 554 records, 0 real-record errors, 1,558 artifact hashes, 5/5 synthetic rejections |
+| Refreshed T037 evidence validation | Candidate-bound refresh complete | `evidence/evidence-validation.md` refreshed 2026-11-20 after candidate-bound evidence: 556 records, 0 real-record errors, 1,561 artifact hashes, 5/5 synthetic rejections |
 | T036 final source/inventory reconciliation | Complete | Checked in `tasks.md`; `source-inventory-validation.md` records the 2026-11-20 reconciliation against `49e37f60`/`46c871e5`: 732 files / 640 usages, zero structural errors, all 699 configured src-root files covered |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-20 bounded module-scope semantic spot-audit recorded in `source-inventory-validation.md` — 165 cross-module references reviewed as legitimate usage-location-vs-owner-scope distinctions; reviewer-level semantic sign-off outstanding |
 | T040 disposition refresh | Open | `tasks.md` T040 remains unchecked; `assessment.md` dispositions refreshed 2026-11-20 for freeze candidate and candidate-bound results |
 | T015 heap candidate-bound evidence | Partial | All four owner groups rerun on `emulator-5554` against candidate `49e37f60` content (runs g–j, all instrumentation OK, Shark analyses recorded); passkey terminal JavaFrame-reachable marker String disclosed for adjudication; physical-device heap evidence absent |
-| T027 clipboard candidate-bound evidence | Partial | Full eight-case matrix Passed 7/8 on physical ASUS API 35 (locked/sleep Unverified, secure keyguard); emulator partial cohort with disclosed scheduled-attempt discrepancy; API 29/33 candidate reruns, clipboard-history providers and iOS remain open |
-| T034 diagnostic candidate-bound evidence | Partial | diagnosticRelease direct-sink probe OK on emulator-5554 and configured release writer/rotation/fallback probe OK (2 tests) on physical ASUS API 35, both candidate-bound; other emitters/destinations, iOS and additional-cohort reruns remain open |
+| T027 clipboard candidate-bound evidence | Partial | Full eight-case matrix Passed 7/8 on physical ASUS API 35 and 7/8 on physical Mi A2 API 29 (locked/sleep Unverified on both, secure keyguard); emulator partial cohort with disclosed scheduled-attempt discrepancy; API 33 Motorola cohort device absent, clipboard-history providers and iOS remain open |
+| T034 diagnostic candidate-bound evidence | Partial | Candidate-bound probes pass on physical ASUS API 35 and Mi A2 API 29 (configured writer 2/2, direct sink 1/1 each) plus emulator-5554 direct sink; API 33 cohort, other emitters/destinations and iOS remain open |
 | Other release gates | Open | `assessment.md` keeps physical clipboard (API 29/33 cohorts), iOS runtime, hosted integration CI, reviewer access and retention/disposal obligations open |
 
 ## Gate preflight evidence hashes
@@ -45,15 +45,15 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `92288dc1bb246d88dbd4d4d386b9eec5c46c08d4250a61674de701002828b335` |
+| `specs/065-security-secret-cleanup/tasks.md` | `f761c67f8cd2c909286c9bd43540d3aa373c77f2975964f2cbb4b4f7b6f41e64` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
-| `specs/065-security-secret-cleanup/evidence/index.md` | `7437ecdaa019d5d0aba78ee8fdbf7fef7de8ba31de14a6d547085c6ba90e28ca` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `914af29c7afba1107b886526c23e1ef3d410dac321c0539c69313d3e20b361d0` |
-| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `0f0307c7f61b1aa75d206acc98cb7efb7766d569c0a4498bf794cd67e7f31ef2` |
+| `specs/065-security-secret-cleanup/evidence/index.md` | `fdd4500362a2b09cfa631ed17754e87e2be613091e2dfff8841f4010b3f280a7` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `96a8071d9e6b0843099f3db4222fa67573bbe06b6d3aa092f9b4deef71eeb1d2` |
+| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `26d28d245757ed0e110ef40fbf4374a9360475d7d7455484ed35f98f6fab6ad9` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `f5ace517937bacdf6a0d1af33e8f566e16c0a7745cc1dcda9f370ecb97e26094` |
-| `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `54ee553bc54106daab4601807221dbd60a9e8276052a049f40dec857f1de7be7` |
+| `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
 | `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `5b2340e6876b4cd6b21b6186f28a24d35cf674724ab1298e705f90059d1a5d21` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `7eee17cc5c7f8ef4fa29f8ad613d68c4f6fa7670a242e44341b25b19d13f83ef` |

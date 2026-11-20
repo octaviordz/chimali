@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 554
-- Artifact file hashes recorded: 1558
+- Records parsed: 556
+- Artifact file hashes recorded: 1561
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 441 |
+| Passed | 443 |
 | Satisfied | 33 |
 | Unverified | 65 |
 
@@ -124,6 +124,7 @@
 | build/security/clipboard-observation/configured-diagnostics-release-asus-ai2302-api35-20261119.txt | 5edddf4142ddca63943ea00a734ec4e3d9a117fb4653a12bd71d4e277030f904 |
 | build/security/clipboard-observation/configured-diagnostics-release-asus-ai2302-api35-20261120-candidate.txt | 34e788d1064df9841e1ca3d7fce454d59f4a54b8d1fd14c433b0d5b61e0ec157 |
 | build/security/clipboard-observation/configured-diagnostics-release-mia2-api29-20261119.txt | 8419d711229e5c26b848ebabd4ba110312a792c63fdeaed7fe82b2c4bb534025 |
+| build/security/clipboard-observation/configured-diagnostics-release-mia2-api29-20261120-candidate.txt | d89eaddb593badeab49815f254bf894b846016f977d3993f805b03558c2352fb |
 | build/security/clipboard-observation/configured-diagnostics-release-mia2-api29-20261120.txt | 453d0fd32fa531bff69460b772664bfcc3441fac44e3ec9242413bef514078bd |
 | build/security/clipboard-observation/configured-rotation-fallback-api35-20261117.txt | 33f2236d3e7f831b93cdc5c6b0e3cb0627fa7fe5ad0a0a206658244e2683d849 |
 | build/security/clipboard-observation/configured-rotation-fallback-minified-api35-20261117.txt | 03e102aadbf68b1110e8e5324ea2008b4d6fd80b8fddc78f52c33de03eea3b2a |
@@ -732,7 +733,7 @@
 | specs/065-security-secret-cleanup/evidence/cbor-map-key-scratch-cleanup.md | ffe9f49615c25e377624b400ea83309b0742fea872d12d380aa2841c3c04eb4d |
 | specs/065-security-secret-cleanup/evidence/cbor-shape-test-fixture-cleanup.md | 0b151bd9278a29538a66ffb66638d7f3d6f118e39ce47ad9e98aa62ee4695ee9 |
 | specs/065-security-secret-cleanup/evidence/clipboard-audit-minimal-app-postchange-api35.md | df43e8bf532fa7bf70e7948b8362e5f67d3e790ca93c8c5657bba5635274e8da |
-| specs/065-security-secret-cleanup/evidence/clipboard-device.md | 0f0307c7f61b1aa75d206acc98cb7efb7766d569c0a4498bf794cd67e7f31ef2 |
+| specs/065-security-secret-cleanup/evidence/clipboard-device.md | 26d28d245757ed0e110ef40fbf4374a9360475d7d7455484ed35f98f6fab6ad9 |
 | specs/065-security-secret-cleanup/evidence/clipboard-host.md | 9d9f6c66fcb0e5fe258e0484727764b4e0af6e8b483c6094203d33ddc4a80d47 |
 | specs/065-security-secret-cleanup/evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md | 638805b71109fe21540dd80a057b87d1fece21cf07f400d235804fc68f38e23e |
 | specs/065-security-secret-cleanup/evidence/configured-diagnostics-audit-current-api35.txt | f178961976fac72af3651907b9775ad83d5f85e5145d1dcb67342f5836f5e57e |
@@ -797,7 +798,7 @@
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-release-writer-failure-api35.md | 47281ae1434f34ddec8ec23cbca2b923c566be87a2d2b7c812bcf565599c808c |
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-startup-registration-api35.md | 8f7da0e9c3f0adae9d16d349c394e5135776ac2583bc7871fdbf04cbb79ddf5d |
 | specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md | 9b5cdce4288fc938a1efcee1c4eec4157476c5c7ce14b89fcf4e4c442f659cbe |
-| specs/065-security-secret-cleanup/evidence/diagnostics.md | 54ee553bc54106daab4601807221dbd60a9e8276052a049f40dec857f1de7be7 |
+| specs/065-security-secret-cleanup/evidence/diagnostics.md | 788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0 |
 | specs/065-security-secret-cleanup/evidence/domain-exception-diagnostic-redaction.md | fd08e97f3d37061dbd846b39fc6b9bf3175a96a5b168af3c5ee775519b86f17f |
 | specs/065-security-secret-cleanup/evidence/dormant-passkey-label-update-removal.md | 1d51314003d22751f9b8b04bb517668e407b6896b22b28f9276ff13b70c33946 |
 | specs/065-security-secret-cleanup/evidence/edit-paired-device-screen-lifecycle-cleanup.md | db06f1d1f17af25543a437233bf9733380d4b4a3cde0dbb21301cfab5866d488 |
@@ -863,7 +864,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 7437ecdaa019d5d0aba78ee8fdbf7fef7de8ba31de14a6d547085c6ba90e28ca |
+| specs/065-security-secret-cleanup/evidence/index.md | fdd4500362a2b09cfa631ed17754e87e2be613091e2dfff8841f4010b3f280a7 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -972,7 +973,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 92288dc1bb246d88dbd4d4d386b9eec5c46c08d4250a61674de701002828b335 |
+| specs/065-security-secret-cleanup/tasks.md | f761c67f8cd2c909286c9bd43540d3aa373c77f2975964f2cbb4b4f7b6f41e64 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
