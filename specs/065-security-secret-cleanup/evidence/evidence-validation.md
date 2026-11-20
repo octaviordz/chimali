@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 568
-- Artifact file hashes recorded: 1576
+- Records parsed: 569
+- Artifact file hashes recorded: 1578
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 454 |
+| Passed | 455 |
 | Satisfied | 33 |
 | Unverified | 66 |
 
@@ -121,6 +121,7 @@
 | build/security/clipboard-observation/clipboard-observation-observer-preflight-20261114t.json | 37cbfe44d54f3b31e83b137f73a47ecdf212e43721ce5486f503877ce44975bd |
 | build/security/clipboard-observation/clipboard-observation-observer-scheduled-20261114c.json | c70718598d294c71c40d11923a126ccfedb7fcad2d72da9e9be619e59dea0d3b |
 | build/security/clipboard-observation/clipboard-observation-sec065emu_lockedsleep02.json | 1f5b9f4e1392592aa5fc1d07af115a72fabb01bf505d20c76877ee9bc7219ce9 |
+| build/security/clipboard-observation/configured-diagnostics-diagnosticrelease-asus-api35-20261120-candidate.txt | 4569b921c23daedb3bbe894a05d3e00dda9d8d4e53362115d616d5408dbfbc08 |
 | build/security/clipboard-observation/configured-diagnostics-diagnosticrelease-emulator5554-api35-20261120-candidate.txt | 330a853869aac5db73dfab921bb075b3e8db1aa2e4cf7a790d632aba9947b25e |
 | build/security/clipboard-observation/configured-diagnostics-diagnosticrelease-mia2-api29-20261120-candidate.txt | 3a9b87715cbae7e58027b9dc5368dba5163051e9ef20c3dbf3570ecd667feb84 |
 | build/security/clipboard-observation/configured-diagnostics-release-asus-ai2302-api35-20261119.txt | 5edddf4142ddca63943ea00a734ec4e3d9a117fb4653a12bd71d4e277030f904 |
@@ -545,7 +546,7 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt | 8248c1176315db02b90faa44359831b63355bf6440f8a084911afdd3158fcc3f |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt | 50e88e3f80dc00fd5c960fa522ad0814de220d07f50d0c22c13439240598eec0 |
 | feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2getassertionhandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
-| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
+| feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2makecredentialhandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2ResetAuthenticatorHandler.kt | e28f5881b3b4feaff7eba24a7f2aff60e6823f16c391f1b3bb6691961c2b0b30 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborCodec.kt | 8d898485bec70351bbcc10c0de15a65f9e4193d4b7d8cfa90a74439679326e5a |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborEncodingEngine.kt | bcf3e8595389ebbff5ef3894557292ed8ef2df1c50e298b113ded24757e16e33 |
@@ -801,7 +802,7 @@
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-release-writer-failure-api35.md | 47281ae1434f34ddec8ec23cbca2b923c566be87a2d2b7c812bcf565599c808c |
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-startup-registration-api35.md | 8f7da0e9c3f0adae9d16d349c394e5135776ac2583bc7871fdbf04cbb79ddf5d |
 | specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md | 9b5cdce4288fc938a1efcee1c4eec4157476c5c7ce14b89fcf4e4c442f659cbe |
-| specs/065-security-secret-cleanup/evidence/diagnostics.md | c0cea3f48468f2fde2752dbe476d931a8f8479e5e66dedd5295f402f6a09e56a |
+| specs/065-security-secret-cleanup/evidence/diagnostics.md | 077952e807c70455c7cd10e6980de51415596d0e1a47729b8ea0a600c84162d2 |
 | specs/065-security-secret-cleanup/evidence/domain-exception-diagnostic-redaction.md | fd08e97f3d37061dbd846b39fc6b9bf3175a96a5b168af3c5ee775519b86f17f |
 | specs/065-security-secret-cleanup/evidence/dormant-passkey-label-update-removal.md | 1d51314003d22751f9b8b04bb517668e407b6896b22b28f9276ff13b70c33946 |
 | specs/065-security-secret-cleanup/evidence/edit-paired-device-screen-lifecycle-cleanup.md | db06f1d1f17af25543a437233bf9733380d4b4a3cde0dbb21301cfab5866d488 |
@@ -875,7 +876,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 9d8569865b64af7935f57a0b019ec55204b3df55d712234dc67aa03face18022 |
+| specs/065-security-secret-cleanup/evidence/index.md | 175d7ae231bd7e6947c8e15dfef71683d4df3daeab7284eb1439868c17acc105 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -984,7 +985,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 9d0a8eb9602f6fa66aeacc2d017330af315171f24bcef4d5cf5d1b984d9a23d9 |
+| specs/065-security-secret-cleanup/tasks.md | 398feadd2705fef00979d23643114d3d9f6e45825936e7410cda22c36164fbe0 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
