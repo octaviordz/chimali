@@ -49,3 +49,14 @@ Per-class on API 35 cohorts: FidoBleLifecycle 4, TransportSettingsDuringCeremony
 - `AuthenticatorDashboardComponentsTest` — **1/9 pass, 8 failures**, all identical: `IllegalStateException: ComponentActivity has already set content` thrown by the `@After disposeSyntheticDeviceUi` cleanup, which calls `composeTestRule.setContent {}` after the test already populated content. With this activity/Compose version a second `setContent` on the same activity is illegal, so the cleanup itself fails every populated test. **Classified as a test-harness defect, not a product finding** — the rendered-component assertions are not reached past the cleanup throw in the reported result; a fix (dispose via a fresh rule or remove the redundant `setContent`) is recommended for a future revision and cannot be applied to the frozen candidate.
 
 Physical-cohort runs were not attempted for the failing class (deterministic harness failure); `DevelopmentToolsScreenTest` physical coverage remains open alongside the dashboard fix.
+## Candidate-bound fido2 BLE security/advertising device batch (2026-11-20)
+
+`:feature:fido2:connectedAndroidDeviceTest` against candidate content (`fido2-androidTest.apk` `A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6`):
+
+| Cohort | Classes | Result |
+|---|---|---|
+| emulator-5554 (API 35) | FidoBleSecurityDeviceTest, FidoBleAdvertiserDiscoveryDeviceTest, NordicBleLegacyAdvertisingDeviceTest | Security 4/4 pass; Nordic 1/1 pass; AdvertiserDiscovery **failed** — `Observed 0 nearby BLE results, but no device advertised 0000fffd-… within 12000ms` (requires a physical BLE peripheral advertising FFF0; environment/hardware limitation, not product) |
+| Mi A2 `2ac6876` (API 29/MIUI) | FidoBleSecurityDeviceTest, NordicBleLegacyAdvertisingDeviceTest | 5/5 pass |
+| ASUS `R7AIB7002901AZ3` (API 35) | FidoBleSecurityDeviceTest, NordicBleLegacyAdvertisingDeviceTest | 5/5 pass |
+
+BLE security and legacy-advertising coverage is now candidate-bound on all three cohorts including real Bluetooth stacks on both physical devices; advertiser-discovery coverage requires dedicated BLE test hardware and remains an environment-gated open cell. Heap-root coverage remains open under T015/T027.

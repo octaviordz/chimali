@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 587
-- Artifact file hashes recorded: 1601
+- Records parsed: 588
+- Artifact file hashes recorded: 1602
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 469 |
+| Passed | 470 |
 | Satisfied | 33 |
 | Unverified | 70 |
 
@@ -841,7 +841,7 @@
 | specs/065-security-secret-cleanup/evidence/fido-transport-settings-test-fixture-cleanup.md | c499a316b0cbfced2ce3f1ced8b7b01e54432092ff9878c0d1698eef2fbe8492 |
 | specs/065-security-secret-cleanup/evidence/fido-writer-startup-order.md | 5acfe5c3a9923325173f3683e8359599ab083276fc29cf3a783af9700c4058c8 |
 | specs/065-security-secret-cleanup/evidence/fido2-auth-notification-device-candidate.md | 56e98478fd065b2a4a2b0ba8d1514e1cbad838d5d186703a67bfac4c66eaddf8 |
-| specs/065-security-secret-cleanup/evidence/fido2-credential-restart-device-candidate.md | ac533079bcb459dc83358384afcb91d26712da035f81749f5828d691873b5710 |
+| specs/065-security-secret-cleanup/evidence/fido2-credential-restart-device-candidate.md | e147126f57135d0d8f4129bd07b1edc8ec97c721eb9ecc8ab2eb0e08813448c9 |
 | specs/065-security-secret-cleanup/evidence/fido2-crypto-service-test-owner-cleanup.md | c2d998c778b0dd96b56681277f938e57df00b6655a211c4c6996b1b85e132f90 |
 | specs/065-security-secret-cleanup/evidence/fido2-database-credential-migration-test-fixture-cleanup.md | 5a76c3a54cfe573f3cfef1fc84e4758665bf584dcbe7cca96035e164ea90e409 |
 | specs/065-security-secret-cleanup/evidence/fido2-exception-message-scope.md | 9886696d85cd4f5b97072b6f17bd11a8552cb7d4139c9a0b6e5e30848ea937f5 |
@@ -882,7 +882,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | eba870421f26f70515b5e4d9ff14711c6aa4f09fbdc14a3299d6c039be39c534 |
+| specs/065-security-secret-cleanup/evidence/index.md | 247f4116f9610681b38de154d32a1541f31a7bae099cb717b22df1f55e344f8a |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -991,7 +991,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 57e4bf20374528dd6a96e29d1fc6096254b52b58d48b3d4c83263a2a42cf7e3d |
+| specs/065-security-secret-cleanup/tasks.md | 68aae5355db832ba321f3d070a0dcd1092647bc01eebc4711d1d827bc1103380 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
