@@ -1027,3 +1027,5 @@ Progress 2026-11-20 (locked-sleep retry): ran locked-sleep clipboard case on Mi 
 Progress 2026-11-20 (locked-sleep ASUS): same SecureKeyguardRemained outcome as Mi A2 - controls passed, device relocked on sleep, target SkippedOwnershipUnavailable. Locked-sleep cell now dispositioned as environment-limited on both physical cohorts. Section + index row added.
 
 Progress 2026-11-20 (ACL re-verify): SEC065-heap restricted store re-checked - SYSTEM + octav FullControl only, inheritance disabled, 220 files. heap-artifact-access.md updated.
+
+Progress 2026-11-20 (API 33 cohort): Motorola milanf ZY22G3FJSX (Android 13/API 33) joined T027 matrix - candidate release pair installed hash-verified; StartupTest OK, VaultPasskeyWiring+ClipboardObserverIsolation OK (4), CredentialCryptoProvider OK (3). diagnostics.md section + index row added.

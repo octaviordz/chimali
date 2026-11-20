@@ -266,3 +266,14 @@ With secure keyguards cleared on both physical devices (`mDreamingLockscreen=fal
 
 - **ASUS AI2302 `R7AIB7002901AZ3` (API 35): OK (1 test, 45.984 s)** — the earlier `isShown` failure is confirmed keyguard/environment-caused; startup Compose content creation passes on physical API 35.
 - **Mi A2 `2ac6876` (API 29/MIUI): failed twice** with `Activity never becomes requested state "[DESTROYED]" (last lifecycle transition = "PAUSED")` thrown from `ActivityScenarioRule.after` — the test body completes but MIUI does not drive the paused activity to destroyed within the scenario timeout, even with `stay_on_while_plugged_in=7`. Classified as a **MIUI platform lifecycle/environment limitation**, distinct from the earlier keyguard cause and not a product defect; an unlocked-session MIUI disposition or alternative teardown remains open under T027.
+## API 33 physical cohort - Motorola milanf (2026-11-20)
+
+New T027 cohort `ZY22G3FJSX` (moto g stylus 5G 2022, Android 13/API 33, `milanf`) joined the matrix. Candidate-bound release APK pair installed and hash-consistent with recorded candidate outputs (app `564402340324bf0c3ea9df132a7b4289e14557f3c32a9792013dd413dfbcb58b`, test `c2a0f061aec4733b97c77ba35162de8c811fa959868dfa126fcef80e5aba983e`):
+
+| Probe | Result |
+|---|---|
+| `com.chimali.StartupTest` | OK (1 test, 45.557 s) - Compose content creation on physical API 33 |
+| `com.chimali.di.VaultPasskeyWiringTest` + `com.chimali.security.ClipboardObserverIsolationTest` | OK (4 tests, 1.471 s) |
+| `com.chimali.CredentialCryptoProviderTest` | OK (3 tests, 0.249 s) |
+
+An initial batch attempt used wrong package guesses (`com.chimali.security.CredentialCryptoProviderTest`, `com.chimali.security.VaultPasskeyWiringTest`) producing ClassNotFoundException - recorded as harness usage error, not product result; corrected packages verified from source. Heap, clipboard-case and fido2 device-test coverage on API 33 remain open.
