@@ -31,7 +31,7 @@
 | Frozen product-candidate identification | Partial | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree; build outputs, source-set scope and tool fingerprints still to be recorded |
 | T041 final regressions | Candidate-bound host/JVM pass | `tools/local-ci.ps1 -NoFix` plus forced `--rerun-tasks` test execution at the frozen candidate: 262 suites / 1,770 tests / 0 failures / 0 errors / 0 skipped; recorded in `evidence/regression.md`. Device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, iOS and hosted CI remain under separate gates |
 | T036 final source/inventory reconciliation | Complete | Checked in `tasks.md`; `source-inventory-validation.md` records the 2026-11-20 reconciliation against `49e37f60`/`46c871e5`: 732 files / 640 usages, zero structural errors, all 699 configured src-root files covered |
-| T037 evidence validation | Complete | Checked in `tasks.md`; validator clean at 564 records / 0 errors / 1,569 hashes / 5 synthetic rejections against candidate content |
+| T037 evidence validation | Complete | Checked in `tasks.md`; validator clean at 565 records / 0 errors / 1,570 hashes / 5 synthetic rejections against candidate content |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-20 bounded module-scope semantic spot-audit recorded in `source-inventory-validation.md` — 165 cross-module references reviewed as legitimate usage-location-vs-owner-scope distinctions; reviewer-level semantic sign-off outstanding |
 | T040 disposition refresh | Complete | Checked in `tasks.md`; `assessment.md` carries separate Partial implementation / Open release dispositions enumerating all unchecked obligations |
 | T015 heap candidate-bound evidence | Partial | All four owner groups rerun on `emulator-5554` against candidate `49e37f60` content (runs g–j, all instrumentation OK, Shark analyses recorded); passkey terminal JavaFrame-reachable marker String disclosed for adjudication; physical-device heap evidence absent |
@@ -45,17 +45,17 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `8e5c9110435f2c836cc984193e1b2d0d191bcc07ff37f0f3c8a34b4e47e0fabe` |
+| `specs/065-security-secret-cleanup/tasks.md` | `1c7cdd21bc9b4c7bf492289abd86327cd6b37744cf78d594633ff16b07877609` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `4cf0c4788e6afeb99128d08b68f6a050b9876af4db8878108d2be02566897a58` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
-| `specs/065-security-secret-cleanup/evidence/index.md` | `c5a45473dc2aa5dbeecc1d9d957bc0db35a97aedb3b9d373a21f7fc6a60e3221` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `b0c136856834c38741df3cec463aad69b46b6dcf9323a0d45a11057ff09549c5` |
-| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `26d28d245757ed0e110ef40fbf4374a9360475d7d7455484ed35f98f6fab6ad9` |
+| `specs/065-security-secret-cleanup/evidence/index.md` | `29860939638e186dde0acccf70538b2483c08d5ddbd9181851df437301c00780` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `7fc161e0f2a3a9d10d4ed27daa92b3e19dac68c562771b8483511bac737478e6` |
+| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `b0e594a1e387a322e87477a1a49725a63023ca2ab2603699d4d39eb569ff8d6c` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `b06c50b608bfd60e8eca4015a16769a10d3aa9d1dd53bf058e046037d39220cb` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `e1e2805de83885873cff01af2dbcf9fda3ad7e73f88ec679541d9db63a1b4b27` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |

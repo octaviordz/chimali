@@ -419,3 +419,21 @@ The same candidate-built `clipboardAudit` APKs were installed on the physical Xi
 | locked-sleep | `sec065clipmia2h` | Unverified — secure keyguard limitation, consistent with all prior physical cohorts |
 
 This is the second complete candidate-bound physical cohort (API 29 MIUI): seven of eight cases passed on hardware against the frozen candidate. Combined with the ASUS API 35 cohort, candidate-bound physical coverage now spans API 29 and API 35; the API 33 Motorola cohort device was not attached and remains open, as do clipboard-history providers, TalkBack/overlay content verification and iOS. T027 remains open.
+
+## Emulator clipboard description-extras flakiness investigation (2026-11-20, post-reboot)
+
+After the API 35 emulator (`emulator-5554`) rebooted (~10:43 local, uptime confirmed at investigation time), the candidate-bound emulator extended-case attempts `sec065clip20261120q` (clipboard-replaced), `sec065clip20261120s` (manual-clear), `sec065clip20261120t` (repeat-copy) and `sec065clip20261120u` (clipboard-replaced) all returned `Unverified` at the observer positive-control stage: `capabilityControl=replaced` and `classification=replaced` even for `control-match`, meaning the observer's own `setPrimaryClip` + immediate `getPrimaryClipDescription` read-back did not observe the `TOKEN_KEY` description extra it had just written.
+
+Direct manual probes of the same observer activity (bypassing the harness, identical `am start` extras and run-as file handoff) reproduced the defect intermittently:
+
+| Probe | Expected token | `capabilityControl` | `classification` | Interpretation |
+|---|---|---|---|---|
+| `probe01` | `probetoken123` | marker-match | marker-match | extras visible on re-read |
+| `probe02` | 64-hex (harness-equivalent) | marker-match | marker-match | extras visible on re-read |
+| `probe03` | stale expected file | replaced | replaced | write/read inconsistency |
+| `probe04` | `1111…` (new token) | marker-match | **replaced** | control's internal read saw extras; the outer re-read microseconds later did not — `ClipDescription` extras (`TOKEN_KEY`, `EXTRA_IS_SENSITIVE` — `sensitiveFlag=false` throughout) appear to be stripped or the service returns a sanitized description on subsequent reads |
+| `probe05` | `2222…` (new token) | marker-match | marker-match | extras visible again |
+
+Sanitized probe records retained at `D:\temp\sec065-clip-candidate\clipboard-observer-probe0{1..5}.json` (SHA-256 `3F9A6451…`, `B69E82E3…`, `35E33053…`, `C6BE65BA…`, `C407DE1F…` respectively; outside Git, alongside the harness observation JSONs).
+
+**Assessment:** this is an emulator/platform clipboard-service behavioral defect in `ClipDescription` extras persistence on immediate re-read — not application behavior. It plausibly explains the earlier candidate-bound emulator scheduled-attempt failures (`SkippedReplaced`/`Unconfirmed` across runs `sec065clip20261120a`–`f`, `r`) and the extended-case Unverified results, since the audit harness carries its ownership token in description extras. Physical cohorts (ASUS API 35, Mi A2 API 29, Motorola API 33 exploratory) consistently preserved extras and are unaffected; the production `AndroidClipboardManagerService` ownership token uses the same extras mechanism, so physical-device evidence remains the authoritative signal. Emulator clipboard evidence should be treated as capability-limited for extras-dependent assertions until the platform defect is root-caused; no product change is indicated by this investigation. T027 remains open.
