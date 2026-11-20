@@ -249,3 +249,14 @@ With the minified `release` variant confirmed unable to host androidTest classes
 - `com.chimli.StartupTest` — OK (1 test) on `emulator-5554` under shrunkDebug (combined 2-test run, 3.548 s); physical-device runs remain keyguard-limited (`isShown` assertion), unchanged.
 
 Disposable `com.chimali.shrunk(.test)` packages were uninstalled from all three devices after the runs. Development/test-instrumented evidence; heap-root/provider-copy coverage of the trim path remains open under T015.
+## Candidate-bound PerformanceTraceDeviceTest with atrace enabled (2026-11-20)
+
+`com.chimali.fido2.util.performance.PerformanceTraceDeviceTest` was first run via `connectedAndroidDeviceTest` and **skipped** on both emulator-5554 and Mi A2 with `AssumptionViolatedException: Start Perfetto with this test app in atrace_apps` — the test requires `Trace.isEnabled()`. The precondition was then satisfied on all three cohorts: `setprop debug.atrace.app_number 1`, `setprop debug.atrace.app.0 com.chimali.fido2.test`, `atrace --async_start`, then direct `am instrument` of the candidate-content `fido2-androidTest.apk` (`A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6`), then `atrace --async_stop`.
+
+| Cohort | Result |
+|---|---|
+| emulator-5554 (API 35) | OK (1 test, 0.107 s) — trace section emits and lookup correlation completes |
+| ASUS `R7AIB7002901AZ3` (API 35) | OK (1 test, 0.024 s) |
+| Mi A2 `2ac6876` (API 29/MIUI) | OK (1 test, 0.074 s) |
+
+The test uses a synthetic operation cookie (`840062`) and section name `Fido2.Registration.SettingsLookup` with no RP traffic; it verifies trace emission and correlation pairing, not payload privacy directly. Development/test-instrumented evidence on all three cohorts; `atrace` props reset and `com.chimali.fido2.test` uninstalled afterward.
