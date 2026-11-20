@@ -18,3 +18,15 @@ Instrumentation APK SHA-256: `feature/fido2/build/outputs/apk/androidTest/fido2-
 ## Scope and limits
 
 This upgrades SEC065-FIDO-017 persistence/restart device evidence from exploratory-worktree to candidate-bound across emulator and both physical cohorts — a synthetic P-256 credential survives an operating-system process kill and signs after recovery on candidate content at API 29 and API 35. Heap-root inspection of the recovered credential, provider/JCA copies and OEM keystore behavior remain open under T015/T027. No persistent device state remains; the per-run fixture directory was cleaned by the test's `finally`.
+
+## Candidate-bound fido2 persistence/lifecycle/user-verification device batch (2026-11-20)
+
+`:feature:fido2:connectedAndroidDeviceTest` filtered to `CredentialPersistenceCeremonyTest`, `LocalProfileLifecycleTest` and `UserVerificationServiceDeviceTest` ran on all three cohorts against candidate content (`fido2-androidTest.apk` `A16F72B8485445CC888B2498D5FE4A5BC88032FAB3C42C3DC20329ABAE9AB0A6`):
+
+| Cohort | Result |
+|---|---|
+| emulator-5554 (API 35) | 11/11 pass, 0 failures/errors/skips |
+| Mi A2 `2ac6876` (API 29/MIUI) | 11/11 pass |
+| ASUS `R7AIB7002901AZ3` (API 35) | 11/11 pass |
+
+Per-class: `CredentialPersistenceCeremonyTest` 2, `LocalProfileLifecycleTest` 7, `UserVerificationServiceDeviceTest` 2. Development/test-instrumented evidence; heap-root/provider-copy coverage remains open under T015/T027.
