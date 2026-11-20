@@ -855,7 +855,7 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059 |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | a05469c4239dd658ea053a22855bab6a0d3ba2c019f1638fe5d44578eec509cf |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |
@@ -991,7 +991,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 73f8cc6911b446cf012c834b3f1f96d2a1f3eeea1b27009c8b3cedd3e18f9ea5 |
+| specs/065-security-secret-cleanup/tasks.md | 2906d0a02115a559ea20fbeb44a4e8db3cc0e71f1fc1b9872b616492b869684a |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |

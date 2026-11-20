@@ -1025,3 +1025,5 @@ Progress 2026-11-20 (physical StartupTest): with keyguards cleared, ASUS API 35 
 Progress 2026-11-20 (locked-sleep retry): ran locked-sleep clipboard case on Mi A2 with keyguard cleared - controls passed but device re-acquired secure keyguard on sleep (SecureKeyguardRemained); target SkippedOwnershipUnavailable. Recorded as correct OS relock behavior / environment limitation. Section + index row added.
 
 Progress 2026-11-20 (locked-sleep ASUS): same SecureKeyguardRemained outcome as Mi A2 - controls passed, device relocked on sleep, target SkippedOwnershipUnavailable. Locked-sleep cell now dispositioned as environment-limited on both physical cohorts. Section + index row added.
+
+Progress 2026-11-20 (ACL re-verify): SEC065-heap restricted store re-checked - SYSTEM + octav FullControl only, inheritance disabled, 220 files. heap-artifact-access.md updated.
