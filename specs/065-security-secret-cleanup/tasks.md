@@ -1021,3 +1021,5 @@ Progress 2026-11-20 (fido2 perf batch): AndroidMeasurementReportTest (5) + Andro
 Progress 2026-11-20 (core:common device test): EncryptionWrapperTest candidate-bound 1/1 pass on emulator-5554, Mi A2 API 29 and ASUS API 35 (common-androidTest.apk B6EF64D6). With feature:fido2 fully dispositioned this completes the Android device-test inventory - every class now candidate-bound or explicitly gated. Section appended; index row added.
 
 Progress 2026-11-20 (physical StartupTest): with keyguards cleared, ASUS API 35 StartupTest OK (1 test) on hash-verified candidate release pair - earlier isShown failure confirmed environmental. Mi A2 fails consistently with ActivityScenario DESTROYED timeout (PAUSED) even with stay-on - MIUI lifecycle limitation, not product. diagnostics.md section + index row added.
+
+Progress 2026-11-20 (locked-sleep retry): ran locked-sleep clipboard case on Mi A2 with keyguard cleared - controls passed but device re-acquired secure keyguard on sleep (SecureKeyguardRemained); target SkippedOwnershipUnavailable. Recorded as correct OS relock behavior / environment limitation. Section + index row added.
