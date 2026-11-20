@@ -17,20 +17,20 @@
 
 | Field | Value |
 |---|---|
-| Frozen product commit | None |
-| Frozen product tree | None |
-| Build/scope | No frozen build or review scope exists |
-| Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; HEAD `30825cc8713206aea35039675ca60860bf448c9e`; tree `be71549cfafa64b65f6c3ba28aadfc5e2443305d`; branch rebased onto `lab/or/chimali` on 2026-11-19 with Feature 065 delivered as commit `fe38031c9f9ee3aa4a0aee02df198d0c43813da8`; dirty worktree (`git status --porcelain` reported 43 entries on 2026-11-20) |
-| Candidate status | Exploratory only; not candidate-bound and not acceptable for T042 |
+| Frozen product commit | `49e37f606c08dd51a899d4728ce23052334c608a` (`fix(security): complete feature 065 secret cleanup remediation and evidence`, 2026-11-20) |
+| Frozen product tree | `46c871e56b4a99f075c1e6426fd320af2512e9d3` |
+| Build/scope | Commit/tree frozen with clean worktree; build outputs, source-set scope and tool fingerprints not yet recorded for the candidate |
+| Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; freeze commit `49e37f60` on top of `30825cc8713206aea35039675ca60860bf448c9e`; branch rebased onto `lab/or/chimali` on 2026-11-19 with Feature 065 delivered as commit `fe38031c9f9ee3aa4a0aee02df198d0c43813da8`; worktree clean at freeze on 2026-11-20 |
+| Candidate status | Frozen commit exists; candidate-bound gate refresh (T036/T037/T041) in progress; not yet acceptable for T042 |
 
 ## Prerequisite gate status
 
 | Prerequisite | Status | Evidence |
 |---|---|---|
 | T043 policy/register synchronization | Checked complete in `tasks.md` | BRD/TRD/quickstart reconciliation recorded; must still be rechecked if policy scope changes |
-| Frozen product-candidate identification | Missing | No clean commit/tree/build/scope has been frozen |
+| Frozen product-candidate identification | Partial | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree; build outputs, source-set scope and tool fingerprints still to be recorded |
 | T041 final regressions | Exploratory only | `tasks.md` records focused/local passes, but final candidate-bound regressions are still required after freeze |
-| Refreshed T037 evidence validation | Exploratory only | `evidence/evidence-validation.md` refreshed 2026-11-20: 546 records, 0 real-record errors, 1,548 artifact hashes, 5/5 synthetic rejections; candidate remains a dirty exploratory worktree |
+| Refreshed T037 evidence validation | Exploratory only | `evidence/evidence-validation.md` refreshed 2026-11-20: 546 records, 0 real-record errors, 1,548 artifact hashes, 5/5 synthetic rejections; candidate `49e37f60` frozen but candidate-bound refresh pending |
 | T036 final source/inventory reconciliation | Open | `tasks.md` T036 remains unchecked; final reconciliation must match the frozen commit/tree |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-19 register-reference check resolved all used CLS/BND IDs, semantic reconciliation remains open |
 | T040 disposition refresh | Open | `tasks.md` T040 remains unchecked |
@@ -38,16 +38,16 @@
 
 ## Gate preflight evidence hashes
 
-These hashes identify the dirty-worktree evidence package available at preflight on 2026-11-20 after the exploratory T037 validation refresh. They are not candidate-bound review evidence and must be recomputed after the product candidate is frozen and the evidence package is refreshed.
+These hashes identify the evidence package available at preflight on 2026-11-20 after the freeze of candidate `49e37f60` and the exploratory T037 validation refresh. They are not candidate-bound review evidence and must be recomputed after the candidate-bound evidence refresh completes.
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `140ad2c8103427cf1c95492a2dee7c6adac92432736312b4529467f38f333c22` |
+| `specs/065-security-secret-cleanup/tasks.md` | `a3b8cb4e35e5cc1be1d3892ec7c14b3ef3b8ff7885c998136c1a7865b867cbb2` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
-| `specs/065-security-secret-cleanup/assessment.md` | `334bc71889cc76244b51f1ae6d955f0a7ab2069ef16c74665267cc503133c7fd` |
+| `specs/065-security-secret-cleanup/assessment.md` | `e3cc615484aa5c3f8fdb9c0bce37088ae2ba9d96f5dc10c94d17bcdd7abc7a02` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `8ede002e26eee1c30ee1f4e05d8e60c13aefca54612b988f201f345063a09a37` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `cf761002f9dd7f4458b69f09380ff5ac78c8039fb3c88b4953a89269f10dac7f` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `111a9a4f3d38f50aba57b1595713ada69e8f5f83fd2454cbce349a4a9bbe653e` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `74843691fa71ca838efa3e32a3145ae1be391f6d46b91ae774c13ecfd6f7be84` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `f188a197116c2fd3ffe727fe3fb21d84dc17db6038335c7ba696c1795a522b93` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `38cfd994f6bb4b33c0a34fc2a1745ab2a7088ba9e8baacebba1e66cf7bbdd163` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `bb4b703f3981623fc222acc02126b8f7810bc74cd6544d2e27ad157edfc1cb39` |

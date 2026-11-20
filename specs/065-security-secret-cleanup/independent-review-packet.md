@@ -148,13 +148,13 @@ The following do not satisfy T042:
 This snapshot explains why the packet is prepared but the review cannot yet run:
 
 - Branch: `codex/065-security-secret-cleanup`
-- HEAD: `30825cc8713206aea35039675ca60860bf448c9e` (`chore(version): update speckit versions to 1.4.2`), tree `be71549cfafa64b65f6c3ba28aadfc5e2443305d`
+- Freeze candidate: commit `49e37f606c08dd51a899d4728ce23052334c608a` (`fix(security): complete feature 065 secret cleanup remediation and evidence`), tree `46c871e56b4a99f075c1e6426fd320af2512e9d3`, created 2026-11-20 on top of `30825cc8713206aea35039675ca60860bf448c9e`; worktree clean at freeze. Build outputs, source-set scope and tool fingerprints not yet recorded for the candidate.
 - Feature delivery commit: `fe38031c9f9ee3aa4a0aee02df198d0c43813da8` (`feat: add clipboard observer and related tests for security enhancements CP`), tree `9c2e62a64aeaa1ec087b549d1fc8bc9085bf81a8`, created during the 2026-11-19 rebase of this branch onto `lab/or/chimali` (merge `a8e09810` of `lab/or/main`). The prior baseline commit `78812e4d0a2d4ff422e03cd71611d6eb4ab4c57d` is preserved in reflog and remains the historical comparison point, not the current HEAD.
-- Worktree: still dirty/exploratory; `git status --porcelain` reported 43 entries. Non-spec remainder includes production-relevant uncommitted changes: `core/domain/.../SecureRandomStatus.kt` (SEC065-CORE-033 fixed-cause remap), `config/detekt/detekt.yml`, `docs/security/data-classification.md`, `docs/security/platform-text-boundaries.md`, `tools/security/run-heap-capture.ps1`, `tools/security/run-clipboard-observation.ps1`, `app/src/clipboardAudit/.../ClipboardTargetCopyActivity.kt`, and androidTest/androidHostTest/androidDeviceTest files. `fe38031c` therefore does **not** contain the complete current remediation; freeze must commit or explicitly reconcile these first.
+- Worktree: clean at freeze commit `49e37f60` (2026-11-20). Pre-freeze the worktree carried 43 entries — production-relevant uncommitted changes including `core/domain/.../SecureRandomStatus.kt` (SEC065-CORE-033 fixed-cause remap), `config/detekt/detekt.yml`, `docs/security/data-classification.md`, `docs/security/platform-text-boundaries.md`, `tools/security/run-heap-capture.ps1`, `tools/security/run-clipboard-observation.ps1`, `app/src/clipboardAudit/.../ClipboardTargetCopyActivity.kt`, and androidTest/androidHostTest/androidDeviceTest files — all now committed in `49e37f60`.
 - T042 checkbox: unchecked; `independent-review.md` status `Unverified`
 - Latest evidence validation: 546 records, zero errors, 1,548 artifact hashes, 5/5 synthetic rejections — exploratory only; no frozen candidate supplied
 - Heap raw artifacts: all four owner groups regenerated 2026-11-20 under the ACL-protected `SEC065-heap` destination after the 2026-11-19 loss; passkey terminal frame-local retention reproduced across two runs and root-attributed as a direct JavaFrame `String` stack slot
-- Open gates include T006/T007/T012/T016/T027/T029/T034/T035/T036/T037/T039/T040/T042/T044/T045 as recorded in `tasks.md`/`assessment.md`; candidate-bound reruns of T015/T027/T034/T041 evidence are still required after freeze
+- Open gates include T006/T007/T012/T016/T027/T029/T034/T035/T036/T037/T039/T040/T042/T044/T045 as recorded in `tasks.md`/`assessment.md`; candidate-bound reruns of T015/T027/T034/T041 evidence are now unblocked by the freeze and remain required before review
 - Documentation integrity: residual U+FFFD corruption in six Feature 065 files repaired 2026-11-20 (`—`, `–`, `→`, `∈`, `§` restored contextually); repo-wide sweep clean. Validator remains 546 records / 0 errors / 1,548 hashes / 5 synthetic rejections. Register-repair claim matrix: 39 recorded owner-matrix claims independently re-verified against source with zero discrepancies
 
 ## Disposition
@@ -162,4 +162,4 @@ This snapshot explains why the packet is prepared but the review cannot yet run:
 - **Packet status:** prepared.
 - **T042 status:** `Unverified`.
 - **Release acceptance:** not accepted.
-- **Next action:** freeze the candidate, refresh candidate-bound prerequisites, grant controlled artifact access to an independent reviewer, then complete `independent-review.md`.
+- **Next action:** candidate `49e37f60` is frozen; refresh candidate-bound prerequisites (T036/T037/T041 and build/scope fingerprints), grant controlled artifact access to an independent reviewer, then complete `independent-review.md`.
