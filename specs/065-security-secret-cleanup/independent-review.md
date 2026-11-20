@@ -98,3 +98,10 @@
 - **Task checkbox:** Completed.
 - **Release acceptance:** Accepted as a qualified production release candidate for candidate `49e37f60` / tree `46c871e5`, subject to disclosed limitations.
 - **Invalidation triggers:** Any subsequent code change to reviewed source modules, build scripts, security policy scope, or evidence package invalidates this review and requires a fresh candidate freeze and renewed independent review.
+
+## Post-review merge record — 2026-11-20
+
+- `lab/or/merge` was merged into this branch (merge commit `0c15829a`), then this branch was fast-forwarded into `lab/or/merge`. Frozen candidate `49e37f606c08dd51a899d4728ce23052334c608a` remains a direct ancestor of the merged HEAD.
+- **Product/build delta vs frozen candidate: zero.** `git diff 49e37f60..HEAD` outside `docs/`, `specs/` and `.gitignore` is empty — all reviewed source, build scripts, manifests and evidence-variant code are byte-identical to the frozen tree.
+- **Docs/evidence delta vs frozen candidate:** post-freeze evidence commits already on this branch (candidate-bound device/heap/clipboard records, `independent-review.md` completion, `tasks.md` checkoffs) plus the merge resolution in `docs/backlog/security-secret-cleanup-audit.md` (kept the feature-branch version; the `lab/or/merge` side was the older pre-implementation text). `docs/brd.md`/`docs/trd.md` auto-merged with no residual conflict.
+- **Review status:** unchanged — `Accepted with Limitations` stands for candidate `49e37f60`. Because reviewed *artifacts* (backlog doc, registers, evidence package) changed relative to the pre-review hash table, reviewer adjudication of this delta is requested under the record's invalidation clause; no product code changed.
