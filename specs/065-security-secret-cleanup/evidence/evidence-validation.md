@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 546
-- Artifact file hashes recorded: 1548
+- Records parsed: 554
+- Artifact file hashes recorded: 1558
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,9 +14,9 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 434 |
+| Passed | 441 |
 | Satisfied | 33 |
-| Unverified | 64 |
+| Unverified | 65 |
 
 ## Synthetic negative examples
 
@@ -33,15 +33,15 @@
 | Repository artifact | SHA-256 |
 |---|---|
 | app/build.gradle.kts | 4f15deeaa78c299f0031e4e458ef9f7413d4549b188043a84b909469dfab017f |
-| app/build/outputs/apk/androidTest/clipboardAudit/app-clipboardAudit-androidTest.apk | 22a86305d09f6861e58ffdb9238d5f8b3a21b10b7976c497121a7c10a0f7652d |
+| app/build/outputs/apk/androidTest/clipboardAudit/app-clipboardAudit-androidTest.apk | 6438124126d7f67d141b211dbffaca7aaba15af3e2bd3014dee351312a5512af |
 | app/build/outputs/apk/androidTest/diagnosticDebug/app-diagnosticDebug-androidTest.apk | a7315f9ca26fe1dd72ed4d14a9bc4409d83f20c7ace5b924b09d27c7d059c3bd |
 | app/build/outputs/apk/androidTest/diagnosticRelease/app-diagnosticRelease-androidTest.apk | 6e06feea3f44b7c4d08aaba831f6d7e05790be03296199fff88064e4ff3f3360 |
 | app/build/outputs/apk/androidTest/release/app-release-androidTest.apk | c2a0f061aec4733b97c77ba35162de8c811fa959868dfa126fcef80e5aba983e |
 | app/build/outputs/apk/androidTest/shrunkDebug/app-shrunkDebug-androidTest.apk | 479cd066b5afde1cee9e11c1da1f923e0925b2b07f14c9351415a582bc025ab2 |
-| app/build/outputs/apk/clipboardAudit/app-clipboardAudit.apk | f878daf541ff4f65272e60d05526068c07c55df638e2fee5e2aef79ac30e84bb |
+| app/build/outputs/apk/clipboardAudit/app-clipboardAudit.apk | 72dbfbeda3b88f86d9ac72d83bbf4e7aadd5f24273d0e34724385582660756f9 |
 | app/build/outputs/apk/diagnosticDebug/app-diagnosticDebug.apk | 531e83c7ccf93313f9785f189fd675f626590cb01d3b3bd844b9b3ed8806b30b |
-| app/build/outputs/apk/diagnosticRelease/app-diagnosticRelease.apk | 17672e6a734aebb5fa2ecdb781885ae553d8978f0fc4ee4298f5ff4da9171cb3 |
-| app/build/outputs/apk/release/app-release.apk | 40eef2aba05f72efc5d60ba57ccb8eeef74a2b5f68aa469fec4f24f4324971e4 |
+| app/build/outputs/apk/diagnosticRelease/app-diagnosticRelease.apk | 9b8c7ff17cfec6bc5fb8ba0c8582d3c661ae3e2c17996cdce48995f6fdf349bd |
+| app/build/outputs/apk/release/app-release.apk | 564402340324bf0c3ea9df132a7b4289e14557f3c32a9792013dd413dfbcb58b |
 | app/build/outputs/apk/shrunkDebug/app-shrunkDebug.apk | 0930ac978a2fe30e3651cd251e22a75574fbf118da6ccecbd279997e5883003b |
 | app/build/reports/tests/testShrunkDebugUnitTest/index.html | 149afba98f3ce2dee52ffde6426c01cfc4d0ee5b62deaf1245dddbd5094f8b69 |
 | app/build/test-results/testShrunkDebugUnitTest/TEST-com.chimali.MainActivityPermissionDiagnosticTest.xml | c0203de2b542e75e6c6680d9ba9b152999a65ffa1810b66dcfdb0f81235e3734 |
@@ -122,6 +122,7 @@
 | build/security/clipboard-observation/clipboard-observation-observer-scheduled-20261114c.json | c70718598d294c71c40d11923a126ccfedb7fcad2d72da9e9be619e59dea0d3b |
 | build/security/clipboard-observation/clipboard-observation-sec065emu_lockedsleep02.json | 1f5b9f4e1392592aa5fc1d07af115a72fabb01bf505d20c76877ee9bc7219ce9 |
 | build/security/clipboard-observation/configured-diagnostics-release-asus-ai2302-api35-20261119.txt | 5edddf4142ddca63943ea00a734ec4e3d9a117fb4653a12bd71d4e277030f904 |
+| build/security/clipboard-observation/configured-diagnostics-release-asus-ai2302-api35-20261120-candidate.txt | 34e788d1064df9841e1ca3d7fce454d59f4a54b8d1fd14c433b0d5b61e0ec157 |
 | build/security/clipboard-observation/configured-diagnostics-release-mia2-api29-20261119.txt | 8419d711229e5c26b848ebabd4ba110312a792c63fdeaed7fe82b2c4bb534025 |
 | build/security/clipboard-observation/configured-diagnostics-release-mia2-api29-20261120.txt | 453d0fd32fa531bff69460b772664bfcc3441fac44e3ec9242413bef514078bd |
 | build/security/clipboard-observation/configured-rotation-fallback-api35-20261117.txt | 33f2236d3e7f831b93cdc5c6b0e3cb0627fa7fe5ad0a0a206658244e2683d849 |
@@ -136,6 +137,7 @@
 | build/security/clipboard-observation/direct-performance-logcat-debug-disconnect-api35-20261118.txt | 0fffd59490b8f1070cb1816b4f1f1a344180e709f40b663743bf387280029a2d |
 | build/security/clipboard-observation/direct-performance-logcat-release-api35-20261118.txt | bb9f27f23697b5e2274f0c3d70f3e7a4a8a5bfc3ea9c29d60c6ba7a0ad4b0810 |
 | build/security/clipboard-observation/direct-performance-logcat-release-asus-ai2302-api35-20261119.txt | 4f85fcc8984645740872a139a03c19cbdbdc584e6e99184bd729baeda734e16d |
+| build/security/clipboard-observation/direct-performance-logcat-release-emulator5554-api35-20261120.txt | 7bec436c4e0500ee3cb021be2b18f485b17433ea12cc09e23e20350ae58932ca |
 | build/security/clipboard-observation/direct-performance-logcat-release-harness-failure-api35-20261118.txt | 7b47b18bc5890bb4d20e66934249c18d5f78bb5fc5e42f34b71be9d1f931cd69 |
 | build/security/clipboard-observation/direct-performance-logcat-release-mia2-api29-20261119.txt | 5862bfdd8d73ba0f1ab1c773ffca5d99c0dc27d5b5483280cb39b39135d7d326 |
 | build/security/clipboard-observation/direct-performance-logcat-release-mia2-api29-20261120.txt | 37a18dd4372fd1284937fba10bcb45d0b33eccfacdaf807be2938b0331a7b2f3 |
@@ -538,7 +540,7 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidConfig.kt | e9e03821c77bf07d5862330844d32c0d458440842f9ada99b05bac275f472d70 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt | 8248c1176315db02b90faa44359831b63355bf6440f8a084911afdd3158fcc3f |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt | 50e88e3f80dc00fd5c960fa522ad0814de220d07f50d0c22c13439240598eec0 |
-| feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2getassertionhandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
+| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
 | feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2makecredentialhandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2ResetAuthenticatorHandler.kt | e28f5881b3b4feaff7eba24a7f2aff60e6823f16c391f1b3bb6691961c2b0b30 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborCodec.kt | 8d898485bec70351bbcc10c0de15a65f9e4193d4b7d8cfa90a74439679326e5a |
@@ -703,7 +705,7 @@
 | feature/vault/src/test/resources/vault-legacy-v1/card.json | 0fffa5b7eef97a0d6ab17e45021f2af5984d4f2f2644f9edad15298db316054d |
 | feature/vault/src/test/resources/vault-legacy-v1/note.json | c72a66d56efdf3b0f6ced8771355a6a2fa96c6689ec887c0256750550016118d |
 | feature/vault/src/test/resources/vault-legacy-v1/password.json | 3b6be5681780f9ccd23589fc394f2f4404f74b7abd61177e8765e386b6f48dc8 |
-| specs/065-security-secret-cleanup/assessment.md | e3cc615484aa5c3f8fdb9c0bce37088ae2ba9d96f5dc10c94d17bcdd7abc7a02 |
+| specs/065-security-secret-cleanup/assessment.md | c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682 |
 | specs/065-security-secret-cleanup/evidence/aes-encryption-manager-buffer-cleanup.md | b5a074b5e0ec2f5bc89797a30168e78b745c86e060d0cbeec26dcafe7cc3dc59 |
 | specs/065-security-secret-cleanup/evidence/aes-gcm-owned-buffer-cleanup.md | 1dd089ee63776d282616f695018657b459f8deddcf808c9ed32d010edb3760d9 |
 | specs/065-security-secret-cleanup/evidence/aggregate-service-ownership-contract.md | 424b72c1eeb6a863271372c453c548ad1695f0b8463538a22e08873ff46a9f91 |
@@ -730,7 +732,7 @@
 | specs/065-security-secret-cleanup/evidence/cbor-map-key-scratch-cleanup.md | ffe9f49615c25e377624b400ea83309b0742fea872d12d380aa2841c3c04eb4d |
 | specs/065-security-secret-cleanup/evidence/cbor-shape-test-fixture-cleanup.md | 0b151bd9278a29538a66ffb66638d7f3d6f118e39ce47ad9e98aa62ee4695ee9 |
 | specs/065-security-secret-cleanup/evidence/clipboard-audit-minimal-app-postchange-api35.md | df43e8bf532fa7bf70e7948b8362e5f67d3e790ca93c8c5657bba5635274e8da |
-| specs/065-security-secret-cleanup/evidence/clipboard-device.md | f188a197116c2fd3ffe727fe3fb21d84dc17db6038335c7ba696c1795a522b93 |
+| specs/065-security-secret-cleanup/evidence/clipboard-device.md | 0f0307c7f61b1aa75d206acc98cb7efb7766d569c0a4498bf794cd67e7f31ef2 |
 | specs/065-security-secret-cleanup/evidence/clipboard-host.md | 9d9f6c66fcb0e5fe258e0484727764b4e0af6e8b483c6094203d33ddc4a80d47 |
 | specs/065-security-secret-cleanup/evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md | 638805b71109fe21540dd80a057b87d1fece21cf07f400d235804fc68f38e23e |
 | specs/065-security-secret-cleanup/evidence/configured-diagnostics-audit-current-api35.txt | f178961976fac72af3651907b9775ad83d5f85e5145d1dcb67342f5836f5e57e |
@@ -795,7 +797,7 @@
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-release-writer-failure-api35.md | 47281ae1434f34ddec8ec23cbca2b923c566be87a2d2b7c812bcf565599c808c |
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-startup-registration-api35.md | 8f7da0e9c3f0adae9d16d349c394e5135776ac2583bc7871fdbf04cbb79ddf5d |
 | specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md | 9b5cdce4288fc938a1efcee1c4eec4157476c5c7ce14b89fcf4e4c442f659cbe |
-| specs/065-security-secret-cleanup/evidence/diagnostics.md | bb4b703f3981623fc222acc02126b8f7810bc74cd6544d2e27ad157edfc1cb39 |
+| specs/065-security-secret-cleanup/evidence/diagnostics.md | 54ee553bc54106daab4601807221dbd60a9e8276052a049f40dec857f1de7be7 |
 | specs/065-security-secret-cleanup/evidence/domain-exception-diagnostic-redaction.md | fd08e97f3d37061dbd846b39fc6b9bf3175a96a5b168af3c5ee775519b86f17f |
 | specs/065-security-secret-cleanup/evidence/dormant-passkey-label-update-removal.md | 1d51314003d22751f9b8b04bb517668e407b6896b22b28f9276ff13b70c33946 |
 | specs/065-security-secret-cleanup/evidence/edit-paired-device-screen-lifecycle-cleanup.md | db06f1d1f17af25543a437233bf9733380d4b4a3cde0dbb21301cfab5866d488 |
@@ -842,22 +844,26 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | 845360fdcbedc49a4af9d9c20237fe98ae6f93aa039bc32aa71581dc00b40b50 |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | f5ace517937bacdf6a0d1af33e8f566e16c0a7745cc1dcda9f370ecb97e26094 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-passkey-candidate-api35-20261120.md | 784dae4ee15694d81370cf42a6e5868d8e44f3e40129f50a3bf303fe8e56756c |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261117.md | b9dd85899e6c313ca6db2cba92d02935e1d6bfd5ef0bc5f20a9900cb59585463 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-api35-20261120.md | 964a6f431688cf25f34f02890b7d3c26070f3cb8353230812f931443b4b69c09 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-vault-note-candidate-api35-20261120.md | 90a8e34d139da810c154cade30102ad4d7c6e30195d025b790a03fd8f6ee9e38 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261117.md | 4152d6937f7c2dfc10a21a4a4bd696eee0a8dd31359b2285c9b236931e81f1ae |
 | specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-api35-20261120.md | 55bb5d960159f9dd21a81b66ded7fe47e87502ced2e18d5a300c1ae1dabb42b3 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-vault-password-card-candidate-api35-20261120.md | 90f96475f522501876715985acedcd285846ed559e31a7207473f7948acde42e |
 | specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-api35-20261117.md | 07a4674a7cdcff9faf6a7cb7a3ca900153a32b0fbfc7bc705e678aaf2df9e860 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-api35-20261120.md | ad0bbb75c8f49fae16ebce6ccd2428334a6c6ce73bf130bd7d317c46ef923de2 |
+| specs/065-security-secret-cleanup/evidence/heap-capture-wallet-derivation-candidate-api35-20261120.md | 3917fe09230d219ac8901b1c60a5f0958f4bded349e3068e5e2e2118ba1b8a37 |
 | specs/065-security-secret-cleanup/evidence/heap-inspection-completion-api35-20261117.md | 09bc9edad39f4c652ecbd4147dc26357495c438770451519523f9f042f660ea6 |
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control-api35-20261117.txt | caebd3cd8d05d4c692ef1b93239fa1478b32c814ef2355fc0a71a4dbe801fb5d |
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | cf761002f9dd7f4458b69f09380ff5ac78c8039fb3c88b4953a89269f10dac7f |
+| specs/065-security-secret-cleanup/evidence/index.md | 7437ecdaa019d5d0aba78ee8fdbf7fef7de8ba31de14a6d547085c6ba90e28ca |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -966,7 +972,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | bc53d925438bc3c8aa79063e50599c0de73151e1df3ef2d0bdb93a6fb84adb3b |
+| specs/065-security-secret-cleanup/tasks.md | 92288dc1bb246d88dbd4d4d386b9eec5c46c08d4250a61674de701002828b335 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |

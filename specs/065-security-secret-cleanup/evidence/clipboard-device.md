@@ -381,3 +381,24 @@ Artifacts under `build/security/clipboard-observation/preview-asus/` (SHA-256 re
 - AOSP emulator (`emulator-5554`, API 35): only `com.chimali.clipboardaudit(.test)`.
 
 Result: **no clipboard-history or clipboard-manager application is installed on any available cohort**, so clipboard-history retention cannot be exercised without installing a third-party history provider — which would itself become an unvetted retention surface and is outside the synthetic-fixture scope. Recorded as cohort-availability evidence: history-provider behavior remains **Unverified by absence of cohort**, not by demonstrated safety. The platform `ClipboardOverlay` preview is covered separately above; GMS/other cloud clipboard sync surfaces were not enumerated and remain open.
+
+## Candidate-bound physical API 35 ASUS cohort (2026-11-20)
+
+`clipboardAudit` target and observer test APKs were rebuilt with `-PchimaliTestBuildType=clipboardAudit` from the frozen-candidate worktree (compiled inputs identical to candidate `49e37f60`; run at HEAD `5c63465c`, docs-only delta) and installed on the physical ASUS AI2302 (Android 15/API 35, `R7AIB7002901AZ3`). `tools/security/run-clipboard-observation.ps1` executed the full case matrix with RunIds `sec065clipasus20261120a`–`h`; sanitized JSON artifacts are retained under `D:\temp\sec065-clip-asus\` pending evidence-index hash registration.
+
+| Case | RunId | Result |
+|---|---|---|
+| scheduled-attempt | `sec065clipasus20261120a` | Passed — `MetadataConfirmed` publication, `ClearRequestSubmitted` at the scheduled deadline (term 27,960,863 vs sched 27,960,828) |
+| process-death | `sec065clipasus20261120b` | Passed — process-death observer case |
+| app-switch | `sec065clipasus20261120c` | Passed — `SkippedOwnershipUnavailable` while backgrounded; automatic cleanup safely skipped |
+| clipboard-replaced | `sec065clipasus20261120d` | Passed — replacement observed; `SkippedOwnershipUnavailable`, no clear request submitted |
+| manual-clear | `sec065clipasus20261120e` | Passed — `ManualClearSubmitted`; clipboard independently observed absent |
+| repeat-copy | `sec065clipasus20261120f` | Passed — first generation `Superseded`; repeated copy `ClearRequestSubmitted` at deadline |
+| copy-rejected | `sec065clipasus20261120g` | Passed — copy admission rejected while unconfirmed work pending; retained clip observed |
+| locked-sleep | `sec065clipasus20261120h` | Unverified — secure keyguard limitation, consistent with all prior physical cohorts |
+
+This is the first complete candidate-bound physical cohort: seven of eight cases passed on hardware against the frozen candidate, with locked/sleep remaining Unverified behind the secure keyguard. It does not cover the API 29 Mi A2 or API 33 Motorola candidate-bound reruns, clipboard-history providers, TalkBack/overlay content verification, or iOS — T027 remains open pending those cohorts and reviewer adjudication.
+
+## Candidate-bound emulator-5554 partial cohort (2026-11-20, same build)
+
+The same rebuilt APKs ran on `emulator-5554`: process-death (`sec065clip20261120g`), app-switch (`sec065clip20261120h`, `SkippedOwnershipUnavailable`) and locked-sleep (`sec065clip20261120` last attempt) passed; scheduled-attempt failed all six attempts (`sec065clip20261120a`–`f`, `sec065clip20261120r`) with `SkippedReplaced`/`Unconfirmed` outcomes — an emulator-specific harness/platform behavior since the identical candidate build passed scheduled-attempt on physical ASUS on the first attempt; the discrepancy is disclosed for reviewer adjudication rather than explained away. Extended cases on the emulator returned Unverified/failed and are outside the emulator's recorded cohort scope.
