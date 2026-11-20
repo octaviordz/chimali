@@ -30,10 +30,10 @@
 | T043 policy/register synchronization | Checked complete in `tasks.md` | BRD/TRD/quickstart reconciliation recorded; must still be rechecked if policy scope changes |
 | Frozen product-candidate identification | Partial | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree; build outputs, source-set scope and tool fingerprints still to be recorded |
 | T041 final regressions | Candidate-bound host/JVM pass | `tools/local-ci.ps1 -NoFix` plus forced `--rerun-tasks` test execution at the frozen candidate: 262 suites / 1,770 tests / 0 failures / 0 errors / 0 skipped; recorded in `evidence/regression.md`. Device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, iOS and hosted CI remain under separate gates |
-| Refreshed T037 evidence validation | Candidate-bound refresh complete | `evidence/evidence-validation.md` refreshed 2026-11-20 after candidate-bound evidence: 556 records, 0 real-record errors, 1,561 artifact hashes, 5/5 synthetic rejections |
 | T036 final source/inventory reconciliation | Complete | Checked in `tasks.md`; `source-inventory-validation.md` records the 2026-11-20 reconciliation against `49e37f60`/`46c871e5`: 732 files / 640 usages, zero structural errors, all 699 configured src-root files covered |
+| T037 evidence validation | Complete | Checked in `tasks.md`; validator clean at 556 records / 0 errors / 1,561 hashes / 5 synthetic rejections against candidate content |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-20 bounded module-scope semantic spot-audit recorded in `source-inventory-validation.md` — 165 cross-module references reviewed as legitimate usage-location-vs-owner-scope distinctions; reviewer-level semantic sign-off outstanding |
-| T040 disposition refresh | Open | `tasks.md` T040 remains unchecked; `assessment.md` dispositions refreshed 2026-11-20 for freeze candidate and candidate-bound results |
+| T040 disposition refresh | Complete | Checked in `tasks.md`; `assessment.md` carries separate Partial implementation / Open release dispositions enumerating all unchecked obligations |
 | T015 heap candidate-bound evidence | Partial | All four owner groups rerun on `emulator-5554` against candidate `49e37f60` content (runs g–j, all instrumentation OK, Shark analyses recorded); passkey terminal JavaFrame-reachable marker String disclosed for adjudication; physical-device heap evidence absent |
 | T027 clipboard candidate-bound evidence | Partial | Full eight-case matrix Passed 7/8 on physical ASUS API 35 and 7/8 on physical Mi A2 API 29 (locked/sleep Unverified on both, secure keyguard); emulator partial cohort with disclosed scheduled-attempt discrepancy; API 33 Motorola cohort device absent, clipboard-history providers and iOS remain open |
 | T034 diagnostic candidate-bound evidence | Partial | Candidate-bound probes pass on physical ASUS API 35 and Mi A2 API 29 (configured writer 2/2, direct sink 1/1 each) plus emulator-5554 direct sink; API 33 cohort, other emitters/destinations and iOS remain open |
@@ -45,7 +45,7 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `f761c67f8cd2c909286c9bd43540d3aa373c77f2975964f2cbb4b4f7b6f41e64` |
+| `specs/065-security-secret-cleanup/tasks.md` | `9c911f70cda9ef31624da0babb11c6afa43f6f06ea9f5f717db6a64b51325f91` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
@@ -94,7 +94,7 @@ Gate findings recorded at preflight:
 - **T042 status:** `Unverified`.
 - **Task checkbox:** remains unchecked.
 - **Release acceptance:** not accepted.
-- **Required next steps:** complete prerequisite gates, freeze a clean product candidate, rerun candidate-bound T036/T037/T041 evidence, obtain a non-author independent reviewer, then replace this gate record with the completed review containing reviewer identity/date, exact candidate identity, build/scope, pre-review evidence hashes, artifact access, findings and disposition.
+- **Required next steps:** complete remaining prerequisite gates (T039 reviewer-level semantic sign-off, API 33 cohort, iOS runtime, hosted integration CI, T045 disposal after review), obtain a non-author independent reviewer for candidate `49e37f60`, then replace this gate record with the completed review containing reviewer identity/date, exact candidate identity, build/scope, pre-review evidence hashes, artifact access, findings and disposition.
 - **Invalidation:** any later change to reviewed product, build, policy scope, or evidence package requires a new frozen candidate, impact assessment, refreshed evidence and renewed independent review.
 
 This record must not be interpreted as approval, as a substitute for independent review, or as evidence that release security acceptance has been achieved.
