@@ -855,7 +855,7 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | a05469c4239dd658ea053a22855bab6a0d3ba2c019f1638fe5d44578eec509cf |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | 730ffa5bcc93bc246d6d92045a3d8e3cdd5e2a384637fbe00edcfb2c64037a11 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |

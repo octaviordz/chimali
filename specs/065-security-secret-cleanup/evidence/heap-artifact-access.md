@@ -72,3 +72,11 @@ The retention dependency extends to runs `sec065heapmia220261120a-d`: all raw HP
 ## Restricted-store ACL re-verification (2026-11-20)
 
 Re-verified `C:\Users\octav\AppData\Local\Chimali\SEC065-heap` ahead of T042 review: inheritance disabled; access list contains exactly `NT AUTHORITY\SYSTEM` and `LOQ15IRX10-3\octav` with `FullControl`/`Allow`; 220 files present. T045 retention/disposal preconditions continue to hold.
+## T045 post-review verification — 2026-11-20
+
+Independent review completed (`independent-review.md`, Accepted with Limitations). Post-review raw-artifact verification:
+
+- **Heap store** `C:\Users\octav\AppData\Local\Chimali\SEC065-heap`: accessible; inheritance disabled; ACL grants FullControl only to `LOQ15IRX10-3\octav` and `SYSTEM`; 220 files (67 HPROF, 107 txt, 17 err, 17 json, tools). Unchanged since freeze re-verification.
+- **Clipboard store** `D:\temp\sec065-clip-candidate`: previously inherited temp ACLs; now restricted — inheritance disabled, FullControl only to `octav` and `SYSTEM`; 47 files.
+- **Synthetic-state attestation:** all retained captures derive exclusively from synthetic test fixtures — `heapAudit`/`clipboardAudit`/`shrunkDebug`/`androidTestDiagnostic*` source sets emit only synthetic markers (no production user data, credentials, or secrets). Clipboard observations contain synthetic marker strings only.
+- **Retention/disposal decision:** no captures disposed. All retained artifacts remain cited by live evidence records (`evidence/index.md`, heap/clipboard/diagnostic records); no cited reference has been superseded, so nothing qualifies as obsolete under the T045 rule. Raw artifacts remain available for any follow-up adjudication of disclosed retentions.

@@ -43,14 +43,14 @@
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `fe7c1d083eff4e96395992687505cb50a2dd368a862608256e488ef5820a26f9` |
+| `specs/065-security-secret-cleanup/tasks.md` | `a00600fa06b0a277d1eb9165e4bfb6c9eef041bda17ff11679339ef4ad0978f5` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `dfe955a2a25f5a6163837857801d78961dbbedb2224c4acbd32cf226babdcd12` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `4b6dc53fcaf185f3bf886480691f6a462975ce7a4054923129a7a51af32b9658` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `0b1b1266cf64a282925eb7fc1a33b3c159688407a1192163ff74e456deed7d38` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `a9745eaec6c429fab78da3bae8ee4ed5f847eacef572305abd886f5ed3ced722` |
-| `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `a05469c4239dd658ea053a22855bab6a0d3ba2c019f1638fe5d44578eec509cf` |
+| `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `730ffa5bcc93bc246d6d92045a3d8e3cdd5e2a384637fbe00edcfb2c64037a11` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `6c1e7183eda5873770c53e72060f53e9c200793d9b81de6287db4b9875dafce0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
 | `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `a368d2626cc925bc920ad7215aee7fd2fa7753e837c7f32d23aa5ca398e6ca9e` |
