@@ -706,7 +706,7 @@
 | feature/vault/src/test/resources/vault-legacy-v1/card.json | 0fffa5b7eef97a0d6ab17e45021f2af5984d4f2f2644f9edad15298db316054d |
 | feature/vault/src/test/resources/vault-legacy-v1/note.json | c72a66d56efdf3b0f6ced8771355a6a2fa96c6689ec887c0256750550016118d |
 | feature/vault/src/test/resources/vault-legacy-v1/password.json | 3b6be5681780f9ccd23589fc394f2f4404f74b7abd61177e8765e386b6f48dc8 |
-| specs/065-security-secret-cleanup/assessment.md | 5ced137b75932376260d84c787923e4ad261bfe085f0c2b606457db5a9f8e710 |
+| specs/065-security-secret-cleanup/assessment.md | 4cf0c4788e6afeb99128d08b68f6a050b9876af4db8878108d2be02566897a58 |
 | specs/065-security-secret-cleanup/evidence/aes-encryption-manager-buffer-cleanup.md | b5a074b5e0ec2f5bc89797a30168e78b745c86e060d0cbeec26dcafe7cc3dc59 |
 | specs/065-security-secret-cleanup/evidence/aes-gcm-owned-buffer-cleanup.md | 1dd089ee63776d282616f695018657b459f8deddcf808c9ed32d010edb3760d9 |
 | specs/065-security-secret-cleanup/evidence/aggregate-service-ownership-contract.md | 424b72c1eeb6a863271372c453c548ad1695f0b8463538a22e08873ff46a9f91 |

@@ -45,17 +45,17 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `9f37bf48a4d95fb0d37a0a2e4e615a34a9e589e3f1c3d9935fc0b5572a15db98` |
+| `specs/065-security-secret-cleanup/tasks.md` | `8e5c9110435f2c836cc984193e1b2d0d191bcc07ff37f0f3c8a34b4e47e0fabe` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
-| `specs/065-security-secret-cleanup/assessment.md` | `5ced137b75932376260d84c787923e4ad261bfe085f0c2b606457db5a9f8e710` |
+| `specs/065-security-secret-cleanup/assessment.md` | `4cf0c4788e6afeb99128d08b68f6a050b9876af4db8878108d2be02566897a58` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `c5a45473dc2aa5dbeecc1d9d957bc0db35a97aedb3b9d373a21f7fc6a60e3221` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `edfacbd6fa0d04719dfa3248c7c5bb3ae295101160b7acac69ff55e91a3517ae` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `b0c136856834c38741df3cec463aad69b46b6dcf9323a0d45a11057ff09549c5` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `26d28d245757ed0e110ef40fbf4374a9360475d7d7455484ed35f98f6fab6ad9` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `788bb8b159455ac4702977e046dd68d38fb32ce83998053e0d2568aaa35345f0` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `d7a1800db2ebbb93cef6e6a975d58889b21aed6d45d0f63a07ff4be675f0135a` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `b06c50b608bfd60e8eca4015a16769a10d3aa9d1dd53bf058e046037d39220cb` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
