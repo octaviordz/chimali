@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 591
-- Artifact file hashes recorded: 1605
+- Records parsed: 592
+- Artifact file hashes recorded: 1606
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 472 |
+| Passed | 473 |
 | Satisfied | 33 |
 | Unverified | 71 |
 
@@ -806,7 +806,7 @@
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-release-writer-failure-api35.md | 47281ae1434f34ddec8ec23cbca2b923c566be87a2d2b7c812bcf565599c808c |
 | specs/065-security-secret-cleanup/evidence/diagnostic-scrubber-startup-registration-api35.md | 8f7da0e9c3f0adae9d16d349c394e5135776ac2583bc7871fdbf04cbb79ddf5d |
 | specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md | 9b5cdce4288fc938a1efcee1c4eec4157476c5c7ce14b89fcf4e4c442f659cbe |
-| specs/065-security-secret-cleanup/evidence/diagnostics.md | 2347cfd586c20cd44a1fef46a4cf06b2ac894218a90ffa1a6021efb49fff9264 |
+| specs/065-security-secret-cleanup/evidence/diagnostics.md | 25522eee856c3ed371d934da0aab91dca6a243a84e05732e74a201b038dfcfc6 |
 | specs/065-security-secret-cleanup/evidence/domain-exception-diagnostic-redaction.md | fd08e97f3d37061dbd846b39fc6b9bf3175a96a5b168af3c5ee775519b86f17f |
 | specs/065-security-secret-cleanup/evidence/dormant-passkey-label-update-removal.md | 1d51314003d22751f9b8b04bb517668e407b6896b22b28f9276ff13b70c33946 |
 | specs/065-security-secret-cleanup/evidence/edit-paired-device-screen-lifecycle-cleanup.md | db06f1d1f17af25543a437233bf9733380d4b4a3cde0dbb21301cfab5866d488 |
@@ -882,7 +882,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 408b244eb1c61d19285c076b48f8f57a6ccbce5b22138044b7c8a7939ec8f045 |
+| specs/065-security-secret-cleanup/evidence/index.md | 71ec4bc7e05c62b3fd6b9247d83793dcc198bca98d170e4ce418953d66f9a602 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -991,7 +991,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | fe98ba770255db98d5a96328d82392efa933b0ed73e91d2f8f797d84c2c02f6d |
+| specs/065-security-secret-cleanup/tasks.md | c954fd626ec8f81cc046948d0ed03ad2c15cf7ec9e63ef8373625a1126ca636f |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |

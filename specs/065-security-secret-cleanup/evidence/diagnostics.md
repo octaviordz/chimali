@@ -260,3 +260,9 @@ Disposable `com.chimali.shrunk(.test)` packages were uninstalled from all three 
 | Mi A2 `2ac6876` (API 29/MIUI) | OK (1 test, 0.074 s) |
 
 The test uses a synthetic operation cookie (`840062`) and section name `Fido2.Registration.SettingsLookup` with no RP traffic; it verifies trace emission and correlation pairing, not payload privacy directly. Development/test-instrumented evidence on all three cohorts; `atrace` props reset and `com.chimali.fido2.test` uninstalled afterward.
+## Physical StartupTest resolution update (2026-11-20)
+
+With secure keyguards cleared on both physical devices (`mDreamingLockscreen=false`, `mWakefulness=Awake`), `com.chimali.StartupTest` was rerun against the hash-verified candidate release pair (app `564402340324bf0c3ea9df132a7b4289e14557f3c32a9792013dd413dfbcb58b`, test `c2a0f061aec4733b97c77ba35162de8c811fa959868dfa126fcef80e5aba983e` — both confirmed via `pm path` + pulled-APK SHA-256):
+
+- **ASUS AI2302 `R7AIB7002901AZ3` (API 35): OK (1 test, 45.984 s)** — the earlier `isShown` failure is confirmed keyguard/environment-caused; startup Compose content creation passes on physical API 35.
+- **Mi A2 `2ac6876` (API 29/MIUI): failed twice** with `Activity never becomes requested state "[DESTROYED]" (last lifecycle transition = "PAUSED")` thrown from `ActivityScenarioRule.after` — the test body completes but MIUI does not drive the paused activity to destroyed within the scenario timeout, even with `stay_on_while_plugged_in=7`. Classified as a **MIUI platform lifecycle/environment limitation**, distinct from the earlier keyguard cause and not a product defect; an unlocked-session MIUI disposition or alternative teardown remains open under T027.
