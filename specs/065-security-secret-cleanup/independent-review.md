@@ -45,9 +45,9 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `662ded96da779df664fa92b9543781365300fc1f1aef1458914b34930b9ff67e` |
+| `specs/065-security-secret-cleanup/tasks.md` | `e0b8e2c9cad078169a4ede0125f296168ebca1dd1349282b0f14250b7012c7ac` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
-| `specs/065-security-secret-cleanup/assessment.md` | `c669bd273fb58f3b9b1e644c54d76fff8d326507bbafa5ea57cf6be19386d682` |
+| `specs/065-security-secret-cleanup/assessment.md` | `61f42c668708ed8c0391bf8fe1bad6bba2bfa146b80d40f4d39bf94763d8489c` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `fdd4500362a2b09cfa631ed17754e87e2be613091e2dfff8841f4010b3f280a7` |
 | `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `96a8071d9e6b0843099f3db4222fa67573bbe06b6d3aa092f9b4deef71eeb1d2` |
