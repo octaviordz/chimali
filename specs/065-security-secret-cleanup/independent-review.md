@@ -1,4 +1,4 @@
-﻿# Feature 065 independent security review — T042 gate record
+# Feature 065 independent security review — T042 gate record
 
 **Status:** `Unverified` — no independent security review has been performed. This file is a gate record only; it is not a review finding, implementation disposition, or release acceptance.
 
@@ -29,9 +29,9 @@
 |---|---|---|
 | T043 policy/register synchronization | Checked complete in `tasks.md` | BRD/TRD/quickstart reconciliation recorded; must still be rechecked if policy scope changes |
 | Frozen product-candidate identification | Partial | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree; build outputs, source-set scope and tool fingerprints still to be recorded |
-| T041 final regressions | Exploratory only | `tasks.md` records focused/local passes, but final candidate-bound regressions are still required after freeze |
+| T041 final regressions | Candidate-bound host/JVM pass | `tools/local-ci.ps1 -NoFix` plus forced `--rerun-tasks` test execution at the frozen candidate: 262 suites / 1,770 tests / 0 failures / 0 errors / 0 skipped; recorded in `evidence/regression.md`. Device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, iOS and hosted CI remain under separate gates |
 | Refreshed T037 evidence validation | Exploratory only | `evidence/evidence-validation.md` refreshed 2026-11-20: 546 records, 0 real-record errors, 1,548 artifact hashes, 5/5 synthetic rejections; candidate `49e37f60` frozen but candidate-bound refresh pending |
-| T036 final source/inventory reconciliation | Open | `tasks.md` T036 remains unchecked; final reconciliation must match the frozen commit/tree |
+| T036 final source/inventory reconciliation | Complete | Checked in `tasks.md`; `source-inventory-validation.md` records the 2026-11-20 reconciliation against `49e37f60`/`46c871e5`: 732 files / 640 usages, zero structural errors, all 699 configured src-root files covered |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-19 register-reference check resolved all used CLS/BND IDs, semantic reconciliation remains open |
 | T040 disposition refresh | Open | `tasks.md` T040 remains unchecked |
 | Other release gates | Open | `assessment.md` keeps physical clipboard, heap/raw-artifact, configured diagnostics, iOS runtime, candidate reconciliation, backlog disposition and retention obligations open |
@@ -42,18 +42,18 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `a3b8cb4e35e5cc1be1d3892ec7c14b3ef3b8ff7885c998136c1a7865b867cbb2` |
+| `specs/065-security-secret-cleanup/tasks.md` | `bc53d925438bc3c8aa79063e50599c0de73151e1df3ef2d0bdb93a6fb84adb3b` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `e3cc615484aa5c3f8fdb9c0bce37088ae2ba9d96f5dc10c94d17bcdd7abc7a02` |
-| `specs/065-security-secret-cleanup/source-inventory.json` | `8ede002e26eee1c30ee1f4e05d8e60c13aefca54612b988f201f345063a09a37` |
+| `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
 | `specs/065-security-secret-cleanup/evidence/index.md` | `cf761002f9dd7f4458b69f09380ff5ac78c8039fb3c88b4953a89269f10dac7f` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `74843691fa71ca838efa3e32a3145ae1be391f6d46b91ae774c13ecfd6f7be84` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `608061ac3c1cea0b0fc435a35f9794080bfd409833a305774a96c7023d8af027` |
 | `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `f188a197116c2fd3ffe727fe3fb21d84dc17db6038335c7ba696c1795a522b93` |
-| `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `38cfd994f6bb4b33c0a34fc2a1745ab2a7088ba9e8baacebba1e66cf7bbdd163` |
+| `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `845360fdcbedc49a4af9d9c20237fe98ae6f93aa039bc32aa71581dc00b40b50` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `bb4b703f3981623fc222acc02126b8f7810bc74cd6544d2e27ad157edfc1cb39` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
 | `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `5b2340e6876b4cd6b21b6186f28a24d35cf674724ab1298e705f90059d1a5d21` |
-| `docs/backlog/security-secret-cleanup-audit.md` | `7c5d32945fbeb3a4e33d697f4464c94286a155153e8677ab006a2c719af998b9` |
+| `docs/backlog/security-secret-cleanup-audit.md` | `7eee17cc5c7f8ef4fa29f8ad613d68c4f6fa7670a242e44341b25b19d13f83ef` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |
 | `docs/security/data-classification.md` | `328b5b247d0f01bf0b06d7a629324e627e5f4ed6b54211d7d1607e21ead8ce7a` |
@@ -80,9 +80,9 @@ No independent-review findings exist because no review was performed.
 Gate findings recorded at preflight:
 
 1. No independent reviewer is assigned.
-2. No frozen product candidate, build, or review scope exists.
-3. T036/T037 have not been refreshed against a frozen candidate.
-4. Current evidence is exploratory and dirty-worktree bound; it cannot be promoted to release evidence.
+2. Build outputs, source-set scope record and tool fingerprints for candidate `49e37f60` are not yet consolidated into a single review-scope record.
+3. Candidate-bound reruns of device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, heap captures, clipboard cohorts and iOS evidence remain outstanding; host/JVM regressions and T036 reconciliation are candidate-bound.
+4. T045 raw-artifact disposal is scheduled but not executed; it completes only after review.
 5. Release security acceptance remains open in `assessment.md`.
 
 ## Disposition

@@ -402,3 +402,15 @@ $1015.
 ### SEC065-ERR-026 — Fatal Errors propagate through shared result wrappers
 
 Added synthetic `AssertionError` regressions for both `functionalCatching` and `runCatchingOutcome`. Red-before, both tests failed because the helpers wrapped the fatal error and the mapped helper invoked its callback. After correction, the four-case `FunctionalCatchingPrivacyTest` passes; the complete Core Common host suite passes 47/9 reports and Core Common KtLint/Detekt pass. The full FIDO host suite passes 1,268/167 reports, including the `PublicKeyDecoder` downstream owner class (7 cases); FIDO KtLint/Detekt pass.
+
+## Candidate-bound regression refresh — freeze candidate 49e37f60 (2026-11-20)
+
+Executed against the frozen candidate content: freeze commit `49e37f606c08dd51a899d4728ce23052334c608a` (tree `46c871e56b4a99f075c1e6426fd320af2512e9d3`); run at HEAD `da5d86bedbe51a84d6136d3444f9d769f536c711`, whose diff to the candidate is confined to five `specs/065-security-secret-cleanup` documentation files — every compiled/test input is byte-identical to the candidate.
+
+Commands and results:
+
+- `pwsh -NoProfile -File tools/local-ci.ps1 -NoFix` (JAVA_HOME `jdk-25.0.5.102-hotspot`): PASS — Ktlint Check 2.66s, Detekt 17.07s, Lint Release 1.48s, Compile All 1.45s, Unit Tests 1.53s, KMP Android Host Tests 1.35s; pipeline completed in 25.62s. Tasks reported UP-TO-DATE against identical inputs.
+- Forced rerun for fresh candidate-bound signal: `./gradlew --console=plain test :core:common:testAndroidHostTest :core:security:testAndroidHostTest :core:domain:testAndroidHostTest :feature:fido2:testAndroidHostTest :feature:vault:testDebugUnitTest :core:data:testDebugUnitTest :core:database:testDebugUnitTest --rerun-tasks` — BUILD SUCCESSFUL in 2m54s, 346 tasks executed (none up-to-date).
+- Aggregated XML results across all module `build/test-results`: **262 suites, 1,770 tests, 0 failures, 0 errors, 0 skipped** — identical total to the exploratory sweep, now executed against the frozen candidate.
+
+Scope and limits: host/JVM unit and Android-host-test results only. This does not cover connected-device instrumentation (androidTest/androidDeviceTest), the diagnostic/clipboardAudit/heapAudit source sets, iOS targets, physical-device behavior, heap captures, or hosted CI. Those remain governed by their own evidence records; integration acceptance remains Unverified per the local-CI notice.

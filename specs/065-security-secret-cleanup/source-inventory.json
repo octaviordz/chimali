@@ -1,6 +1,6 @@
 {
-  "commit": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57d",
-  "tree": "dirty exploratory worktree; see assessment.md",
+  "commit": "49e37f606c08dd51a899d4728ce23052334c608a",
+  "tree": "46c871e56b4a99f075c1e6426fd320af2512e9d3",
   "modules": [
     "app",
     "core/common",
@@ -43,7 +43,7 @@
     },
     {
       "path": "app/src/androidTest/java/com/chimali/security/ClipboardObserverActivity.java",
-      "sha256": "d404d380519dbcfe644e346d3cfe3679916a88ef3a43554ca073ee71c71d5e70",
+      "sha256": "a0818fc7dc86eb07107289c60acffc8e4fb1ef756206aadc86f44a74bd2cf7a6",
       "source_set": "androidTest",
       "platform": "android",
       "disposition": "Relevant",
@@ -76,7 +76,7 @@
     },
     {
       "path": "app/src/androidTest/kotlin/com/chimali/LeakCanaryMnemonicOwnerTest.kt",
-      "sha256": "e854664424d2aa2a9d9783630d90252cb0e5ca429ae2bbb0482ebd5dca39fe1b",
+      "sha256": "88b0681fdb6bd823296464ed1803e459b60fe110e71060442ba550b30dbe4f81",
       "source_set": "androidTest",
       "platform": "androidtest",
       "disposition": "Relevant",
@@ -120,7 +120,7 @@
     },
     {
       "path": "app/src/androidTest/kotlin/com/chimali/security/ConfiguredFidoDiagnosticPrivacyTest.kt",
-      "sha256": "3144728e25c948398f9293b51a200e72765b47815df1dfb160ca2d8f9f8cf89d",
+      "sha256": "7e4704c37e2173a861613f8ffbd1de2d37c87ce803aafdfc54f90e857f94bf67",
       "source_set": "androidTest",
       "platform": "android",
       "disposition": "Relevant",
@@ -184,7 +184,7 @@
     },
     {
       "path": "app/src/clipboardAudit/java/com/chimali/security/ClipboardTargetCopyActivity.kt",
-      "sha256": "d3253a4795d9ff6ab06081badfab04a64a49e9a7c8c60ea97b8926a2c48a19fc",
+      "sha256": "f833ffdabb7a970314e3bf67c895f2d3a280673d73e4cd44b2699692e8e7f675",
       "source_set": "clipboardAudit",
       "platform": "android",
       "disposition": "Relevant",
@@ -1317,7 +1317,7 @@
     },
     {
       "path": "core/domain/src/commonMain/kotlin/com/chimali/core/domain/eventsourcing/passkey/PasskeyDecider.kt",
-      "sha256": "5C0041CE4169CDEC940BA96D36E5F3917984902AF539AF3FA53709484B69F475",
+      "sha256": "5c0041ce4169cdec940ba96d36e5f3917984902af539af3fa53709484b69f475",
       "source_set": "commonMain",
       "platform": "common",
       "disposition": "Relevant",
@@ -1684,7 +1684,7 @@
     },
     {
       "path": "core/domain/src/commonMain/kotlin/com/chimali/core/domain/valueobject/SecureRandomStatus.kt",
-      "sha256": "8d2b363d6e9aca7df98f092355ae7543fe04bae24444bcd67cdf6cc5d9cc5835",
+      "sha256": "8b36345ed77de4db9967a8e137fc68a52f2cc472ccf542b7835077799340dda8",
       "source_set": "commonMain",
       "platform": "common",
       "disposition": "Relevant",
@@ -1728,7 +1728,7 @@
     },
     {
       "path": "core/domain/src/commonTest/kotlin/com/chimali/core/domain/eventsourcing/passkey/PasskeyDeciderTest.kt",
-      "sha256": "ED05DE0F9DECD01C76B61331877BDBB78C4CD8B92EAA3AC907862B52CC8D6604",
+      "sha256": "ed05de0f9decd01c76b61331877bdbb78c4cd8b92eaa3ac907862b52cc8d6604",
       "source_set": "commonTest",
       "platform": "commontest",
       "disposition": "Relevant",
@@ -2765,7 +2765,7 @@
       "usage_ids": [
         "U-SEC065-FIDO-024-EDIT-SCREEN-TEST"
       ],
-      "sha256": "7fa83c0173827b35109040f877192c5e506fe604ec8b0a1c3d24555cd2609ed1"
+      "sha256": "dfadb0f56fd5f0f5b4e80c59f92326ec6a036fc467492c17bc70d872df5c203d"
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/LifecycleClearedStateTest.kt",
@@ -2777,7 +2777,7 @@
         "U-SEC065-FIDO-013-STATE-LIFECYCLE-TEST",
         "U-SEC065-FIDO-015-LIFECYCLE-STATE-TEST"
       ],
-      "sha256": "b2e7bd670ad6a581a4daa9ace6c5a89f0e063ac0656bfd992cc19b933b05932c"
+      "sha256": "d00e8540be3f54e4ce3320cfe87f18d6a1b54a826473d493d5c11cf58e32633e"
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/PairedDevicesSectionLifecycleTest.kt",
@@ -2788,7 +2788,7 @@
       "usage_ids": [
         "U-SEC065-FIDO-013-PAIRED-LIFECYCLE-TEST"
       ],
-      "sha256": "0f37f4bc7279d545e114b0aabe7ff489776751f6e1fead72aae27967fdd800f2"
+      "sha256": "5f8d480577bddd17a40d3910d36288b0de3d33d0f96e5abae31f833fdacf5bca"
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/TransportSettingsDuringCeremonyTest.kt",
@@ -2803,7 +2803,7 @@
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/service/Fido2AuthNotificationPrivacyDeviceTest.kt",
-      "sha256": "5bf7f106257f9d2f34bb6cff749daf448c65b56a1cdeb96440406ca3953f9914",
+      "sha256": "5b700e3481f615c4c8693485edc2bec5d817509c15445f5650d15de1c6e27706",
       "source_set": "androidDeviceTest",
       "platform": "android",
       "disposition": "Relevant",
@@ -2985,7 +2985,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandlerTest.kt",
-      "sha256": "b0870adadf2ad349f08822d113c5988acaca6ff2396126989f359fdf09adc730",
+      "sha256": "458aef8129403b471d3261906d0ffdfb6abe0acd0db5fc108b1aaa4f0aa68ebe",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3335,7 +3335,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyStateCopyOwnershipTest.kt",
-      "sha256": "DBE4D6627959F33280B9C31CFFBFCD212F3F34327CF2C4736552813371B2F497",
+      "sha256": "dbe4d6627959f33280b9c31cffbfcd212f3f34327cf2c4736552813371b2f497",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3357,7 +3357,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStorageOwnershipTest.kt",
-      "sha256": "096fee15880b2e53546aae5c5d1e6f4d64cf24ff7bceb631dbc68616c740fda9",
+      "sha256": "40dcd9cdca88533df9a72901b65090cb060985f3b16c49d5f3be206e51ad5766",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3417,7 +3417,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImplTest.kt",
-      "sha256": "05691c0a70c96370f3eebb6374f2d1190c5cc4f6aa308fea7ca0e759e28e4b4d",
+      "sha256": "5156ee70379b699cedc354f654e355e6834f95a1ad2f60fd2c50268166f18220",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3475,7 +3475,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/service/CredentialMetadataProtectionServiceOwnershipTest.kt",
-      "sha256": "7D1EA5F87672AA8FF1FC20DCFCF00BB77EE1BDB30593238F2B45AAF6B3FEC9DF",
+      "sha256": "7d1ea5f87672aa8ff1fc20dcfcf00bb77ee1bdb30593238f2b45aaf6b3fec9df",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3509,7 +3509,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/BleSessionOwnerTest.kt",
-      "sha256": "9e5056b673957782716a81ad5762f1911ab471d29644cbcc5a10876007924b53",
+      "sha256": "f105d34d2c61777a360723c128d93af2d8a4876c7f2c1d51b17cf85aebf319f3",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3564,7 +3564,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleAssertionTest.kt",
-      "sha256": "6d5fa7bd91e3be55d16e85af64e25fd1e9b4acbe2165b156672a4954f602629c",
+      "sha256": "8916093ab5e4678a3f23e8fb739b75ef468c66908f6299a1e7b24d613a4366a4",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3619,7 +3619,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/FidoBleRecoveryTest.kt",
-      "sha256": "4efd856d7274b783172a521485337883e977d20d014da6d6ea69a6f4eed74c06",
+      "sha256": "3b41dae5a23185756f6c299ff3e4df03e501043200ebf7dfa4a81d4687e02bbc",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3683,7 +3683,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/transport/RawCtapOperationTest.kt",
-      "sha256": "c5fab7081dd87ae44ab9145f86fc03c5a5d4cbb3af8e14f191f86f37b5662ea8",
+      "sha256": "237965158449be6b8ca3c8f7205aa592ceed5d0feeadc52993c3f3418899c450",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -3738,7 +3738,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/model/Fido2DomainModelsTest.kt",
-      "sha256": "008A6C93A4E0A4807166C36ADDDCB512292781EC7469381719A4F1F67AC414E4",
+      "sha256": "008a6c93a4e0a4807166c36adddcb512292781ec7469381719a4f1f67ac414e4",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -4016,7 +4016,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/integration/AuthenticationIntegrationTest.kt",
-      "sha256": "472e315c6e18574a66a98ba26d0424295c738bd94dd7b52bbd7359ddb2610148",
+      "sha256": "f0ddda9242718fc33a3ffa60dc6003eaef270867b9315c420d64a58c87d4ea25",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -4258,7 +4258,7 @@
       "usage_ids": [
         "U-FIDO-MNEMONIC-FRAME-RELEASE-TEST-001"
       ],
-      "sha256": "6d92d2326ef647b155110320aad73c56cf4f0f12a7579095cebca751faf90e30"
+      "sha256": "93d79d6110b19f1bc5092f85d9ebb57dad7dfa1ff1b9522247b90dbfea88f00d"
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/presentation/viewmodel/DevToolsViewModelTest.kt",
@@ -5255,7 +5255,7 @@
     },
     {
       "path": "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/domain/model/PublicKeyCredentialRpEntity.kt",
-      "sha256": "CA6D942C9EE79B86F727DED664FDA3F265080AF72792360D40E12D91C75CAF31",
+      "sha256": "ca6d942c9ee79b86f727ded664fda3f265080af72792360d40e12d91c75caf31",
       "source_set": "androidMain",
       "platform": "android",
       "disposition": "Relevant",
@@ -6228,7 +6228,7 @@
     },
     {
       "path": "feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImpl.kt",
-      "sha256": "113349ED101457A408CCD9097C785EA2FF0CDD3457BEE92721C7474D11FA3891",
+      "sha256": "113349ed101457a408ccd9097c785ea2ff0cdd3457bee92721c7474d11fa3891",
       "source_set": "commonMain",
       "platform": "common",
       "disposition": "Relevant",
@@ -7415,7 +7415,7 @@
     },
     {
       "path": "tools/security/run-clipboard-observation.ps1",
-      "sha256": "6648a11a7ccd198ac3b6275c0fd59cd22ea9fd24ea70b3ea4b22b764ecc0ef8e",
+      "sha256": "22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b",
       "source_set": "securityTool",
       "platform": "host",
       "disposition": "Relevant",
@@ -7769,7 +7769,7 @@
     },
     {
       "path": "app/src/androidTestDiagnosticRelease/kotlin/com/chimali/security/DirectFidoPerformanceLogcatPrivacyTest.kt",
-      "sha256": "6091478be2835ae92d223dce199ea657523b25cc8647bb5c009074cd4c1d4dc1",
+      "sha256": "908ed1cf86fef7bc1d25be268d7d55c124626cf60ef0f49112dfb030aa17b31f",
       "source_set": "androidTestDiagnosticRelease",
       "platform": "android",
       "disposition": "Relevant",
@@ -7791,7 +7791,7 @@
     },
     {
       "path": "app/src/androidTestDiagnosticDebug/kotlin/com/chimali/security/DirectFidoPerformanceLogcatPrivacyTest.kt",
-      "sha256": "6091478be2835ae92d223dce199ea657523b25cc8647bb5c009074cd4c1d4dc1",
+      "sha256": "908ed1cf86fef7bc1d25be268d7d55c124626cf60ef0f49112dfb030aa17b31f",
       "source_set": "androidTestDiagnosticDebug",
       "platform": "android",
       "disposition": "Relevant",
@@ -7809,6 +7809,17 @@
       "rationale": "Contains synthetic regressions for SEC065-SEED-003 wallet-derived key-pair copy admission and staged-buffer cleanup.",
       "usage_ids": [
         "U-FIDO-WALLET-KEY-PAIR-COPY-TEST-001"
+      ]
+    },
+    {
+      "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialCopyOwnershipTest.kt",
+      "sha256": "9a5c8b985f1ba1f834b7dd5b3c86b751bb861371947c3815820446e64b117adf",
+      "source_set": "androidHostTest",
+      "platform": "androidHosttest",
+      "disposition": "Relevant",
+      "rationale": "Synthetic copy-failure regressions verify staged PasskeyCredential copy and compatibility-constructor owners are erased on any failed copy position or final construction.",
+      "usage_ids": [
+        "U-FIDO-PASSKEY-CREDENTIAL-COPY-TEST-001"
       ]
     }
   ],
@@ -37124,6 +37135,53 @@
         "passkey credential identifier bytes"
       ],
       "boundary_ids": []
+    },
+    {
+      "usage_id": "U-FIDO-PASSKEY-CREDENTIAL-COPY-TEST-001",
+      "inventory_file": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/domain/model/PasskeyCredentialCopyOwnershipTest.kt",
+      "symbol": "PasskeyCredentialCopyOwnershipTest staged copy/compatibility-constructor failure regressions",
+      "revision": "49e37f606c08dd51a899d4728ce23052334c608a",
+      "classification_ids": [
+        "CLS-FIDO-001",
+        "CLS-FIDO-002"
+      ],
+      "boundary_ids": [],
+      "requirement_ids": [
+        "FR-003",
+        "FR-004",
+        "FR-010",
+        "NFR-SEC-041",
+        "TR-AUTH-031"
+      ],
+      "categories": [
+        "RP identity",
+        "user/account identity",
+        "credential identifier",
+        "authenticator attestation GUID"
+      ],
+      "representations_and_conversions": [
+        "Synthetic SensitiveCredentialText owners and AAGUID/credential-ID byte arrays staged during PasskeyCredential.copy() and the compatibility constructor."
+      ],
+      "application_owner": "withOwnedCredentialTextInputs/withOwnedPasskeyCredentialCopies stage each copy until model construction succeeds; the test owns the fixture owners.",
+      "borrowers": [
+        "PasskeyCredential model construction; credential repository/decider callers after successful transfer."
+      ],
+      "ownership_transfer": "On success all staged text owners and byte arrays transfer to the new PasskeyCredential; on any injected copy-position or construction failure every staged owner/array is erased and source fields remain unchanged.",
+      "purpose": "Verify cleanup of partially staged PasskeyCredential copies and compatibility-constructor text conversions.",
+      "persistence_restrictions": "Test fixture only; no persistence action; synthetic values are not real credentials.",
+      "logging_restrictions": "Synthetic values are not emitted to diagnostics; fixed failure labels only.",
+      "acquisition_terminal_events": [
+        "Successful model construction or injected copy/construction failure cleanup; fixture teardown erases source owners."
+      ],
+      "evidence_ids": [
+        "evidence/passkey-credential-copy-staging.md"
+      ],
+      "finding_ids": [
+        "SEC065-CORE-013"
+      ],
+      "assessor": "Codex implementation review",
+      "date": "2026-11-20",
+      "status": "Three regressions cover compatibility-constructor partial text copies, per-position copy failure across six owner/array slots, and final construction failure; staged erasure and source preservation verified; full FIDO host suite passes."
     }
   ]
 }
