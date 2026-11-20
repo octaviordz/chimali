@@ -718,7 +718,7 @@
 | specs/065-security-secret-cleanup/evidence/aes-encryption-manager-buffer-cleanup.md | b5a074b5e0ec2f5bc89797a30168e78b745c86e060d0cbeec26dcafe7cc3dc59 |
 | specs/065-security-secret-cleanup/evidence/aes-gcm-owned-buffer-cleanup.md | 1dd089ee63776d282616f695018657b459f8deddcf808c9ed32d010edb3760d9 |
 | specs/065-security-secret-cleanup/evidence/aggregate-service-ownership-contract.md | 424b72c1eeb6a863271372c453c548ad1695f0b8463538a22e08873ff46a9f91 |
-| specs/065-security-secret-cleanup/evidence/android-app-security-test-owners.md | 7cfa04f642362a289f8274f2a8bf4f94eea21a7b8a37c19214872db7e880f981 |
+| specs/065-security-secret-cleanup/evidence/android-app-security-test-owners.md | 2fefe5e78dbbee19d4498a1ba5967582f51b64e197c3961848842a9de63df4ac |
 | specs/065-security-secret-cleanup/evidence/android-fido-diagnostic-destination-owner-map.md | a4055faf5384ca04e47275bd7036e2f8b25bd5ab9360ed0d69bf2415e13fc926 |
 | specs/065-security-secret-cleanup/evidence/android-keystore-wrapper-buffer-cleanup.md | c972186ed227dcdf4ba02807794d0a476787ee14a2425d0ee35c515354c8dc63 |
 | specs/065-security-secret-cleanup/evidence/android-platform-hid-preflight-no-use.md | f7a8976423db76f26aa6657208e291dff1776e684f59b9658e4a1dce1bd58a80 |
@@ -880,7 +880,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 5dbe275aac988c7bde2812477a480432af3572ed405f5a6b62aa2be0f9005953 |
+| specs/065-security-secret-cleanup/evidence/index.md | 3f829ee7f02d503062736743693a4b5dfac72b308d5987f601074fbed2ee05a3 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -989,7 +989,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 71825564064a2adca7e3e04ad15428d031bfa88fc1505a589afdb47eacd42090 |
+| specs/065-security-secret-cleanup/tasks.md | ae5902fbf3431918e8b64e10e120917bc4eeb6b64c42965f1f194637ee3a3fa0 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
