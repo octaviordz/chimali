@@ -83,8 +83,8 @@ No independent-review findings exist because no review was performed.
 Gate findings recorded at preflight:
 
 1. No independent reviewer is assigned.
-2. Build outputs, source-set scope record and tool fingerprints for candidate `49e37f60` are not yet consolidated into a single review-scope record.
-3. Candidate-bound reruns remain partial: API 33 device cohort, iOS runtime evidence, hosted integration CI (`tools/integration-ci.ps1`), stay-unlocked locked-sleep device, and BLE/perf opt-in hardware are outstanding; host/JVM regressions, T036 reconciliation, T037 validation, heap on emulator + two physical devices, the full Android device-test inventory, clipboard cohorts, and diagnostic probes are candidate-bound.
+2. Build outputs, source-set scope and tool fingerprints for candidate `49e37f60` are recorded in the frozen-candidate row above (full SHA-256 per APK pair, source-set list, Gradle/AGP/JDK/adb fingerprints); reviewer may wish them consolidated into a single scope appendix.
+3. Candidate-bound coverage is now broad: API 29/33/35 physical cohorts all executed (clipboard matrix complete on each, locked-sleep uniformly relock-limited); heap spans emulator + two physical devices; full Android device-test inventory dispositioned. Genuinely outstanding: iOS runtime evidence (waived for clipboard cohort only), hosted integration CI (`tools/integration-ci.ps1`), stay-unlocked locked-sleep device, BLE/perf opt-in hardware, and a third physical heap cohort.
 4. Disclosed items requiring adjudication: passkey terminal JavaFrame-reachable marker String (heap run h, consistent with exploratory e/f), emulator scheduled-attempt `SkippedReplaced` discrepancy, and vault disposed-stage immutable-String JavaFrame retention.
 5. T045 raw-artifact disposal is scheduled but not executed; it completes only after review.
 6. Release security acceptance remains open in `assessment.md`.
@@ -94,7 +94,7 @@ Gate findings recorded at preflight:
 - **T042 status:** `Unverified`.
 - **Task checkbox:** remains unchecked.
 - **Release acceptance:** not accepted.
-- **Required next steps:** complete remaining prerequisite gates (T039 reviewer-level semantic sign-off, API 33 cohort, iOS runtime, hosted integration CI, T045 disposal after review), obtain a non-author independent reviewer for candidate `49e37f60`, then replace this gate record with the completed review containing reviewer identity/date, exact candidate identity, build/scope, pre-review evidence hashes, artifact access, findings and disposition.
+- **Required next steps:** complete remaining prerequisite gates (T039 reviewer-level semantic sign-off, hosted integration CI, T045 disposal after review), obtain a non-author independent reviewer for candidate `49e37f60`, then replace this gate record with the completed review containing reviewer identity/date, exact candidate identity, build/scope, pre-review evidence hashes, artifact access, findings and disposition.
 - **Invalidation:** any later change to reviewed product, build, policy scope, or evidence package requires a new frozen candidate, impact assessment, refreshed evidence and renewed independent review.
 
 This record must not be interpreted as approval, as a substitute for independent review, or as evidence that release security acceptance has been achieved.
