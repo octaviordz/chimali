@@ -85,3 +85,6 @@ secrets.properties
 .playwright-mcp/
 .specify/extensions/.cache/
 .tmp/**
+
+# Visual Studio
+.vs/
