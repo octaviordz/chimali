@@ -31,7 +31,7 @@
 | Frozen product-candidate identification | Complete | Commit `49e37f60`/tree `46c871e5` frozen 2026-11-20 with clean worktree. Build outputs (SHA-256): release app/test `564402340324bf0c3ea9df132a7b4289e14557f3c32a9792013dd413dfbcb58b`/`c2a0f061aec4733b97c77ba35162de8c811fa959868dfa126fcef80e5aba983e`; diagnosticRelease `9b8c7ff17cfec6bc5fb8ba0c8582d3c661ae3e2c17996cdce48995f6fdf349bd`/`6e06feea3f44b7c4d08aaba831f6d7e05790be03296199fff88064e4ff3f3360`; shrunkDebug `35f88e1df817ad606c89f28dfe0fa1fd069330b80003daaaaf0de739cd9301db`/`bb730de2501e48a35807f4bc8f68fbf214573a8bc5e12b078046757c01c1daea`; heapAudit `59490f93ea74d987ba611edd32fac820862600e4af79592b41b02d8e8dc46b2f`/`e8c1207aaa70cee41ec7f37379a68a08a890a0aa4a14e3a64734d65fa0b9380f`; clipboardAudit `72dbfbeda3b88f86d9ac72d83bbf4e7aadd5f24273d0e34724385582660756f9`/`6438124126d7f67d141b211dbffaca7aaba15af3e2bd3014dee351312a5512af`; fido2-androidTest `a16f72b8485445cc888b2498d5fe4a5bc88032fab3c42c3dc20329abae9ab0a6`. Source-set scope: production `main`/`androidMain`/`iosMain` plus evidence variants `androidTest`, `androidTestDiagnosticDebug`, `androidTestDiagnosticRelease`, `androidDeviceTest`, `heapAudit`, `clipboardAudit`, `shrunkDebug`. Tool fingerprints: Gradle 9.6.0, AGP 9.5.1, launcher JVM 25.0.5.1 (Microsoft), adb 1.0.41, Windows 11 host |
 | T041 final regressions | Candidate-bound host/JVM pass | `tools/local-ci.ps1 -NoFix` plus forced `--rerun-tasks` test execution at the frozen candidate: 262 suites / 1,770 tests / 0 failures / 0 errors / 0 skipped; recorded in `evidence/regression.md`. Device instrumentation, diagnostic/heapAudit/clipboardAudit source sets, iOS and hosted CI remain under separate gates |
 | T036 final source/inventory reconciliation | Complete | Checked in `tasks.md`; `source-inventory-validation.md` records the 2026-11-20 reconciliation against `49e37f60`/`46c871e5`: 732 files / 640 usages, zero structural errors, all 699 configured src-root files covered |
-| T037 evidence validation | Complete | Checked in `tasks.md`; validator clean at 593 records / 0 errors / 1,607 hashes / 5 synthetic rejections against candidate content |
+| T037 evidence validation | Complete | Checked in `tasks.md`; validator clean at 594 records / 0 errors / 1,608 hashes / 5 synthetic rejections against candidate content |
 | T039 register synchronization | Open | `tasks.md` T039 remains unchecked; 2026-11-20 bounded module-scope semantic spot-audit recorded in `source-inventory-validation.md` — 165 cross-module references reviewed as legitimate usage-location-vs-owner-scope distinctions; reviewer-level semantic sign-off outstanding |
 | T040 disposition refresh | Complete | Checked in `tasks.md`; `assessment.md` carries separate Partial implementation / Open release dispositions enumerating all unchecked obligations |
 | T015 heap candidate-bound evidence | Partial | All four owner groups candidate-bound on `emulator-5554` (runs g–j) plus physical ASUS `R7AIB7002901AZ3` API 35 and Mi A2 `2ac6876` API 29/MIUI; instrumentation OK, Shark analyses recorded; passkey terminal JavaFrame-reachable marker String disclosed for adjudication; Mi A2 additionally discloses JDK Cleaner CharsetEncoder char[] (passkey) and AndroidKeyStore CompletableFuture byte[] (wallet) provider retentions; third physical cohort absent |
@@ -45,17 +45,17 @@ These hashes identify the evidence package available at preflight on 2026-11-20 
 
 | Artifact | SHA-256 |
 |---|---|
-| `specs/065-security-secret-cleanup/tasks.md` | `0a9ce56592d969d72a32bb5765e57043b860cfbded8867d6688298a0f3f775fc` |
+| `specs/065-security-secret-cleanup/tasks.md` | `73f8cc6911b446cf012c834b3f1f96d2a1f3eeea1b27009c8b3cedd3e18f9ea5` |
 | `specs/065-security-secret-cleanup/evidence/diagnostic-source-census.md` | `b708452319cab7e7be0e3b88e2557f22df583125fe16b67ba9e4e38243c3009e` |
 | `specs/065-security-secret-cleanup/assessment.md` | `e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac` |
 | `specs/065-security-secret-cleanup/source-inventory.json` | `29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6` |
-| `specs/065-security-secret-cleanup/evidence/index.md` | `08f9794093a9ef4634e6a8c849fe74a782bfedb97a34c4c4daa3f15cd70acfcd` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `85025b5691a40aeb4f06f50bb61159ed196529250ce1a9abfa1bcb7092b41193` |
-| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `221061f94f54ffc0a6bc8f00eecdf858c6d87d5be18d8f7bf024c17b5b0bd3be` |
+| `specs/065-security-secret-cleanup/evidence/index.md` | `36d453e1c466f44de02d5e00c91127dd2bbf5924ec54ac30f9b84f3cd9ada003` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.md` | `c79d3a56012989c66e1e121b73fa1a989d287770606edaa60dd386ce41221ae4` |
+| `specs/065-security-secret-cleanup/evidence/clipboard-device.md` | `3ff64f1578832f54fcf4adb605d1ff68828567db14df05e80654c0a27343c5b9` |
 | `specs/065-security-secret-cleanup/evidence/heap-artifact-access.md` | `dec2477a75ff39c1e96da4ca8523adcab6085100a55b02a2c91c73d57b4b0059` |
 | `specs/065-security-secret-cleanup/evidence/diagnostics.md` | `25522eee856c3ed371d934da0aab91dca6a243a84e05732e74a201b038dfcfc6` |
 | `tools/security/run-clipboard-observation.ps1` | `22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b` |
-| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `2dd74a882cf58d7325695079474240175de78462f5d2d8481dd4373362ac5af4` |
+| `specs/065-security-secret-cleanup/evidence/evidence-validation.hashes.txt` | `d363008fde324a83e37915c33a8388d148341b59d44a68478aaef93522c7f3c1` |
 | `docs/backlog/security-secret-cleanup-audit.md` | `db47d29faa763ac9f33a37e59ba5a60d77be8fcf8565e33aefb74461c645c9dd` |
 | `docs/brd.md` | `2e779277d24c623891768cf90f70b05bc085a0d72f13e6324cf34c44e110826f` |
 | `docs/trd.md` | `82cb147af4d018791eff6d28a704a55ccddcbd3fe8eb3f659771ca25ff44e361` |

@@ -1023,3 +1023,5 @@ Progress 2026-11-20 (core:common device test): EncryptionWrapperTest candidate-b
 Progress 2026-11-20 (physical StartupTest): with keyguards cleared, ASUS API 35 StartupTest OK (1 test) on hash-verified candidate release pair - earlier isShown failure confirmed environmental. Mi A2 fails consistently with ActivityScenario DESTROYED timeout (PAUSED) even with stay-on - MIUI lifecycle limitation, not product. diagnostics.md section + index row added.
 
 Progress 2026-11-20 (locked-sleep retry): ran locked-sleep clipboard case on Mi A2 with keyguard cleared - controls passed but device re-acquired secure keyguard on sleep (SecureKeyguardRemained); target SkippedOwnershipUnavailable. Recorded as correct OS relock behavior / environment limitation. Section + index row added.
+
+Progress 2026-11-20 (locked-sleep ASUS): same SecureKeyguardRemained outcome as Mi A2 - controls passed, device relocked on sleep, target SkippedOwnershipUnavailable. Locked-sleep cell now dispositioned as environment-limited on both physical cohorts. Section + index row added.
