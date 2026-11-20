@@ -3,8 +3,8 @@
 - Date: 2026-11-20
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
 - Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 580
-- Artifact file hashes recorded: 1594
+- Records parsed: 581
+- Artifact file hashes recorded: 1595
 - Real-record errors: 0
 - Synthetic invalid-record examples rejected: 5/5
 
@@ -14,7 +14,7 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 464 |
+| Passed | 465 |
 | Satisfied | 33 |
 | Unverified | 68 |
 
@@ -299,7 +299,7 @@
 | docs/security/platform-text-boundaries.md | d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847 |
 | feature/fido2/build.gradle.kts | 4ae8e19d1b8e9d38dff81a134660513700d4d892502ebc216ef9ca26a7245eef |
 | feature/fido2/build/generated/sqldelight/code/Fido2Database/commonMain/com/chimali/fido2/data/database/Passkey_credential.kt | 713d1e80b5837028a3a6d05a63bcc16c858b507a70577624fd5ccf2c359f51f2 |
-| feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk | 187e5d8da991103ffb3116297d6977ad021b162ecd396d00fa1b753e27e2e11b |
+| feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk | a16f72b8485445cc888b2498d5fe4a5bc88032fab3c42c3dc20329abae9ab0a6 |
 | feature/fido2/build/reports/ktlint/ktlintAndroidHostTestSourceSetCheck/ktlintAndroidHostTestSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 | feature/fido2/build/reports/ktlint/ktlintAndroidMainSourceSetCheck/ktlintAndroidMainSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 | feature/fido2/build/reports/ktlint/ktlintCommonMainSourceSetCheck/ktlintCommonMainSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
@@ -840,6 +840,7 @@
 | specs/065-security-secret-cleanup/evidence/fido-static-ui-sources-no-use.md | de66a9907bcd3993112e649455df19731f430342d9fc0bceafb79639a7a5db77 |
 | specs/065-security-secret-cleanup/evidence/fido-transport-settings-test-fixture-cleanup.md | c499a316b0cbfced2ce3f1ced8b7b01e54432092ff9878c0d1698eef2fbe8492 |
 | specs/065-security-secret-cleanup/evidence/fido-writer-startup-order.md | 5acfe5c3a9923325173f3683e8359599ab083276fc29cf3a783af9700c4058c8 |
+| specs/065-security-secret-cleanup/evidence/fido2-auth-notification-device-candidate.md | 3d7e380ddf9a5e5d3b3d24182f6c03301929167843eacc76a8da5c35e25cafa5 |
 | specs/065-security-secret-cleanup/evidence/fido2-crypto-service-test-owner-cleanup.md | c2d998c778b0dd96b56681277f938e57df00b6655a211c4c6996b1b85e132f90 |
 | specs/065-security-secret-cleanup/evidence/fido2-database-credential-migration-test-fixture-cleanup.md | 5a76c3a54cfe573f3cfef1fc84e4758665bf584dcbe7cca96035e164ea90e409 |
 | specs/065-security-secret-cleanup/evidence/fido2-exception-message-scope.md | 9886696d85cd4f5b97072b6f17bd11a8552cb7d4139c9a0b6e5e30848ea937f5 |
@@ -880,7 +881,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | 53b007a0677f7a0e377d4276795ef5ba0d55485073d270496c11fd71c59489e8 |
+| specs/065-security-secret-cleanup/evidence/index.md | a769148143bd229459ba643e258105c00fb4d28889f5bc745a495dd248a0c044 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -989,7 +990,7 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | 6dd07d27d37b554cc7187ce14b30829d9e73c10d9e271976062920620fdbedfc |
+| specs/065-security-secret-cleanup/tasks.md | ff07fd41dee981d4ba44dae05e7241cfecc1890d4d6d288cbacc1f9cae16cb47 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
 | tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
