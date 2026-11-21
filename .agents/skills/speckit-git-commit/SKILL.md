@@ -5,7 +5,7 @@ compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
   author: spec-kit-core
   source: extension:git
-  version: 1.0.4
+  version: 1.0.8
 ---
 
 # Git Commit Skill
