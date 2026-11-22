@@ -1,12 +1,13 @@
 # Feature 065 evidence-index validation
 
-- Date: 2026-11-20
+- Date: 2026-11-22
 - Candidate: dirty exploratory worktree; no frozen product candidate supplied.
-- Validator SHA-256: `299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3`
-- Records parsed: 596
-- Artifact file hashes recorded: 1610
+- Validator SHA-256: `afa2f9604f40f7054b47d9c153806c2750d924fa8e76925b01491f1277d0ef41`
+- Records parsed: 616
+- Artifact file hashes recorded: 1653
 - Real-record errors: 0
-- Synthetic invalid-record examples rejected: 5/5
+- Synthetic invalid-record examples rejected: 8/8
+- Candidate commit/declaration self-checks: existing repository HEAD accepted; fabricated full-length commit rejected; explicit candidate declaration accepted; historical mention and exploratory declaration excluded.
 
 ## Status counts
 
@@ -14,9 +15,9 @@
 |---|---:|
 | Failed | 2 |
 | Needs correction | 13 |
-| Passed | 475 |
+| Passed | 482 |
 | Satisfied | 33 |
-| Unverified | 73 |
+| Unverified | 86 |
 
 ## Synthetic negative examples
 
@@ -26,19 +27,22 @@
 | non-taxonomy status | Yes | status 'Passed (test)' is outside the TRD taxonomy |
 | empty workload marked Passed | Yes | empty workload cannot pass |
 | documentary status on runtime procedure | Yes | documentary Satisfied status cannot certify a runtime procedure |
-| stale candidate identity | Yes | revision does not identify the required frozen candidate |
+| stale candidate identity | Yes | revision is exploratory or does not identify the exact required frozen candidate; candidate Passed/Satisfied record has no retained expected artifact digest; candidate artifact has no retained expected digest: D:\octav\source\repos\Chimali\specs\065-security-secret-cleanup\evidence\index.md |
+| changed artifact at the same declared path | Yes | artifact digest mismatch at the declared path: D:\temp\feature-065-evidence-0a138bafdf2b4185b0c80fbf227cd49e.txt |
+| candidate Passed record without expected digest | Yes | candidate Passed/Satisfied record has no retained expected artifact digest; candidate artifact has no retained expected digest: D:\octav\source\repos\Chimali\specs\065-security-secret-cleanup\evidence\index.md |
+| exploratory record offered as candidate proof | Yes | revision is exploratory or does not identify the exact required frozen candidate; candidate Passed/Satisfied record has no retained expected artifact digest; candidate artifact has no retained expected digest: D:\octav\source\repos\Chimali\specs\065-security-secret-cleanup\evidence\index.md |
 
 ## Artifact hash manifest
 
 | Repository artifact | SHA-256 |
 |---|---|
 | app/build.gradle.kts | 4f15deeaa78c299f0031e4e458ef9f7413d4549b188043a84b909469dfab017f |
-| app/build/outputs/apk/androidTest/clipboardAudit/app-clipboardAudit-androidTest.apk | 6438124126d7f67d141b211dbffaca7aaba15af3e2bd3014dee351312a5512af |
+| app/build/outputs/apk/androidTest/clipboardAudit/app-clipboardAudit-androidTest.apk | 814539c631a452c451a81834323d33f9a6e45ea911ebf33c82360b187caebd69 |
 | app/build/outputs/apk/androidTest/diagnosticDebug/app-diagnosticDebug-androidTest.apk | a7315f9ca26fe1dd72ed4d14a9bc4409d83f20c7ace5b924b09d27c7d059c3bd |
 | app/build/outputs/apk/androidTest/diagnosticRelease/app-diagnosticRelease-androidTest.apk | 6e06feea3f44b7c4d08aaba831f6d7e05790be03296199fff88064e4ff3f3360 |
 | app/build/outputs/apk/androidTest/release/app-release-androidTest.apk | c2a0f061aec4733b97c77ba35162de8c811fa959868dfa126fcef80e5aba983e |
 | app/build/outputs/apk/androidTest/shrunkDebug/app-shrunkDebug-androidTest.apk | bb730de2501e48a35807f4bc8f68fbf214573a8bc5e12b078046757c01c1daea |
-| app/build/outputs/apk/clipboardAudit/app-clipboardAudit.apk | 72dbfbeda3b88f86d9ac72d83bbf4e7aadd5f24273d0e34724385582660756f9 |
+| app/build/outputs/apk/clipboardAudit/app-clipboardAudit.apk | b19b50fccb74671131729f3e5758ad82b856ed7744c9157445e10a345cf0d8ed |
 | app/build/outputs/apk/diagnosticDebug/app-diagnosticDebug.apk | 531e83c7ccf93313f9785f189fd675f626590cb01d3b3bd844b9b3ed8806b30b |
 | app/build/outputs/apk/diagnosticRelease/app-diagnosticRelease.apk | 9b8c7ff17cfec6bc5fb8ba0c8582d3c661ae3e2c17996cdce48995f6fdf349bd |
 | app/build/outputs/apk/release/app-release.apk | 564402340324bf0c3ea9df132a7b4289e14557f3c32a9792013dd413dfbcb58b |
@@ -50,7 +54,7 @@
 | app/proguard-rules.pro | aeca9d7ce6763909e5ae0002f8c1da7ad0711ba38702cf1e50edd95d86cc452d |
 | app/src/androidTest/java/com/chimali/security/ClipboardObserverActivity.java | a0818fc7dc86eb07107289c60acffc8e4fb1ef756206aadc86f44a74bd2cf7a6 |
 | app/src/androidTest/kotlin/com/chimali/CredentialCryptoProviderTest.kt | 5199d3b5a576a8ef56266d31848a24a83f6c5a52853321d0d61f5596b0e0ce96 |
-| app/src/androidTest/kotlin/com/chimali/LeakCanaryMnemonicOwnerTest.kt | 88b0681fdb6bd823296464ed1803e459b60fe110e71060442ba550b30dbe4f81 |
+| app/src/androidTest/kotlin/com/chimali/LeakCanaryMnemonicOwnerTest.kt | 177e4545050138c606f7a0502ca7dde99e6dafd335517035062b809a539cd5d7 |
 | app/src/androidTest/kotlin/com/chimali/navigation/AppShellWithOverlayTest.kt | 02ff13057c6b689e477d4e7c7cb4512af6d76a965b78905072e8874172e5d3b6 |
 | app/src/androidTest/kotlin/com/chimali/ProductionAppProcessRestartTest.kt | efa42f036f027a93da34097c25054bfb7eb6d64220caef6dfa59d1debe061781 |
 | app/src/androidTest/kotlin/com/chimali/security/ConfiguredFidoDiagnosticPrivacyTest.kt | 7e4704c37e2173a861613f8ffbd1de2d37c87ce803aafdfc54f90e857f94bf67 |
@@ -296,139 +300,139 @@
 | core/security/src/test/kotlin/com/chimali/core/security/impl/AesEncryptionManagerTest.kt | c3af6ae648c4feb0a989efd0cf234528995000fa3f85812568ef5b8de169d034 |
 | core/security/src/test/kotlin/com/chimali/core/security/impl/AesGcmEncryptedMetadataServiceTest.kt | 6ee6eac0e3cfe23264829f7e565a4f5c53f8ab75a0f3282fb57efcc0d6bc5b0c |
 | docs/security/data-classification.md | b7d8f2df8c6e37b040a2dc973af05d1a81910c2ef458db3033fb76fb1c90fb36 |
-| docs/security/platform-text-boundaries.md | d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847 |
+| docs/security/platform-text-boundaries.md | e98520e07b5d3a588fa7ed1ca60fa52af5b98963952ed5b32911af7d807f3f4e |
 | feature/fido2/build.gradle.kts | 4ae8e19d1b8e9d38dff81a134660513700d4d892502ebc216ef9ca26a7245eef |
 | feature/fido2/build/generated/sqldelight/code/Fido2Database/commonMain/com/chimali/fido2/data/database/Passkey_credential.kt | 713d1e80b5837028a3a6d05a63bcc16c858b507a70577624fd5ccf2c359f51f2 |
-| feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk | a16f72b8485445cc888b2498d5fe4a5bc88032fab3c42c3dc20329abae9ab0a6 |
+| feature/fido2/build/outputs/apk/androidTest/fido2-androidTest.apk | b74248c8751b474cb69405ec08341677b703e4780bc7cc264d1e42f3a04ee86c |
 | feature/fido2/build/reports/ktlint/ktlintAndroidHostTestSourceSetCheck/ktlintAndroidHostTestSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 | feature/fido2/build/reports/ktlint/ktlintAndroidMainSourceSetCheck/ktlintAndroidMainSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
 | feature/fido2/build/reports/ktlint/ktlintCommonMainSourceSetCheck/ktlintCommonMainSourceSetCheck.txt | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
-| feature/fido2/build/reports/tests/testAndroidHostTest/index.html | 4d10115dbe82cc4bc9321070159ce647d83dc1156154e6387ddb199b4b9c9d4a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidCallbackCoordinatorTest.xml | 499c71ca4e9eeeedc312cd5b3b6c5e2b206993a2e556ebf634a66bfad0e759bf |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidConfigProviderPrivacyTest.xml | dc36eec95c161cdd94fb276652fd2dec572d439aa37b84ec8b4045d2fcc7028a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest.xml | 71996e4435ca0f1de4dc9126ab4f6f2eeb8464b8c752cb9ed8a5b6566ee5d85b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.HidReportParserTest.xml | 5cedc161859a7bb632d26b23c008c9b0eca0249730383bde56b454f054fea638 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2AttestationStatementTest.xml | 7cef52c3cf37af0c7c11a5cc80a07e9dbf1abd955d0786918ed3787baae504a4 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest.xml | e29a601d0d842af77b287840e369b5b7e8ff9f5d058a2cbd507d8ceb21929893 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest.xml | 790596d71d162872049ec8683c0ea63da3ab17f383ebf4f619ab0b5d84c5be5a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionHeadlessTest.xml | 64f8ebc67310503dfef6f448af4ec0c3db273193ad629449f1f7f095b9a23f81 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionLockTest.xml | 36b93eb672e1abe4554fe23f78c78bc708e726d350a0d6fe801e7b5c45f68d6f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionMalformedSelectorTest.xml | 41a6a1135030f02fdacd850bf4f1d408d220fda70584acab625138c943188f78 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialHandlerAlgorithmTest.xml | 2b56722a280710b1af4980f3e0a511a3e5c3ffa878d291b900bb5b9af66e469f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialHandlerValidationTest.xml | 29d33f16d2d236032a914066085001a1c2cffa3de4e65144a7100692bfe7fb5d |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialPrfInputTest.xml | e75dbc78f1ae32bd3acb01e08b77807d8cb4ff863e143c0d64a868f45508d54a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2ProtocolTest.xml | 8e1fa0fa36aad105cde1166e9df05228dd9e11ee808d12da3b49b06007b1a57d |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest.xml | 503eb3c90d48d8b88b69a503927d29e1d618e471e4a153d63f388523b8a4fccf |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2WindowsCompatibilityTest.xml | cbf04a0c0c55731466d1925cb2877e5d654db2f9ec0a86e4f8299d7e574ee63a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CborCodecTest.xml | 2df55442d7d850d1620ccda8b0d7f749e866a5ccdfcf445f835e0af2360b2ec2 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CryptoOperationsTest.xml | 79cb9ec27b9efdf10b313c1fbfb774466fa3bc7416f5cce779202dd6e00adfce |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CryptoUtilsTest.xml | 2bf319b069b317718086b6dd685ddbe7a5026ae9b38402397f19f61fdd7ad9b5 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.Fido2CryptoServiceTest.xml | 595c03776d5bd167a54d79a02b25c04b616b9021f40e4f3abd80baef9df4e720 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.HdkKeyPairCopyOwnershipTest.xml | e6f79e6a0e065f57b14090a98442729a91877e67f808420078d7d2676f978e35 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.HmacSecretProcessorZeroingTest.xml | f9c0377298ecc758e23d7f1ad8df320b58a076c28d89153176f5fb952185eb7b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PostQuantumCryptoTest.xml | 7b786d88510ccee784e5f56bfdaae6fb8fc8751e915c62eb5790f1520c506980 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PqcSigningTest.xml | 9e7267d0d29f8baa0c9c2c9a1011c7d0d1ba250e6f0131f5bfa9aac120df01a0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PrfKeyDerivationTest.xml | be690e5b23843d20636d685cff187b493852001b05c6a82af3537bf0162e409b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PrfKeyDerivationZeroingTest.xml | f3b6274ad78d5b4fad617613429cb1e50c3bc504dacb380f389356cd79b1402c |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PublicKeyDecoderTest.xml | 415a21879a3c1a8a1c215adaed573c60050a9536ea10b40edb58323666394348 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest.xml | e5eb0a8181d0fcb02d6b0f241047f7080fadd1ae83d4ec6d497c64b04206c05e |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.PasskeyCredentialDaoTest$GetOperations.xml | de7111f3c7cd824ffb5c04e1265cd200cd9cf171fb128f30389aa913711e191c |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.PasskeyCredentialDaoTest$InsertUpdateOperations.xml | 6d50974df6bb3762f17334bb78aabdad2c7fa5c73e2ac979ef38bceb44e56920 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.RelyingPartyConsentOwnershipTest.xml | 018b62db58be79ffe93b03078dd94a614e92a34c5bf8ce555710a12f4874ed0f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.SearchableMetadataDaoTest.xml | ae18399406e8d4e54c638a390026cabd7a9e8946ebc670d6332eb5b8b867e8b6 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.Fido2DatabaseCredentialMigrationTest.xml | 5ba97b610d8fbf656a31058db7b266dfd7eec0493817ec42e4f1cd32237c90d0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.RelyingPartyTimestampInvariantTest.xml | 4dbad6e84ef8809371f0af49c711f62bd357cb38217d7a25683cb79532852ec5 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.SearchableMetadataMigrationTest.xml | 95a55754feba66f97565ec7f192b3c0f035d8aacc308d255cb7c9fa75d0a4951 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest.xml | 10eb3757a7421af54ead17d2336e6bf1ba079f703b614758f9a929d2f03fa508 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceLifecycleTest.xml | 35485850d756796e48521150a096ce4feb31ba6b6289f2317885291b2eb43e54 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateSnapshotValidationTest.xml | 03d899ba1541675db81ee7f0614e87ae9d69f98edd0b91924229c5659a9ad1e9 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest.xml | 0317cbe3f73a9a07e3d98f457f57f8b988005db002c71bcf5e50382d983b9d50 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest.xml | 7c5b5a31423197960f9b4f18bfa1dc7d38783af98e43fbcd7ca50f4dcfeb7110 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.mapper.AuditTimestampMappingTest.xml | 8cb41dfb555b8caf94ca3439993503a0daa3cf1648b86c8d85bc655e7c5f357f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.mapper.EntityMappersTest.xml | e30a3d8627bcf884f354c1d445353d10af79611e759aeafa4b487da9305567bf |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryConsentFlowOwnershipTest.xml | adc63c6e9351e6aa0cd1295ed07755ac88da650665da7f656ff0aac6c4f13186 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryDestructiveBatchTest.xml | 87de3b86536342e59d1a8177042a27b221df343ca1e6fbd2299b047548becdd1 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryImplTest.xml | fea252aa7e777daa7cba046c836a33c88b9eb2fb85fa21925e8b78af9243fdfe |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryImplTest$CredentialManagementTests.xml | ab4fb1f810152e689f0e8783f059712b10ac34a5174c72ad5b158506afa65a2e |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositorySearchableMetadataTest.xml | 562e2b08f3247febdf6421a26cbc6235913700f4b6501a5b9aa611728be0d9d4 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.RelyingPartyRepositoryFlowOwnershipTest.xml | 471039b00ab3a680a799dea90f1920707d908f0a49a881424ab803d308b7c805 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.SearchableMetadataTestFixtureOwnerCleanupTest.xml | 99002cba673c459b73e7eefcad4b00fbe8dd36e0b9007999d72c12ec09002db0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.TransportPreferenceRepositoryTest.xml | a6f93c4d3d28544a835ce3261a0268419ca1a6a528f8d69ef4a90df2fe5f0eb6 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.service.CredentialMetadataProtectionServiceOwnershipTest.xml | 5fa4faedb8b990ed0ddca0e293bda46c253612ff760696f158403832d33be04f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.AndroidFidoBleGattServerHostPrivacyTest.xml | c38948dc3802c6b13d0e5b6be385e46acd5fe5ae34e174fb0987c05fd565562b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BleNotificationWriterTest.xml | c87bfb3e053172c288a65fca494456b394d902432fb805582278bcda514ff2e0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BleSessionOwnerTest.xml | 007615451929b5d212a11e50b918f419fd0db4c035d185dd6acc41ee2e988629 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest.xml | d8ccd51e1c6438307ec671d44f7ff1f475f2d5a9b6189136731d453d19f9dbff |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleAssertionTest.xml | f4622cd0071a571fd351acec93a14ef4b29c619888b98795bc63d9e5139d2ae8 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleCancellationTest.xml | 12931c6a71c1fe7a4e4a180538d5d45b51e7999a79ab3b2ddf36da392ab7e362 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleFramingTest.xml | adb251b6fb901af65e6aab2c51160fa1f80ac86ee0128b9f4f5df724c0faeb6c |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleGattContractTest.xml | ecc83ff2103209710c7dcb549fb8975bdee05f54ad2788d9044409609613a5a0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleLifecycleTest.xml | 989d8ae86707131050e6dfec293dade945e8eb32ab30d5bb83d20edf5abc6116 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleRecoveryTest.xml | c2974dd68f8029e5040b1603d7517323b94a730adb8006eaeca37564a2a038b8 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.HidReportSenderTest.xml | 823f8e599a5928b9c654a224e4a767dba248f168c797e1238defd0082582cec9 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.NordicBleAdvertiserControllerTest.xml | 5e3400fad5af24c28e596310ac43c36e342299f9f2bdbb051e4dae8755d67016 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.ProcessTransportSelectionRecoveryTest.xml | c49c5be5c14b28b1c1ef8fd759a86dd32a34832c401197d51434b264e9866eb7 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.RawCtapOperationTest.xml | 43a8650be5cd02ce37640d3a69f18e3e51aa52287c2e33bd3f21b3b803739e7b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.TransportSelectionCeremonyTest.xml | e976e83d1b9406055ab393dcc8cb7101404244d1463c09060d00a47968b4b44c |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.exception.Fido2ExceptionPrivacyTest.xml | 9333ffe07e29bd40a2aaf7dbf06b38452c6505e7d35560c88283ca3c6bc4afb4 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.AttestationObjectTest.xml | 8da06a8fc3e265e792db70c05d6eeb8081af00864295e0f666c50de247920933 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.AttestationStatementTest.xml | d10ac776f678ee1332889fe10e2eb303c04b9085ba37592ac8e83539376ee6fd |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.Fido2DomainModelsTest.xml | 7ffe83c51765275898a05308139c6475160a84f6f5b1636a6ade9c76e8babbc8 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.GetAssertionOptionsTest.xml | 9164c586a92c294dc2fdf9677c109c589cf6c38cd586b0855ec7222b4c0960fc |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.MakeCredentialOptionsTest.xml | f58e03493322753310ca1403a839cad653c6593aaec44b71144dd665c35b17f6 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.PasskeyCredentialTest.xml | db131017e42e9f22e6c693401c715a2ac341374bb3c8d42e272cde247e3c2f55 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RelyingPartyTest$BusinessLogicTests.xml | 259570abdefb71cfaaec94a34d3b3aee426b0ab5b6cf4bfae4326b5e92ff11b0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests.xml | 02fbee91b5a53c18de3483a0c2aa6d4533abc36d3dedc8cada5f6d2e2dd2abd6 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RequestEntityOwnershipFailureTest.xml | 15061a185cb9229fb5184e354553680f089dcad81dfedc705bd11cf5859d2d78 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.SensitiveCredentialTextTest.xml | 97b17d3e226848a77e1d8b525599d9d1068f666325c8221c3a62889ff2857c4a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest.xml | 4c0d0e52b9c1b699e64aaa40357e3c595659e3dd8da0b0b7d0583dcca46b722b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests.xml | 58b0ec08e305bd1f8dab212a19c554eb7aeafb8d3db4adca8acb49b232e18d08 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests.xml | 64b2cd6542ccbda5078ab7fd59be9de097a0d60611d13bad9c912121946c2773 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$EdgeCases.xml | 055fa6fdb9d4e5d8af489ba50c03cc23cae8ec4bb9de367461b6460c97803498 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests.xml | acc90134a3a3360274bb7ea29a18218e1950ddb74d91c05ac27f08b0aeebc7c1 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests.xml | dbeb8433b50579306e2d42d1cb619073e8694715e6b93964331a35d34264ec2f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.service.impl.UserVerificationServiceCacheTest.xml | 4d421f3acbf2b5ad00ae8efad3d24f49f017e2d6d1b6c3ba147df18484bf16b1 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.service.UserVerificationUnusedResultApiTest.xml | 00cbf01ef1a53585e436828893c4bfe6702df870d4d0f9d45c1172aeefa1952d |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCaseTest.xml | d1548da8b40cb2c48428f62cef9bc2f7444117335ba1abcc9d8f2318627f26c2 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.DeleteCredentialUseCaseTest.xml | adb674ceaeec7ff29d1e99c274f119386f68fec53182ee9dbaa32a3a7b0281e3 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAllCredentialsUseCaseTest.xml | bc37f737873ccdc76941de3e16e7eeaf10c4799c7aa7caf33d338cdca942a06a |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionCandidateOwnershipTest.xml | 054237c86207a63f8cf02193c76e072a5b7f142022aea69e2bb7a70dd9115f75 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionCredentialMatchingTest.xml | 3e8632d6f1218c8fe0f0430f52a7fb27dc47384530c6bb1b655af24802fb0060 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest.xml | b1d4aad7da752811d6a41dcf61c8b389539720eef7893925786af497e57d90d2 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests.xml | b71b9e5195e29da86ac3a1240736bda5bbb09a31cd87290422c09c10ab8fb43d |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests.xml | f8776987934cd85c0af8b12b660bd50f2a18cfef71a64d7b19ba5c3e3eaa5ea9 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$RecentConsentCheckTests.xml | 0953239f2695828044e7cbfb884b3bf7eb72d7afaa07f5022adc0270d1bfea97 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$UserVerificationFailureTests.xml | 464b909c336c78019291c8e44f7cf61202fc1afee9cccf75d7529bdbb4e8efeb |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ValidationFailureTests.xml | 1576ff9cbfc9328fdf92cebb737a19647d108d81344faa2e62d6e7f53149c6e6 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.RegisterCredentialUseCaseTest.xml | c032061779eae81950db7f92555e558000862af33e7297151e1ec629abb5b0dc |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.RegisterCredentialUseCaseTest$SuccessfulRegistrationTests.xml | 079b1cb2d615484ce444095b2ffca596ed888449495305d54f8f6d381a5737a4 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.SelectCredentialUseCaseTest.xml | eceedd26e417be1b666333e06172e536736b2d8042df238b9a17d443a5d28f3b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.util.CredentialIdComparisonTest.xml | 3c7b30cafb22d33d290bfcc555c8671f5017fcdc81ef386157e10e2ab5edcba1 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.AuthenticationIntegrationTest.xml | 1b7d8f47fef537d9a96e2e9e1f13dc67013eb97d0c543d2661f4d81dfa82e187 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.Fido2StressTest.xml | bcc2438099263b60306ccc72aa15593e37180fd0c8d7cf554b3c37095f2fd288 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.ManagementIntegrationTest.xml | 5a074bccfb4aa56739ef14a9591bd560d6c3ce9e03d03f9ea2775d3c1728fa3f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.MultiAlgorithmIntegrationTest.xml | 4afffd51520df3bb0813846ffdaa7b4f265699211cd92eda683e824ef1a7390d |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RegistrationAuthenticationDataIntegrationTest.xml | 8e409fa252b2472f93e83c0587cfdc9a253dc611c06c5fbed9d3934dd4443fbd |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RegistrationOwnerIntegrationTest.xml | 5c1d8b5ffa9a6b3b84e803af1516a6e017ac2f8e570f0749e48274d6e8055cda |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest.xml | 513c98958fc4ef092a1e601f8c4ece073304992dbd920c44c15e615bbfd41961 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.SearchableMetadataPerformanceTest.xml | 7f95e427f49b983d241e5916eadb4d4d6d73f904697902bb0900d5083ca1ea2b |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedCeremonyTest.xml | 5105e336c225ab7a39c585199e98e0ff4fb8edd59212f534ac55b44111c3f962 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedRegistrationIntegrationTest.xml | 83424dd2020e610ac6ed71e40a784389f7d0b2b1f68566d5188c4c13170011ed |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedRelyingPartyTest.xml | 61e5ed718d221facda9e10817d8f746629707ff8772eae987a4f34e290862b56 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedWorkloadIntegrationTest.xml | 478c979735e7ba8268ee56e03599dd1f162f879751293b5b5216c04479222f69 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.management.CredentialManagementViewModelTest.xml | 8f7aac20c8e1f9b2ad8d045f2030a52d32bf1e297d62059e62703b76fc49fbd8 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest.xml | 60079a279844b1643444cbcb75fad6a261f7b5ccf555af8a7caf94e428718b64 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest.xml | fcb50bf679cb28d1f2b8b2424e7cc628ede2cb9d762001be4a887a7e7d37ae99 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests.xml | 95d9d6c83a6f9f545f06e340ff4348d840095b94a76c60bc8128d01cd6f8247c |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModelTest.xml | fde124266bd632173d5c4b58ebe14805374b4f4a001d3f2118faff33c55a0b6f |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModelOwnershipTest.xml | 01127033bca63d748386ce9b1ea9b2d01da68b9599e3901298a2c6b79133cb25 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest.xml | 29dc48affc86fb39c18e07acd44914d17467c80629313a96ed690ad953c64af0 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.service.Fido2TransportServiceNotificationPrivacyTest.xml | a3cc7481782002e1047a804d5ab7ebb7e97ef20d369258e90f5ec3e6f6a5b099 |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.testing.SensitiveCborCodecMockTest.xml | c9eb3daa1d6779b3bc4da937280dba334e6aa872dc119ce971e2e62407182abe |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.logging.PrivacyLogScrubberTest.xml | 6301c0927b1370916c219a68c3548d8563e97accf40a2bb6aaa7cbefc6aaaace |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.BaselineMeasurementsPrivacyTest.xml | 559c0624739fcc21bf6bd6ca140b5d52681d71ca1176ef386021ac313851822e |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest.xml | 3c5b24cf198b55b2d7d6118dbbc74793dd6d16a0c901a8170f283e8478c72dee |
-| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.LatencyProfilerUserWindowTest.xml | 1de7c74ec5473ff3780d4429fe1811a9ab49db09179756c9be49de724297ca1f |
+| feature/fido2/build/reports/tests/testAndroidHostTest/index.html | 70d4865feb83647c2da1f161a3b7d441f5008853a2fa33a5e127a648e298025e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidCallbackCoordinatorTest.xml | 68d68018e5fe3b4ea2a3e493ee0b43f82458d95e5812cbd387b4c067739beb25 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidConfigProviderPrivacyTest.xml | 5700f0ad99c358d67a4745c26ba86652390799f42c8167b50621d3a6ba606eff |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.BluetoothHidDeviceWrapperIncomingReportTest.xml | c9d34e2963c01365b0161a2c058a33ff7a0512fabaa4fecda57a1469d0bad4d8 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.bluetooth.HidReportParserTest.xml | 42979242a2327c8a209426918d90829d25ba7334c6a4cc0d54dcdbcb1e8a9a83 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2AttestationStatementTest.xml | ef60eca2f78f2ee03b8283f62e0caf4770bcb074147a901196119462fd35af6d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2Fido21FlagsTest.xml | 67554f25bc19c3c718b7437b6732e905621a1831755efb64da4f789c762b5a69 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionHandlerTest.xml | 290f7b291aec8bddf489609acd2c8a3261ca538823f80f5d0bfc1ea6cffd2da4 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionHeadlessTest.xml | 50e8e428c2800ab3d07f48b524e1d036fd309cb5a85d27977ae2f05b651ee461 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionLockTest.xml | 2f635ef8d242280d438913662b983a129ce3b96e488293a87d74aa89ac9ca3f2 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2GetAssertionMalformedSelectorTest.xml | 2cf912671caf6c51757b97a9771a69fc7ef0c842cc64bbd0af63c4ea96392c5c |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialHandlerAlgorithmTest.xml | f6d269dfee89e037091b9c2c75efa825fd3650aae12e102ae37bd87e776e15d4 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialHandlerValidationTest.xml | 051c504f5f6cf3c6bcafa5f3f83ae972dd065f6c54c858f0606d63b5b826d10c |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2MakeCredentialPrfInputTest.xml | 036d3a1df16c55e6e1d829e5c39f5b35cde4ec90e39ec166e767183d457e4310 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2ProtocolTest.xml | 22b72e35f4c8304c88cd7688249dd61f2ffe1b58c24cb4f122eb4b53bdf0eff8 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2TimeoutPropagationTest.xml | 1d168629d7b159cd6a1c9a3632b61fab3daf7d33ab5482d9caaa7fd89967caf1 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.ctap2.Ctap2WindowsCompatibilityTest.xml | 27073147a70a7e388fad9c233a8426fb4afd9704f204790d4cf6b6263f4de8e6 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CborCodecTest.xml | c89a353aba43ccd707effc2bde931b8e8fd534c2ca6da35358c8353e8b089ca9 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CryptoOperationsTest.xml | b0dc7929ff5475e3e35b8242fe994b4578589048ce95d77779ba3346968328ed |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.CryptoUtilsTest.xml | 9e01eed0ab669f25c6201d8ccc3685e24f9a829b6ba849aaa0ff6a23a0934e69 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.Fido2CryptoServiceTest.xml | dfc5b3caa88ce44d38e85a3fbdb7ecb846722715ddea33aec934281b281a1b94 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.HdkKeyPairCopyOwnershipTest.xml | 861fa6f571df08914bb31cf982efb3b639e538dba7d2ba4e0f462fba93258f0a |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.HmacSecretProcessorZeroingTest.xml | c7f30b0c5ee1a4571a29226d3c7e402293953a3ae436b1bf54c684c658bd4581 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PostQuantumCryptoTest.xml | f6c1d24394a0bbe562f542c3c476fda12d0aebdfcfb182b44682c4a758da1641 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PqcSigningTest.xml | 159faa71c985593ab5a223fee3729b7de9e45a390e6afa62da72ec25cccb0fe2 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PrfKeyDerivationTest.xml | ed3aba36e9c630092c24733f78a9d7c97b192a5c6e7c5fe94fc14c16508eeb9f |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PrfKeyDerivationZeroingTest.xml | 45fc5f1c36723884ce0f52b673a480c02508e669445f188bc20f985a662cddfb |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.PublicKeyDecoderTest.xml | 0f01fe863c62096b6d5749667ffa82acd6251df5212e9846e9d4e63cb2074b71 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.crypto.WalletMasterSeedProviderTest.xml | a27f9e876d373e6c4e1686c143c583cb9bebd66150f8660910d54f4228fef528 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.PasskeyCredentialDaoTest$GetOperations.xml | 7d5d3bd7a82db35f4401c36782e59601cf0f5b72bc9d6071a7c873ada1195b86 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.PasskeyCredentialDaoTest$InsertUpdateOperations.xml | 14017549460c0d26016730f3db15d10410b4599c55189ece90ba46df80df6803 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.RelyingPartyConsentOwnershipTest.xml | 78e619e4f1cbaf6124d4020aa0e730a683779bf20f352415eb556dc19908ed90 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.dao.SearchableMetadataDaoTest.xml | cfa28571e50aa59edbca0199cb48c63caf8243b9631d0fd413b1ac9310b26a70 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.Fido2DatabaseCredentialMigrationTest.xml | 5555ccbf8926d7a662c21725cb6109920571b57021688ce8025b687635aea555 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.RelyingPartyTimestampInvariantTest.xml | 070a6e6e58d0d720c5e1e7653f2da392651fc258458013f087b6b9e9a110236e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.database.SearchableMetadataMigrationTest.xml | 657e9dbabacf7bda8f6c820dc56919cc60f991c0e5b013c685c1e20c85324ecc |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceImplTest.xml | 585b23626d8af0f4fe1869105a141bc2cab9c9875fb1674019a484644a51b583 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateServiceLifecycleTest.xml | 20f01d69264ea737b3bf77b67e9f9791fa82fe716a06ae427dfde3ceb1d66f5b |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyAggregateSnapshotValidationTest.xml | c3c057b7b592ce0870590cc36adaa3e87cdaccc78e91cc8a20236ae9a531cb34 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyEventReplayOwnershipTest.xml | 4d0b97e7f738b48989fca725b7802c63c265c2150569a62cdb3a175da05dabc7 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.eventsourcing.PasskeyEventStorageOwnershipTest.xml | 330c20abfa38b16629034fa2c64441e8e08196fb5ac0417f9ba0a2898c2c6522 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.mapper.AuditTimestampMappingTest.xml | ddebab6a3aaeeb68fcc8ebebf1d4dcde055a809fda179663b40545184cf4cae6 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.mapper.EntityMappersTest.xml | fefd8eb5deafbe2accedfcb46de86706dbc28f1db8c5a11df47df5a18659d5b3 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryConsentFlowOwnershipTest.xml | 3bdd0376d0162b36a1b2c288d0bf64d0afad16879cb2170fcf7ccbd53a5f5d13 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryDestructiveBatchTest.xml | 5b2fccb1e98644043dd6be83cb733100425613960a5e612b0a6b8471cfdc6f3e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryImplTest.xml | db1373d5854a89cd573512a9b53eb6eb51985c17d41712db046f6e904d62755c |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositoryImplTest$CredentialManagementTests.xml | 36d4cdacdc1cb117e67c46e9fe55ec3ba5e150f301dca615de601cd3bf5d43c1 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.CredentialRepositorySearchableMetadataTest.xml | 72abbe93881c1b50e833177d93e41287839315d02b46b6e34dfb894acfe702c2 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.RelyingPartyRepositoryFlowOwnershipTest.xml | db5c83c6230500691cbf6c52cb77a018a35a5ec4feeb346e4c14a4dc160d8796 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.SearchableMetadataTestFixtureOwnerCleanupTest.xml | 4b72c3d10e494c23c2d5269fcfe27f39cbc7213a9a1d3870f7585b3e04126259 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.repository.TransportPreferenceRepositoryTest.xml | f44a6f632fe8827f105a3fbe729545ee8ed255604d8ece3a1872869e53452c62 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.service.CredentialMetadataProtectionServiceOwnershipTest.xml | a4cd762c491b3953cc8f0b031b19290e20d038a9b8e6afb3b713be7e832bd869 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.AndroidFidoBleGattServerHostPrivacyTest.xml | de9548d142afabc490eaa765a7d7886d3395fd51086b59c87506b53c770f2288 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BleNotificationWriterTest.xml | 9b98c20e7add6399f3cb55540f3b1d014722977296429067de4b9c9cb26f892f |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BleSessionOwnerTest.xml | 04ab0e7591e2128496b254a12904b1ebdd85370b1f05b7ee316aff25c9eacc18 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.BluetoothHidTransportLifecycleTest.xml | 685956a1229869a37138b4189f40bbdd751e4a8b25fee28e3c08a0f42c81ab79 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleAssertionTest.xml | fdaf7a6db4fab068725ef3b1f1e068c0ab787bac0454262ef49fac37167b1482 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleCancellationTest.xml | 7617138587f9fab949301152cf82e60d63524e389d1bddc5d4ce71b76af73acc |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleFramingTest.xml | 56f199a9532d1ac4a53cdbc75ffd3db5f9a915113c106a1aa2f509b24f63d578 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleGattContractTest.xml | 70c3f1548a81d06262371d0e077a727eb10d7fe7f695e81de91966f38d4e848b |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleLifecycleTest.xml | d78ee59fa845686c664b01a9235ee135469c6c60a1043952595e8c38959d8295 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.FidoBleRecoveryTest.xml | d8ba0b908990f3537007185e35b9c7885b20d1627946ddbc523ceed4c552ae56 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.HidReportSenderTest.xml | bc4e1bde77f112e8704036ba34194343489eeb7ab84ed2028809e38e03b0a227 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.NordicBleAdvertiserControllerTest.xml | f3f71041c98b7b48779082365fdfada266977fb5253a32fb6369f9b2c9afd604 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.ProcessTransportSelectionRecoveryTest.xml | a5f2542df8c7921edd6c48746d214ffc6555313f5127ff1db427d32c7a88a1d6 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.RawCtapOperationTest.xml | 3435d06821edc280dc86cef52004f9a03cdd463828ae4cb12be0d46139b56846 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.data.transport.TransportSelectionCeremonyTest.xml | fa1ca17591524dac0a49b590c4d9d9beaf53c63f5f3ddb02373616104e4524ac |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.exception.Fido2ExceptionPrivacyTest.xml | 81f2d5cc91e1f611ce108fe6eeed95747d6c4d02ec6ebaa054b2523faf0cf019 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.AttestationObjectTest.xml | 11ab546bec1248c7564965828f35e8eac4e976bbf5bcf68638aa5cee07e02168 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.AttestationStatementTest.xml | b1cef457055d33d6a37e863007bf23bb7e500249ff1a970116cc9802918c9b4f |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.Fido2DomainModelsTest.xml | 9bb9aeea7982cde6a0e5d4dacd23425ce66f8054c8893083600f53b98e3bcfce |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.GetAssertionOptionsTest.xml | f7f2ae019c3cf42edcd6b17551aa178608f0e9fd617cf358a729fb42bf4b8f3e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.MakeCredentialOptionsTest.xml | 348dc5328b5cad9177203d9c9cc067d4bbe6ebeba6f79d46ab5d42f29ef61957 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.PasskeyCredentialTest.xml | e659d901322d934ec5012621c898cd4070c93d34a6ae926bfb438f6887876de9 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RelyingPartyTest$BusinessLogicTests.xml | 26a54067437b2acb7f4afa998cd26a1443d7f407f3230fea42c5163f1d3654e9 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RelyingPartyTest$ValidationTests.xml | 12ba75f8f9559163383e36edbea2e2003107acb2d4877cf1cfc3d0292b1641b0 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.RequestEntityOwnershipFailureTest.xml | 95a0f3a45b9ae9ef367d53983707d5a2feb0b8e69f270b473f59f92466060e1d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.SensitiveCredentialTextTest.xml | dcd82a9cd5597525fffc09f4a20e64781207f3118b9a8649d1581a2a7a02be91 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest.xml | 900cdd9353d24f13bbafa5316f936df9f46057ad9f61e11716a6f5c1ac9ff228 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$BusinessLogicTests.xml | 050baeb26c14a0b691b3a816df99fb58db9612fe8edfb233a5f8da982b256e6d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$CompanionObjectTests.xml | d840cc05125a630b4519145098f8ebb6771cb4121221300de9769d0f57e584cc |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$EdgeCases.xml | 53a81f101860906fad2358fe924115c5b6b8f056618d0407233c70dbb533df5d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$IpAddressValidationTests.xml | 8b45ac411c71383bf2f8fada36df6982e1d2165964fad0e62f325f32002d667f |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.model.UserConsentRecordTest$ValidationTests.xml | 63d6c97883323f80ea292323a48ec1c659e730610b5fabd309b417364813ab76 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.service.impl.UserVerificationServiceCacheTest.xml | ec7655c3b84b4427a520afbd5f85df622044b012beeb5a2d35b912c21c5fb996 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.service.UserVerificationUnusedResultApiTest.xml | 75fa8c44b6653808740c66ad49768ecfe33f09dd298886c5bd729244aae9b51c |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.DeleteAllCredentialsUseCaseTest.xml | 0b46028a40843350924706c46421e7762e63bc99980010d863d5f923329d50f3 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.DeleteCredentialUseCaseTest.xml | f86c7b801979111b5ff919d6d8eeac736ef712ba5895bd0bb2d079e8e5ad015b |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAllCredentialsUseCaseTest.xml | aab3bc5b8a890f9565d882b624af6ac4a50d57947b0a874df02e806f42e6caff |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionCandidateOwnershipTest.xml | 197982aef1e7e6667a9a5d1e432d8e3aa092385f99d69dfe8dd48784047bcaf5 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionCredentialMatchingTest.xml | da61ffd730c85104d8b725200c3a5c02315749d2248096df461b3f62fbad8b64 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetAssertionUseCaseTest.xml | 2166fc2438cada21aa046da2499b0ab7ceeb820f0d6b8f6f72020d7a64843e73 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentRetrievalTests.xml | c453db6e7de7f58b487b69b329423dc5808c557c13569e987596fbff595accdf |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ConsentStatisticsTests.xml | c5d99e332394d7cc391a045499264297218d77a2426931d941ebc22aa76f015e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$RecentConsentCheckTests.xml | 2fa7e3ca774c6bd8dc0ce265e67626cce1c8d496a9b63dfe927ef2a5c8e83a5d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$UserVerificationFailureTests.xml | 4ea1926927e11f15e5c50ee54a4ead0e80a084d118a2d10a20593a6839dffde2 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.GetUserConsentUseCaseTest$ValidationFailureTests.xml | 9321314e83fb7559ac3af6d09b04171de0e2035627e92b4f9645bfadccb8cf0f |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.RegisterCredentialUseCaseTest.xml | 3bb54a47259692ce14953428b258afe5a61183e75cff01a3aaa36338da9deed1 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.RegisterCredentialUseCaseTest$SuccessfulRegistrationTests.xml | 9692113b2458b575fab534f9aedbd47a1ec57f10d584077437223e2eaea3194e |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.usecase.SelectCredentialUseCaseTest.xml | 3f13ad5ab97d2852598812b2ea44c7c005165e214a5e46cdebf0d912cd115415 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.domain.util.CredentialIdComparisonTest.xml | 77d43c6b79ca0a6accec7cf3aa21b1152c32521730501709f1d437d43a34e5bc |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.AuthenticationIntegrationTest.xml | de08c3f283d08c2a607c1ec9010e528611a6dbf8940aaf8a2a624b95a5b43bec |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.Fido2StressTest.xml | 18c5c379418e15ce3da525d429eb1a8dbef2cd8214f00ce9fc42433e107f21cd |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.ManagementIntegrationTest.xml | f9329ab61210118c6bf62a03f0dd5bf3c811edcca78ea4398ad23014bd6d9acb |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.MultiAlgorithmIntegrationTest.xml | 9bdfd80bff65a2901d5f1995592408e1021c3e383126d58c9e5c6199345058d7 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RegistrationAuthenticationDataIntegrationTest.xml | 108192ff3e2f59060fbc29dceb9f1ec3614cdcdfb7311eb07023daac4b1f3cc6 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RegistrationOwnerIntegrationTest.xml | 6554c7531af61bf8689550924cd5b582aa2a5077d28fafd87d5c7eddafdac79d |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.RequiredRegistrationVerificationIntegrationTest.xml | b207e11b2bd9091f495e80306347518c5f2eb2340ea4aa321198e06c6785bbeb |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.integration.SearchableMetadataPerformanceTest.xml | 1b2d31d539300582bc2db958ddfeb26a190d7558480bb85b52573ff1644e948c |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedCeremonyTest.xml | 62e049aa77b6e7e20af801132a1c9768ebe2274f8ff6beaa322565575a490879 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedRegistrationIntegrationTest.xml | 80f82a0220328caef8efcdee9ce25980396e43e93b28e225ae0a22f01abc0554 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedRelyingPartyTest.xml | bd34a3a25b05527b038f9d3ede61f7fe947463c4fad55e5158fa6acf3a693711 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.performance.SimulatedWorkloadIntegrationTest.xml | c40a3bb87d1a4e88a28323c393859cbdb80b86ee067695b674907c557ee38204 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.management.CredentialManagementViewModelTest.xml | 9f79e833eced9602f78d8f816db3bcf65aac2c5218f006457516875a05c93bf0 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.navigation.Fido2UiEventBusTest.xml | dd0e19daa5f7ebe1ccff3c20c5b6861a2213ae8bfaf608193174aa091d0d05d1 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest.xml | f7159f715e223f386e3a88be44fc0eb94753811de9eeccac19e41847c18f46a5 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.DevToolsViewModelTest$BiometricLockoutTests.xml | c5e25af32f451c594605d11046cf9bacdb743cdb4d93c76b25aaf3d162589c53 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModelTest.xml | 87a2c8b8a13835ce45b99617d4d03038aaa872cdbd82d62608074bc14cba5e96 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.PairedDevicesViewModelOwnershipTest.xml | 1c3771f931dd142ef01645f50a7fa3aa1161f10b96c5bf68626f9bd647fbc8e9 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.presentation.viewmodel.TransportSettingsViewModelTest.xml | ad1ad59f0bc09e26d21f8bf47fc73ae5681b769d562306ef078720075f3314ef |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.service.Fido2TransportServiceNotificationPrivacyTest.xml | 51af079c8ba809e9cb7e6801d48863b87c0f4cee88a10643fa38388863280258 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.testing.SensitiveCborCodecMockTest.xml | 610b48627f3586b67c6bc613944da55ea0576281c5b8b8a819e458445e327288 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.logging.PrivacyLogScrubberTest.xml | 6179d81c92bdcd69297419e970f0b17f4608f6b49b54d895d52cfc16d44ab843 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.BaselineMeasurementsPrivacyTest.xml | 308360836ddbab1cd0834ddfe764ebfa2308d57628d2fd7e7a87edc8a5c06f96 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.CoroutineTraceLifecycleTest.xml | 3d7e8069d60682577267f931c5ebe6620dc286bdb8d06e53f2e9400fc4f6f7e1 |
+| feature/fido2/build/test-results/testAndroidHostTest/TEST-com.chimali.fido2.util.performance.LatencyProfilerUserWindowTest.xml | 7a7735159f7d035fd2198ff0603ca45ae6724ea6b7f78b9af3970bb81e7561c3 |
 | feature/fido2/src/androidDeviceTest/AndroidManifest.xml | 45f41bd928139472af5a3a8e8ed5c289cca49a829ba08f259a0c4256b6850b1d |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/crypto/CredentialPersistenceCeremonyTest.kt | bbfd746096a37fdff7b9f1fea39828cd2140b2042e1ab600f41578952336beba |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/crypto/CredentialProcessRestartTest.kt | 11281a17f514ce1bf5fef398e39adcc374b54c48f09f0b251b658e30c4944a18 |
@@ -440,8 +444,8 @@
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleReconnectStressDeviceTest.kt | 37fde767542fd4cd082881c3c64d855fd9fc2a797bda129cd5a4b5b4eed1b605 |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/FidoBleSecurityDeviceTest.kt | b1f57a1827deb7d5c9232da61310f84bafa8da854daca8bed26f7a44ab4f1652 |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/data/transport/NordicBleLegacyAdvertisingDeviceTest.kt | d8a359ec9fc286b5d79393f68ff507fe3476a96d6adaf873910d6b86d06d7348 |
-| feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/AuthenticatorDashboardComponentsTest.kt | 1ff08c8eed2855f75911edbb501311bc659184637aec68acc2a511282525c707 |
-| feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreenTest.kt | b96f8d769991617c560f3c713b5f68ae8a63eeb5d32bc39cfd8fed346b71265d |
+| feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/AuthenticatorDashboardComponentsTest.kt | 0464fc99652092c6241d9958af47d8deb6b7c7058460efb8070b3400c22716e1 |
+| feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreenTest.kt | e32a5b262c42bea7ec865db0b24367448227d01c838ce2b839273555a99ae919 |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/EditPairedDeviceScreenLifecycleTest.kt | dfadb0f56fd5f0f5b4e80c59f92326ec6a036fc467492c17bc70d872df5c203d |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/LifecycleClearedStateTest.kt | d00e8540be3f54e4ce3320cfe87f18d6a1b54a826473d493d5c11cf58e32633e |
 | feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/PairedDevicesSectionLifecycleTest.kt | 5f8d480577bddd17a40d3910d36288b0de3d33d0f96e5abae31f833fdacf5bca |
@@ -482,7 +486,7 @@
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImplTest.kt | 6827eef875437646957d039c48d49cabdbfed9e75014b60bf5af29bfcc10e5c3 |
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceLifecycleTest.kt | d57c86c38e249b2406205e0858bb9058e99795a377131e1c02569fd5f4582676 |
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateSnapshotValidationTest.kt | df8901e9ba210870ed039b3365cde1f9ae68eb17c81c80edb2b0db08b9693eb1 |
-| feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStorageOwnershipTest.kt | 40dcd9cdca88533df9a72901b65090cb060985f3b16c49d5f3be206e51ad5766 |
+| feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStorageOwnershipTest.kt | f391ad84acbb7ca4022ca1bcf0fd537688f89e9f5a32b399dca9a64022f26e48 |
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/mapper/AuditTimestampMappingTest.kt | 2471cbb3c27c709a4cade31e0a38af2d5bd9ee9f7b9c757196f03d4d9e923e88 |
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/mapper/EntityMappersTest.kt | b575bb62c072a65ebea65ef346f8eac2bb644798f2393fa64e7753374dff1f92 |
 | feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryDestructiveBatchTest.kt | 4b39256fa24eac30bde73b95d6246410a6ecddd20d34b62393a50be6f94d0a11 |
@@ -549,8 +553,8 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidConfig.kt | e9e03821c77bf07d5862330844d32c0d458440842f9ada99b05bac275f472d70 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/BluetoothHidDeviceWrapper.kt | 8248c1176315db02b90faa44359831b63355bf6440f8a084911afdd3158fcc3f |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/bluetooth/HidReportParser.kt | 50e88e3f80dc00fd5c960fa522ad0814de220d07f50d0c22c13439240598eec0 |
-| feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2getassertionhandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
-| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2MakeCredentialHandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
+| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2GetAssertionHandler.kt | 380d96c0f38bf60375b5c34bb0a88d6d9627b479b32016610540a66786c5ebd9 |
+| feature/fido2/src/androidmain/kotlin/com/chimali/fido2/ctap2/ctap2makecredentialhandler.kt | c0df52db3df34eebdc53395e123848b1422e4d0380809ed7cd3ae258350172d0 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/ctap2/Ctap2ResetAuthenticatorHandler.kt | e28f5881b3b4feaff7eba24a7f2aff60e6823f16c391f1b3bb6691961c2b0b30 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborCodec.kt | 8d898485bec70351bbcc10c0de15a65f9e4193d4b7d8cfa90a74439679326e5a |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/crypto/CborEncodingEngine.kt | bcf3e8595389ebbff5ef3894557292ed8ef2df1c50e298b113ded24757e16e33 |
@@ -563,7 +567,7 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/RelyingPartyDao.kt | ccea72f52f4ca05fc3e18ee38c8d4afbbc8de0d9bb7d51e80471eebfa0529152 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/dao/UserConsentRecordDao.kt | 6f32fa8ae89f5aa2c6e75cf018975bb5ebb9cc924ede848d12d94597464dd20b |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/ErasableJsonBuffer.kt | 0995677ca26eec517fa0a63d36f5d3e27cf7dd88eec98ea1d47fdd756621c354 |
-| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt | 13fe6713ee630a2dc178883414e7ed70b571b045f55e8892b48da92afb12c68f |
+| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt | f091b88c19fa168f5af4a389e0257c5d37c97be481a88a3003c1dd95e5a2ec10 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/SensitiveJsonFields.kt | 79761acc1483f46d60733f42b0d03bfac9c77529176b91583f21eda3fe318446 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/mapper/EntityMappers.kt | 98452edac95774545a001a768ef9b29da5e7b541483bc24682472f4133b6673c |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/repository/CredentialRepositoryImpl.kt | 789b70cb0e5a6573bdf6cf5fdb14d2af9a76b0b7836502f6b3a4a102fe4a627c |
@@ -598,7 +602,7 @@
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialListScreen.kt | 2d495c79c04ca5dead70afcbced0178b8c93cc2d8fc03d187419c1514695475b |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/management/CredentialManagementViewModel.kt | 819a8b68650ba10773ddc452fc654b9f693b7208091dd013f36561105a61aa4d |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/components/StandardButtons.kt | 7495bc92e0d282a5a379070fa97cc4477504202d8b64e81c07c75a0c597eb4d9 |
-| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt | c416409086e9352d5597c81bd8eb763982b5c579b0137fd9d74471c880e7378d |
+| feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt | f183db7b0144bbb6d70d775afaf824f597add6fc3098d9fe336dd4869a67cf74 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/EditPairedDeviceScreen.kt | d5abe09a1b3d22024a539ca6f42d376b275bbcfb881a2f0a63b670c40bc2db6b |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/Fido2HomeScreen.kt | a04885c00e2158b839fedd7d0c477088bbae08040d5cea4fe6593ca95089f915 |
 | feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/LifecycleClearedState.kt | 8b57a71a9d30361f1113f83ae517f321a9bfb5bd85327ac21e668e9cdf68cafb |
@@ -629,7 +633,7 @@
 | feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/ui/AuthenticationPromptScreenTest.kt | f19434b5c42354014605b6138ae2afcd917bee96fda90e404922b159f263757d |
 | feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/ui/CredentialDisplayNameTest.kt | 98e85811a320cfebe990c5e1ddaf85462124daf826a5a79b31fa1c01e694d9ed |
 | feature/fido2/src/androidTest/kotlin/com/chimali/fido2/presentation/ui/RegistrationPromptScreenTest.kt | 088ac6849d3f23d3a2452481c33f9eddb067b7c946b584a7f8a30d09e3dbf696 |
-| feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImpl.kt | 113349ed101457a408ccd9097c785ea2ff0cdd3457bee92721c7474d11fa3891 |
+| feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImpl.kt | 9ad56d3db5ccec1ce73d9214b71910841ad459d1ca4e4a3c80f29b9fe5a93fdf |
 | feature/fido2/src/commonMain/kotlin/com/chimali/fido2/platform/PlatformBluetoothHid.kt | 0b8cffb05e374054912af8e472154336701458c64c21429780250fc9a9978ea8 |
 | feature/fido2/src/commonMain/kotlin/com/chimali/fido2/util/logging/LogDirectoryProvider.kt | b50c9158973fe569473d2801b551c7c0405627bb12d28c9031320aba13cccfc0 |
 | feature/fido2/src/commonMain/kotlin/com/chimali/fido2/util/logging/PlatformLock.kt | 23330700ebdf6db00d07834d46026bc889f46150f25abb5d63a6161cd7ff1009 |
@@ -714,7 +718,8 @@
 | feature/vault/src/test/resources/vault-legacy-v1/card.json | 0fffa5b7eef97a0d6ab17e45021f2af5984d4f2f2644f9edad15298db316054d |
 | feature/vault/src/test/resources/vault-legacy-v1/note.json | c72a66d56efdf3b0f6ced8771355a6a2fa96c6689ec887c0256750550016118d |
 | feature/vault/src/test/resources/vault-legacy-v1/password.json | 3b6be5681780f9ccd23589fc394f2f4404f74b7abd61177e8765e386b6f48dc8 |
-| specs/065-security-secret-cleanup/assessment.md | e69a205f243a1879babfab3eb09272c4686b700c52f1c959ce04e6060403adac |
+| gradle/libs.versions.toml | 859aa8e483bc3bc596772ef900c435738f95b63d52dc40fcd2f9b7e33ce6b8ec |
+| specs/065-security-secret-cleanup/assessment.md | 4c8a18b36a4bda9004f2db48b29bf95fde25797ed5f67d25a1e3f7ec1f06e340 |
 | specs/065-security-secret-cleanup/evidence/aes-encryption-manager-buffer-cleanup.md | b5a074b5e0ec2f5bc89797a30168e78b745c86e060d0cbeec26dcafe7cc3dc59 |
 | specs/065-security-secret-cleanup/evidence/aes-gcm-owned-buffer-cleanup.md | 1dd089ee63776d282616f695018657b459f8deddcf808c9ed32d010edb3760d9 |
 | specs/065-security-secret-cleanup/evidence/aggregate-service-ownership-contract.md | 424b72c1eeb6a863271372c453c548ad1695f0b8463538a22e08873ff46a9f91 |
@@ -740,8 +745,26 @@
 | specs/065-security-secret-cleanup/evidence/cbor-decoder-map-alias-review.md | 3dd953ab4d057a04cb88a6dc6fad508d915621eb7c0449e82436a0240d8e2cc8 |
 | specs/065-security-secret-cleanup/evidence/cbor-map-key-scratch-cleanup.md | ffe9f49615c25e377624b400ea83309b0742fea872d12d380aa2841c3c04eb4d |
 | specs/065-security-secret-cleanup/evidence/cbor-shape-test-fixture-cleanup.md | 0b151bd9278a29538a66ffb66638d7f3d6f118e39ce47ad9e98aa62ee4695ee9 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122.md | a8adee8f977d2d6078378704296efee49231b48b285d19e756d0d7e82221dd4a |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2preview20261122.json | 1c02b0f00503544120f9d73561bd0b9acc9c85e04902fa3afaed5e873959585d |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2preview20261122b.json | c2c4208c1ee2a0a4473d11fc02e0d1e0b63a5292a1f53caf7c5f5825ec0d0dc8 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2sleepcleanup20261122a.json | 222afd34281296ad6d23669bc478877f023e0d3945a99557e6c5e5ef179b37aa |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2sleepunlock20261122.json | 409ef19a5f3b2680bd12d259e78d3036b4c7a7dfe349d262b8f57d1664b8dd8c |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122a.json | f8fee8d44974d103df71cde47d927779297b8d061d9f49679f69b168bf5fef59 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122b.json | 9ab6cc0e9c9e589534217e02902433cff8e0010cb5f1fca7ae7aec4d8f6b6f74 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122c.json | a207e355b3abc1366f879398f7321bf52b1d89f01e0627a26a63e780b4599db0 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122d.json | 1d9ce46d22bfcd1b812e03057ea3cca89000e1744e06be40aae98e32669bdc79 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122e.json | ccc419c4e4063e35597993e6b77535159488d7eb0f1fe0f500d084f6eb4d55a1 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122f.json | 0b3d94f6e53e42b0277cbef087cc91075ccb46c7b4088776baf464143dcca140 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122g.json | 8b4decddac726723e551e61d5a7d319e42f5db13fdcb5e8a0221282d12dbdeb5 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/clipboard-observation-mia2waiver20261122h.json | fa07daa87dbcdc0f44082416ff7baef4498bbef7585e64db7c96ceaaaf733cc6 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/preview-frame_00.png | 9b45528b204bb5fc3d8c24b8482f0661a0f21066fcfd6c3f1f1bb50a13f76e22 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api29-mia2-20261122/window-polls.txt | 32ca4b1631b5667e91681dd46bd6f4d3b618aba00055f41d47dbb5ecea586f86 |
+| specs/065-security-secret-cleanup/evidence/clipboard-api35-preview-20261122.json | dbc83fdc62d6c2794d593b4d99ef9f7c3f9465e335a7dccfc40a7a46ce77579e |
+| specs/065-security-secret-cleanup/evidence/clipboard-api35-preview-20261122.md | b0273ad2fbc1546b5d45ae2549d00826fdc228b1a91bd6f6d6dd5c9b6a1a17fc |
+| specs/065-security-secret-cleanup/evidence/clipboard-api35-preview-20261122/frame_00.png | e13e4f74c34dd706d33eae17ed22d32cf9aa65bbfa634ecfcd97be861dcffaf4 |
 | specs/065-security-secret-cleanup/evidence/clipboard-audit-minimal-app-postchange-api35.md | df43e8bf532fa7bf70e7948b8362e5f67d3e790ca93c8c5657bba5635274e8da |
-| specs/065-security-secret-cleanup/evidence/clipboard-device.md | a9745eaec6c429fab78da3bae8ee4ed5f847eacef572305abd886f5ed3ced722 |
+| specs/065-security-secret-cleanup/evidence/clipboard-device.md | 9ae0d3d0382f1dbb28254ae0f75384a2c1f4fd4027bbc022b3b33c787edf7e7b |
 | specs/065-security-secret-cleanup/evidence/clipboard-host.md | 9d9f6c66fcb0e5fe258e0484727764b4e0af6e8b483c6094203d33ddc4a80d47 |
 | specs/065-security-secret-cleanup/evidence/clipboard-scheduled-cleanup-mi-a2-api29-approved.md | 638805b71109fe21540dd80a057b87d1fece21cf07f400d235804fc68f38e23e |
 | specs/065-security-secret-cleanup/evidence/configured-diagnostics-audit-current-api35.txt | f178961976fac72af3651907b9775ad83d5f85e5145d1dcb67342f5836f5e57e |
@@ -790,6 +813,7 @@
 | specs/065-security-secret-cleanup/evidence/ctap2-malformed-selector-test-fixture-cleanup.md | c1f258c5e116acb47d4925dec427ee3333d621962b26c1d5b31df3bdcfbe7f8c |
 | specs/065-security-secret-cleanup/evidence/ctaphid-channel-owner-cleanup.md | 2117c4b0abd87815da1397a4fb71d390091d972f9ca9d0065492f85aa525ed61 |
 | specs/065-security-secret-cleanup/evidence/custom-field-diagnostic-redaction.md | ffd7091ab3212ec14d833cf7e53afabad6066f8b790619219a5264d9655265a9 |
+| specs/065-security-secret-cleanup/evidence/dashboard-compose-teardown-remediation.md | ea071c54333763ba70b8bde9ab40b7945f630da154cd169b389192fc221cbf84 |
 | specs/065-security-secret-cleanup/evidence/database-test-buffer-cleanup.md | e1bb8aaf71f36d5179cc9de82485a01a23448ec3c3d3120f56a43700e324d581 |
 | specs/065-security-secret-cleanup/evidence/db-dao-metadata-cleanup.md | fe7fa4438eb68b5879f0aa15b7e0a992a4e6d8ab5c06646258546d9396b4f7c2 |
 | specs/065-security-secret-cleanup/evidence/destructive-batch-error-cause-discard.md | e21b0f4a45ec041ab6c287a7a32fa84100beeaf12dafba1a0517cf1065ee1119 |
@@ -813,6 +837,7 @@
 | specs/065-security-secret-cleanup/evidence/event-diagnostic-redaction.md | 155feb1f964dcf19e91fec786c9340e18077a5caa2e77af111c1f693023d2a7d |
 | specs/065-security-secret-cleanup/evidence/event-sourcing-representation-redaction.md | 2bfdd787269fb0f1737cd9ad39e3df7f6563aa873a038a54ab5aaa7bf0a80bc4 |
 | specs/065-security-secret-cleanup/evidence/event-store-key-owner-review.md | 55895531cc35a9f057e80a387e4b10254de7da4ec2499ddb1bf969970c2152f6 |
+| specs/065-security-secret-cleanup/evidence/evidence-validator-digest-refresh.md | dabc996d2e9268c898144a6dcf1c122acc95356c006ae8bb4e995bffc58b4caa |
 | specs/065-security-secret-cleanup/evidence/fake-credential-repository-reference-cleanup.md | 3a3a3d8c50892a035f4145a3e483e7c4ea8d6599c0d6f3afca61e4f0ae0eba75 |
 | specs/065-security-secret-cleanup/evidence/fido-auth-notification-lifecycle.md | 887de53b73d0dcc7baa56b2ae82c53921ed8cf2b0a696eb34a5ded8cb2d3c1de |
 | specs/065-security-secret-cleanup/evidence/fido-auth-notification-manager-api35.md | 23494fa2b9d93feb7b3fcb8027f5d2b170247a92c965b0548d8664f8f3ed7061 |
@@ -845,6 +870,7 @@
 | specs/065-security-secret-cleanup/evidence/fido2-crypto-service-test-owner-cleanup.md | c2d998c778b0dd96b56681277f938e57df00b6655a211c4c6996b1b85e132f90 |
 | specs/065-security-secret-cleanup/evidence/fido2-database-credential-migration-test-fixture-cleanup.md | 5a76c3a54cfe573f3cfef1fc84e4758665bf584dcbe7cca96035e164ea90e409 |
 | specs/065-security-secret-cleanup/evidence/fido2-exception-message-scope.md | 9886696d85cd4f5b97072b6f17bd11a8552cb7d4139c9a0b6e5e30848ea937f5 |
+| specs/065-security-secret-cleanup/evidence/fido2-host-convergence-20261122.md | 9df57ae26e6084ab17c60d9c6b9d12dd6384d01a21c0432afac909df5c0279b3 |
 | specs/065-security-secret-cleanup/evidence/fido2-legacy-repository-owner-map.md | 920db2c8e7759ca5a19ad73609ee56bec988c9449dacae40e5a0a80b2673187e |
 | specs/065-security-secret-cleanup/evidence/functional-catching-cause-discard.md | d332553a5146b3a64538c9f375c860b124e77e7fb4229687e04bfe156bdcbda8 |
 | specs/065-security-secret-cleanup/evidence/functional-catching-fatal-error-propagation.md | 9fe8ad318d02c13119d74c2deb5bb71625493a5a101440eb2f6186c577d02432 |
@@ -855,7 +881,7 @@
 | specs/065-security-secret-cleanup/evidence/get-assertion-credential-matching-test-fixture-cleanup.md | e707c6d70528ca7e029814ab591fdf9497218937415951fec5bdd25fb443518c |
 | specs/065-security-secret-cleanup/evidence/get-info-response-validation-test-no-use.md | 4b2f5ba2dfaf86bd976def51dbba12e841a819e6df50de2093c1f5decfc70225 |
 | specs/065-security-secret-cleanup/evidence/hdkey-hkdf-p256-owner-review.md | 9babfcb61af7d35c3fe0a8a59e05d39becf3a026f9036124d542a8dc804f46f6 |
-| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | 730ffa5bcc93bc246d6d92045a3d8e3cdd5e2a384637fbe00edcfb2c64037a11 |
+| specs/065-security-secret-cleanup/evidence/heap-artifact-access.md | d24abb5043263c42e20dbcae623f44566eefcd72f05737f49c1245a994b98e3a |
 | specs/065-security-secret-cleanup/evidence/heap-capture-mnemonic-api35-20261117.md | d7e1db16e7f0bcef5bbd9299585bc891f0f9c106846ac0b4aa11b073475c2cce |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261117.md | ad7177de4adea7068151ac568664db916f6e30e6505196500bf2b5d1fdbf6439 |
 | specs/065-security-secret-cleanup/evidence/heap-capture-passkey-api35-20261120.md | baf3e710894c596a94726218b58adcc9b417a06ce7d98cdaf057accdd032e7c5 |
@@ -882,7 +908,7 @@
 | specs/065-security-secret-cleanup/evidence/heap-lifecycle-control.txt | 113680f4db12b2051180db08421675ded4b3b0a452388971bd2e8924bc458311 |
 | specs/065-security-secret-cleanup/evidence/hmac-metadata-token-owner-review.md | 269f9cdc9cbe32e826064b97baab2f2912568ea7056584552bb9006867a2cf0c |
 | specs/065-security-secret-cleanup/evidence/hmac-secret-test-fixture-cleanup.md | 45a90428554980d5855779939d2a0a95733a2ed8242205ba9d9c0e439124cb5c |
-| specs/065-security-secret-cleanup/evidence/index.md | dfe955a2a25f5a6163837857801d78961dbbedb2224c4acbd32cf226babdcd12 |
+| specs/065-security-secret-cleanup/evidence/index.md | f26d3ea3dda70ddf85952088bc5725d677e8970243d95488e56190dc3ce55531 |
 | specs/065-security-secret-cleanup/evidence/ios-clipboard-platform-boundary.md | 2185074ddcc61cf2963d645d519343fb70eacf4770f3e2e2d98b57825dc66c86 |
 | specs/065-security-secret-cleanup/evidence/label-manager-lifecycle-cleanup.md | e34510497d65dded69a73f0837241d1100f325fe16bcad67b47f658d49e1c45c |
 | specs/065-security-secret-cleanup/evidence/latency-profiler-user-window-log-test-owner.md | e09bf4f7d9ea8ebe6c04415cd3cdefc58fb817429704cfff6cbf411467b21ef1 |
@@ -909,6 +935,7 @@
 | specs/065-security-secret-cleanup/evidence/passkey-event-json-capacity-cleanup.md | bad37210f4d53b576b203cfd4db433e5b052e658056f84c0df67bea3dcd42c2b |
 | specs/065-security-secret-cleanup/evidence/passkey-event-json-path-projection-cleanup.md | 2e5c6448678f26469af1a229821cd1ecd75f22e1db165504a752cfab945ffcf9 |
 | specs/065-security-secret-cleanup/evidence/passkey-event-replay-batch-transfer.md | b7232dc26794674b27d16f8e20b414a09705399ff2a910715dedc3fe8abfdc7e |
+| specs/065-security-secret-cleanup/evidence/passkey-heap-producer-frame-isolation-20261122.md | e5b4da45cf69f3b4b2869ce110b1a4d43294b2d7751cde943e43682f4988d4d7 |
 | specs/065-security-secret-cleanup/evidence/passkey-snapshot-validation-test-fixture-cleanup.md | 7aa1159659f13a783a14b9ade33cd6c49ee6433753684da973dd40c48c54320a |
 | specs/065-security-secret-cleanup/evidence/passkey-storage-error-cause-discard.md | 12abe7536b658a5379c1c478f6062d8f0e64d6747afcbd7e4ed7882a2d37cfe5 |
 | specs/065-security-secret-cleanup/evidence/platform-bluetooth-hid-capability-no-sensitive-usage.md | 9224d09d056eae3da76a9755f25cfd21b84a22089c9e778e969e1107cefb6a6a |
@@ -921,6 +948,7 @@
 | specs/065-security-secret-cleanup/evidence/process-transport-selection-address-handoff.md | 0d141d4480dc4bce9e79c3e27db3184411724d306eb48840c9d8807bf0b2a8f1 |
 | specs/065-security-secret-cleanup/evidence/public-key-decoder-cause-discard.md | 0f4bcc3915794e1b2f774b42492c1e3693587896bbcc394fed4da09a25c4d519 |
 | specs/065-security-secret-cleanup/evidence/public-key-decoder-owner-scope.md | 45a479d5491b0c2662ff83e4bd1c5a49b65f2d5a5288c1f4241f70c59c67c318 |
+| specs/065-security-secret-cleanup/evidence/qr-seed-export-remediation.md | aaf6d8c85790c0c7e608867ebcc8b282f83df0d9e306fd9c6031453609815874 |
 | specs/065-security-secret-cleanup/evidence/raw-ctap-operation-test-fixture-cleanup.md | fe41fd54ac061e25282bf95b16391dec2665930b7428dbac5d3606a58592f640 |
 | specs/065-security-secret-cleanup/evidence/registration-attestation-independent-credential-id.md | 3fee1134caa38126bab4502a67f8a29d435f1d9ecbabcf5ea6973566d18ac587 |
 | specs/065-security-secret-cleanup/evidence/registration-authentication-integration-test-fixture-cleanup.md | f4f1d8e882b53749bc4d398413dc4c89e88da74b5d5ac44745c292461328ea91 |
@@ -957,6 +985,7 @@
 | specs/065-security-secret-cleanup/evidence/simulated-workload-integration-owner-cleanup.md | ab8dde19d9406c250d4f8547acbb8f3cb3437dd2c915c10bb9b2a07a44157256 |
 | specs/065-security-secret-cleanup/evidence/source-inventory-validation.md | ea83aec77632d79a22a03f4ba4ee2208146e56e319ebe7cee0f0c071caa596b9 |
 | specs/065-security-secret-cleanup/evidence/sql-delight-generated-row-signatures.md | 4fee4310d39e5f5ab6515a630489479bba55693cee51567fc9447069740528fe |
+| specs/065-security-secret-cleanup/evidence/sqldelight-row-payload-cleanup.md | 4f2af6d0f67e481e04efde8fa1cc2a7e7b91490cc63946b6b3bdee396ba8d460 |
 | specs/065-security-secret-cleanup/evidence/transport-preference-error-cause-removal.md | ba89addc1b5322b35a11506e64f406a10f53b9209f832c635a4ed5d94382a48a |
 | specs/065-security-secret-cleanup/evidence/transport-selection-ceremony-test-fixture-cleanup.md | 7457cf75b6539a96d4946f577901c2a43e6444017f99f0376a6238bc2540d8bb |
 | specs/065-security-secret-cleanup/evidence/transport-settings-no-secret-disposition.md | 2964232bf1960d377e06c4e9d7707ff4a16d0e4f04631879c967a877ebea5587 |
@@ -991,11 +1020,11 @@
 | specs/065-security-secret-cleanup/evidence/vault-snapshot-repository-cause-discard.md | 9ff52f1fcaa29fa9ff7062dea1f8ca9c8358a1a28567e55563c8b066ce11054a |
 | specs/065-security-secret-cleanup/evidence/wallet-parent-key-copy-admission.md | 84ea29cf34795614fcf469b127211860268fba243b090622c420c03bce8356ea |
 | specs/065-security-secret-cleanup/source-inventory.json | 29c3ba775c885ffbcb8fbfaef3da4045e2d7667277671b9b718ab81b846028a6 |
-| specs/065-security-secret-cleanup/tasks.md | dadc282a478b824007af773b91eaf80aa5c1413f7d42f8f6f90dd69c6352c9a2 |
+| specs/065-security-secret-cleanup/tasks.md | bb4af9aa625b25e014a82ff1ade86bc5acfb579736106a6be22c604220e5cd06 |
 | tools/run-hdk-app-process-restart-test.ps1 | 1b34e19ad6ea576be4a346e8a204cceb2b3b98b7ded8a197b0788decdf2cc0f2 |
-| tools/security/run-clipboard-observation.ps1 | 22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b |
+| tools/security/run-clipboard-observation.ps1 | d905bb7ebd79a50ee01d0b46c8f00ded0ba27341dd9fbc6898d42fd63ce918af |
 | tools/security/validate-diagnostic-source-coverage.ps1 | 2b07cd8db41c406c0e2d7f99f13544c974548c06d26fac92fec90f1976c8bd48 |
-| tools/security/validate-feature-065-evidence.ps1 | 299eac2263925284a9a88a58aed7405eb0f8fc6ec445f93f7705eb6417e05dc3 |
+| tools/security/validate-feature-065-evidence.ps1 | afa2f9604f40f7054b47d9c153806c2750d924fa8e76925b01491f1277d0ef41 |
 
 ## Findings
 

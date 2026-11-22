@@ -1,0 +1,72 @@
+{
+  "runId": "mia2waiver20261122a",
+  "fixtureId": "mia2waiver20261122a",
+  "case": "scheduled-attempt",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 16202,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 16202,
+  "observerPid": 16151,
+  "targetReady": {
+    "runId": "mia2waiver20261122a",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 5956322,
+    "publicationElapsedMs": 5926322,
+    "copyCallStartedElapsedMs": 5926318,
+    "copyCallReturnedElapsedMs": 5926329
+  },
+  "targetReadyRepeat": null,
+  "targetReadyUnconfirmed": null,
+  "targetReadyReject": null,
+  "targetOutcome": {
+    "runId": "mia2waiver20261122a",
+    "generation": 1,
+    "scheduledElapsedMs": 5956322,
+    "terminalStatusElapsedMs": 5956360,
+    "outcome": "ClearRequestSubmitted"
+  },
+  "supersededOutcome": null,
+  "attemptOutcomeObserved": true,
+  "matchControl": {
+    "runId": "mia2waiver20261122a",
+    "elapsedRealtimeMs": 5922838,
+    "observerPid": 16151,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2waiver20261122a",
+    "elapsedRealtimeMs": 5923029,
+    "observerPid": 16151,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "mia2waiver20261122a",
+    "elapsedRealtimeMs": 5956744,
+    "observerPid": 16151,
+    "classification": "absent",
+    "sensitiveFlag": null,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": null,
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": false,
+  "sleptDuringDeadline": false,
+  "status": "Passed (scheduled cleanup observation case)",
+  "cleanupSucceeded": true
+}

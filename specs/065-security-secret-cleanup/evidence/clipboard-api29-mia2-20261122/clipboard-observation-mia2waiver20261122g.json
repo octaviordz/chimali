@@ -1,0 +1,90 @@
+{
+  "runId": "mia2waiver20261122g",
+  "fixtureId": "mia2waiver20261122g",
+  "case": "copy-rejected",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 18228,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 18228,
+  "observerPid": 18183,
+  "targetReady": {
+    "runId": "mia2waiver20261122g",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 6155343,
+    "publicationElapsedMs": 6125343,
+    "copyCallStartedElapsedMs": 6125341,
+    "copyCallReturnedElapsedMs": 6125351
+  },
+  "targetReadyRepeat": null,
+  "targetReadyUnconfirmed": {
+    "runId": "mia2waiver20261122g",
+    "targetWindowFocused": false,
+    "publication": "Unconfirmed",
+    "generation": 2,
+    "scheduledElapsedMs": 6155714,
+    "publicationElapsedMs": 6125714,
+    "copyCallStartedElapsedMs": 6125713,
+    "copyCallReturnedElapsedMs": 6125716
+  },
+  "targetReadyReject": {
+    "runId": "mia2waiver20261122g",
+    "targetWindowFocused": false,
+    "publication": "CopyUnavailable",
+    "failureClass": "CopyAdmissionRejected"
+  },
+  "targetOutcome": null,
+  "supersededOutcome": null,
+  "attemptOutcomeObserved": false,
+  "matchControl": {
+    "runId": "mia2waiver20261122g",
+    "elapsedRealtimeMs": 6122017,
+    "observerPid": 18183,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2waiver20261122g",
+    "elapsedRealtimeMs": 6122193,
+    "observerPid": 18183,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "mia2waiver20261122g",
+    "elapsedRealtimeMs": 6126359,
+    "observerPid": 18183,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": {
+    "runId": "mia2waiver20261122g",
+    "elapsedRealtimeMs": 6126643,
+    "observerPid": 18183,
+    "classification": "absent",
+    "sensitiveFlag": null,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "clear-request-submitted"
+  },
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": false,
+  "sleptDuringDeadline": false,
+  "status": "Passed (copy admission rejected while unconfirmed work was pending; retained clip observed)",
+  "cleanupSucceeded": true
+}

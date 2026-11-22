@@ -18,6 +18,10 @@
 
 - Q: Which clipboard cleanup delay should Chimali use? → A: 30 seconds, superseding the earlier 60-second selection. Retain best-effort clearing and ownership-check/skip rules. Every sensitive Android clipboard transfer must also be marked sensitive before publication in line with OWASP and Android secure clipboard guidance.
 
+### Session 2026-11-22
+
+- Q: What physical Android cohort should be used when no API 28 device is available? → A: Owner explicitly waives the API 28 physical-device requirement and accepts the Xiaomi Mi A2 / Android 10 / API 29 as the available physical cohort. Record API 28 as waived, not passed; retain any unverified lifecycle observations separately. This exception does not waive the remaining clipboard cases or independent candidate review.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - End a sensitive interaction safely (Priority: P1)

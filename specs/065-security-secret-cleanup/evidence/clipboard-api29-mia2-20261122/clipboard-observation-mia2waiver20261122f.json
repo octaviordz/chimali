@@ -1,0 +1,87 @@
+{
+  "runId": "mia2waiver20261122f",
+  "fixtureId": "mia2waiver20261122f",
+  "case": "repeat-copy",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 17783,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 17783,
+  "observerPid": 17738,
+  "targetReady": {
+    "runId": "mia2waiver20261122f",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 6112584,
+    "publicationElapsedMs": 6082584,
+    "copyCallStartedElapsedMs": 6082580,
+    "copyCallReturnedElapsedMs": 6082591
+  },
+  "targetReadyRepeat": {
+    "runId": "mia2waiver20261122f",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 2,
+    "scheduledElapsedMs": 6112964,
+    "publicationElapsedMs": 6082964,
+    "copyCallStartedElapsedMs": 6082962,
+    "copyCallReturnedElapsedMs": 6082973
+  },
+  "targetReadyUnconfirmed": null,
+  "targetReadyReject": null,
+  "targetOutcome": {
+    "runId": "mia2waiver20261122f",
+    "generation": 2,
+    "scheduledElapsedMs": 6112964,
+    "terminalStatusElapsedMs": 6112993,
+    "outcome": "ClearRequestSubmitted"
+  },
+  "supersededOutcome": {
+    "runId": "mia2waiver20261122f",
+    "generation": 1,
+    "scheduledElapsedMs": 6112584,
+    "terminalStatusElapsedMs": 6082970,
+    "outcome": "Superseded"
+  },
+  "attemptOutcomeObserved": true,
+  "matchControl": {
+    "runId": "mia2waiver20261122f",
+    "elapsedRealtimeMs": 6079231,
+    "observerPid": 17738,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2waiver20261122f",
+    "elapsedRealtimeMs": 6079427,
+    "observerPid": 17738,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "mia2waiver20261122f",
+    "elapsedRealtimeMs": 6113588,
+    "observerPid": 17738,
+    "classification": "absent",
+    "sensitiveFlag": null,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": null,
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": false,
+  "sleptDuringDeadline": false,
+  "status": "Passed (repeated copy superseded the first generation; scheduled cleanup observed as absent)",
+  "cleanupSucceeded": true
+}

@@ -6,11 +6,13 @@ param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$ObserverActivity,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_-]{1,64}$')][string]$RunId,
     [Parameter(Mandatory)][ValidateSet('process-death', 'scheduled-attempt', 'app-switch', 'locked-sleep', 'clipboard-replaced', 'manual-clear', 'repeat-copy', 'copy-rejected')][string]$Case,
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OutputDirectory
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OutputDirectory,
+    [ValidateRange(0, 120)][int]$ManualUnlockTimeoutSeconds = 0
 )
 
 $ErrorActionPreference = 'Stop'
 $adbPath = (Get-Command adb -ErrorAction Stop).Source
+[void](New-Item -ItemType Directory -Path $OutputDirectory -Force)
 $targetTokenFile = 'clipboard-target.expected'
 $targetRepeatTokenFile = 'clipboard-target.expected.repeat'
 $targetUnconfirmedTokenFile = 'clipboard-target.expected.unconfirmed'
@@ -49,6 +51,8 @@ $targetWasStopped = $false
 $targetBackgroundConfirmed = $false
 $deviceSlept = $false
 $sleptDuringDeadline = $false
+$secureKeyguardObservedAfterWake = $false
+$manualUnlockObserved = $false
 
 if ($TargetPackage -eq $TestPackage) { throw 'Target and observer must be separate packages.' }
 if ($ObserverActivity -notmatch '^com\.chimali\.security\.ClipboardObserverActivity$') {
@@ -186,7 +190,6 @@ try {
         if ($identity.ExitCode -ne 0) { throw 'Required package does not permit controlled run-as access.' }
     }
 
-    [void](New-Item -ItemType Directory -Path $OutputDirectory -Force)
     $script:activeStage = 'private-token-handoff'
     $tokenBytes = [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
     $expectedToken = [Convert]::ToHexString($tokenBytes).ToLowerInvariant()
@@ -426,7 +429,23 @@ try {
             Start-Sleep -Milliseconds 500
             [void](Invoke-DeviceShell -Command @('input', 'keyevent', '82'))
             $keyguard = Invoke-DeviceShell -Command @('dumpsys', 'window')
-            if ($keyguard.StdOut -match 'mDreamingLockscreen=true') { throw 'Secure keyguard remained after wake; observer cannot launch.' }
+            if ($keyguard.StdOut -match 'mDreamingLockscreen=true') {
+                $secureKeyguardObservedAfterWake = $true
+                if ($ManualUnlockTimeoutSeconds -gt 0) {
+                    $unlockDeadline = [DateTime]::UtcNow.AddSeconds($ManualUnlockTimeoutSeconds)
+                    do {
+                        Start-Sleep -Milliseconds 500
+                        $keyguard = Invoke-DeviceShell -Command @('dumpsys', 'window')
+                        if ($keyguard.StdOut -notmatch 'mDreamingLockscreen=true') {
+                            $manualUnlockObserved = $true
+                            break
+                        }
+                    } while ([DateTime]::UtcNow -lt $unlockDeadline)
+                }
+                if ($keyguard.StdOut -match 'mDreamingLockscreen=true') {
+                    throw 'Secure keyguard remained after wake; observer cannot launch.'
+                }
+            }
             $deviceSlept = $false
         }
         }
@@ -527,6 +546,9 @@ try {
         targetForceStopped = $targetWasStopped
         targetBackgroundConfirmed = $targetBackgroundConfirmed
         sleptDuringDeadline = $sleptDuringDeadline
+        secureKeyguardObservedAfterWake = $secureKeyguardObservedAfterWake
+        manualUnlockTimeoutSeconds = $ManualUnlockTimeoutSeconds
+        manualUnlockObserved = $manualUnlockObserved
         status = $caseStatus
     }
 } catch {
@@ -562,6 +584,9 @@ try {
         targetOutcome = $targetOutcome
         attemptOutcomeObserved = $attemptOutcomeObserved
         targetForceStopped = $targetWasStopped
+        secureKeyguardObservedAfterWake = $secureKeyguardObservedAfterWake
+        manualUnlockTimeoutSeconds = $ManualUnlockTimeoutSeconds
+        manualUnlockObserved = $manualUnlockObserved
         failureCode = $failureCode
         status = if ($behaviorFailure) { 'Failed (scoped clipboard behavior assertion)' } else { 'Unverified' }
     }

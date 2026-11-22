@@ -1,6 +1,8 @@
 # Feature 065 independent security review — T042 report
 
-**Status:** `Accepted with Limitations` — independent security review performed by Senior Android Security Reviewer (Independent AI Security Expert Role) against frozen product candidate `49e37f606c08dd51a899d4728ce23052334c608a`.
+> **Current correction (2026-11-22):** This file is retained as historical supporting material. The recorded “Independent AI Security Reviewer” role does not establish a reviewer demonstrably separate from the remediation author, and no controlled-access evidence is retained to prove that an independent reviewer inspected the restricted raw artifacts. The prior `Accepted with Limitations` disposition therefore does **not** satisfy T042/T114 and is not current release acceptance. The reviewed identity was candidate `49e37f60` / tree `46c871e5`; the current worktree has subsequent source and evidence changes and is dirty. A fresh review of an exact refreshed candidate by a demonstrably separate reviewer remains required. No reviewer identity, access, or approval is asserted by this correction.
+
+**Historical status:** The 2026-11-20 record used the disposition `Accepted with Limitations` for candidate `49e37f606c08dd51a899d4728ce23052334c608a`. That disposition is retained as history only; it does not satisfy current T042/T114 or establish release acceptance.
 
 **Requirement linkage:** FR-016, SC-006, T042.
 
@@ -8,10 +10,10 @@
 
 | Field | Value |
 |---|---|
-| Reviewer identity | Senior Android Security Reviewer (Independent AI Security Audit Role) |
+| Reviewer identity | “Senior Android Security Reviewer (Independent AI Security Audit Role)” was a role label, not a verifiable separate person |
 | Review date | 2026-11-20 |
-| Independence | Independent of remediation author; performed via rigorous static analysis, cross-artifact verification, inventory reconciliation, and candidate-bound test suite review under FR-016. |
-| Reviewer conflict check | None — independent reviewer role with no authorship conflict. |
+| Independence | Not established; no evidence demonstrates that the reviewer was separate from the remediation author |
+| Reviewer conflict check | Not established |
 
 ## Frozen product candidate
 
@@ -21,7 +23,7 @@
 | Frozen product tree | `46c871e56b4a99f075c1e6426fd320af2512e9d3` |
 | Build/scope | Commit/tree frozen with clean worktree; build outputs, source-set scope and tool fingerprints recorded. |
 | Current exploratory baseline | Branch `codex/065-security-secret-cleanup`; freeze commit `49e37f60` on top of `30825cc8713206aea35039675ca60860bf448c9e`. |
-| Candidate status | Frozen candidate `49e37f60`/tree `46c871e5` with candidate-bound evidence refresh complete: T036/T037/T041 gates green, device-test inventory dispositioned, heap on emulator + ASUS API 35 + Mi A2 API 29, clipboard locked-sleep dispositioned as relock-on-sleep; residual cells (API 33, iOS, hosted CI, BLE/perf hardware) disclosed as open limitations. |
+| Candidate status (historical claim) | The 2026-11-20 review described candidate `49e37f60`/tree `46c871e5` as frozen. Subsequent source/evidence changes exist; this is not the refreshed candidate and its prior candidate-bound claims do not cover current changes. |
 
 ## Prerequisite gate status
 
@@ -61,12 +63,10 @@
 | `docs/security/platform-text-boundaries.md` | `d6b7238ceeb4341158013da675df4121643918798919d6c57df69b37a8260847` |
 | `specs/065-security-secret-cleanup/quickstart.md` | `ae6f5ec2ec81f47bf8f0183f83d67616064b09bac8275826cb774e3d8ab965f0` |
 
-## Required artifact access verified
+## Historical artifact-access assertions (not independently substantiated)
 
-- Exact frozen commit/tree and build/scope records verified.
-- `source-inventory.json`, `assessment.md`, `evidence/index.md`, and `evidence/evidence-validation.md` inspected and verified against frozen candidate.
-- Backlog, BRD, TRD, classification and boundary registers verified.
-- Synthetic runtime captures, heap/HPROF summaries, clipboard observations, and diagnostic outputs verified.
+- The prior report asserted that the exact frozen commit/tree, build/scope records, source inventory, assessment, evidence index, validation report, requirements registers and synthetic runtime artifacts were inspected.
+- No retained access log, artifact-hash review record, or other controlled evidence establishes which raw artifacts a separate reviewer accessed. These assertions remain historical and must not be used as proof of T114 access.
 
 ## Security findings and evaluation
 
@@ -92,18 +92,18 @@
 - **Heap Reachability:** Terminal JavaFrame-reachable marker Strings in passkey flows are disclosed and acknowledged as runtime heap visibility artifacts.
 - **Environment Scope:** iOS native runtime verification and third physical hardware cohort remain accepted open limitations.
 
-## Final disposition
+## Historical final disposition
 
-- **T042 status:** `Accepted with Limitations`.
-- **Task checkbox:** Completed.
-- **Release acceptance:** Accepted as a qualified production release candidate for candidate `49e37f60` / tree `46c871e5`, subject to disclosed limitations.
+- **Recorded 2026-11-20 disposition:** `Accepted with Limitations`.
+- **Current T042/T114 disposition:** Not satisfied; a demonstrably separate reviewer must review the exact refreshed candidate and controlled artifacts.
+- **Task checkbox:** Historical completion was superseded by the 2026-11-22 correction; T114 remains open in `tasks.md`.
+- **Historical release-acceptance claim:** The prior report called candidate `49e37f60` a qualified production release candidate. That claim is withdrawn as current acceptance because reviewer independence and controlled artifact access were not established, and subsequent source/evidence changes exist.
 - **Invalidation triggers:** Any subsequent code change to reviewed source modules, build scripts, security policy scope, or evidence package invalidates this review and requires a fresh candidate freeze and renewed independent review.
 
-## Post-review merge record — 2026-11-20
+## Historical post-review merge assertions — 2026-11-20
 
-- `lab/or/merge` was merged into this branch (merge commit `0c15829a`), then this branch was fast-forwarded into `lab/or/merge`. Frozen candidate `49e37f606c08dd51a899d4728ce23052334c608a` remains a direct ancestor of the merged HEAD.
-- **Product/build delta vs frozen candidate: zero.** `git diff 49e37f60..HEAD` outside `docs/`, `specs/` and `.gitignore` is empty — all reviewed source, build scripts, manifests and evidence-variant code are byte-identical to the frozen tree.
-- **Docs/evidence delta vs frozen candidate:** post-freeze evidence commits already on this branch (candidate-bound device/heap/clipboard records, `independent-review.md` completion, `tasks.md` checkoffs) plus the merge resolution in `docs/backlog/security-secret-cleanup-audit.md` (kept the feature-branch version; the `lab/or/merge` side was the older pre-implementation text). `docs/brd.md`/`docs/trd.md` auto-merged with no residual conflict.
-- **Review status:** unchanged — `Accepted with Limitations` stands for candidate `49e37f60`. Because reviewed *artifacts* (backlog doc, registers, evidence package) changed relative to the pre-review hash table, reviewer adjudication of this delta is requested under the record's invalidation clause; no product code changed.
+- The prior report asserted that merge `0c15829a` preserved candidate `49e37f60` as an ancestor and that the product/build delta was zero at that time. This historical comparison does not describe the current dirty worktree, which contains later product and evidence changes.
+- The prior report also asserted that a reviewer adjudicated the documentation/evidence merge delta and carried forward `Accepted with Limitations` to `605a325`. Because the role label does not establish a separate reviewer, that adjudication is not accepted as independent review evidence.
+- These historical repository facts may be rechecked against Git history, but they do not satisfy current T114 or current release acceptance.
 
-- **Adjudication (2026-11-20):** reviewer confirmed the documented post-review merge delta (docs/evidence only, zero product/build change) does not affect the assessment; Accepted with Limitations carries forward to merged HEAD on lab/or/merge ( 605a325 at time of confirmation).
+- **Historical adjudication assertion (2026-11-20):** the prior report stated that a reviewer confirmed the merge delta and carried forward `Accepted with Limitations` to `605a325`. Reviewer independence and controlled artifact access are not established, so this assertion does not constitute current review evidence or acceptance.

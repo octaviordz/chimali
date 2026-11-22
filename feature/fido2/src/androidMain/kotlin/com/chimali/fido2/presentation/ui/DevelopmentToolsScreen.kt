@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -99,17 +98,9 @@ import com.chimali.fido2.presentation.viewmodel.DevToolsIntent
 import com.chimali.fido2.presentation.viewmodel.DevToolsUiState
 import com.chimali.fido2.presentation.viewmodel.DevToolsViewModel
 import com.chimali.fido2.presentation.viewmodel.Fido2HomeViewModel
-import io.github.alexzhirkevich.qrose.options.QrBallShape
-import io.github.alexzhirkevich.qrose.options.QrFrameShape
-import io.github.alexzhirkevich.qrose.options.QrPixelShape
-import io.github.alexzhirkevich.qrose.options.QrShapes
-import io.github.alexzhirkevich.qrose.options.circle
-import io.github.alexzhirkevich.qrose.options.roundCorners
-import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
-private const val QR_CORNER_ROUNDING = 0.25f
 private val INDEX_WIDTH = 24.dp
 private const val MNEMONIC_GRID_COLUMNS = 3
 private const val MNEMONIC_WORD_COUNT = 24
@@ -264,7 +255,6 @@ private fun DebugMnemonicSection(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var isQrCodeVisible by remember { mutableStateOf(false) }
     var isScannerVisible by rememberSaveable { mutableStateOf(false) }
     var isRecoverFormVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -328,15 +318,14 @@ private fun DebugMnemonicSection(
         } else {
             MnemonicWordGrid(words = state.mnemonicWords)
             MnemonicActionRow(
-                isQrCodeVisible = isQrCodeVisible,
                 onCopy = { onIntent(DevToolsIntent.CopyToClipboard) },
-                onToggleQr = { isQrCodeVisible = !isQrCodeVisible },
-                onClear = {
-                    onIntent(DevToolsIntent.ClearMnemonic)
-                    isQrCodeVisible = false
-                },
+                onClear = { onIntent(DevToolsIntent.ClearMnemonic) },
             )
-            if (isQrCodeVisible) MnemonicQrCodeView(words = state.mnemonicWords)
+            Text(
+                text = "Seed QR export is disabled because the renderer cannot securely erase its data.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
 
         state.error?.let { err ->
@@ -386,9 +375,7 @@ private fun DebugMnemonicSection(
 @Composable
 @Req("NFR-SEC-041", "TR-AUTH-031")
 private fun MnemonicActionRow(
-    isQrCodeVisible: Boolean,
     onCopy: () -> Unit,
-    onToggleQr: () -> Unit,
     onClear: () -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -407,27 +394,6 @@ private fun MnemonicActionRow(
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )
                 Text("Copy", textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.CenterVertically))
-            }
-        }
-        ChimaliOutlinedButton(
-            onClick = onToggleQr,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-        ) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterVertically),
-            ) {
-                Icon(
-                    if (isQrCodeVisible) Icons.Default.VisibilityOff else Icons.Default.QrCode,
-                    contentDescription = null,
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                )
-                Text(
-                    if (isQrCodeVisible) "Hide QR" else "QR",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                )
             }
         }
         ChimaliOutlinedButton(
@@ -601,35 +567,6 @@ private fun MnemonicWordGrid(words: CharArray) {
                 }
             }
         }
-    }
-}
-
-@Composable
-@Req("NFR-SEC-041", "TR-AUTH-031")
-private fun MnemonicQrCodeView(words: CharArray) {
-    // The QR library accepts String only. Scope this unavoidable text to the visible QR
-    // composition; hiding the QR removes its painter and this local representation.
-    val painter =
-        rememberQrCodePainter(
-            data = String(words),
-            shapes =
-                QrShapes(
-                    ball = QrBallShape.circle(),
-                    frame = QrFrameShape.roundCorners(QR_CORNER_ROUNDING),
-                    darkPixel = QrPixelShape.roundCorners(),
-                ),
-        )
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        androidx.compose.foundation.Image(
-            painter = painter,
-            contentDescription = "Master seed QR code",
-            modifier = Modifier.size(240.dp),
-        )
-        Text(
-            "Never screenshot this QR in a production scenario.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.error,
-        )
     }
 }
 

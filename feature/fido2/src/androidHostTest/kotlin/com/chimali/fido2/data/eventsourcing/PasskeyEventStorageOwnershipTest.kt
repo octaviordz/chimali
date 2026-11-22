@@ -1,6 +1,7 @@
 package com.chimali.fido2.data.eventsourcing
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.chimali.core.domain.eventsourcing.DomainEvent
 import com.chimali.core.domain.eventsourcing.EventKind
 import com.chimali.core.domain.eventsourcing.Snapshot
 import com.chimali.core.domain.eventsourcing.passkey.PasskeyEvent
@@ -618,6 +619,8 @@ class PasskeyEventStorageOwnershipTest {
                     }
                 }
                 val repository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, provider)
+                val eventRowPayloads = mutableListOf<ByteArray>()
+                repository.afterEventRowsReadForTest = { eventRowPayloads.addAll(it) }
                 val event =
                     PasskeyEvent.Registered(
                         aggregateId = "credential-aggregate",
@@ -646,9 +649,79 @@ class PasskeyEventStorageOwnershipTest {
                 val replayed = repository.getEvents(EventKind.PASSKEY, event.aggregateId).getOrThrow()
 
                 assertEquals(listOf(event, secondEvent), replayed)
+                assertEquals(2, eventRowPayloads.size)
+                eventRowPayloads.forEach { assertContentEquals(ByteArray(it.size), it) }
+                assertEquals(
+                    2,
+                    database.fido2DatabaseQueries
+                        .get_events(event.aggregateId, "9999-12-31T23:59:59Z")
+                        .executeAsList()
+                        .size,
+                )
                 decryptOutputs.forEach { assertContentEquals(ByteArray(it.size), it) }
                 decryptKeys.forEach { assertContentEquals(ByteArray(32), it) }
+                replayed
+                    .filterIsInstance<PasskeyEvent.Registered>()
+                    .forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+
+                eventRowPayloads.clear()
+                val tail = repository.getEventsFrom(EventKind.PASSKEY, event.aggregateId, 1).getOrThrow()
+                assertEquals(listOf(secondEvent), tail)
+                assertEquals(1, eventRowPayloads.size)
+                eventRowPayloads.forEach { assertContentEquals(ByteArray(it.size), it) }
+                tail
+                    .filterIsInstance<PasskeyEvent.Registered>()
+                    .forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+
+                val stagedFullReplayOwners = mutableListOf<DomainEvent>()
+                repository.beforeEventBatchTransferForTest = { staged ->
+                    stagedFullReplayOwners.addAll(staged)
+                    throw CancellationException("synthetic full-replay cancellation")
+                }
+                eventRowPayloads.clear()
+                assertFailsWith<CancellationException> {
+                    repository.getEvents(EventKind.PASSKEY, event.aggregateId)
+                }
+                assertEquals(2, eventRowPayloads.size)
+                eventRowPayloads.forEach { assertContentEquals(ByteArray(it.size), it) }
+                stagedFullReplayOwners.filterIsInstance<PasskeyEvent.Registered>().forEach { staged ->
+                    assertContentEquals(CharArray(staged.userName.size), staged.userName)
+                    staged.eraseSensitiveMetadata()
+                }
+
+                val stagedTailOwners = mutableListOf<DomainEvent>()
+                repository.beforeEventBatchTransferForTest = { staged ->
+                    stagedTailOwners.addAll(staged)
+                    throw CancellationException("synthetic snapshot-tail cancellation")
+                }
+                eventRowPayloads.clear()
+                assertFailsWith<CancellationException> {
+                    repository.getEventsFrom(EventKind.PASSKEY, event.aggregateId, 1)
+                }
+                assertEquals(1, eventRowPayloads.size)
+                eventRowPayloads.forEach { assertContentEquals(ByteArray(it.size), it) }
+                stagedTailOwners.filterIsInstance<PasskeyEvent.Registered>().forEach { staged ->
+                    assertContentEquals(CharArray(staged.userName.size), staged.userName)
+                    staged.eraseSensitiveMetadata()
+                }
+                repository.beforeEventBatchTransferForTest = null
+                eventRowPayloads.clear()
+                val persistedReplay = repository.getEvents(EventKind.PASSKEY, event.aggregateId).getOrThrow()
+                assertEquals(listOf(event, secondEvent), persistedReplay)
+                assertEquals(2, eventRowPayloads.size)
+                eventRowPayloads.forEach { assertContentEquals(ByteArray(it.size), it) }
+                persistedReplay
+                    .filterIsInstance<PasskeyEvent.Registered>()
+                    .forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+                assertEquals(
+                    2,
+                    database.fido2DatabaseQueries
+                        .get_events(event.aggregateId, "9999-12-31T23:59:59Z")
+                        .executeAsList()
+                        .size,
+                )
                 serializedSnapshots.forEach { it.fill(0) }
+                event.eraseSensitiveMetadata()
                 secondEvent.eraseSensitiveMetadata()
             } finally {
                 driver.close()
@@ -764,6 +837,45 @@ class PasskeyEventStorageOwnershipTest {
             }
         }
 
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `event replay erases every materialized row payload when the first row fails`() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            val key = ByteArray(32) { 0x33.toByte() }
+            val firstStoredEvent = testEvent("event-row-batch-failure")
+            val secondStoredEvent = firstStoredEvent.copy(sequenceNumber = 2)
+            val storedEvents = listOf(firstStoredEvent, secondStoredEvent)
+            try {
+                Fido2Database.Schema.create(driver)
+                val database = Fido2Database(driver)
+                val provider =
+                    mockk<EventStoreKeyProvider> {
+                        coEvery { getEventStoreKey(any()) } returns key.copyOf()
+                    }
+                val encryptionManager = mockk<EncryptionManager>()
+                every { encryptionManager.encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                every { encryptionManager.decrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                val repository = PasskeyEventStoreRepositoryImpl(database, encryptionManager, provider)
+                val materializedRowPayloads = mutableListOf<ByteArray>()
+                repository.afterEventRowsReadForTest = { rows -> materializedRowPayloads.addAll(rows) }
+                assertTrue(repository.append(EventKind.PASSKEY, storedEvents).isSuccess)
+
+                val result =
+                    repository.getEventsWithDecoder(EventKind.PASSKEY, "event-row-batch-failure", null) {
+                        error("synthetic first-row decode failure")
+                    }
+
+                assertTrue(result.isFailure)
+                assertEquals(2, materializedRowPayloads.size)
+                materializedRowPayloads.forEach { payload -> assertContentEquals(ByteArray(payload.size), payload) }
+            } finally {
+                storedEvents.forEach(PasskeyEvent.Registered::eraseSensitiveMetadata)
+                key.fill(0)
+                driver.close()
+            }
+        }
+
     /** @see NFR-SEC-041 */
     @Test
     fun `snapshot save and restore erase owned key and plaintext buffers`() =
@@ -796,6 +908,8 @@ class PasskeyEventStorageOwnershipTest {
                     }
                 }
                 val repository = PasskeySnapshotRepositoryImpl(database, encryptionManager, provider)
+                lateinit var snapshotRowPayload: ByteArray
+                repository.afterSnapshotRowReadForTest = { snapshotRowPayload = it }
                 val snapshot =
                     Snapshot(
                         aggregateId = "credential-aggregate",
@@ -821,10 +935,114 @@ class PasskeyEventStorageOwnershipTest {
                 val restored = repository.getLatest<PasskeyState>(EventKind.PASSKEY, snapshot.aggregateId).getOrThrow()
 
                 assertEquals(snapshot, restored)
+                assertContentEquals(ByteArray(snapshotRowPayload.size), snapshotRowPayload)
                 decryptOutputs.forEach { assertContentEquals(ByteArray(it.size), it) }
                 decryptKeys.forEach { assertContentEquals(ByteArray(32), it) }
                 snapshot.state.eraseSensitiveMetadata()
                 restored?.state?.eraseSensitiveMetadata()
+            } finally {
+                driver.close()
+            }
+        }
+
+    /** @see NFR-SEC-041 and TR-AUTH-031 */
+    @Test
+    fun `snapshot read erases query payload when key acquisition fails`() =
+        runTest {
+            val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+            try {
+                Fido2Database.Schema.create(driver)
+                val database = Fido2Database(driver)
+                var failKeyAcquisition = false
+                val provider =
+                    mockk<EventStoreKeyProvider> {
+                        coEvery { getEventStoreKey(any()) } answers {
+                            if (failKeyAcquisition) error("synthetic key-provider failure")
+                            ByteArray(32) { 3 }
+                        }
+                    }
+                val encryptionManager = mockk<EncryptionManager>()
+                every { encryptionManager.encrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                every { encryptionManager.decrypt(any(), any()) } answers { firstArg<ByteArray>().copyOf() }
+                val repository = PasskeySnapshotRepositoryImpl(database, encryptionManager, provider)
+                val snapshot =
+                    Snapshot(
+                        aggregateId = "snapshot-payload-cleanup",
+                        sequenceNumber = 1,
+                        state =
+                            PasskeyState(
+                                id = "snapshot-payload-cleanup",
+                                rpId = "synthetic.example".toCharArray(),
+                                userId = "synthetic-user".toCharArray(),
+                                userName = "synthetic-name".toCharArray(),
+                                userDisplayName = "Synthetic Name".toCharArray(),
+                                publicKey = "synthetic-public-key",
+                                coseAlgorithm = -7,
+                                derivationProfile = "chimali-local-hdk-p256-v1",
+                            ),
+                        timestamp = Clock.System.now(),
+                    )
+                assertTrue(repository.save(EventKind.PASSKEY, snapshot).isSuccess)
+
+                lateinit var queryPayload: ByteArray
+                repository.afterSnapshotRowReadForTest = { queryPayload = it }
+                failKeyAcquisition = true
+                val result = repository.getLatest<PasskeyState>(EventKind.PASSKEY, snapshot.aggregateId)
+
+                assertTrue(result.isFailure)
+                assertContentEquals(ByteArray(queryPayload.size), queryPayload)
+
+                failKeyAcquisition = false
+                lateinit var decodeFailurePayload: ByteArray
+                repository.afterSnapshotRowReadForTest = { decodeFailurePayload = it }
+                val decodeFailure =
+                    repository.getLatestWithDecoder<PasskeyState>(EventKind.PASSKEY, snapshot.aggregateId) {
+                        error("synthetic snapshot decode failure")
+                    }
+
+                assertTrue(decodeFailure.isFailure)
+                assertContentEquals(ByteArray(decodeFailurePayload.size), decodeFailurePayload)
+
+                lateinit var cancelledReadPayload: ByteArray
+                var cancelledDecodedSnapshot: Snapshot<PasskeyState>? = null
+                lateinit var cancellationJob: Job
+                repository.afterSnapshotRowReadForTest = { cancelledReadPayload = it }
+                val cancelledRead =
+                    launch {
+                        cancellationJob = currentCoroutineContext()[Job]!!
+                        repository.getLatestWithDecoder<PasskeyState>(EventKind.PASSKEY, snapshot.aggregateId) {
+                            Snapshot(
+                                aggregateId = snapshot.aggregateId,
+                                sequenceNumber = snapshot.sequenceNumber,
+                                state =
+                                    PasskeyState(
+                                        id = snapshot.aggregateId,
+                                        rpId = "cancelled.example".toCharArray(),
+                                        userId = "cancelled-user".toCharArray(),
+                                        userName = "cancelled-name".toCharArray(),
+                                        userDisplayName = "Cancelled Name".toCharArray(),
+                                        publicKey = "synthetic-public-key",
+                                        coseAlgorithm = -7,
+                                        derivationProfile = "chimali-local-hdk-p256-v1",
+                                    ),
+                                timestamp = snapshot.timestamp,
+                            ).also { decoded ->
+                                cancelledDecodedSnapshot = decoded
+                                cancellationJob.cancel(
+                                    CancellationException("synthetic snapshot-read cancellation"),
+                                )
+                            }
+                        }
+                    }
+
+                cancelledRead.join()
+                assertTrue(cancelledRead.isCancelled)
+                assertContentEquals(ByteArray(cancelledReadPayload.size), cancelledReadPayload)
+                assertContentEquals(
+                    CharArray(requireNotNull(cancelledDecodedSnapshot).state.rpId.size),
+                    requireNotNull(cancelledDecodedSnapshot).state.rpId,
+                )
+                snapshot.state.eraseSensitiveMetadata()
             } finally {
                 driver.close()
             }

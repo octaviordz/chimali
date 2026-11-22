@@ -22,7 +22,7 @@ The clipboard contract now permits demonstrated execution and observation limits
 
 **Testing**: Existing common/host ownership, failure and logging suites; expanded clipboard virtual-time/race tests; physical Android procedure matrix; full HPROF field/root inspection with positive controls. The earlier 19 focused host passes belong to the partial audit. No product tests, device changes or heap captures were performed during this planning refresh.
 
-**Target Platform**: Android API 28+, target 35, compile 37, Windows development host. Required physical cohorts: API 28, API 29–32, API 33–34 and API 35+. Declare an actual physical device per cohort before execution; missing devices stay Unverified. Alternate/iOS sources are inventoried and shared-interface changes must remain source-compatible; iOS runtime certification is outside this Android release scope.
+**Target Platform**: Android API 28+, target 35, compile 37, Windows development host. Physical cohorts were planned for API 28, API 29–32, API 33–34 and API 35+. On 2026-11-22, the owner explicitly waived the API 28 physical cohort and designated the available Xiaomi Mi A2 / API 29 as the substitute; API 28 is waived, not represented as tested. The API 29 physical cohort is being refreshed on that device. Alternate/iOS sources are inventoried and shared-interface changes must remain source-compatible; iOS runtime certification is outside this Android release scope.
 
 **Project Type**: Existing Android/KMP mobile application with internal security assessment records and user-facing clipboard feedback. No external network interface.
 

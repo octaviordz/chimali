@@ -175,13 +175,22 @@ class PasskeyAggregateServiceImpl(
             invalidPasskeyState()
         }
         try {
-            CredentialKeyDescriptor(
-                CredentialId.fromByteArray(state.credentialId),
-                state.coseAlgorithm,
-                state.derivationProfile,
-            )
+            validateCredentialKeyDescriptor(state.credentialId, state.coseAlgorithm, state.derivationProfile)
         } catch (_: IllegalArgumentException) {
             invalidPasskeyState()
+        }
+    }
+
+    private fun validateCredentialKeyDescriptor(
+        credentialId: ByteArray,
+        coseAlgorithm: Int,
+        derivationProfile: String,
+    ) {
+        require(credentialId.size in CredentialId.MIN_CREDENTIAL_ID_BYTES..CredentialId.MAX_CREDENTIAL_ID_BYTES) {
+            "Invalid credential identifier"
+        }
+        require(CredentialKeyDescriptor.profileFor(coseAlgorithm) == derivationProfile) {
+            "Unsupported credential algorithm/profile pair"
         }
     }
 
@@ -303,11 +312,7 @@ class PasskeyAggregateServiceImpl(
             is PasskeyCommand.Register -> {
                 require(command.id == aggregateId && state.isInitialState()) { INVALID_COMMAND_MESSAGE }
                 require(command.publicKey.isNotBlank()) { INVALID_COMMAND_MESSAGE }
-                CredentialKeyDescriptor(
-                    CredentialId.fromByteArray(command.credentialId),
-                    command.coseAlgorithm,
-                    command.derivationProfile,
-                )
+                validateCredentialKeyDescriptor(command.credentialId, command.coseAlgorithm, command.derivationProfile)
             }
             is PasskeyCommand.Authenticate -> {
                 require(command.id == aggregateId && !state.isInitialState() && !state.isDeleted) {

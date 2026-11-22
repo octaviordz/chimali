@@ -1,0 +1,17 @@
+{
+  "runId": "mia2preview20261122",
+  "fixtureId": "mia2preview20261122",
+  "case": "scheduled-attempt",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "failedAt": "observer-wait-control-match-result",
+  "matchControl": null,
+  "mismatchControl": null,
+  "targetReady": null,
+  "targetOutcome": null,
+  "attemptOutcomeObserved": false,
+  "targetForceStopped": false,
+  "failureCode": "ObserverResultUnavailable",
+  "status": "Unverified",
+  "cleanupSucceeded": true
+}

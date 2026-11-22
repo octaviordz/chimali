@@ -109,7 +109,7 @@ class DevelopmentToolsScreenTest {
 
     /** @see NFR-SEC-041 and TR-AUTH-031 */
     @Test
-    fun qrHideAndClearUseExplicitUserActions() {
+    fun seedQrExportIsDisabledAndClearRemainsAvailable() {
         val testWords = "apple banana cherry".toCharArray()
         val intents = mutableListOf<DevToolsIntent>()
         composeTestRule.setContent {
@@ -123,17 +123,15 @@ class DevelopmentToolsScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("QR").performScrollTo().performClick()
-        composeTestRule.onNodeWithText("Hide QR").performScrollTo().assertExists()
         composeTestRule
-            .onNodeWithContentDescription("Master seed QR code", useUnmergedTree = true)
+            .onNodeWithText("Seed QR export is disabled because the renderer cannot securely erase its data.")
             .performScrollTo()
             .assertExists()
-        composeTestRule.onNodeWithText("Copy").performScrollTo().performClick()
-        composeTestRule.onNodeWithText("Hide QR").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("QR").assertDoesNotExist()
         composeTestRule
             .onNodeWithContentDescription("Master seed QR code", useUnmergedTree = true)
             .assertDoesNotExist()
+        composeTestRule.onNodeWithText("Copy").performScrollTo().performClick()
         composeTestRule.onNodeWithText("Clear").performScrollTo().performClick()
 
         assertEquals(

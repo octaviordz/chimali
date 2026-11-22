@@ -32,6 +32,7 @@ class PasskeyEventStoreRepositoryImpl(
     private val keyProvider: EventStoreKeyProvider,
 ) : EventStoreRepository {
     internal var beforeEventBatchTransferForTest: ((List<DomainEvent>) -> Unit)? = null
+    internal var afterEventRowsReadForTest: ((List<ByteArray>) -> Unit)? = null
 
     private val json =
         Json {
@@ -122,6 +123,7 @@ class PasskeyEventStoreRepositoryImpl(
                 val events = mutableListOf<DomainEvent>()
                 var transferred = false
                 try {
+                    afterEventRowsReadForTest?.invoke(rows.map { it.payload })
                     rows.forEach { row ->
                         context.ensureActive()
                         var plaintext: ByteArray? = null
@@ -137,7 +139,6 @@ class PasskeyEventStoreRepositoryImpl(
                             }
                         } finally {
                             plaintext?.fill(0)
-                            row.payload.fill(0)
                         }
                     }
                     context.ensureActive()
@@ -147,6 +148,7 @@ class PasskeyEventStoreRepositoryImpl(
                     result
                 } finally {
                     if (!transferred) events.forEach(::eraseSensitiveEvent)
+                    rows.forEach { row -> row.payload.fill(0) }
                 }
             }
         } finally {
@@ -177,6 +179,7 @@ class PasskeyEventStoreRepositoryImpl(
                 val events = mutableListOf<DomainEvent>()
                 var transferred = false
                 try {
+                    afterEventRowsReadForTest?.invoke(rows.map { it.payload })
                     rows.forEach { row ->
                         context.ensureActive()
                         var plaintext: ByteArray? = null
@@ -192,7 +195,6 @@ class PasskeyEventStoreRepositoryImpl(
                             }
                         } finally {
                             plaintext?.fill(0)
-                            row.payload.fill(0)
                         }
                     }
                     context.ensureActive()
@@ -202,6 +204,7 @@ class PasskeyEventStoreRepositoryImpl(
                     result
                 } finally {
                     if (!transferred) events.forEach(::eraseSensitiveEvent)
+                    rows.forEach { row -> row.payload.fill(0) }
                 }
             }
         } finally {

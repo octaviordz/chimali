@@ -110,35 +110,16 @@ class LeakCanaryMnemonicOwnerTest {
         val activityScenario = launchHeapAuditOwnerHostActivity()
         var viewModel: CredentialManagementViewModel? = null
         var credential: PasskeyCredential? = null
-        var syntheticCredential: PasskeyCredential? = null
+        var fixture: SyntheticPasskeyHeapFixture? = null
         var activityClosed = false
         try {
             heapAuditSession?.checkpoint("baseline")
             val runSuffix = sessionId ?: UUID.randomUUID().toString()
-            var accountMarker: String? = "SEC065_PASSKEY_ACCOUNT_$runSuffix"
-            var rpMarker: String? = "sec065-$runSuffix.example"
-            var credentialIdMarker: String? = ("SID$runSuffix" + "XYZAAAAAAA").take(32)
-            val idBytes = requireNotNull(credentialIdMarker).toByteArray(StandardCharsets.US_ASCII)
-            var credentialId: CredentialId? = CredentialId.fromByteArray(idBytes)
-            var encodedIdMarker: String? = requireNotNull(credentialId).encoded
-            var userIdMarker: String? = "user_${requireNotNull(credentialId).encoded}"
-            syntheticCredential =
-                PasskeyCredential.createTest(
-                    id = requireNotNull(credentialId),
-                    rpId = RpId(requireNotNull(rpMarker)),
-                    userName = requireNotNull(accountMarker),
-                )
-            idBytes.fill(0)
-            credential = syntheticCredential
+            fixture = createSyntheticPasskeyHeapFixture(runSuffix)
+            credential = requireNotNull(fixture).credential
             if (heapAuditSession != null && positiveControl != null) {
                 heapAuditSession.writeExpectedMarkers(
-                    listOf(
-                        requireNotNull(accountMarker),
-                        requireNotNull(rpMarker),
-                        requireNotNull(userIdMarker),
-                        requireNotNull(encodedIdMarker),
-                        requireNotNull(credentialIdMarker),
-                    ),
+                    requireNotNull(fixture).expectedMarkers,
                     positiveControl,
                 )
             }
@@ -166,17 +147,13 @@ class LeakCanaryMnemonicOwnerTest {
                     )
                 viewModel = owner
                 activity.viewModelStore.put("synthetic-passkey-owner", owner)
-                owner.setCredentials(listOf(requireNotNull(syntheticCredential)))
+                owner.setCredentials(listOf(requireNotNull(fixture).credential))
             }
-            assertTrue(requireNotNull(credential).userName.contentEquals(requireNotNull(accountMarker)))
-            assertTrue(requireNotNull(credential).rpId.contentEquals(requireNotNull(rpMarker)))
-            assertTrue(requireNotNull(credential).userId.contentEquals(requireNotNull(userIdMarker)))
-            accountMarker = null
-            rpMarker = null
-            userIdMarker = null
-            encodedIdMarker = null
-            credentialIdMarker = null
-            credentialId = null
+            assertTrue(requireNotNull(credential).userName.contentEquals(requireNotNull(fixture).accountMarker))
+            assertTrue(requireNotNull(credential).rpId.contentEquals(requireNotNull(fixture).rpMarker))
+            assertTrue(requireNotNull(credential).userId.contentEquals(requireNotNull(fixture).userIdMarker))
+            // The encoded-ID producer's frame has returned. Drop every fixture String before capture.
+            fixture = null
             heapAuditSession?.checkpoint("active")
             activityScenario.close()
             activityClosed = true
@@ -192,15 +169,51 @@ class LeakCanaryMnemonicOwnerTest {
             assertSensitiveTextCleared(requireNotNull(credential).userId)
             assertSensitiveTextCleared(requireNotNull(credential).userDisplayName)
             credential = null
-            syntheticCredential = null
             viewModel = null
             LeakAssertions.assertNoLeaks()
             heapAuditSession?.checkpoint("terminal")
         } finally {
             if (!activityClosed) activityScenario.close()
             credential?.eraseSensitiveText()
+            fixture = null
             heapAuditPositiveControl = null
             heapAuditSession?.close()
+        }
+    }
+
+    private data class SyntheticPasskeyHeapFixture(
+        val credential: PasskeyCredential,
+        val accountMarker: String,
+        val rpMarker: String,
+        val userIdMarker: String,
+        val expectedMarkers: List<String>,
+    )
+
+    /** Builds encoded-ID markers in a short-lived frame so measured captures do not retain its locals. */
+    private fun createSyntheticPasskeyHeapFixture(runSuffix: String): SyntheticPasskeyHeapFixture {
+        val accountMarker = "SEC065_PASSKEY_ACCOUNT_$runSuffix"
+        val rpMarker = "sec065-$runSuffix.example"
+        val credentialIdMarker = ("SID$runSuffix" + "XYZAAAAAAA").take(32)
+        val idBytes = credentialIdMarker.toByteArray(StandardCharsets.US_ASCII)
+        try {
+            val credentialId = CredentialId.fromByteArray(idBytes)
+            val encodedIdMarker = credentialId.encoded
+            val userIdMarker = "user_${credentialId.encoded}"
+            val credential =
+                PasskeyCredential.createTest(
+                    id = credentialId,
+                    rpId = RpId(rpMarker),
+                    userName = accountMarker,
+                )
+            return SyntheticPasskeyHeapFixture(
+                credential = credential,
+                accountMarker = accountMarker,
+                rpMarker = rpMarker,
+                userIdMarker = userIdMarker,
+                expectedMarkers = listOf(accountMarker, rpMarker, userIdMarker, encodedIdMarker, credentialIdMarker),
+            )
+        } finally {
+            idBytes.fill(0)
         }
     }
 

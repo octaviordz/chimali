@@ -1,0 +1,24 @@
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:
+  Window #3 Window{f2654b4 u0 AssistPreviewPanel}:
+    WindowStateAnimator{3771286 AssistPreviewPanel}:

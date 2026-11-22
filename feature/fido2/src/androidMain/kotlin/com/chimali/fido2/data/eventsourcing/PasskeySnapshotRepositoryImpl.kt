@@ -27,6 +27,7 @@ class PasskeySnapshotRepositoryImpl(
     private val encryptionManager: EncryptionManager,
     private val keyProvider: EventStoreKeyProvider,
 ) : SnapshotRepository {
+    internal var afterSnapshotRowReadForTest: ((ByteArray) -> Unit)? = null
     private val json =
         Json {
             ignoreUnknownKeys = true
@@ -139,19 +140,23 @@ class PasskeySnapshotRepositoryImpl(
                 val row =
                     database.fido2DatabaseQueries.get_latest_snapshot(aggregate_id = aggregateId).executeAsOneOrNull()
                         ?: return@captureStorageResult null
-
-                val eventKey = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
-                key = eventKey
-                plaintext = encryptionManager.decrypt(row.payload, eventKey)
-                var decoded: Snapshot<T>? = null
-                var transferred = false
                 try {
-                    decoded = decodeSnapshot(plaintext)
-                    context.ensureActive()
-                    transferred = true
-                    decoded
+                    afterSnapshotRowReadForTest?.invoke(row.payload)
+                    val eventKey = keyProvider.getEventStoreKey("chimali_fido2_es_v1")
+                    key = eventKey
+                    plaintext = encryptionManager.decrypt(row.payload, eventKey)
+                    var decoded: Snapshot<T>? = null
+                    var transferred = false
+                    try {
+                        decoded = decodeSnapshot(plaintext)
+                        context.ensureActive()
+                        transferred = true
+                        decoded
+                    } finally {
+                        if (!transferred) (decoded?.state as? PasskeyState)?.eraseSensitiveMetadata()
+                    }
                 } finally {
-                    if (!transferred) (decoded?.state as? PasskeyState)?.eraseSensitiveMetadata()
+                    row.payload.fill(0)
                 }
             }
         } finally {

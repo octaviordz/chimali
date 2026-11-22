@@ -1,0 +1,82 @@
+{
+  "runId": "mia2waiver20261122c",
+  "fixtureId": "mia2waiver20261122c",
+  "case": "app-switch",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 16814,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 16814,
+  "observerPid": 16768,
+  "targetReady": {
+    "runId": "mia2waiver20261122c",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 6014837,
+    "publicationElapsedMs": 5984837,
+    "copyCallStartedElapsedMs": 5984834,
+    "copyCallReturnedElapsedMs": 5984844
+  },
+  "targetReadyRepeat": null,
+  "targetReadyUnconfirmed": null,
+  "targetReadyReject": null,
+  "targetOutcome": {
+    "runId": "mia2waiver20261122c",
+    "generation": 1,
+    "scheduledElapsedMs": 6014837,
+    "terminalStatusElapsedMs": 6014885,
+    "outcome": "SkippedOwnershipUnavailable"
+  },
+  "supersededOutcome": null,
+  "attemptOutcomeObserved": true,
+  "matchControl": {
+    "runId": "mia2waiver20261122c",
+    "elapsedRealtimeMs": 5981458,
+    "observerPid": 16768,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2waiver20261122c",
+    "elapsedRealtimeMs": 5981664,
+    "observerPid": 16768,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "mia2waiver20261122c",
+    "elapsedRealtimeMs": 6015473,
+    "observerPid": 16768,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": {
+    "runId": "mia2waiver20261122c",
+    "elapsedRealtimeMs": 6015724,
+    "observerPid": 16768,
+    "classification": "absent",
+    "sensitiveFlag": null,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "clear-request-submitted"
+  },
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": true,
+  "sleptDuringDeadline": false,
+  "status": "Passed (background ownership unavailable; automatic cleanup safely skipped)",
+  "cleanupSucceeded": true
+}

@@ -1,0 +1,72 @@
+{
+  "runId": "mia2waiver20261122d",
+  "fixtureId": "mia2waiver20261122d",
+  "case": "clipboard-replaced",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 17207,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 17207,
+  "observerPid": 17160,
+  "targetReady": {
+    "runId": "mia2waiver20261122d",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 6057454,
+    "publicationElapsedMs": 6027454,
+    "copyCallStartedElapsedMs": 6027451,
+    "copyCallReturnedElapsedMs": 6027462
+  },
+  "targetReadyRepeat": null,
+  "targetReadyUnconfirmed": null,
+  "targetReadyReject": null,
+  "targetOutcome": {
+    "runId": "mia2waiver20261122d",
+    "generation": 1,
+    "scheduledElapsedMs": 6057454,
+    "terminalStatusElapsedMs": 6057509,
+    "outcome": "SkippedOwnershipUnavailable"
+  },
+  "supersededOutcome": null,
+  "attemptOutcomeObserved": true,
+  "matchControl": {
+    "runId": "mia2waiver20261122d",
+    "elapsedRealtimeMs": 6023995,
+    "observerPid": 17160,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2waiver20261122d",
+    "elapsedRealtimeMs": 6024209,
+    "observerPid": 17160,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "mia2waiver20261122d",
+    "elapsedRealtimeMs": 6057795,
+    "observerPid": 17160,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": null,
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": false,
+  "sleptDuringDeadline": false,
+  "status": "Passed (clipboard replacement observed; automatic cleanup skipped with outcome SkippedOwnershipUnavailable)",
+  "cleanupSucceeded": true
+}

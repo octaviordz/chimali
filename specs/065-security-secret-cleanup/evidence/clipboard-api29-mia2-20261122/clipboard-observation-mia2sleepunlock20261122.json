@@ -1,0 +1,55 @@
+{
+  "runId": "mia2sleepunlock20261122",
+  "fixtureId": "mia2sleepunlock20261122",
+  "case": "locked-sleep",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "failedAt": "target-screen-wake",
+  "matchControl": {
+    "runId": "mia2sleepunlock20261122",
+    "elapsedRealtimeMs": 7650046,
+    "observerPid": 21430,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "mia2sleepunlock20261122",
+    "elapsedRealtimeMs": 7650286,
+    "observerPid": 21430,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "targetReady": {
+    "runId": "mia2sleepunlock20261122",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 7683638,
+    "publicationElapsedMs": 7653638,
+    "copyCallStartedElapsedMs": 7653633,
+    "copyCallReturnedElapsedMs": 7653648
+  },
+  "targetOutcome": {
+    "runId": "mia2sleepunlock20261122",
+    "generation": 1,
+    "scheduledElapsedMs": 7683638,
+    "terminalStatusElapsedMs": 7683682,
+    "outcome": "SkippedOwnershipUnavailable"
+  },
+  "attemptOutcomeObserved": true,
+  "targetForceStopped": false,
+  "secureKeyguardObservedAfterWake": true,
+  "manualUnlockTimeoutSeconds": 90,
+  "manualUnlockObserved": false,
+  "failureCode": "SecureKeyguardRemained",
+  "status": "Unverified",
+  "cleanupSucceeded": true
+}

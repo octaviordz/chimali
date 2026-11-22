@@ -1,0 +1,72 @@
+{
+  "runId": "asus35preview20261122",
+  "fixtureId": "asus35preview20261122",
+  "case": "scheduled-attempt",
+  "targetPackage": "com.chimali.clipboardaudit",
+  "testPackage": "com.chimali.clipboardaudit.test",
+  "targetPidBeforeCase": 17512,
+  "targetPidAfterStop": null,
+  "targetPidDuringObservation": 17512,
+  "observerPid": 17431,
+  "targetReady": {
+    "runId": "asus35preview20261122",
+    "targetWindowFocused": true,
+    "publication": "MetadataConfirmed",
+    "generation": 1,
+    "scheduledElapsedMs": 51811162,
+    "publicationElapsedMs": 51781162,
+    "copyCallStartedElapsedMs": 51781159,
+    "copyCallReturnedElapsedMs": 51781166
+  },
+  "targetReadyRepeat": null,
+  "targetReadyUnconfirmed": null,
+  "targetReadyReject": null,
+  "targetOutcome": {
+    "runId": "asus35preview20261122",
+    "generation": 1,
+    "scheduledElapsedMs": 51811162,
+    "terminalStatusElapsedMs": 51811201,
+    "outcome": "ClearRequestSubmitted"
+  },
+  "supersededOutcome": null,
+  "attemptOutcomeObserved": true,
+  "matchControl": {
+    "runId": "asus35preview20261122",
+    "elapsedRealtimeMs": 51780184,
+    "observerPid": 17431,
+    "classification": "marker-match",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "marker-match",
+    "cleanupOutcome": "not-requested"
+  },
+  "mismatchControl": {
+    "runId": "asus35preview20261122",
+    "elapsedRealtimeMs": 51780400,
+    "observerPid": 17431,
+    "classification": "replaced",
+    "sensitiveFlag": true,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "replaced",
+    "cleanupOutcome": "not-requested"
+  },
+  "observation": {
+    "runId": "asus35preview20261122",
+    "elapsedRealtimeMs": 51811615,
+    "observerPid": 17431,
+    "classification": "absent",
+    "sensitiveFlag": null,
+    "windowFocused": true,
+    "deviceLocked": false,
+    "capabilityControl": "not-run",
+    "cleanupOutcome": "not-requested"
+  },
+  "testCleanup": null,
+  "targetForceStopped": false,
+  "targetBackgroundConfirmed": false,
+  "sleptDuringDeadline": false,
+  "status": "Passed (scheduled cleanup observation case)",
+  "cleanupSucceeded": true
+}
