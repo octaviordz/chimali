@@ -475,6 +475,7 @@ class VaultViewModel(
                     com.chimali.core.clipboard.CleanupOutcome.ClearRequestSubmitted,
                     com.chimali.core.clipboard.CleanupOutcome.ManualClearSubmitted,
                     com.chimali.core.clipboard.CleanupOutcome.SkippedOwnershipUnavailable,
+                    com.chimali.core.clipboard.CleanupOutcome.ClearRejected,
                     com.chimali.core.clipboard.CleanupOutcome.Interrupted,
                 )
             ) {

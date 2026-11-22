@@ -64,19 +64,34 @@ class AndroidClipboardManagerService(
     ): Result<ClipboardCopyReceipt> =
         owner.withLock {
             val clipboard = manager ?: return@withLock Result.failure(ClipboardError.ClipboardUnavailable())
-            if (_cleanupStatuses.value.size >= 2) {
-                return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
-            }
-            val unconfirmedPending =
-                tokens.keys.any { generation ->
-                    _cleanupStatuses.value[generation]?.outcome == CleanupOutcome.Pending &&
-                        lastPublication[generation] == PublicationStatus.Unconfirmed
-                }
-            if (unconfirmedPending) return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
-
             val generation = ++nextGeneration
-            val token = ownershipTokenSource()
+            val admitted =
+                synchronized(receiptLock) {
+                    val unconfirmedPending =
+                        _cleanupStatuses.value.keys.any { current ->
+                            _cleanupStatuses.value[current]?.outcome == CleanupOutcome.Pending &&
+                                lastPublication[current] == PublicationStatus.Unconfirmed
+                        }
+                    if (_cleanupStatuses.value.size >= 2 || unconfirmedPending) {
+                        false
+                    } else {
+                        _cleanupStatuses.value =
+                            _cleanupStatuses.value +
+                            (
+                                generation to
+                                    ClipboardCleanupStatus(
+                                        generation,
+                                        CleanupOutcome.Pending,
+                                        CleanupOrigin.Automatic,
+                                    )
+                            )
+                        true
+                    }
+                }
+            if (!admitted) return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
+            var publicationReturned = false
             try {
+                val token = ownershipTokenSource()
                 val clip =
                     ClipData.newPlainText(SAFE_CLIP_LABEL, String(text)).apply {
                         description.extras =
@@ -86,25 +101,37 @@ class AndroidClipboardManagerService(
                             }
                     }
                 clipboard.setPrimaryClip(clip)
+                publicationReturned = true
                 val copiedAt = SystemClock.elapsedRealtime()
                 val dueAt = copiedAt + CLIPBOARD_CLEANUP_DELAY_MS
-                val confirmed = (readOwnershipToken(clipboard) as? OwnershipTokenRead.Readable)?.token == token
+                val confirmed =
+                    try {
+                        (readOwnershipToken(clipboard) as? OwnershipTokenRead.Readable)?.token == token
+                    } catch (cancellation: CancellationException) {
+                        tokens[generation] = token
+                        lastPublication[generation] = PublicationStatus.Unconfirmed
+                        jobs[generation] =
+                            scope.launch {
+                                delay((dueAt - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                                attemptAutomatic(generation, token)
+                            }
+                        jobs[generation]?.invokeOnCompletion { cause ->
+                            if (cause is CancellationException) recordInterruptedCleanup(generation, token)
+                        }
+                        transferToCustodian(generation)
+                        throw cancellation
+                    }
                 val publication = if (confirmed) PublicationStatus.MetadataConfirmed else PublicationStatus.Unconfirmed
                 if (confirmed) {
                     tokens.keys.toList().forEach { previous ->
                         tokens.remove(previous)
                         jobs.remove(previous)?.cancel()
+                        lastPublication.remove(previous)
                         finishReceipt(previous, CleanupOutcome.Superseded, CleanupOrigin.Automatic)
                     }
                 }
                 tokens[generation] = token
                 lastPublication[generation] = publication
-                _cleanupStatuses.value =
-                    _cleanupStatuses.value +
-                    (
-                        generation to
-                            ClipboardCleanupStatus(generation, CleanupOutcome.Pending, CleanupOrigin.Automatic)
-                    )
                 jobs[generation] =
                     scope.launch {
                         delay((dueAt - SystemClock.elapsedRealtime()).coerceAtLeast(0))
@@ -115,12 +142,21 @@ class AndroidClipboardManagerService(
                 }
                 Result.success(ClipboardCopyReceipt(generation, dueAt, publication))
             } catch (cancellation: CancellationException) {
+                if (!publicationReturned) {
+                    synchronized(receiptLock) {
+                        _cleanupStatuses.value =
+                            _cleanupStatuses.value - generation
+                    }
+                }
                 throw cancellation
             } catch (_: SecurityException) {
+                synchronized(receiptLock) { _cleanupStatuses.value = _cleanupStatuses.value - generation }
                 Result.failure(ClipboardError.CopyFailed("clipboard publication rejected"))
             } catch (_: IllegalStateException) {
+                synchronized(receiptLock) { _cleanupStatuses.value = _cleanupStatuses.value - generation }
                 Result.failure(ClipboardError.CopyFailed("clipboard publication unavailable"))
             } catch (_: Exception) {
+                synchronized(receiptLock) { _cleanupStatuses.value = _cleanupStatuses.value - generation }
                 Result.failure(ClipboardError.CopyFailed("clipboard publication unavailable"))
             }
         }
@@ -133,7 +169,10 @@ class AndroidClipboardManagerService(
     ) = owner.withLock {
         if (tokens[generation] != token) return@withLock
         val clipboard = manager
+        val callbackElapsedMs = SystemClock.elapsedRealtime()
         val ownership = readOwnershipToken(clipboard)
+        val ownershipCheckElapsedMs = SystemClock.elapsedRealtime()
+        var clearAttemptElapsedMs: Long? = null
         val outcome =
             when (ownership) {
                 OwnershipTokenRead.Unavailable -> CleanupOutcome.SkippedOwnershipUnavailable
@@ -142,23 +181,31 @@ class AndroidClipboardManagerService(
                         ownership.token == null || ownership.token != token -> CleanupOutcome.SkippedReplaced
                         else ->
                             try {
+                                clearAttemptElapsedMs = SystemClock.elapsedRealtime()
                                 clipboard?.clearPrimaryClip()
                                 CleanupOutcome.ClearRequestSubmitted
                             } catch (cancellation: CancellationException) {
                                 throw cancellation
                             } catch (_: SecurityException) {
-                                CleanupOutcome.SkippedOwnershipUnavailable
+                                CleanupOutcome.ClearRejected
                             } catch (_: IllegalStateException) {
-                                CleanupOutcome.SkippedOwnershipUnavailable
+                                CleanupOutcome.ClearRejected
                             } catch (_: Exception) {
-                                CleanupOutcome.SkippedOwnershipUnavailable
+                                CleanupOutcome.ClearRejected
                             }
                     }
             }
         jobs.remove(generation)
         tokens.remove(generation)
         lastPublication.remove(generation)
-        finishReceipt(generation, outcome, CleanupOrigin.Automatic)
+        finishReceipt(
+            generation,
+            outcome,
+            CleanupOrigin.Automatic,
+            callbackElapsedMs,
+            ownershipCheckElapsedMs,
+            clearAttemptElapsedMs,
+        )
     }
 
     private fun recordInterruptedCleanup(
@@ -248,6 +295,9 @@ class AndroidClipboardManagerService(
         generation: Long,
         outcome: CleanupOutcome,
         origin: CleanupOrigin,
+        callbackElapsedMs: Long? = null,
+        ownershipCheckElapsedMs: Long? = null,
+        clearAttemptElapsedMs: Long? = null,
     ) {
         synchronized(receiptLock) {
             if (_cleanupStatuses.value[generation] == null) return
@@ -255,7 +305,14 @@ class AndroidClipboardManagerService(
                 setOutcome(generation, CleanupOutcome.Abandoned, origin)
                 releaseTerminal(generation)
             } else {
-                setOutcome(generation, outcome, origin)
+                setOutcome(
+                    generation,
+                    outcome,
+                    origin,
+                    callbackElapsedMs,
+                    ownershipCheckElapsedMs,
+                    clearAttemptElapsedMs,
+                )
             }
         }
     }
@@ -273,8 +330,22 @@ class AndroidClipboardManagerService(
         generation: Long,
         outcome: CleanupOutcome,
         origin: CleanupOrigin,
+        callbackElapsedMs: Long? = null,
+        ownershipCheckElapsedMs: Long? = null,
+        clearAttemptElapsedMs: Long? = null,
     ) {
         _cleanupStatuses.value =
-            _cleanupStatuses.value + (generation to ClipboardCleanupStatus(generation, outcome, origin))
+            _cleanupStatuses.value +
+            (
+                generation to
+                    ClipboardCleanupStatus(
+                        generation,
+                        outcome,
+                        origin,
+                        callbackElapsedMs,
+                        ownershipCheckElapsedMs,
+                        clearAttemptElapsedMs,
+                    )
+            )
     }
 }

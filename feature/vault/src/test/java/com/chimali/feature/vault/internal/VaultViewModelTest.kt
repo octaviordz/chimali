@@ -21,6 +21,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -556,6 +557,25 @@ class VaultViewModelTest {
                 viewModel.state.value.copyMessage,
             )
             coVerify { clipboardManager.copySensitiveData("Password", any()) }
+        }
+
+    @Test
+    fun `scheduled clear rejection reports cleanup unconfirmed and acknowledges receipt`() =
+        runTest {
+            every { clipboardManager.cleanupStatuses } returns
+                MutableStateFlow(
+                    mapOf(1L to ClipboardCleanupStatus(1L, CleanupOutcome.ClearRejected, CleanupOrigin.Automatic)),
+                )
+            every { clipboardManager.acknowledge(any()) } returns Unit
+            coEvery {
+                clipboardManager.copySensitiveData("Password", any())
+            } returns Result.success(ClipboardCopyReceipt(1L, 30_000L, PublicationStatus.MetadataConfirmed))
+
+            viewModel.processIntent(VaultIntent.CopyPassword("secret".toCharArray()))
+            advanceUntilIdle()
+
+            assertEquals("Clipboard cleanup couldn't be confirmed.", viewModel.state.value.copyMessage)
+            verify { clipboardManager.acknowledge(1L) }
         }
 
     @Test

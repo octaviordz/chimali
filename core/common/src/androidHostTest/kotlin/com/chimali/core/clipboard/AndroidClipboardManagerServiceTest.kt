@@ -32,12 +32,14 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass") // Clipboard lifecycle scenarios share static platform fakes and one virtual-time fixture.
 class AndroidClipboardManagerServiceTest {
     private val context: Context = mockk()
     private val clipboardManager: ClipboardManager = mockk(relaxed = true)
     private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var service: AndroidClipboardManagerService
+    private lateinit var mockDescription: ClipDescription
     private var forcedReadbackToken: String? = null
     private val writtenOwnershipTokens = mutableListOf<String>()
 
@@ -71,7 +73,7 @@ class AndroidClipboardManagerServiceTest {
             { extras[firstArg<String>()] as? Boolean ?: false }
         every { SystemClock.elapsedRealtime() } answers { testDispatcher.scheduler.currentTime }
 
-        val mockDescription = mockk<ClipDescription>(relaxed = true)
+        mockDescription = mockk<ClipDescription>(relaxed = true)
         val extrasSlot = slot<PersistableBundle>()
 
         every { mockDescription.extras = capture(extrasSlot) } just Runs
@@ -191,6 +193,10 @@ class AndroidClipboardManagerServiceTest {
                 CleanupOutcome.ClearRequestSubmitted,
                 service.cleanupStatuses.value[receipt.generation]?.outcome,
             )
+            val timing = requireNotNull(service.cleanupStatuses.value[receipt.generation])
+            kotlin.test.assertTrue(timing.callbackElapsedMs!! >= receipt.scheduledElapsedMs)
+            kotlin.test.assertTrue(timing.ownershipCheckElapsedMs!! >= timing.callbackElapsedMs)
+            kotlin.test.assertTrue(timing.clearAttemptElapsedMs!! >= timing.ownershipCheckElapsedMs)
         }
 
     @Test
@@ -443,6 +449,37 @@ class AndroidClipboardManagerServiceTest {
         }
 
     @Test
+    fun `publication interleaved with acknowledgement preserves new receipt and recovers capacity`() =
+        runTest(testDispatcher) {
+            every { clipboardManager.setPrimaryClip(any()) } just Runs
+            every { clipboardManager.clearPrimaryClip() } just Runs
+            val terminal = service.copySensitiveData(TEST_SHORT, "first".toCharArray()).getOrThrow()
+            runCurrent()
+            advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS)
+            runCurrent()
+            kotlin.test.assertEquals(
+                CleanupOutcome.ClearRequestSubmitted,
+                service.cleanupStatuses.value[terminal.generation]?.outcome,
+            )
+
+            every { clipboardManager.setPrimaryClip(any()) } answers {
+                service.acknowledge(terminal.generation)
+            }
+            val current = service.copySensitiveData(TEST_SHORT, "second".toCharArray()).getOrThrow()
+
+            kotlin.test.assertFalse(service.cleanupStatuses.value.containsKey(terminal.generation))
+            kotlin.test.assertEquals(CleanupOutcome.Pending, service.cleanupStatuses.value[current.generation]?.outcome)
+            kotlin.test.assertEquals(setOf(current.generation), service.cleanupStatuses.value.keys)
+
+            advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS)
+            runCurrent()
+            service.acknowledge(current.generation)
+            val next = service.copySensitiveData(TEST_SHORT, "third".toCharArray()).getOrThrow()
+            kotlin.test.assertEquals(CleanupOutcome.Pending, service.cleanupStatuses.value[next.generation]?.outcome)
+            kotlin.test.assertEquals(setOf(next.generation), service.cleanupStatuses.value.keys)
+        }
+
+    @Test
     fun `back to back terminal outcomes remain independently addressable until acknowledgement`() =
         runTest(testDispatcher) {
             every { clipboardManager.setPrimaryClip(any()) } just Runs
@@ -609,6 +646,144 @@ class AndroidClipboardManagerServiceTest {
         }
 
     @Test
+    fun `ownership token failure releases only its reservation and preserves prior deadline`() =
+        runTest(testDispatcher) {
+            every { clipboardManager.setPrimaryClip(any()) } just Runs
+            every { clipboardManager.clearPrimaryClip() } just Runs
+            val prior = service.copySensitiveData(TEST_SHORT, "prior-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            val tokenSourceField =
+                service.javaClass.getDeclaredField("ownershipTokenSource").apply { isAccessible = true }
+            tokenSourceField.set(
+                service,
+                {
+                    throw SecurityException("synthetic ownership token failure")
+                },
+            )
+
+            val failed = service.copySensitiveData(TEST_SHORT, "rejected-secret".toCharArray())
+            val error = failed.exceptionOrNull()
+
+            kotlin.test.assertIs<ClipboardError.CopyFailed>(error)
+            kotlin.test.assertEquals("Copy failed", error.message)
+            kotlin.test.assertFalse(error.message.orEmpty().contains("synthetic"))
+            kotlin.test.assertFalse(error.message.orEmpty().contains("secret"))
+            assertEquals(setOf(prior.generation), service.cleanupStatuses.value.keys)
+            verify(exactly = 1) { clipboardManager.setPrimaryClip(any()) }
+
+            advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS - 1)
+            runCurrent()
+            verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(
+                CleanupOutcome.ClearRequestSubmitted,
+                service.cleanupStatuses.value[prior.generation]?.outcome,
+            )
+            verify(exactly = 1) { clipboardManager.clearPrimaryClip() }
+
+            tokenSourceField.set(service, { "later-synthetic-token" })
+            val later = service.copySensitiveData(TEST_SHORT, "later-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            kotlin.test.assertEquals(PublicationStatus.MetadataConfirmed, later.publication)
+            assertEquals(2, service.cleanupStatuses.value.size)
+            verify(exactly = 2) { clipboardManager.setPrimaryClip(any()) }
+        }
+
+    @Test
+    fun `ownership token cancellation propagates releases reservation and preserves prior deadline`() =
+        runTest(testDispatcher) {
+            every { clipboardManager.setPrimaryClip(any()) } just Runs
+            every { clipboardManager.clearPrimaryClip() } just Runs
+            val prior = service.copySensitiveData(TEST_SHORT, "prior-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            val tokenSourceField =
+                service.javaClass.getDeclaredField("ownershipTokenSource").apply { isAccessible = true }
+            tokenSourceField.set(
+                service,
+                {
+                    throw kotlinx.coroutines.CancellationException("synthetic cancellation")
+                },
+            )
+
+            kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+                service.copySensitiveData(TEST_SHORT, "cancelled-secret".toCharArray())
+            }
+            assertEquals(setOf(prior.generation), service.cleanupStatuses.value.keys)
+            verify(exactly = 1) { clipboardManager.setPrimaryClip(any()) }
+
+            advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS - 1)
+            runCurrent()
+            verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(
+                CleanupOutcome.ClearRequestSubmitted,
+                service.cleanupStatuses.value[prior.generation]?.outcome,
+            )
+            tokenSourceField.set(service, { "recovered-synthetic-token" })
+            val later = service.copySensitiveData(TEST_SHORT, "later-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            kotlin.test.assertEquals(PublicationStatus.MetadataConfirmed, later.publication)
+            assertEquals(2, service.cleanupStatuses.value.size)
+            verify(exactly = 2) { clipboardManager.setPrimaryClip(any()) }
+        }
+
+    @Test
+    fun `postpublication metadata cancellation retains scheduled cleanup under service custody`() =
+        runTest(testDispatcher) {
+            every { clipboardManager.setPrimaryClip(any()) } just Runs
+            every { clipboardManager.clearPrimaryClip() } just Runs
+            val predecessor = service.copySensitiveData(TEST_SHORT, "predecessor-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            advanceTimeBy(5_000L)
+            every { clipboardManager.primaryClipDescription } throws
+                kotlinx.coroutines.CancellationException("synthetic metadata cancellation") andThen
+                mockDescription
+
+            kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+                service.copySensitiveData(TEST_SHORT, "synthetic-postpublication-secret".toCharArray())
+            }
+            runCurrent()
+            assertEquals(2, service.cleanupStatuses.value.size)
+            assertEquals(
+                CleanupOutcome.Pending,
+                service.cleanupStatuses.value[predecessor.generation]?.outcome,
+            )
+            verify(exactly = 2) { clipboardManager.setPrimaryClip(any()) }
+
+            advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS - 5_001L)
+            runCurrent()
+            verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(
+                CleanupOutcome.SkippedReplaced,
+                service.cleanupStatuses.value[predecessor.generation]?.outcome,
+            )
+            verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
+            advanceTimeBy(4_999L)
+            runCurrent()
+            verify(exactly = 0) { clipboardManager.clearPrimaryClip() }
+            assertEquals(2, service.cleanupStatuses.value.size)
+            assertEquals(
+                CleanupOutcome.Pending,
+                service.cleanupStatuses.value[predecessor.generation + 1]?.outcome,
+            )
+            advanceTimeBy(1L)
+            runCurrent()
+            verify(exactly = 1) { clipboardManager.clearPrimaryClip() }
+            assertEquals(
+                CleanupOutcome.SkippedReplaced,
+                service.cleanupStatuses.value[predecessor.generation]?.outcome,
+            )
+            assertEquals(setOf(predecessor.generation), service.cleanupStatuses.value.keys)
+            val later = service.copySensitiveData(TEST_SHORT, "later-secret".toCharArray()).getOrThrow()
+            runCurrent()
+            assertEquals(PublicationStatus.MetadataConfirmed, later.publication)
+        }
+
+    @Test
     fun `cancelled scheduled cleanup reports interruption without claiming removal`() =
         runTest(testDispatcher) {
             every { clipboardManager.setPrimaryClip(any()) } just Runs
@@ -687,7 +862,7 @@ class AndroidClipboardManagerServiceTest {
         }
 
     @Test
-    fun `automatic clear failure is recorded as unknown and is not retried`() =
+    fun `automatic clear failure is recorded as rejected and is not retried`() =
         runTest(testDispatcher) {
             every { clipboardManager.setPrimaryClip(any()) } just Runs
             every { clipboardManager.clearPrimaryClip() } throws SecurityException("synthetic-platform-marker")
@@ -698,14 +873,14 @@ class AndroidClipboardManagerServiceTest {
             runCurrent()
 
             kotlin.test.assertEquals(
-                CleanupOutcome.SkippedOwnershipUnavailable,
+                CleanupOutcome.ClearRejected,
                 service.cleanupStatuses.value[receipt.generation]?.outcome,
             )
             advanceTimeBy(CLIPBOARD_CLEANUP_DELAY_MS * 2)
             runCurrent()
             verify(exactly = 1) { clipboardManager.clearPrimaryClip() }
             kotlin.test.assertEquals(
-                CleanupOutcome.SkippedOwnershipUnavailable,
+                CleanupOutcome.ClearRejected,
                 service.cleanupStatuses.value[receipt.generation]?.outcome,
             )
         }

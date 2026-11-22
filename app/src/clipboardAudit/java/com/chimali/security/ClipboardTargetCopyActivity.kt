@@ -238,6 +238,9 @@ private object ClipboardAuditCleanupRecorder {
                             .put("generation", generation)
                             .put("scheduledElapsedMs", scheduledElapsedMs)
                             .put("terminalStatusElapsedMs", SystemClock.elapsedRealtime())
+                            .put("callbackElapsedMs", status.callbackElapsedMs ?: JSONObject.NULL)
+                            .put("ownershipCheckElapsedMs", status.ownershipCheckElapsedMs ?: JSONObject.NULL)
+                            .put("clearAttemptElapsedMs", status.clearAttemptElapsedMs ?: JSONObject.NULL)
                             .put("outcome", status.outcome.name)
                     context
                         .getFileStreamPath(

@@ -7,11 +7,19 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_-]{1,64}$')][string]$RunId,
     [Parameter(Mandatory)][ValidateSet('process-death', 'scheduled-attempt', 'app-switch', 'locked-sleep', 'clipboard-replaced', 'manual-clear', 'repeat-copy', 'copy-rejected')][string]$Case,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OutputDirectory,
+    [string]$SyntheticInputPath,
     [ValidateRange(0, 120)][int]$ManualUnlockTimeoutSeconds = 0
 )
 
+. (Join-Path $PSScriptRoot 'clipboard-observation-classification.ps1')
+Assert-ClipboardObservationClassificationCases
+Assert-ClipboardObservationTimingCases
+
+$syntheticScenario = if ($SyntheticInputPath) { Get-Content -LiteralPath $SyntheticInputPath -Raw | ConvertFrom-Json -AsHashtable -ErrorAction Stop } else { $null }
+$executionMode = Get-ClipboardExecutionMode -SyntheticInput ($null -ne $syntheticScenario)
+
 $ErrorActionPreference = 'Stop'
-$adbPath = (Get-Command adb -ErrorAction Stop).Source
+$adbPath = if ($null -eq $syntheticScenario) { (Get-Command adb -ErrorAction Stop).Source } else { $null }
 [void](New-Item -ItemType Directory -Path $OutputDirectory -Force)
 $targetTokenFile = 'clipboard-target.expected'
 $targetRepeatTokenFile = 'clipboard-target.expected.repeat'
@@ -34,6 +42,8 @@ $targetReadyUnconfirmed = $null
 $targetReadyReject = $null
 $targetOutcome = $null
 $supersededOutcome = $null
+$repeatPredecessorValidated = $true
+$predecessorDisposition = $null
 $expectedTokenRepeat = $null
 $expectedTokenUnconfirmed = $null
 $expectedTokenReject = $null
@@ -41,10 +51,13 @@ $attemptOutcomeObserved = $false
 $controlMatch = $null
 $controlMismatch = $null
 $observation = $null
+$testCleanup = $null
+$syntheticMarkerCleanupStatus = 'not-needed'
 $targetPidBefore = $null
 $observerPid = $null
 $failureCode = $null
 $behaviorFailure = $false
+$timingVerification = 'unavailable'
 $script:activeStage = 'device-preflight'
 $cleanupSucceeded = $true
 $targetWasStopped = $false
@@ -62,6 +75,10 @@ if ($RunId.StartsWith('control-')) { throw 'Run ID uses a reserved observer-cont
 
 function Invoke-AdbProcess {
     param([string[]]$Arguments, [AllowNull()][string]$StandardInputText = $null)
+    if ($null -ne $syntheticScenario) {
+        $stdout = if ($Arguments -contains 'get-state') { 'device' } elseif ($Arguments -contains 'path') { 'package:synthetic' } else { 'Status: ok' }
+        return [pscustomobject]@{ ExitCode=0; StdOut=$stdout; StdErr='' }
+    }
     $startInfo = [Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = $adbPath
     $startInfo.UseShellExecute = $false
@@ -98,6 +115,12 @@ function Write-PrivateRunFile {
 
 function Read-PrivateRunFile {
     param([string]$Package, [string]$FileName)
+    if ($null -ne $syntheticScenario) {
+        $value = if ($FileName -eq $readyFile) { $syntheticScenario.TargetReady } elseif ($FileName -eq $readyFileRepeat) { $syntheticScenario.TargetReadyRepeat } elseif ($FileName -eq $outcomeFileRepeat -or ($Case -ne 'repeat-copy' -and $FileName -eq $outcomeFile)) { $syntheticScenario.TargetReceipt } elseif ($FileName -eq $outcomeFile) { $syntheticScenario.PredecessorReceipt } else { $null }
+        if ($FileName -eq $outcomeFile -and $Case -eq 'repeat-copy' -and $syntheticScenario.PredecessorReadFailure -eq 'PrivateReceiptUnreadable') { return '{invalid' }
+        if ($null -eq $value) { return $null }
+        return ConvertTo-Json -InputObject $value -Depth 8 -Compress
+    }
     $result = Invoke-DeviceShell -Command @('run-as', $Package, 'cat', "files/$FileName")
     if ($result.ExitCode -ne 0) { return $null }
     $result.StdOut.Trim()
@@ -105,12 +128,17 @@ function Read-PrivateRunFile {
 
 function Remove-PrivateRunFile {
     param([string]$Package, [string]$FileName)
+    if ($null -ne $syntheticScenario) { return [bool]$syntheticScenario.CleanupSucceeded }
     $result = Invoke-DeviceShell -Command @('run-as', $Package, 'rm', '-f', "files/$FileName")
     $result.ExitCode -eq 0
 }
 
 function Get-PackagePid {
     param([string]$Package)
+    if ($null -ne $syntheticScenario) {
+        if ($Package -like '*clipboardObserver') { if ($syntheticScenario.InjectedFailureCode -eq 'ProcessIsolationFailed') { return 9999 }; return 4231 }
+        return 1234
+    }
     $result = Invoke-DeviceShell -Command @('ps', '-A', '-o', 'PID,NAME')
     if ($result.ExitCode -ne 0) { return $null }
     foreach ($line in ($result.StdOut -split "`r?`n")) {
@@ -126,6 +154,16 @@ function Get-PackagePid {
 
 function Start-Observer {
     param([string]$Mode)
+    if ($null -ne $syntheticScenario) {
+        if ($Mode -eq 'control-match') { return [pscustomobject]@{capabilityControl='marker-match'} }
+        if ($Mode -eq 'control-mismatch') { return [pscustomobject]@{capabilityControl='replaced'} }
+        if ($Mode -eq 'clear-if-owned') {
+            if ($syntheticScenario.TestCleanupFailureCode) { throw 'Observer result was unavailable.' }
+            return [pscustomobject]$syntheticScenario.TestCleanupRecord
+        }
+        if ($syntheticScenario.InjectedFailureCode -eq 'ObserverResultUnavailable') { throw 'Observer result was unavailable.' }
+        return [pscustomobject]$syntheticScenario.ObserverRecord
+    }
     $script:activeStage = "observer-clear-$Mode-result"
     $oldResult = Invoke-DeviceShell -Command @('run-as', $TestPackage, 'rm', '-f', "files/$observerResultFile")
     if ($oldResult.ExitCode -ne 0) { throw 'Prior observer result could not be removed.' }
@@ -387,36 +425,53 @@ try {
             $targetOutcome = $targetOutcomeJson | ConvertFrom-Json -ErrorAction Stop
             $expectedGeneration = if ($Case -eq 'repeat-copy') { $targetReadyRepeat.generation } else { $targetReady.generation }
             $expectedScheduled = if ($Case -eq 'repeat-copy') { [long]$targetReadyRepeat.scheduledElapsedMs } else { [long]$targetReady.scheduledElapsedMs }
-            $deadlineViolation = [long]$targetOutcome.terminalStatusElapsedMs -lt $expectedScheduled
-            if ($targetOutcome.runId -ne $RunId -or $targetOutcome.generation -ne $expectedGeneration -or
-                ($Case -ne 'manual-clear' -and $deadlineViolation)) {
-                throw 'Scheduled cleanup outcome did not match the receipt deadline.'
+            if (-not (Test-ClipboardReceiptIdentity -Receipt $targetOutcome -RunId $RunId `
+                -Generation $expectedGeneration -ScheduledElapsedMs $expectedScheduled)) {
+                throw 'Scheduled cleanup receipt identity did not match the ready receipt.'
             }
             if ($Case -eq 'repeat-copy') {
+                # Validate that the prior generation was superseded before
+                # accepting any timing data from the candidate generation.
+                $repeatPredecessorValidated = $false
                 $supersededJson = Read-PrivateRunFile -Package $TargetPackage -FileName $outcomeFile
-                if (-not $supersededJson) { throw 'First-generation supersession outcome was unavailable.' }
-                $supersededOutcome = $supersededJson | ConvertFrom-Json -ErrorAction Stop
-                if ($supersededOutcome.runId -ne $RunId -or $supersededOutcome.generation -ne $targetReady.generation -or
-                    $supersededOutcome.outcome -ne 'Superseded') {
-                    throw 'First generation was not superseded by the repeated copy.'
+                $readFailure = $null
+                if (-not $supersededJson) { $readFailure = 'PrivateReceiptUnavailable' }
+                else {
+                    try { $supersededOutcome = $supersededJson | ConvertFrom-Json -ErrorAction Stop }
+                    catch { $readFailure = 'PrivateReceiptUnreadable' }
                 }
+                $predecessorDisposition = Get-ClipboardPredecessorReceiptDisposition -Receipt $supersededOutcome `
+                    -RunId $RunId -Generation ([long]$targetReady.generation) `
+                    -ScheduledElapsedMs ([long]$targetReady.scheduledElapsedMs) -ReadFailure $readFailure
+                if (-not $predecessorDisposition.available) { throw 'First-generation supersession receipt was unavailable or unreadable.' }
+                if (-not $predecessorDisposition.matches) { throw 'First-generation supersession receipt identity or outcome mismatched.' }
+                $repeatPredecessorValidated = $true
             }
-            $allowedOutcomes = @('ClearRequestSubmitted', 'SkippedReplaced', 'SkippedOwnershipUnavailable')
+            $callbackElapsed = $targetOutcome.callbackElapsedMs
+            $ownershipElapsed = $targetOutcome.ownershipCheckElapsedMs
+            $clearElapsed = $targetOutcome.clearAttemptElapsedMs
+            $timingVerification = Get-ClipboardTimingDisposition `
+                -ScheduledElapsedMs $expectedScheduled `
+                -CallbackElapsedMs $callbackElapsed `
+                -OwnershipCheckElapsedMs $ownershipElapsed `
+                -ClearAttemptElapsedMs $clearElapsed `
+                -Outcome $targetOutcome.outcome
+            if ($timingVerification -eq 'Failed') {
+                throw 'Clipboard cleanup execution timestamps violated the deadline or event ordering.'
+            }
+            if ($timingVerification -eq 'Unavailable' -and $targetOutcome.outcome -ne 'Interrupted') {
+                $timingVerification = 'unverified'
+            }
+            $allowedOutcomes = @('ClearRequestSubmitted', 'ClearRejected', 'Interrupted', 'SkippedReplaced', 'SkippedOwnershipUnavailable')
             if ($Case -eq 'manual-clear') { $allowedOutcomes += 'ManualClearSubmitted' }
             if ($targetOutcome.outcome -notin $allowedOutcomes) {
                 throw 'Scheduled cleanup outcome was not a terminal automatic result.'
             }
-            if ($Case -eq 'scheduled-attempt' -and $targetOutcome.outcome -ne 'ClearRequestSubmitted') {
+            if ($Case -eq 'scheduled-attempt' -and $targetOutcome.outcome -notin @('ClearRequestSubmitted', 'ClearRejected', 'Interrupted')) {
                 throw 'Focused matching candidate did not submit the scheduled clear request.'
             }
             if ($Case -eq 'manual-clear' -and $targetOutcome.outcome -ne 'ManualClearSubmitted') {
                 throw 'Manual clear request did not produce a manual clear outcome.'
-            }
-            if ($Case -eq 'clipboard-replaced' -and $targetOutcome.outcome -eq 'ClearRequestSubmitted') {
-                throw 'Replaced clipboard candidate submitted a clear request.'
-            }
-            if ($Case -eq 'repeat-copy' -and $targetOutcome.outcome -ne 'ClearRequestSubmitted') {
-                throw 'Repeated copy candidate did not submit the scheduled clear request.'
             }
             $attemptOutcomeObserved = $true
         }
@@ -452,22 +507,50 @@ try {
         $script:activeStage = if ($attemptOutcomeObserved) { 'scheduled-attempt-observation' } else { 'background-interruption-observation' }
     }
     $observation = Start-Observer -Mode 'observe'
-    $testCleanup = $null
     if ($observation.classification -eq 'marker-match') {
+        $syntheticMarkerCleanupStatus = 'unverified'
         $script:activeStage = 'synthetic-clipboard-cleanup'
         $testCleanup = Start-Observer -Mode 'clear-if-owned'
-    }
-    if ($Case -eq 'app-switch' -and $targetOutcome.outcome -eq 'SkippedReplaced' -and
-        $observation.classification -ne 'replaced') {
-        throw 'Ownership replacement skip did not match the independent clipboard observation.'
-    }
-    if ($Case -eq 'clipboard-replaced' -and $observation.classification -ne 'replaced') {
-        throw 'Injected clipboard replacement was not independently observed.'
+        $cleanupClassification = [string]$testCleanup.classification
+        $cleanupOutcome = [string]$testCleanup.cleanupOutcome
+        switch ($cleanupOutcome) {
+            'clear-request-submitted' {
+                $syntheticMarkerCleanupStatus = switch ($cleanupClassification) {
+                    'absent' { 'verified-absent-after-clear-request'; break }
+                    'replaced' { 'marker-replaced-after-clear-request'; break }
+                    'marker-match' { 'marker-still-present-after-clear-request'; break }
+                    default { 'unverified' }
+                }
+                break
+            }
+            'skipped-replaced-or-absent' {
+                $syntheticMarkerCleanupStatus = switch ($cleanupClassification) {
+                    'absent' { 'marker-absent-after-safe-skip'; break }
+                    'replaced' { 'marker-replaced-after-safe-skip'; break }
+                    default { 'unverified' }
+                }
+                break
+            }
+            'skipped-ownership-unavailable' {
+                $syntheticMarkerCleanupStatus = switch ($cleanupClassification) {
+                    'absent' { 'marker-absent-after-ownership-skip'; break }
+                    'replaced' { 'marker-replaced-after-ownership-skip'; break }
+                    'marker-match' { 'marker-still-present'; break }
+                    default { 'unverified' }
+                }
+                break
+            }
+            default { $syntheticMarkerCleanupStatus = 'unverified' }
+        }
+    } elseif ($observation.classification -in @('absent','replaced')) {
+        $syntheticMarkerCleanupStatus = 'marker-not-present-at-observation'
+    } else {
+        $syntheticMarkerCleanupStatus = 'unverified'
     }
     if ($Case -eq 'manual-clear' -and $observation.classification -ne 'absent') {
         throw 'Manual clear was not independently observed as absent.'
     }
-    if ($Case -eq 'repeat-copy' -and $observation.classification -ne 'absent') {
+    if ($Case -eq 'repeat-copy' -and $targetOutcome.outcome -eq 'ClearRequestSubmitted' -and $observation.classification -ne 'absent') {
         throw 'Repeated copy scheduled clear was not independently observed as absent.'
     }
     if ($Case -eq 'copy-rejected' -and $observation.classification -ne 'marker-match') {
@@ -486,44 +569,36 @@ try {
         throw 'Scheduled cleanup observation was outside the classification contract.'
     }
 
-    $caseStatus = if ($Case -eq 'process-death') {
-        'Passed (process-death observer case)'
-    } elseif ($Case -eq 'locked-sleep' -and $attemptOutcomeObserved -and $targetOutcome.outcome -eq 'ClearRequestSubmitted') {
-        'Passed (locked-sleep scheduled cleanup observation case)'
-    } elseif ($Case -eq 'locked-sleep' -and $attemptOutcomeObserved) {
-        'Passed (locked-sleep terminal outcome observation case)'
-    } elseif ($Case -eq 'locked-sleep') {
-        'Unverified (screen-off; no cleanup outcome observed)'
-    } elseif ($Case -eq 'clipboard-replaced' -and $attemptOutcomeObserved) {
-        "Passed (clipboard replacement observed; automatic cleanup skipped with outcome $($targetOutcome.outcome))"
-    } elseif ($Case -eq 'clipboard-replaced') {
-        'Unverified (clipboard replacement; no cleanup outcome observed)'
+    $auditDisposition = $null
+    if ($Case -in @('scheduled-attempt', 'clipboard-replaced', 'app-switch', 'locked-sleep', 'repeat-copy')) {
+        $scheduledForDisposition = if ($Case -eq 'repeat-copy') { [long]$targetReadyRepeat.scheduledElapsedMs } else { [long]$targetReady.scheduledElapsedMs }
+        $auditDisposition = New-ClipboardObservationAuditDisposition -Case $Case -TargetReceipt $targetOutcome `
+            -Outcome $targetOutcome.outcome -ObserverRecord $observation `
+            -Observation $observation.classification -AttemptObserved $attemptOutcomeObserved `
+            -ScheduledElapsedMs $scheduledForDisposition -CallbackElapsedMs $callbackElapsed `
+            -OwnershipCheckElapsedMs $ownershipElapsed -ClearAttemptElapsedMs $clearElapsed
+    }
+    if ($behaviorFailure -and $null -ne $auditDisposition) {
+        $auditDisposition.status = 'Failed (scoped clipboard behavior assertion)'
+        $auditDisposition.behaviorFailure = $true
+    }
+    $caseStatus = if ($null -ne $auditDisposition) {
+        $auditDisposition.status
+    } elseif ($Case -eq 'process-death') {
+        'Passed (force-stop observer case)'
     } elseif ($Case -eq 'manual-clear' -and $attemptOutcomeObserved) {
         "Passed (manual clear submitted; clipboard independently observed as $($observation.classification))"
     } elseif ($Case -eq 'manual-clear') {
         'Unverified (manual clear; no cleanup outcome observed)'
-    } elseif ($Case -eq 'repeat-copy' -and $attemptOutcomeObserved) {
-        "Passed (repeated copy superseded the first generation; scheduled cleanup observed as $($observation.classification))"
-    } elseif ($Case -eq 'repeat-copy') {
-        'Unverified (repeated copy; no cleanup outcome observed)'
     } elseif ($Case -eq 'copy-rejected') {
         'Passed (copy admission rejected while unconfirmed work was pending; retained clip observed)'
-    } elseif ($Case -eq 'app-switch' -and $targetOutcome.outcome -eq 'SkippedOwnershipUnavailable') {
-        'Passed (background ownership unavailable; automatic cleanup safely skipped)'
-    } elseif ($Case -eq 'app-switch' -and $targetOutcome.outcome -eq 'SkippedReplaced' -and
-        $observation.classification -eq 'replaced') {
-        'Passed (background clipboard replacement detected; automatic cleanup skipped)'
-    } elseif ($Case -eq 'app-switch' -and -not $attemptOutcomeObserved -and $observation.classification -eq 'marker-match') {
-        'Passed (background interruption; synthetic clipboard marker remained, no cleanup outcome was observed)'
-    } elseif ($Case -eq 'app-switch' -and -not $attemptOutcomeObserved) {
-        'Unverified (background interruption; clipboard outcome did not match the synthetic marker)'
-    } elseif ($Case -eq 'app-switch') {
-        'Passed (background app-switch cleanup observation case)'
     } else {
-        'Passed (scheduled cleanup observation case)'
+        'Unverified (no classification rule for case)'
     }
+    if ($caseStatus.StartsWith('Failed', [StringComparison]::Ordinal)) { $behaviorFailure = $true }
     $record = [ordered]@{
         runId = $RunId
+        executionMode = $executionMode
         fixtureId = $RunId
         case = $Case
         targetPackage = $TargetPackage
@@ -536,13 +611,17 @@ try {
         targetReadyRepeat = $targetReadyRepeat
         targetReadyUnconfirmed = $targetReadyUnconfirmed
         targetReadyReject = $targetReadyReject
-        targetOutcome = $targetOutcome
+        targetOutcome = if ($null -ne $auditDisposition) { $auditDisposition.targetOutcome } else { $targetOutcome }
+        timingVerification = if ($null -ne $auditDisposition) { $auditDisposition.timingVerification } else { $timingVerification }
+        clearRejectedAttemptObserved = if ($null -ne $auditDisposition) { $auditDisposition.clearRejectedAttemptObserved } else { [bool]($attemptOutcomeObserved -and $targetOutcome.outcome -eq 'ClearRejected') }
+        interruptedAttemptObserved = if ($null -ne $auditDisposition) { $auditDisposition.interruptedAttemptObserved } else { [bool]($attemptOutcomeObserved -and $targetOutcome.outcome -eq 'Interrupted') }
         supersededOutcome = $supersededOutcome
         attemptOutcomeObserved = $attemptOutcomeObserved
         matchControl = $controlMatch
         mismatchControl = $controlMismatch
-        observation = $observation
+        observation = if ($null -ne $auditDisposition) { $auditDisposition.observation } else { $observation }
         testCleanup = $testCleanup
+        syntheticMarkerCleanupStatus = $syntheticMarkerCleanupStatus
         targetForceStopped = $targetWasStopped
         targetBackgroundConfirmed = $targetBackgroundConfirmed
         sleptDuringDeadline = $sleptDuringDeadline
@@ -550,14 +629,17 @@ try {
         manualUnlockTimeoutSeconds = $ManualUnlockTimeoutSeconds
         manualUnlockObserved = $manualUnlockObserved
         status = $caseStatus
+        behaviorFailure = if ($null -ne $auditDisposition) { $auditDisposition.behaviorFailure } else { $behaviorFailure }
     }
 } catch {
     $failureCode = switch -Regex ($_.Exception.Message) {
-        'Target-ready receipt did not confirm|Focused matching candidate did not submit|Scheduled cleanup outcome did not match|Scheduled cleanup outcome was not a terminal|Replaced clipboard candidate submitted|Repeat target-ready receipt|was not superseded|Repeated copy candidate did not submit|scheduled clear was not independently observed|admission was not rejected|Unconfirmed-copy precondition' {
+        'Target-ready receipt|Focused matching candidate did not submit|Scheduled cleanup outcome|Clipboard cleanup execution timestamps|Ownership replacement skip did not match|Repeat target-ready receipt|identity or outcome mismatched|scheduled clear was not independently observed|admission was not rejected|Unconfirmed-copy precondition' {
             $behaviorFailure = $true
             'ScopedClipboardBehaviorFailure'
             break
         }
+        'supersession receipt was unavailable or unreadable' { 'PredecessorReceiptUnavailable'; break }
+        'process-isolation check failed' { 'ProcessIsolationFailed'; break }
         'Home key injection' { 'HomeKeyInjectionFailed'; break }
         'Sleep key injection' { 'ScreenSleepInjectionFailed'; break }
         'Wake key injection' { 'ScreenWakeInjectionFailed'; break }
@@ -571,8 +653,39 @@ try {
         'Observer positive control' { 'ObserverPositiveControlFailed'; break }
         default { 'ObserverPreflightFailed' }
     }
+    $auditDisposition = $null
+    if ($null -ne $targetOutcome -and $Case -in @('scheduled-attempt', 'clipboard-replaced', 'app-switch', 'locked-sleep', 'repeat-copy')) {
+        $scheduledForDisposition = if ($Case -eq 'repeat-copy' -and $null -ne $targetReadyRepeat) { [long]$targetReadyRepeat.scheduledElapsedMs } elseif ($null -ne $targetReady) { [long]$targetReady.scheduledElapsedMs } else { $null }
+        $expectedGeneration = if ($Case -eq 'repeat-copy' -and $null -ne $targetReadyRepeat) { [long]$targetReadyRepeat.generation } elseif ($null -ne $targetReady) { [long]$targetReady.generation } else { $null }
+        $identityValidated = $null -ne $expectedGeneration -and
+            (Test-ClipboardReceiptIdentity -Receipt $targetOutcome -RunId $RunId `
+                -Generation $expectedGeneration -ScheduledElapsedMs $scheduledForDisposition)
+        $predecessorUnavailable = $Case -eq 'repeat-copy' -and $null -ne $predecessorDisposition -and
+            -not $predecessorDisposition.available
+        if ($predecessorUnavailable) { $scheduledForDisposition = $null }
+        if ($Case -eq 'repeat-copy' -and -not $repeatPredecessorValidated -and -not $predecessorUnavailable) { $identityValidated = $false }
+        if (-not $identityValidated) {
+            if (-not $predecessorUnavailable) {
+                $behaviorFailure = $true
+                $failureCode = 'ScopedClipboardBehaviorFailure'
+            } else {
+                $failureCode = 'PredecessorReceiptUnavailable'
+            }
+            $scheduledForDisposition = $null
+        }
+        $auditDisposition = New-ClipboardObservationAuditDisposition -Case $Case -TargetReceipt $targetOutcome `
+            -Outcome $targetOutcome.outcome -ObserverRecord $observation `
+            -Observation $(if ($null -ne $observation) { $observation.classification } else { $null }) `
+            -AttemptObserved $attemptOutcomeObserved -ScheduledElapsedMs $scheduledForDisposition `
+            -CallbackElapsedMs $callbackElapsed -OwnershipCheckElapsedMs $ownershipElapsed `
+            -ClearAttemptElapsedMs $clearElapsed `
+            -ObservationFailure $(if ($failureCode -like 'Observer*') { $failureCode } else { $null })
+        if ($auditDisposition.behaviorFailure) { $behaviorFailure = $true }
+        if ($behaviorFailure) { $auditDisposition.status = 'Failed (scoped clipboard behavior assertion)' }
+    }
     $record = [ordered]@{
         runId = $RunId
+        executionMode = $executionMode
         fixtureId = $RunId
         case = $Case
         targetPackage = $TargetPackage
@@ -581,30 +694,50 @@ try {
         matchControl = $controlMatch
         mismatchControl = $controlMismatch
         targetReady = $targetReady
-        targetOutcome = $targetOutcome
-        attemptOutcomeObserved = $attemptOutcomeObserved
+        targetReadyRepeat = $targetReadyRepeat
+        targetReadyUnconfirmed = $targetReadyUnconfirmed
+        targetReadyReject = $targetReadyReject
+        targetOutcome = if ($null -ne $auditDisposition) { $auditDisposition.targetOutcome } else { $targetOutcome }
+        supersededOutcome = $supersededOutcome
+        timingVerification = if ($null -ne $auditDisposition) { $auditDisposition.timingVerification } else { $timingVerification }
+        observation = if ($null -ne $auditDisposition) { $auditDisposition.observation } else { $observation }
+        testCleanup = $testCleanup
+        syntheticMarkerCleanupStatus = $syntheticMarkerCleanupStatus
+        observationFailure = if ($null -ne $auditDisposition) { $auditDisposition.observationFailure } elseif ($failureCode -like 'Observer*') { $failureCode } else { $null }
+        attemptOutcomeObserved = if ($null -ne $auditDisposition) { $auditDisposition.attemptOutcomeObserved } else { $attemptOutcomeObserved }
+        clearRejectedAttemptObserved = if ($null -ne $auditDisposition) { $auditDisposition.clearRejectedAttemptObserved } else { [bool]($attemptOutcomeObserved -and $targetOutcome.outcome -eq 'ClearRejected') }
+        interruptedAttemptObserved = if ($null -ne $auditDisposition) { $auditDisposition.interruptedAttemptObserved } else { [bool]($attemptOutcomeObserved -and $targetOutcome.outcome -eq 'Interrupted') }
         targetForceStopped = $targetWasStopped
+        targetBackgroundConfirmed = $targetBackgroundConfirmed
+        sleptDuringDeadline = $sleptDuringDeadline
         secureKeyguardObservedAfterWake = $secureKeyguardObservedAfterWake
         manualUnlockTimeoutSeconds = $ManualUnlockTimeoutSeconds
         manualUnlockObserved = $manualUnlockObserved
         failureCode = $failureCode
-        status = if ($behaviorFailure) { 'Failed (scoped clipboard behavior assertion)' } else { 'Unverified' }
+        behaviorFailure = $behaviorFailure
+        status = if ($behaviorFailure) { 'Failed (scoped clipboard behavior assertion)' } else { 'Unverified (controller or observation failure)' }
     }
 } finally {
     if ($deviceSlept) {
-        [void](Invoke-DeviceShell -Command @('input', 'keyevent', 'KEYCODE_WAKEUP'))
-        Start-Sleep -Seconds 1
-        [void](Invoke-DeviceShell -Command @('input', 'keyevent', '82'))
+        try {
+            [void](Invoke-DeviceShell -Command @('input', 'keyevent', 'KEYCODE_WAKEUP'))
+            Start-Sleep -Seconds 1
+            [void](Invoke-DeviceShell -Command @('input', 'keyevent', '82'))
+        } catch { $cleanupSucceeded = $false }
     }
-    if ($targetWasStopped -eq $false) {
-        $targetPid = Get-PackagePid -Package $TargetPackage
-        if ($targetPid) {
-            $stop = Invoke-DeviceShell -Command @('am', 'force-stop', $TargetPackage)
-            if ($stop.ExitCode -ne 0) { $cleanupSucceeded = $false }
+    try {
+        if ($targetWasStopped -eq $false) {
+            $targetPid = Get-PackagePid -Package $TargetPackage
+            if ($targetPid) {
+                $stop = Invoke-DeviceShell -Command @('am', 'force-stop', $TargetPackage)
+                if ($stop.ExitCode -ne 0) { $cleanupSucceeded = $false }
+            }
         }
-    }
-    $observerStop = Invoke-DeviceShell -Command @('am', 'force-stop', $TestPackage)
-    if ($observerStop.ExitCode -ne 0) { $cleanupSucceeded = $false }
+    } catch { $cleanupSucceeded = $false }
+    try {
+        $observerStop = Invoke-DeviceShell -Command @('am', 'force-stop', $TestPackage)
+        if ($observerStop.ExitCode -ne 0) { $cleanupSucceeded = $false }
+    } catch { $cleanupSucceeded = $false }
     foreach ($entry in @(
         @($TargetPackage, $targetTokenFile),
         @($TargetPackage, $targetRepeatTokenFile),
@@ -621,7 +754,9 @@ try {
         @($TargetPackage, $outcomeFileReject),
         @($TestPackage, $observerResultFile)
     )) {
-        if (-not (Remove-PrivateRunFile -Package $entry[0] -FileName $entry[1])) { $cleanupSucceeded = $false }
+        try {
+            if (-not (Remove-PrivateRunFile -Package $entry[0] -FileName $entry[1])) { $cleanupSucceeded = $false }
+        } catch { $cleanupSucceeded = $false }
     }
     if ($null -ne $expectedToken) { $expectedToken = $null }
     if ($null -ne $expectedTokenRepeat) { $expectedTokenRepeat = $null }
@@ -630,9 +765,5 @@ try {
     if ($null -ne $observerToken) { $observerToken = $null }
 }
 
-$record.cleanupSucceeded = $cleanupSucceeded
-$jsonOutput = $record | ConvertTo-Json -Depth 8
-$outputPath = Join-Path $OutputDirectory "clipboard-observation-$RunId.json"
-[IO.File]::WriteAllText($outputPath, $jsonOutput, [Text.UTF8Encoding]::new($false))
-$digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $outputPath).Hash.ToLowerInvariant()
-[pscustomobject]@{ status = $record.status; artifact = $outputPath; sha256 = $digest } | ConvertTo-Json -Compress
+$written = Write-ClipboardObservationJsonArtifact -Record $record -OutputDirectory $OutputDirectory -RunId $RunId -CleanupSucceeded $cleanupSucceeded
+[pscustomobject]@{ status=$written.Record.status; artifact=$written.Path; sha256=$written.Sha256 } | ConvertTo-Json -Compress

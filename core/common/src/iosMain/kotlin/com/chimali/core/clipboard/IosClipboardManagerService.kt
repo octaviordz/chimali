@@ -38,28 +38,50 @@ class IosClipboardManagerService : ClipboardManagerService {
         text: CharArray,
     ): Result<ClipboardCopyReceipt> =
         operation.withLock {
-            if (statuses.value.size >= MAX_RECEIPTS || unconfirmed.isNotEmpty()) {
-                return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
-            }
             val receiptGeneration = ++generation
-            val beforeCount = pasteboard.changeCount
+            val admitted =
+                synchronized(receiptLock) {
+                    if (statuses.value.size >= MAX_RECEIPTS || unconfirmed.isNotEmpty()) {
+                        false
+                    } else {
+                        statuses.value =
+                            statuses.value +
+                            (
+                                receiptGeneration to
+                                    ClipboardCleanupStatus(
+                                        receiptGeneration,
+                                        CleanupOutcome.Pending,
+                                        CleanupOrigin.Automatic,
+                                    )
+                            )
+                        true
+                    }
+                }
+            if (!admitted) return@withLock Result.failure(ClipboardError.CopyAdmissionRejected())
+            val beforeCount =
+                try {
+                    pasteboard.changeCount
+                } catch (cancellation: CancellationException) {
+                    synchronized(receiptLock) { statuses.value = statuses.value - receiptGeneration }
+                    throw cancellation
+                } catch (_: Exception) {
+                    synchronized(receiptLock) { statuses.value = statuses.value - receiptGeneration }
+                    return@withLock Result.failure(ClipboardError.CopyFailed("clipboard metadata unavailable"))
+                }
             try {
                 // UIKit requires an immutable text value at this platform transfer boundary.
                 pasteboard.string = String(text)
             } catch (cancellation: CancellationException) {
+                synchronized(receiptLock) { statuses.value = statuses.value - receiptGeneration }
                 throw cancellation
             } catch (_: Exception) {
+                synchronized(receiptLock) { statuses.value = statuses.value - receiptGeneration }
                 return@withLock Result.failure(ClipboardError.CopyFailed("clipboard publication unavailable"))
             }
 
             val copiedAt = elapsedRealtimeMs()
             val expectedCount = beforeCount + CHANGE_COUNT_INCREMENT
             expectedChangeCounts[receiptGeneration] = expectedCount
-            statuses.value = statuses.value +
-                (
-                    receiptGeneration to
-                        ClipboardCleanupStatus(receiptGeneration, CleanupOutcome.Pending, CleanupOrigin.Automatic)
-                )
             jobs[receiptGeneration] =
                 scope.launch {
                     try {
@@ -76,7 +98,16 @@ class IosClipboardManagerService : ClipboardManagerService {
                 // UIKit updates changeCount at the end of the event loop. The timer is already
                 // retained before yielding, so caller cancellation cannot lose cleanup work.
                 yield()
-                val confirmed = pasteboard.changeCount == expectedCount
+                val confirmed =
+                    try {
+                        pasteboard.changeCount == expectedCount
+                    } catch (cancellation: CancellationException) {
+                        unconfirmed.add(receiptGeneration)
+                        transferToCustodian(receiptGeneration)
+                        throw cancellation
+                    } catch (_: Exception) {
+                        false
+                    }
                 if (confirmed) {
                     expectedChangeCounts.keys.toList().filter { it != receiptGeneration }.forEach { previous ->
                         expectedChangeCounts.remove(previous)
@@ -106,18 +137,28 @@ class IosClipboardManagerService : ClipboardManagerService {
         expectedCount: Int,
     ) = operation.withLock {
         if (expectedChangeCounts[receiptGeneration] != expectedCount) return@withLock
-        val outcome =
+        val currentChangeCount =
             try {
-                if (pasteboard.changeCount != expectedCount) {
-                    CleanupOutcome.SkippedReplaced
-                } else {
-                    pasteboard.string = null
-                    CleanupOutcome.ClearRequestSubmitted
-                }
+                pasteboard.changeCount
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
+                null
+            }
+        val outcome =
+            if (currentChangeCount == null) {
                 CleanupOutcome.SkippedOwnershipUnavailable
+            } else if (currentChangeCount != expectedCount) {
+                CleanupOutcome.SkippedReplaced
+            } else {
+                try {
+                    pasteboard.string = null
+                    CleanupOutcome.ClearRequestSubmitted
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    CleanupOutcome.ClearRejected
+                }
             }
         jobs.remove(receiptGeneration)
         expectedChangeCounts.remove(receiptGeneration)

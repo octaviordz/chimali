@@ -19,11 +19,15 @@ data class ClipboardCleanupStatus(
     val generation: Long,
     val outcome: CleanupOutcome,
     val origin: CleanupOrigin,
+    val callbackElapsedMs: Long? = null,
+    val ownershipCheckElapsedMs: Long? = null,
+    val clearAttemptElapsedMs: Long? = null,
 )
 
 enum class CleanupOutcome {
     Pending,
     ClearRequestSubmitted,
+    ClearRejected,
     SkippedReplaced,
     SkippedOwnershipUnavailable,
     Interrupted,

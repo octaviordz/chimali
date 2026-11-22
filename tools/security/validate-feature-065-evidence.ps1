@@ -21,12 +21,21 @@ function Get-CanonicalCommitRevision([string]$Revision) {
     return $canonical
 }
 
+function Get-CanonicalCommitTree([string]$Revision) {
+    if (-not (Get-CanonicalCommitRevision $Revision)) { return $null }
+    $resolved = & git -C $RepositoryRoot rev-parse --verify "$($Revision)^{tree}" 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    $tree = ($resolved -join '').Trim()
+    if ([string]::IsNullOrWhiteSpace($tree) -or $tree -notmatch '^[0-9a-fA-F]{40}$') { return $null }
+    return $tree
+}
+
 function Get-DeclaredCandidateRevision([string]$RevisionCell, [string]$ExpectedRevision) {
     if ([string]::IsNullOrWhiteSpace($RevisionCell) -or [string]::IsNullOrWhiteSpace($ExpectedRevision)) { return '' }
     if ($RevisionCell -match '(?i)dirty|exploratory|historical|no frozen candidate|pre-rebase') { return '' }
     $match = [regex]::Match(
         $RevisionCell.Trim(),
-        '^(?:(?:freeze|frozen)\s+candidate|candidate(?:\s+commit)?)\s+(?<candidate>[0-9a-fA-F]{40})(?=$|[\s/;(])|^(?<candidate>[0-9a-fA-F]{40})$'
+        '^(?:(?:freeze|frozen)\s+candidate|candidate(?:\s+commit)?)\s+`?(?<candidate>[0-9a-fA-F]{40})`?(?=$|[\s/;(])|^`?(?<candidate>[0-9a-fA-F]{40})`?$'
     )
     if (-not $match.Success) { return '' }
     $declaredRevision = $match.Groups['candidate'].Value
@@ -34,11 +43,20 @@ function Get-DeclaredCandidateRevision([string]$RevisionCell, [string]$ExpectedR
     return $ExpectedRevision
 }
 
+function Get-DeclaredCandidateTree([string]$RevisionCell) {
+    if ([string]::IsNullOrWhiteSpace($RevisionCell) -or $RevisionCell -match '(?i)dirty|exploratory|historical|no frozen candidate|pre-rebase') { return '' }
+    $match = [regex]::Match($RevisionCell.Trim(), '(?i)(?:/|;)\s*tree\s+`?(?<tree>[0-9a-f]{40})`?(?=$|[\s/;])')
+    if (-not $match.Success) { return '' }
+    return $match.Groups['tree'].Value
+}
+
 if ($CandidateRevision) {
     $resolvedCandidate = Get-CanonicalCommitRevision $CandidateRevision
     if (-not $resolvedCandidate) {
         throw 'CandidateRevision must identify an existing commit in this repository.'
     }
+    $candidateTree = Get-CanonicalCommitTree $resolvedCandidate
+    if (-not $candidateTree) { throw 'CandidateRevision did not resolve to a Git tree.' }
 }
 
 $repositoryHead = (& git -C $RepositoryRoot rev-parse --verify 'HEAD^{commit}' 2>$null | Out-String).Trim()
@@ -48,6 +66,16 @@ if (-not (Get-CanonicalCommitRevision $repositoryHead)) {
 $candidateDeclaration = Get-DeclaredCandidateRevision "frozen candidate $repositoryHead/tree synthetic" $repositoryHead
 if ($candidateDeclaration -ine $repositoryHead) {
     throw 'Validator self-check failed: an explicit matching candidate declaration was not recognized.'
+}
+$repositoryTree = Get-CanonicalCommitTree $repositoryHead
+$treeDeclaration = Get-DeclaredCandidateTree "frozen candidate ``$repositoryHead`` / tree ``$repositoryTree``"
+if (-not $repositoryTree -or $treeDeclaration -ine $repositoryTree) {
+    throw 'Validator self-check failed: an explicit matching candidate tree declaration was not recognized.'
+}
+$mismatchedTree = 'b' * 40
+$mismatchedTreeDeclaration = Get-DeclaredCandidateTree "frozen candidate ``$repositoryHead`` / tree ``$mismatchedTree``"
+if ($mismatchedTreeDeclaration -ieq $repositoryTree) {
+    throw 'Validator self-check failed: a mismatched candidate tree declaration was accepted.'
 }
 if (Get-DeclaredCandidateRevision "historical evidence references candidate $repositoryHead" $repositoryHead) {
     throw 'Validator self-check failed: a historical mention was accepted as candidate evidence.'
@@ -111,7 +139,40 @@ function Get-ExpectedArtifactDigests([string]$ArtifactCell) {
     return $declarations
 }
 
-function Get-RecordErrors([string[]]$Cells, [string]$CurrentCandidate) {
+function Test-ClipboardControllerMarkers([string]$Path) {
+    # Scan the complete artifact with bounded memory. Prefix-only detection lets
+    # oversized reports hide their schema after the inspection window.
+    $markers = @('"runId"', '"case"', '"targetOutcome"', '"observation"')
+    $found = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $reader = [IO.StreamReader]::new($Path, [Text.Encoding]::UTF8, $true)
+    try {
+        $buffer = [char[]]::new(8192)
+        $carry = ''
+        while (($count = $reader.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $chunk = $carry + [string]::new($buffer, 0, $count)
+            foreach ($marker in $markers) { if ($chunk.Contains($marker)) { $null = $found.Add($marker) } }
+            if ($found.Count -eq $markers.Count) { return $true }
+            $carry = $chunk.Substring([Math]::Max(0, $chunk.Length - 32))
+        }
+    } finally { $reader.Dispose() }
+    return $false
+}
+
+function Get-DeclaredArtifactPurpose([string]$ArtifactCell, [string]$Path) {
+    # Candidate evidence must bind one recognized purpose to the exact path.
+    # Multiple/conflicting declarations are ambiguous and therefore invalid.
+    $purposes = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($segment in ($ArtifactCell -split ';')) {
+        $purposeMatch = [regex]::Match($segment, '(?i)\[(clipboard-controller|supporting-evidence)\]')
+        if (-not $purposeMatch.Success) { continue }
+        $pathMatches = @([regex]::Matches($segment, '`([^`]+)`') | Where-Object { $_.Groups[1].Value.Trim() -ieq $Path })
+        if ($pathMatches.Count -eq 1) { $null = $purposes.Add($purposeMatch.Groups[1].Value.ToLowerInvariant()) }
+    }
+    if ($purposes.Count -ne 1) { return '' }
+    return @($purposes)[0]
+}
+
+function Get-RecordErrors([string[]]$Cells, [string]$CurrentCandidate, [bool]$ValidateArtifacts = $true) {
     $errors = [Collections.Generic.List[string]]::new()
     if ($Cells.Count -ne 10) {
         $errors.Add("expected 10 fields, received $($Cells.Count)")
@@ -160,7 +221,7 @@ function Get-RecordErrors([string[]]$Cells, [string]$CurrentCandidate) {
             }
         }
     }
-    if (-not [string]::IsNullOrWhiteSpace($Cells[9])) {
+    if ($ValidateArtifacts -and -not [string]::IsNullOrWhiteSpace($Cells[9])) {
         foreach ($clean in (Get-ArtifactCandidates $Cells[9])) {
             try { $artifactPath = Resolve-ArtifactPath $clean }
             catch { $errors.Add("artifact path is invalid: $clean"); continue }
@@ -176,6 +237,58 @@ function Get-RecordErrors([string[]]$Cells, [string]$CurrentCandidate) {
             $actualHash = (Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($actualHash -ne $declaration.Hash) {
                 $errors.Add("artifact digest mismatch at the declared path: $($declaration.Path)")
+            }
+        }
+        if ($Cells[8] -in @('Passed','Satisfied')) {
+            foreach ($clean in (Get-ArtifactCandidates $Cells[9])) {
+                try { $artifactPath = Resolve-ArtifactPath $clean } catch { continue }
+                if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) { continue }
+                $artifactInfo = Get-Item -LiteralPath $artifactPath
+                $declaredPurpose = Get-DeclaredArtifactPurpose $Cells[9] $clean
+                $declaredController = $declaredPurpose -eq 'clipboard-controller'
+                $looksLikeClipboardController = Test-ClipboardControllerMarkers $artifactPath
+                if ($CurrentCandidate -and -not $declaredPurpose) {
+                    $errors.Add("candidate artifact purpose is missing, ambiguous, or not bound to this exact path: $clean")
+                    continue
+                }
+                if ($CurrentCandidate -and $looksLikeClipboardController -and -not $declaredController) {
+                    $errors.Add("candidate clipboard controller content is mislabeled as supporting evidence or has unknown purpose: $clean")
+                    continue
+                }
+                $reader = [IO.StreamReader]::new($artifactPath, [Text.Encoding]::UTF8, $true)
+                try {
+                    $prefixBuffer = [char[]]::new(65536)
+                    $prefixLength = $reader.Read($prefixBuffer, 0, $prefixBuffer.Length)
+                    $artifactPrefix = [string]::new($prefixBuffer, 0, $prefixLength)
+                    if ($artifactInfo.Length -le 5242880) {
+                        $remaining = $reader.ReadToEnd()
+                        $artifactContent = $artifactPrefix + $remaining
+                    }
+                } finally { $reader.Dispose() }
+                if ($artifactInfo.Length -gt 5242880) {
+                    if ($looksLikeClipboardController -or $declaredController) {
+                        $errors.Add("oversized clipboard controller artifact cannot support an accepted device-result record: $clean")
+                    }
+                    continue
+                }
+                try { $clipboardRecord = $artifactContent | ConvertFrom-Json -ErrorAction Stop }
+                catch {
+                    if ($looksLikeClipboardController -or $declaredController) {
+                        $errors.Add("malformed clipboard controller artifact has unknown provenance and cannot support an accepted device-result record: $clean")
+                    }
+                    continue
+                }
+                $isClipboardControllerRecord = $clipboardRecord.PSObject.Properties.Name -contains 'runId' -and
+                    $clipboardRecord.PSObject.Properties.Name -contains 'case' -and
+                    $clipboardRecord.PSObject.Properties.Name -contains 'targetOutcome' -and
+                    $clipboardRecord.PSObject.Properties.Name -contains 'observation'
+                if ($declaredController -and -not $isClipboardControllerRecord) {
+                    $errors.Add("declared clipboard controller artifact is missing required schema fields and has unknown provenance: $clean")
+                    continue
+                }
+                if ($isClipboardControllerRecord -and $clipboardRecord.executionMode -ne 'physical-device') {
+                    $errors.Add("clipboard controller artifact is simulated or has unknown provenance and cannot support an accepted device-result record: $clean")
+                }
             }
         }
     }
@@ -200,7 +313,7 @@ $temporaryDigestArtifact = Join-Path ([IO.Path]::GetTempPath()) "feature-065-evi
 try {
     Set-Content -LiteralPath $temporaryDigestArtifact -Value 'synthetic artifact before tampering' -NoNewline -Encoding utf8
     $expectedSyntheticDigest = (Get-FileHash -LiteralPath $temporaryDigestArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
-    $digestArtifactCell = '`' + $temporaryDigestArtifact + '` (SHA-256 `' + $expectedSyntheticDigest + '`)' 
+    $digestArtifactCell = '[supporting-evidence] `' + $temporaryDigestArtifact + '` (SHA-256 `' + $expectedSyntheticDigest + '`)'
     $validDigestSynthetic = $validSynthetic.Clone()
     $validDigestSynthetic[9] = $digestArtifactCell
     $syntheticCandidate = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -219,6 +332,122 @@ $null = $invalidExamples.Add((Assert-SyntheticRejection 'candidate Passed record
 $exploratorySynthetic = $validSynthetic.Clone()
 $exploratorySynthetic[2] = 'dirty exploratory worktree; no frozen candidate'
 $null = $invalidExamples.Add((Assert-SyntheticRejection 'exploratory record offered as candidate proof' $exploratorySynthetic 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'))
+
+$simulatedClipboardArtifact = Join-Path ([IO.Path]::GetTempPath()) "renamed-controller-$([guid]::NewGuid().ToString('N')).txt"
+$oversizedClipboardArtifact = $null
+$malformedClipboardArtifact = $null
+$lateMarkerArtifact = $null
+$validLargeArtifact = $null
+try {
+    Set-Content -LiteralPath $simulatedClipboardArtifact -Value '{"executionMode":"simulated","runId":"synthetic","case":"manual-clear","targetOutcome":{},"observation":{}}' -NoNewline -Encoding utf8
+    $physicalSubstitution = @('FR-TEST','Synthetic data','candidate-abc','Controller artifact','Test fixture','Synthetic result','2026-11-15','Simulation','Passed',$simulatedClipboardArtifact)
+    $null = $invalidExamples.Add((Assert-SyntheticRejection 'renamed simulated controller content cannot pass without device claim wording' $physicalSubstitution ''))
+    Set-Content -LiteralPath $simulatedClipboardArtifact -Value '{"runId":"legacy","case":"manual-clear","targetOutcome":{},"observation":{}}' -NoNewline -Encoding utf8
+    $null = $invalidExamples.Add((Assert-SyntheticRejection 'legacy controller content with unknown mode cannot pass' $physicalSubstitution ''))
+    $syntheticCandidate = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    $oversizedClipboardArtifact = Join-Path ([IO.Path]::GetTempPath()) "oversized-controller-$([guid]::NewGuid().ToString('N')).bin"
+    $lateOversizedJson = '{"padding":"' + ('x' * (5MB + 128)) + '","executionMode":"simulated","runId":"large","case":"manual-clear","targetOutcome":{},"observation":{}}'
+    [IO.File]::WriteAllText($oversizedClipboardArtifact, $lateOversizedJson, [Text.Encoding]::UTF8)
+    $oversizedRecord = $physicalSubstitution.Clone()
+    $oversizedRecord[2] = $syntheticCandidate
+    $oversizedDigest = (Get-FileHash -LiteralPath $oversizedClipboardArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $oversizedRecord[9] = '[clipboard-controller] `' + $oversizedClipboardArtifact + '` (SHA-256 `' + $oversizedDigest + '`)'
+    $oversizedErrors = @(Get-RecordErrors $oversizedRecord $syntheticCandidate)
+    if (-not ($oversizedErrors -match 'oversized clipboard controller artifact')) {
+        throw 'Candidate validation did not specifically reject an oversized simulated controller with markers beyond 64 KiB.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate oversized simulation with late schema markers'; Rejected = $true; Reason = ($oversizedErrors -join '; ') })
+    $unlabeledOversizedRecord = $physicalSubstitution.Clone()
+    $unlabeledOversizedRecord[2] = $syntheticCandidate
+    $unlabeledOversizedRecord[9] = '`' + $oversizedClipboardArtifact + '` (SHA-256 `' + $oversizedDigest + '`)'
+    $unlabeledOversizedErrors = @(Get-RecordErrors $unlabeledOversizedRecord $syntheticCandidate)
+    if (-not ($unlabeledOversizedErrors -match 'candidate artifact purpose is missing')) {
+        throw 'Unlabeled oversized candidate controller artifact was not rejected for unknown purpose.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate unlabeled oversized controller'; Rejected = $true; Reason = ($unlabeledOversizedErrors -join '; ') })
+    $malformedClipboardArtifact = Join-Path ([IO.Path]::GetTempPath()) "malformed-controller-$([guid]::NewGuid().ToString('N')).dat"
+    Set-Content -LiteralPath $malformedClipboardArtifact -Value '{"runId":"broken","case":"manual-clear","targetOutcome":{},"observation":{},' -NoNewline -Encoding utf8
+    $malformedRecord = $physicalSubstitution.Clone()
+    $malformedRecord[2] = $syntheticCandidate
+    $malformedDigest = (Get-FileHash -LiteralPath $malformedClipboardArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $malformedRecord[9] = '[clipboard-controller] `' + $malformedClipboardArtifact + '` (SHA-256 `' + $malformedDigest + '`)'
+    $malformedErrors = @(Get-RecordErrors $malformedRecord $syntheticCandidate)
+    if (-not ($malformedErrors -match 'malformed clipboard controller artifact has unknown provenance')) {
+        throw 'Candidate validation did not specifically reject malformed declared controller evidence.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate malformed declared controller'; Rejected = $true; Reason = ($malformedErrors -join '; ') })
+    $missingSchemaArtifact = Join-Path ([IO.Path]::GetTempPath()) "declared-controller-no-schema-$([guid]::NewGuid().ToString('N')).json"
+    Set-Content -LiteralPath $missingSchemaArtifact -Value '{"ordinary":"json"}' -NoNewline -Encoding utf8
+    $missingSchemaRecord = $physicalSubstitution.Clone()
+    $missingSchemaRecord[2] = $syntheticCandidate
+    $missingSchemaDigest = (Get-FileHash -LiteralPath $missingSchemaArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $missingSchemaRecord[9] = '[clipboard-controller] `' + $missingSchemaArtifact + '` (SHA-256 `' + $missingSchemaDigest + '`)'
+    $missingSchemaErrors = @(Get-RecordErrors $missingSchemaRecord $syntheticCandidate)
+    if (-not ($missingSchemaErrors -match 'declared clipboard controller artifact is missing required schema fields')) {
+        throw 'Candidate validation accepted declared clipboard-controller provenance without the controller schema.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate declared controller without schema'; Rejected = $true; Reason = ($missingSchemaErrors -join '; ') })
+    $malformedNoMarkersArtifact = Join-Path ([IO.Path]::GetTempPath()) "declared-malformed-no-markers-$([guid]::NewGuid().ToString('N')).json"
+    Set-Content -LiteralPath $malformedNoMarkersArtifact -Value '{"ordinary":"truncated",' -NoNewline -Encoding utf8
+    $malformedNoMarkersRecord = $physicalSubstitution.Clone()
+    $malformedNoMarkersRecord[2] = $syntheticCandidate
+    $malformedNoMarkersDigest = (Get-FileHash -LiteralPath $malformedNoMarkersArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $malformedNoMarkersRecord[9] = '[clipboard-controller] `' + $malformedNoMarkersArtifact + '` (SHA-256 `' + $malformedNoMarkersDigest + '`)'
+    $malformedNoMarkersErrors = @(Get-RecordErrors $malformedNoMarkersRecord $syntheticCandidate)
+    if (-not ($malformedNoMarkersErrors -match 'malformed clipboard controller artifact has unknown provenance')) {
+        throw 'Malformed declared controller artifact without schema markers was not rejected.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate malformed declared controller without markers'; Rejected = $true; Reason = ($malformedNoMarkersErrors -join '; ') })
+    $lateMarkerArtifact = Join-Path ([IO.Path]::GetTempPath()) "late-controller-$([guid]::NewGuid().ToString('N')).json"
+    $lateJson = '{"padding":"' + ('x' * 70000) + '","executionMode":"simulated","runId":"late","case":"manual-clear","targetOutcome":{},"observation":{}}'
+    Set-Content -LiteralPath $lateMarkerArtifact -Value $lateJson -NoNewline -Encoding utf8
+    $lateRecord = $physicalSubstitution.Clone()
+    $lateRecord[2] = $syntheticCandidate
+    $lateDigest = (Get-FileHash -LiteralPath $lateMarkerArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $lateRecord[9] = '`' + $lateMarkerArtifact + '` (SHA-256 `' + $lateDigest + '`)'
+    $lateErrors = @(Get-RecordErrors $lateRecord $syntheticCandidate)
+    if (-not ($lateErrors -match 'candidate artifact purpose is missing')) {
+        throw 'Unlabeled candidate controller-shaped content was not rejected for unknown purpose.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate unlabeled controller fields after 64 KiB'; Rejected = $true; Reason = ($lateErrors -join '; ') })
+    $validLargeArtifact = Join-Path ([IO.Path]::GetTempPath()) "large-noncontroller-$([guid]::NewGuid().ToString('N')).json"
+    Set-Content -LiteralPath $validLargeArtifact -Value ('{"ordinaryArtifact":"' + ('x' * 70000) + '"}') -NoNewline -Encoding utf8
+    $largeRecord = $physicalSubstitution.Clone()
+    $largeRecord[2] = $syntheticCandidate
+    $largeDigest = (Get-FileHash -LiteralPath $validLargeArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $largeRecord[9] = '[supporting-evidence] `' + $validLargeArtifact + '` (SHA-256 `' + $largeDigest + '`)'
+    if (@(Get-RecordErrors $largeRecord $syntheticCandidate).Count -gt 0) { throw 'Valid unrelated large supporting evidence was rejected in candidate validation.' }
+
+    $unlabeledMalformedArtifact = Join-Path ([IO.Path]::GetTempPath()) "unlabeled-malformed-controller-$([guid]::NewGuid().ToString('N')).dat"
+    Set-Content -LiteralPath $unlabeledMalformedArtifact -Value '{"ordinary":"truncated",' -NoNewline -Encoding utf8
+    $unlabeledMalformedRecord = $physicalSubstitution.Clone()
+    $unlabeledMalformedRecord[2] = $syntheticCandidate
+    $unlabeledMalformedDigest = (Get-FileHash -LiteralPath $unlabeledMalformedArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $unlabeledMalformedRecord[9] = '`' + $unlabeledMalformedArtifact + '` (SHA-256 `' + $unlabeledMalformedDigest + '`)'
+    $unlabeledMalformedErrors = @(Get-RecordErrors $unlabeledMalformedRecord $syntheticCandidate)
+    if (-not ($unlabeledMalformedErrors -match 'candidate artifact purpose is missing')) {
+        throw 'Unlabeled malformed candidate artifact was not rejected for unknown purpose.'
+    }
+    $null = $invalidExamples.Add([pscustomobject]@{ Example = 'candidate unlabeled malformed report'; Rejected = $true; Reason = ($unlabeledMalformedErrors -join '; ') })
+
+    $physicalArtifact = Join-Path ([IO.Path]::GetTempPath()) "physical-controller-$([guid]::NewGuid().ToString('N')).json"
+    Set-Content -LiteralPath $physicalArtifact -Value '{"executionMode":"physical-device","runId":"physical","case":"manual-clear","targetOutcome":{},"observation":{}}' -NoNewline -Encoding utf8
+    $physicalRecord = $physicalSubstitution.Clone()
+    $physicalRecord[2] = $syntheticCandidate
+    $physicalDigest = (Get-FileHash -LiteralPath $physicalArtifact -Algorithm SHA256).Hash.ToLowerInvariant()
+    $physicalRecord[9] = '[clipboard-controller] `' + $physicalArtifact + '` (SHA-256 `' + $physicalDigest + '`)'
+    if (@(Get-RecordErrors $physicalRecord $syntheticCandidate).Count -gt 0) { throw 'Eligible physical controller evidence was rejected by candidate validation.' }
+} finally {
+    Remove-Item -LiteralPath $simulatedClipboardArtifact -Force -ErrorAction SilentlyContinue
+    if ($oversizedClipboardArtifact) { Remove-Item -LiteralPath $oversizedClipboardArtifact -Force -ErrorAction SilentlyContinue }
+    if ($malformedClipboardArtifact) { Remove-Item -LiteralPath $malformedClipboardArtifact -Force -ErrorAction SilentlyContinue }
+    if ($missingSchemaArtifact) { Remove-Item -LiteralPath $missingSchemaArtifact -Force -ErrorAction SilentlyContinue }
+    if ($malformedNoMarkersArtifact) { Remove-Item -LiteralPath $malformedNoMarkersArtifact -Force -ErrorAction SilentlyContinue }
+    if ($lateMarkerArtifact) { Remove-Item -LiteralPath $lateMarkerArtifact -Force -ErrorAction SilentlyContinue }
+    if ($unlabeledMalformedArtifact) { Remove-Item -LiteralPath $unlabeledMalformedArtifact -Force -ErrorAction SilentlyContinue }
+    if ($validLargeArtifact) { Remove-Item -LiteralPath $validLargeArtifact -Force -ErrorAction SilentlyContinue }
+    if ($physicalArtifact) { Remove-Item -LiteralPath $physicalArtifact -Force -ErrorAction SilentlyContinue }
+}
 
 $allLines = Get-Content -LiteralPath $indexPath
 $recordLines = @($allLines | Where-Object { $_ -match '^\|.*\|$' -and $_ -notmatch '^\|\s*-+' })
@@ -241,7 +470,16 @@ for ($rowIndex = 0; $rowIndex -lt $records.Count; $rowIndex++) {
             if ($cells[8] -in @('Passed', 'Satisfied')) { $candidateReleaseClaims++ }
         }
     }
-    $rowErrors = @(Get-RecordErrors $cells $rowCandidate)
+    # Candidate validation checks artifact availability and digests only for rows that
+    # explicitly name the supplied frozen candidate. Historical evidence remains
+    # structurally parsed without requiring old, transient build outputs to survive.
+    $rowErrors = @(Get-RecordErrors $cells $rowCandidate (-not $CandidateRevision -or [bool]$rowCandidate))
+    if ($rowCandidate) {
+        $declaredTree = Get-DeclaredCandidateTree $cells[2]
+        if (-not $candidateTree -or $declaredTree -ine $candidateTree) {
+            $rowErrors += 'candidate revision cell does not declare the exact Git tree for the supplied commit'
+        }
+    }
     if ($cells.Count -eq 10) {
         $statusCounts[$cells[8]] = 1 + [int]$statusCounts[$cells[8]]
         foreach ($clean in (Get-ArtifactCandidates $cells[9])) {
@@ -276,7 +514,7 @@ if ($CandidateRevision) {
     $report.Add("- Candidate commit validated in this repository: ``$CandidateRevision``.")
     $report.Add('- Historical/exploratory records: retained and structurally validated, but excluded from candidate proof unless their revision names the supplied full commit and is not marked exploratory.')
     $report.Add("- Candidate evidence records: $candidateEvidenceRows; Passed/Satisfied candidate claims: $candidateReleaseClaims.")
-    $report.Add('- Worktree matching: not asserted; candidate evidence rows are checked against the supplied commit token, but this report does not prove the dirty worktree equals that commit.')
+    $report.Add("- Candidate tree verified: ``$candidateTree``; evidence rows must declare this exact tree. Worktree equality is not asserted; this does not prove the dirty checkout equals the candidate commit.")
 } else {
     $report.Add('- Candidate: dirty exploratory worktree; no frozen product candidate supplied.')
 }

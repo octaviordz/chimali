@@ -1,10 +1,57 @@
 # Feature 065 independent security review — T042 report
 
-> **Current correction (2026-11-22):** This file is retained as historical supporting material. The recorded “Independent AI Security Reviewer” role does not establish a reviewer demonstrably separate from the remediation author, and no controlled-access evidence is retained to prove that an independent reviewer inspected the restricted raw artifacts. The prior `Accepted with Limitations` disposition therefore does **not** satisfy T042/T114 and is not current release acceptance. The reviewed identity was candidate `49e37f60` / tree `46c871e5`; the current worktree has subsequent source and evidence changes and is dirty. A fresh review of an exact refreshed candidate by a demonstrably separate reviewer remains required. No reviewer identity, access, or approval is asserted by this correction.
+> **Historical correction and superseding review (2026-11-22):** The paragraph immediately below records the correction that preceded the owner-reviewed candidate disposition. It remains relevant to the earlier `49e37f60` review only. The owner subsequently attested non-authorship, confirmed controlled access, completed review of candidate `2627644114f95f7f0c33e7448abc5e0f3961cc26`, and accepted it with limitations. A separate supplemental disposition accepts the four physical API 35 owner-group heap cohorts with the unknown-origin and Java-heap-only limits. These dispositions are scoped to the reviewed candidate and evidence; subsequent clipboard receipt source edits are not covered and require a new candidate/review. No overall release acceptance is asserted.
 
-**Historical status:** The 2026-11-20 record used the disposition `Accepted with Limitations` for candidate `49e37f606c08dd51a899d4728ce23052334c608a`. That disposition is retained as history only; it does not satisfy current T042/T114 or establish release acceptance.
+**Historical status:** The 2026-11-20 record used the disposition `Accepted with Limitations` for candidate `49e37f606c08dd51a899d4728ce23052334c608a`. Its independence/access gaps were corrected by the separate 2026-11-22 review record below; the old disposition itself remains history and does not establish release acceptance.
 
 **Requirement linkage:** FR-016, SC-006, T042.
+
+## Current review record (2026-11-22)
+
+The repository owner completed the review after confirming independence from the remediation author. The owner attested in this session that they did not author or materially edit the remediation; Codex performed the implementation edits and evidence work recorded here. The freeze commit's Git author field uses the owner's configured repository identity, so this metadata is disclosed and is not being used as proof of implementation authorship. The review record is limited to the stated non-authorship basis; no broader organizational or financial conflict declaration was supplied.
+
+| Field | Current state |
+|---|---|
+| Proposed reviewer | Octavio Rodríguez-Castañeda, repository owner; Windows account `LOQ15IRX10-3\octav` |
+| Independence | Owner attested on 2026-11-22 that they did not author/materially edit remediation; implementation was performed by Codex in this session. Review completed within this scope. |
+| Candidate | `2627644114f95f7f0c33e7448abc5e0f3961cc26`, tree `82661bc30660c8ca77a69207e2c246f83caf3109`; local freeze commit, not pushed. |
+| Review status | Completed 2026-11-22; reviewer disposition `Accept with limitations`. See the recorded scope, hashes and findings below. This review disposition is not overall release acceptance. |
+| Controlled-artifact access | On 2026-11-22 the reviewer confirmed access and then reported completing the review. The restricted raw HPROF/dictionary hashes were verified against the candidate report; the ACL grants the reviewer's account FullControl. |
+
+The reviewed packet is `independent-review-packet.md`. It included the local CI gates (`evidence/feature065-candidate-local-ci-20261122.md`), frozen-source FIDO Android host regression (`evidence/fido2-host-candidate-20261122.md`), API 35 passkey heap capture (`evidence/passkey-heap-candidate-api35-20261122.md`), Mi A2/API 29 clipboard matrix (`evidence/clipboard-api29-frozen-candidate-20261122.md`), T036 source inventory reconciliation, and the then-current candidate claim-coverage map. At review time candidate-mode validation passed eight exact-candidate rows with seven Passed/Satisfied claims and one Unverified outcome. The reviewer confirmed access, reported the review complete with an `Accept with limitations` disposition, and the reviewed hashes and scope are recorded below. Subsequent physical API 35 heap evidence is documented separately and was not included in the reviewed packet or disposition. The default historical audit reports one stale artifact digest after FIDO XML regeneration. The prior 2026-11-20 disposition remains historical only.
+
+## Current independent review result — 2026-11-22
+
+**Reviewer:** Octavio Rodríguez-Castañeda, repository owner (`LOQ15IRX10-3\octav`).
+
+**Independence method and disclosed relationship:** The reviewer directly attested that they did not author or materially edit the remediation. The implementation and evidence edits were performed by Codex in this session; the reviewer's Git identity appears as the freeze commit author because the local commit used the configured repository identity. That attribution was disclosed to the reviewer. The independence determination is limited to separation from the remediation author; no broader organizational or financial conflict declaration was supplied.
+
+**Reviewed candidate and scope:** Candidate commit `2627644114f95f7f0c33e7448abc5e0f3961cc26`, tree `82661bc30660c8ca77a69207e2c246f83caf3109`. The reviewer examined the review packet and controlled candidate heap artifacts under `C:\Users\octav\AppData\Local\Chimali\SEC065-heap`, confirmed access, and reported the review complete. The controlled synthetic HPROF/dictionary SHA-256 values verified in this session and recorded in the candidate heap report are:
+
+| Artifact | SHA-256 |
+|---|---|
+| `sec065heap20261122candidatea_baseline.hprof` | `875590E150F51A0FA4974CF47D995A4FD4B3E02D8FA86F3DB4382FF73CDA4A14` |
+| `sec065heap20261122candidatea_active.hprof` | `B8472C9A0DD0A31C7E091FE87CCD1E9958C0481815BAC7AE9719FDAD5A6069F9` |
+| `sec065heap20261122candidatea_terminal.hprof` | `68A232E8BD6B640F38CB8E00FB3A7547442573C627D16A32043DC609877C0C46` |
+| `sec065heap20261122candidatea_expected-markers.txt` | `37AE67B2C74173C2DB70E704E4F902C4CCB5F6D5A85E81C37278C5B09299E6F7` |
+
+**Reviewer findings and limitations (confirmed by the reviewer):**
+
+1. The Mi A2/API 29 locked/sleep case correctly skipped automatic clear when ownership was unavailable, but independent post-wake removal remains Unverified because the secure keyguard prevented observation. API 28 was waived and was not tested.
+2. The evidence packet reviewed initially covered one passkey lifecycle only; vault and recovery/derivation cohorts were absent from that initial scope, so SC-005 was Unverified in the original packet. Subsequent T015 capture work added these cohorts; they received a separate supplemental review and `Accept with limitations` disposition, recorded below.
+3. The FIDO host aggregate HTML and focused `PasskeyAggregateServiceImplTest.xml` were regenerated at their original paths after review. The original expected hashes are preserved in the evidence index and are not replaced with current hashes. The affected candidate evidence row is Unverified until the exact artifacts are restored. The separate historical SEC065-ERR-019 XML retains its original expected digest and is recorded unavailable with Unverified status.
+
+**Disposition:** `Accept with limitations` for the independent review of this candidate and the scoped evidence above. This does not grant overall release acceptance: the unverified/partial scenarios remain open and must not be represented as passing.
+
+## Candidate evidence added after the review
+
+On 2026-11-22, four additional physical ASUS/API 35 heap lifecycle cohorts were captured for wallet recovery/derivation, vault note, vault password/card and passkey-identifying owners. Their sanitized results and restricted artifact hashes are recorded in `evidence/heap-candidate-physical-api35-20261122.md`. These artifacts post-date the original packet review and are outside its initial disposition.
+
+### Supplemental review — 2026-11-22
+
+The reviewer was asked to review the new report and restricted HPROFs under `C:\Users\octav\AppData\Local\Chimali\SEC065-heap`, and to assess the limits that unrooted matches have unknown origin and that no physical/native/provider erasure is claimed. The reviewer responded `Accept with limitations` for the four API 35 physical cohorts. This supplements, but does not broaden or replace, the original packet disposition.
+
+The supplemental disposition covers the four runs listed in `evidence/heap-candidate-physical-api35-20261122.md` and the associated restricted HPROFs and expected-marker dictionaries. It accepts these results as Java-heap reachability evidence for the tested synthetic lifecycles, with the report's unknown-origin, single-device/API cohort, and Java-heap-only limits. It does not establish physical overwrite, native/provider/OS cleanup, or overall release acceptance. The reviewer response did not change the independent review of the Mi A2/API 29 locked/sleep post-wake observation or the disclosed stale historical FIDO XML digest.
 
 ## Reviewer identity and date
 
@@ -95,8 +142,8 @@
 ## Historical final disposition
 
 - **Recorded 2026-11-20 disposition:** `Accepted with Limitations`.
-- **Current T042/T114 disposition:** Not satisfied; a demonstrably separate reviewer must review the exact refreshed candidate and controlled artifacts.
-- **Task checkbox:** Historical completion was superseded by the 2026-11-22 correction; T114 remains open in `tasks.md`.
+- **Current T114 disposition:** The owner-reviewer completed a separate-from-author review of candidate `26276441` and the restricted passkey heap artifacts on 2026-11-22; disposition `Accept with limitations` and the three limitations are recorded above.
+- **Task checkbox:** Historical completion was superseded by the 2026-11-22 correction. Current T114 completion is recorded in `tasks.md` after retaining this candidate-specific review.
 - **Historical release-acceptance claim:** The prior report called candidate `49e37f60` a qualified production release candidate. That claim is withdrawn as current acceptance because reviewer independence and controlled artifact access were not established, and subsequent source/evidence changes exist.
 - **Invalidation triggers:** Any subsequent code change to reviewed source modules, build scripts, security policy scope, or evidence package invalidates this review and requires a fresh candidate freeze and renewed independent review.
 

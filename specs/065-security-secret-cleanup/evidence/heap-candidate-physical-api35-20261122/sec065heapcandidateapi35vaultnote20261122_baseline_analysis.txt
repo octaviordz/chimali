@@ -1,0 +1,11 @@
+objects=444405 classes=21711 instances=239488 arrays=183206 roots=20090
+marker=1 kind=synthetic-text-1 hits=0 rooted=0
+marker=2 kind=synthetic-text-2 hits=0 rooted=0
+marker=3 kind=synthetic-text-3 hits=0 rooted=0
+marker=4 kind=synthetic-text-4 hits=0 rooted=0
+marker=5 kind=synthetic-text-5 hits=0 rooted=0
+marker=6 kind=synthetic-text-6 hits=0 rooted=0
+marker=7 kind=synthetic-text-7 hits=0 rooted=0
+marker=8 kind=positive-control hits=3 rooted=2
+  java.lang.String via StickyClass -> android.os.GraphicsEnvironment.static.sInstance -> android.os.GraphicsEnvironment.mClassLoader -> dalvik.system.PathClassLoader.runtimeInternalObjects -> java.lang.Object[][1135] -> com.chimali.LeakCanaryMnemonicOwnerTest.static.heapAuditPositiveControl -> java.lang.String
+  byte[] via StickyClass -> android.os.GraphicsEnvironment.static.sInstance -> android.os.GraphicsEnvironment.mClassLoader -> dalvik.system.PathClassLoader.runtimeInternalObjects -> java.lang.Object[][1135] -> com.chimali.LeakCanaryMnemonicOwnerTest.static.heapAuditPositiveControl -> java.lang.String.value -> byte[]

@@ -1,6 +1,6 @@
 {
-  "commit": "49e37f606c08dd51a899d4728ce23052334c608a",
-  "tree": "46c871e56b4a99f075c1e6426fd320af2512e9d3",
+  "commit": "2627644114f95f7f0c33e7448abc5e0f3961cc26",
+  "tree": "82661bc30660c8ca77a69207e2c246f83caf3109",
   "modules": [
     "app",
     "core/common",
@@ -76,7 +76,7 @@
     },
     {
       "path": "app/src/androidTest/kotlin/com/chimali/LeakCanaryMnemonicOwnerTest.kt",
-      "sha256": "88b0681fdb6bd823296464ed1803e459b60fe110e71060442ba550b30dbe4f81",
+      "sha256": "177e4545050138c606f7a0502ca7dde99e6dafd335517035062b809a539cd5d7",
       "source_set": "androidTest",
       "platform": "androidtest",
       "disposition": "Relevant",
@@ -2736,7 +2736,7 @@
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/AuthenticatorDashboardComponentsTest.kt",
-      "sha256": "1ff08c8eed2855f75911edbb501311bc659184637aec68acc2a511282525c707",
+      "sha256": "0464fc99652092c6241d9958af47d8deb6b7c7058460efb8070b3400c22716e1",
       "source_set": "androidDeviceTest",
       "platform": "androidDevicetest",
       "disposition": "Relevant",
@@ -2747,7 +2747,7 @@
     },
     {
       "path": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreenTest.kt",
-      "sha256": "b96f8d769991617c560f3c713b5f68ae8a63eeb5d32bc39cfd8fed346b71265d",
+      "sha256": "e32a5b262c42bea7ec865db0b24367448227d01c838ce2b839273555a99ae919",
       "source_set": "androidDeviceTest",
       "platform": "androidDevicetest",
       "disposition": "Relevant",
@@ -3357,7 +3357,7 @@
     },
     {
       "path": "feature/fido2/src/androidHostTest/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStorageOwnershipTest.kt",
-      "sha256": "40dcd9cdca88533df9a72901b65090cb060985f3b16c49d5f3be206e51ad5766",
+      "sha256": "f391ad84acbb7ca4022ca1bcf0fd537688f89e9f5a32b399dca9a64022f26e48",
       "source_set": "androidHostTest",
       "platform": "androidHosttest",
       "disposition": "Relevant",
@@ -4755,7 +4755,7 @@
     },
     {
       "path": "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyEventStoreRepositoryImpl.kt",
-      "sha256": "13fe6713ee630a2dc178883414e7ed70b571b045f55e8892b48da92afb12c68f",
+      "sha256": "f091b88c19fa168f5af4a389e0257c5d37c97be481a88a3003c1dd95e5a2ec10",
       "source_set": "androidMain",
       "platform": "android",
       "disposition": "Relevant",
@@ -4766,7 +4766,7 @@
     },
     {
       "path": "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeySnapshotRepositoryImpl.kt",
-      "sha256": "e3c73a9dc5c68745d2733c81615e6617d5a2424c405bc02b326ad79aa9408252",
+      "sha256": "8b4ed61814c85a1faf3437b471b7ff163b42dc93c61f58905ef16787bdbd4c86",
       "source_set": "androidMain",
       "platform": "android",
       "disposition": "Relevant",
@@ -5721,7 +5721,7 @@
     },
     {
       "path": "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt",
-      "sha256": "c416409086e9352d5597c81bd8eb763982b5c579b0137fd9d74471c880e7378d",
+      "sha256": "f183db7b0144bbb6d70d775afaf824f597add6fc3098d9fe336dd4869a67cf74",
       "source_set": "androidMain",
       "platform": "android",
       "disposition": "Relevant",
@@ -6228,7 +6228,7 @@
     },
     {
       "path": "feature/fido2/src/commonMain/kotlin/com/chimali/fido2/data/eventsourcing/PasskeyAggregateServiceImpl.kt",
-      "sha256": "113349ed101457a408ccd9097c785ea2ff0cdd3457bee92721c7474d11fa3891",
+      "sha256": "9ad56d3db5ccec1ce73d9214b71910841ad459d1ca4e4a3c80f29b9fe5a93fdf",
       "source_set": "commonMain",
       "platform": "common",
       "disposition": "Relevant",
@@ -7415,7 +7415,7 @@
     },
     {
       "path": "tools/security/run-clipboard-observation.ps1",
-      "sha256": "22368cfbe6d3c668841e3795514a5fc74c11a5c219629b7a4ed3f25a2a5f146b",
+      "sha256": "d905bb7ebd79a50ee01d0b46c8f00ded0ba27341dd9fbc6898d42fd63ce918af",
       "source_set": "securityTool",
       "platform": "host",
       "disposition": "Relevant",
@@ -7821,6 +7821,42 @@
       "usage_ids": [
         "U-FIDO-PASSKEY-CREDENTIAL-COPY-TEST-001"
       ]
+    },
+    {
+      "path": "core/crdt/build.gradle.kts",
+      "sha256": "77b685ecbe33bcb55af62a627258f7ab45bfe654f09b37e45d57dc10b87695cd",
+      "source_set": "configuration",
+      "platform": "android",
+      "disposition": "Assessed-no-relevant-usage",
+      "rationale": "The core/crdt Gradle project is not included in settings.gradle.kts and has no configured production or test source set; its Rust bridge is not wired into the app. Reassess if the module is configured.",
+      "usage_ids": []
+    },
+    {
+      "path": "core/crdt/rust/Cargo.toml",
+      "sha256": "85fd9355ec5114af980669b1456609dea85b6e9a54571051c23039ac7997984b",
+      "source_set": "configuration",
+      "platform": "rust",
+      "disposition": "Assessed-no-relevant-usage",
+      "rationale": "Cargo dependencies are declared for an unconfigured Rust bridge with no repository build integration or app caller. Reassess when Rust compilation or bindings are wired into the app.",
+      "usage_ids": []
+    },
+    {
+      "path": "core/crdt/rust/build.rs",
+      "sha256": "e2f86666f45b121a3f334da41a4e80e5c433e01bfa268c1cacda897ad095eb7c",
+      "source_set": "rustBuild",
+      "platform": "rust",
+      "disposition": "Assessed-no-relevant-usage",
+      "rationale": "UniFFI scaffolding build script belongs to the unconfigured Rust bridge; no current application build invokes it. Reassess when Rust compilation or bindings are wired into the app.",
+      "usage_ids": []
+    },
+    {
+      "path": "core/crdt/rust/src/lib.rs",
+      "sha256": "8f30aa395461f93843d0a351c6176012a8c9b87e1da12c9601a7d3318befcb94",
+      "source_set": "rust",
+      "platform": "rust",
+      "disposition": "Assessed-no-relevant-usage",
+      "rationale": "The bridge accepts serialized CRDT state and maps library errors to text, but core/crdt is absent from settings.gradle.kts, has no configured production/test source set, and has no app caller. No current runtime route exists; reassess inputs, error text and ownership if integration is enabled.",
+      "usage_ids": []
     }
   ],
   "usages": [
@@ -8487,7 +8523,7 @@
       "usage_id": "U-APP-MNEMONIC-LEAK-TEST-001",
       "inventory_file": "app/src/androidTest/kotlin/com/chimali/LeakCanaryMnemonicOwnerTest.kt",
       "symbol": "LeakCanaryMnemonicOwnerTest synthetic mnemonic import/reveal lifecycle and passkey-identifying credential-list owner disposal",
-      "revision": "dirty exploratory worktree; refreshed 2026-11-18",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "classification_ids": [
         "CLS-FIDO-001",
         "CLS-FIDO-002",
@@ -9528,7 +9564,7 @@
       "usage_id": "U-CLIP-OBS-HOST-CTRL-027",
       "inventory_file": "tools/security/run-clipboard-observation.ps1",
       "symbol": "run-clipboard-observation.ps1 serialized emulator/physical observer controller",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57 + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "classification_ids": [
         "CLS-VAULT-001"
       ],
@@ -14541,7 +14577,7 @@
       "usage_id": "U-FIDO-AUTHENTICATOR-DASHBOARD-DEVICE-TEST-OWNER-001",
       "inventory_file": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/AuthenticatorDashboardComponentsTest.kt",
       "symbol": "AuthenticatorDashboardComponentsTest.kt sensitive fixture/rendering owner",
-      "revision": "dirty exploratory worktree; source changed/reviewed 2026-11-17",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "classification_ids": [
         "CLS-FIDO-004"
       ],
@@ -19131,7 +19167,7 @@
         "SEC065-CORE-018",
         "SEC065-CORE-024"
       ],
-      "revision": "dirty exploratory worktree; refreshed 2026-11-18",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "representations_and_conversions": [
         "Passkey event/snapshot JSON serialization and parsing; selected fields transfer via mutable CharArray while the credentialId and nonselected serialized fields remain in the sanitized byte copy; configured nested paths compare mutable parsed keys without immutable projections."
       ],
@@ -21779,7 +21815,7 @@
       "usage_id": "U-FIDO-MNEMONIC-DEVTOOLS-UI-001",
       "inventory_file": "feature/fido2/src/androidMain/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreen.kt",
       "symbol": "DevelopmentToolsContent QR and manual recovery input handoff",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57d + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "classification_ids": [
         "CLS-KEY-001"
       ],
@@ -21959,7 +21995,7 @@
       "usage_id": "U-FIDO-MNEMONIC-IME-POLICY-TEST-001",
       "inventory_file": "feature/fido2/src/androidDeviceTest/kotlin/com/chimali/fido2/presentation/ui/DevelopmentToolsScreenTest.kt",
       "symbol": "manualRecoveryDisablesImeLearningAutofillAndExtractedText",
-      "revision": "dirty exploratory worktree; refreshed 2026-11-18",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "classification_ids": [
         "CLS-KEY-001"
       ],
@@ -22886,7 +22922,7 @@
         "SEC065-CORE-016; SEC065-ERR-019; full FIDO host tests; KtLint"
       ],
       "application_owner": "Passkey aggregate state ownership and repository-error boundary",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57 + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "Passkey aggregate state ownership and repository-error boundary",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "aggregate returns an independent copy when releasing an intermediate state and clears event/state owners at terminal boundaries",
@@ -23062,7 +23098,7 @@
         "SEC065-CORE-047; getEvents/getEventsFrom batch-transfer and SQLDelight row-payload cleanup regressions; evidence/passkey-event-replay-batch-transfer.md"
       ],
       "application_owner": "PasskeyEventStoreRepositoryImpl failed event reconstruction owner",
-      "revision": "dirty exploratory worktree; refreshed 2026-11-18",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "PasskeyEventStoreRepositoryImpl failed event reconstruction owner",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "SQLDelight query-row encrypted payload arrays and per-row plaintext are erased after replay; decoded Registered event owners transfer only after successful batch-list copy, then the aggregate caller owns terminal cleanup.",
@@ -23106,7 +23142,7 @@
         "SEC065-CORE-017; retained-event regression and focused host suite; evidence/passkey-event-replay-batch-transfer.md"
       ],
       "application_owner": "Passkey event failed reconstruction retained-owner regression",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57 + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "Passkey event failed reconstruction retained-owner regression",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "test retains a synthetic decoded Registered event and verifies its binary ID and mutable account fields are erased after field attachment failure",
@@ -23284,7 +23320,7 @@
         "SEC065-CORE-018; retained-state regression and focused host suite"
       ],
       "application_owner": "PasskeySnapshotRepositoryImpl failed snapshot reconstruction owner",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57 + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "PasskeySnapshotRepositoryImpl failed snapshot reconstruction owner",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "decoded PasskeyState credential-ID bytes stay temporarily owned until extracted sensitive fields attach and snapshot reconstruction returns; failed attachment erases the untransferred state",
@@ -23327,7 +23363,7 @@
         "SEC065-CORE-018; retained-state regression and focused host suite"
       ],
       "application_owner": "Passkey snapshot failed reconstruction retained-owner regression",
-      "revision": "78812e4d0a2d4ff422e03cd71611d6eb4ab4c57 + dirty exploratory worktree",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "Passkey snapshot failed reconstruction retained-owner regression",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "retains a synthetic decoded Snapshot<PasskeyState> and verifies its credential-ID and mutable text arrays are zero after missing-field attachment fails",
@@ -23537,7 +23573,7 @@
       "finding_ids": [
         "SEC065-ERR-024"
       ],
-      "revision": "dirty exploratory worktree based on 78812e4d0a2d4ff422e03cd71611d6eb4ab4c57",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "representations_and_conversions": [
         "Persistence, encryption, serialization or conversion exception -> fixed cause-free Result failure; cancellation propagates; fatal Error propagates"
       ],
@@ -37098,7 +37134,7 @@
         "SEC065-CORE-047; 21-case PasskeyEventStorageOwnershipTest, persisted-row independence assertion, full FIDO host suite 1,367/175 and KtLint; evidence/passkey-event-replay-batch-transfer.md"
       ],
       "application_owner": "Passkey event failed reconstruction retained-owner regression",
-      "revision": "dirty exploratory worktree; refreshed 2026-11-18",
+      "revision": "2627644114f95f7f0c33e7448abc5e0f3961cc26 tree 82661bc30660c8ca77a69207e2c246f83caf3109; frozen candidate source reconciliation 2026-11-22",
       "symbol": "Passkey event replay batch-transfer failure owner cleanup regression",
       "logging_restrictions": "Raw credential identifier bytes and encoded values must not enter general or unscrubbed logs",
       "ownership_transfer": "tests retain SQLDelight query-row payload buffers passed to decrypt and verify repository erasure after transfer failure; the database still returns persisted ciphertext on a later query; staged Registered event owners and fixture key are cleared.",

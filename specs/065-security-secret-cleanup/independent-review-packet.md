@@ -1,6 +1,6 @@
 # Feature 065 independent security review packet — T042 preparation
 
-**Status:** Prepared for a future independent review. This packet is not a review, finding, approval, or release acceptance. T042 remains `Unverified` until a real independent review is performed against a frozen product candidate.
+**Status (2026-11-22):** The recorded review and supplemental disposition in `independent-review.md` cover frozen candidate `2627644114f95f7f0c33e7448abc5e0f3961cc26` and the explicitly listed heap cohorts, with limitations. This packet is historical handoff material for that review; it does not cover the subsequent clipboard source changes or establish release acceptance. Affected independent review must be refreshed for a new candidate.
 
 **Requirement linkage:** FR-016, SC-006, T042.
 
@@ -163,3 +163,28 @@ This snapshot explains why the packet is prepared but the review cannot yet run:
 - **T042 status:** `Unverified`.
 - **Release acceptance:** not accepted.
 - **Next action:** candidate `49e37f60` is frozen; refresh candidate-bound prerequisites (T036/T037/T041 and build/scope fingerprints), grant controlled artifact access to an independent reviewer, then complete `independent-review.md`.
+
+## Current candidate update — 2026-11-22
+
+The 2026-11-20 snapshot above is historical. The current local freeze candidate is:
+
+- Commit `2627644114f95f7f0c33e7448abc5e0f3961cc26`, tree `82661bc30660c8ca77a69207e2c246f83caf3109`, branch `lab/or/chimali`; freeze commit was created locally with precommit checks and has not been pushed.
+- Candidate product source is frozen at that commit. The current checkout contains follow-up evidence and validator edits; reviewers must inspect the frozen commit/tree and the separately identified evidence package, not assume the checkout is clean or identical.
+- T111 candidate-bound heap evidence is retained in `evidence/passkey-heap-candidate-api35-20261122.md`; raw HPROFs and marker dictionary remain in the ACL-restricted `SEC065-heap` location. Candidate T111 report/XML/restricted artifact hashes are pinned in the evidence index.
+- T112 candidate-bound Mi A2/API 29 clipboard cohort is documented in `evidence/clipboard-api29-frozen-candidate-20261122.md`, with nine sanitized reports pinned in the index. Locked/sleep ownership-unavailable skip passed; independent post-wake removal is Unverified. API 28 was explicitly waived by the owner.
+- Candidate-mode validation for the declared commit/tree parses 623 records, recognizes eight candidate rows, verifies 1,691 linked artifact hashes, reports seven Passed/Satisfied claims and one Unverified clipboard outcome, and rejects all 8 synthetic invalid records. The full no-candidate historical audit reports 1 historical digest mismatch after the FIDO XML was regenerated; the validator report and digest-refresh note preserve this distinction.
+- **Review readiness:** T113 is complete for candidate evidence traceability: `evidence/feature065-candidate-claim-coverage-20261122.md` maps FR-001–FR-016 and SC-001–SC-006 and names partial/unverified outcomes. Reviewer Octavio Rodríguez-Castañeda, repository owner (`LOQ15IRX10-3\octav`), attested non-authorship/material non-editing; Codex performed the edits in this session. The freeze commit's Git author field names the owner because the local commit used the configured repository identity. The reviewer confirmed access, completed the review, and supplied `Accept with limitations`; reviewed scope, raw artifact hashes and three findings are recorded in `independent-review.md`. T114 is complete; overall release acceptance remains Unverified.
+- **Release decision:** The review disposition does not grant overall release acceptance. Keep release acceptance Unverified while the explicitly listed clipboard observation and vault/recovery heap evidence gaps remain unresolved.
+
+## Reviewer handoff status — 2026-11-22
+
+### FIDO report artifact availability correction — 2026-11-22
+
+The candidate FIDO host row and the historical SEC065-ERR-019 row were reconciled after the validator found that report files at the cited paths no longer match their original expected digests. The index preserves the original fingerprints and marks the affected records Unverified. The reviewed report files are unavailable at those paths, so regenerated files have not been substituted. This changes evidence availability after the recorded review and does not change its stated scope or disposition.
+
+This update supersedes the access and T036 statements above:
+
+- The owner-reviewer attested they did not author or materially edit the remediation and confirmed access. They later reported review completion and supplied `Accept with limitations`; the candidate scope, restricted artifact hashes and findings are now recorded in `independent-review.md`.
+- T036 inventory reconciliation has been refreshed to the exact candidate above: 736 file records / 640 usages, all 700 candidate `app/core/feature` source paths covered, zero hash/path/link/duplicate/open-disposition errors, and all 14 configured modules listed. The `core/crdt` orphaned bridge is recorded with a scoped no-current-use rationale. See `evidence/source-inventory-validation.md`.
+- **Packet readiness:** The T114 review record is complete with an `Accept with limitations` disposition. The matrix's partial/unverified owner, clipboard and heap outcomes remain explicit; overall release acceptance remains Unverified until those requirements receive their required evidence and disposition.
+- Before review, read the prerequisite checklist above, the evidence index, T111/T112 candidate reports and restricted heap artifacts, and the assessment's current disposition. Treat locked/sleep post-wake clipboard removal as Unverified; API 28 was waived and not tested.
